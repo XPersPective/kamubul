@@ -277,6 +277,20 @@ class ListingStore {
     Iterable<ListingRecord> incoming, {
     DateTime? pruneBefore,
   }) async {
+    // Arka plan denetimi ve ön plan yenilemesi aynı veritabanına erişebilir;
+    // kilit çakışması tek denemede kaybolabilir.
+    try {
+      await _mergeFeedInner(incoming, pruneBefore: pruneBefore);
+    } on Object {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      await _mergeFeedInner(incoming, pruneBefore: pruneBefore);
+    }
+  }
+
+  Future<void> _mergeFeedInner(
+    Iterable<ListingRecord> incoming, {
+    DateTime? pruneBefore,
+  }) async {
     final db = await database;
     final batch = db.batch();
     final pruneLimit =

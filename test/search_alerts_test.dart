@@ -1,0 +1,155 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kamubul/data/listing_store.dart';
+import 'package:kamubul/data/search_alerts.dart';
+
+void main() {
+  ListingRecord record(
+    String url, {
+    String title = 'İlan',
+    String category = 'Sözleşmeli Personel',
+    DateTime? publishedAt,
+    int? maxAge,
+    String? education,
+    String? kpss,
+    DateTime? deadline,
+    bool saved = false,
+  }) => ListingRecord(
+    url: url,
+    sourceId: 'kariyerkapisi',
+    title: title,
+    category: category,
+    publishedAt: publishedAt ?? DateTime(2026, 9, 20),
+    fetchedAt: DateTime(2026, 9, 27),
+    maxAge: maxAge,
+    education: education,
+    kpss: kpss,
+    deadline: deadline,
+    saved: saved,
+  );
+
+  SavedSearch savedSearch(
+    Map<String, String> filters, {
+    String name = 'Test arama',
+  }) => SavedSearch(
+    id: 1,
+    name: name,
+    filters: filters,
+    createdAt: DateTime(2026, 9, 1),
+  );
+
+  AlertConfig config({int instantSentToday = 0, int? digestSentDay}) => AlertConfig(
+    now: DateTime(2026, 9, 27, 10),
+    quietStartHour: 22,
+    quietEndHour: 8,
+    maxInstantPerDay: 3,
+    instantSentToday: instantSentToday,
+    digestSentDay: digestSentDay,
+  );
+
+  test('eşleştirici temel ve kanıtlı süzgeçleri uygular', () {
+    final filters = {'kategori': '2', 'yas': '35', 'kpss': 'P3'};
+    expect(matchesFilters(record('a', maxAge: 35, kpss: 'P3'), filters), isTrue);
+    // Bilinmeyen yaşlı ilan yaş süzgecinde gösterilmez.
+    expect(matchesFilters(record('b'), filters), isFalse);
+    expect(matchesFilters(record('c', maxAge: 35, kpss: 'P94'), filters), isFalse);
+    expect(matchesFilters(record('d', category: 'İşçi'), filters), isFalse);
+  });
+
+  test('anlık mod: yalnızca yeni ilanlar, günlük tavan', () {
+    final search = savedSearch({'kategori': '2'});
+    final listings = [record('yeni1'), record('yeni2'), record('yeni3'), record('yeni4')];
+    final decision = decideAlerts(
+      search: search,
+      listings: listings,
+      previouslySeen: {},
+      config: config(),
+    );
+    expect(decision.notifications, hasLength(3));
+    expect(decision.seenUrls, hasLength(4));
+  });
+
+  test('aynı ilan ikinci denetimde tekrar bildirilmez', () {
+    final search = savedSearch({'kategori': '2'});
+    final listings = [record('a'), record('b')];
+    final first = decideAlerts(search: search, listings: listings, previouslySeen: {}, config: config());
+    final second = decideAlerts(
+      search: search,
+      listings: listings,
+      previouslySeen: first.seenUrls,
+      config: config(),
+    );
+    expect(second.notifications, isEmpty);
+  });
+
+  test('kapalı mod bildirim üretmez ama görüldü işaretler', () {
+    final search = savedSearch({'kategori': '2', 'bildirim': 'off'});
+    final decision = decideAlerts(
+      search: search,
+      listings: [record('a')],
+      previouslySeen: {},
+      config: config(),
+    );
+    expect(decision.notifications, isEmpty);
+    expect(decision.seenUrls, contains('a'));
+  });
+
+  test('sessiz saatlerde anlık bildirim gönderilmez', () {
+    final search = savedSearch({'kategori': '2'});
+    final night = AlertConfig(
+      now: DateTime(2026, 9, 27, 23, 30),
+      quietStartHour: 22,
+      quietEndHour: 8,
+      maxInstantPerDay: 3,
+      instantSentToday: 0,
+      digestSentDay: null,
+    );
+    final decision = decideAlerts(
+      search: search,
+      listings: [record('a')],
+      previouslySeen: {},
+      config: night,
+    );
+    expect(decision.notifications, isEmpty);
+  });
+
+  test('özet mod günde bir kez, kuyrukla gönderilir', () {
+    final search = savedSearch({'kategori': '2', 'bildirim': 'digest'});
+    final listings = [record('a'), record('b')];
+    final first = decideAlerts(search: search, listings: listings, previouslySeen: {}, config: config());
+    expect(first.notifications, hasLength(1));
+    expect(first.notifications.single.title, contains('2 yeni ilan'));
+    // Aynı gün ikinci denetim: yeni ilan yoksa özet tekrarlanmaz.
+    final second = decideAlerts(
+      search: search,
+      listings: listings,
+      previouslySeen: first.seenUrls,
+      config: config(digestSentDay: 27),
+    );
+    expect(second.notifications, isEmpty);
+  });
+
+  test('son başvuru hatırlatıcısı kayıtlı ilanda bir kez çalışır', () {
+    final soon = record(
+      'hatirla',
+      deadline: DateTime(2026, 9, 29),
+      saved: true,
+    );
+    final reminder = deadlineReminder(
+      record: soon,
+      alreadyReminded: {},
+      now: DateTime(2026, 9, 27),
+    );
+    expect(reminder, isNotNull);
+    expect(reminder!.title, 'Son 2 gün');
+    // Kaydedilmemiş ilan hatırlatılmaz.
+    expect(
+      deadlineReminder(record: record('kayitsiz', deadline: DateTime(2026, 9, 29)), alreadyReminded: {}, now: DateTime(2026, 9, 27)),
+      isNull,
+    );
+    // Süresi geçmiş ilan hatırlatılmaz.
+    expect(
+      deadlineReminder(record: soon, alreadyReminded: {}, now: DateTime(2026, 10, 1)),
+      isNull,
+    );
+  });
+}

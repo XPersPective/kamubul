@@ -8,11 +8,13 @@ import 'package:napp_pro/napp_pro.dart';
 
 import 'home_page.dart';
 import 'ads_state.dart';
+import 'notifications/alert_service.dart';
 
 const contactEmail = String.fromEnvironment('CONTACT_EMAIL');
 const privacyUrl = String.fromEnvironment(
   'PRIVACY_URL',
-  defaultValue: 'https://github.com/XPersPective/kamubul/blob/master/PRIVACY.md',
+  defaultValue:
+      'https://github.com/XPersPective/kamubul/blob/master/PRIVACY.md',
 );
 const sourceUrl = 'https://github.com/XPersPective/kamubul';
 const otherAppsUrl = String.fromEnvironment('OTHER_APPS_URL');
@@ -65,6 +67,7 @@ Future<void> main() async {
     }());
   }
   WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
+  unawaited(registerBackgroundAlerts());
   runApp(
     KamuBulApp(
       identity: identity,

@@ -5,6 +5,8 @@ import 'package:napp_pro/napp_pro.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'data/listing_store.dart';
+import 'data/search_alerts.dart';
+import 'notifications/alert_service.dart';
 import 'listings/kariyer_detail.dart';
 import 'listings/kariyer_detail_page.dart';
 import 'listings/extract_conditions.dart';
@@ -339,6 +341,16 @@ class _KamuHomePageState extends State<KamuHomePage> {
     );
     await _loadLocal();
     if (mounted) setState(() => _activeSearchName = created.name);
+    await _maybeAskNotificationPermission();
+  }
+
+  /// İlk kayıtlı aramadan sonra yumuşak izin açıklaması gösterilir;
+  /// reddedilirse uygulama aynen çalışır.
+  Future<void> _maybeAskNotificationPermission() async {
+    if (widget.store.getInt('kamubul.alerts.asked') != null) return;
+    widget.store.setInt('kamubul.alerts.asked', 1);
+    if (_searches.length > 1 || !mounted) return;
+    await requestAlertPermission(context);
   }
 
   /// Kayıtlı arama formu: ad + profil eşleşmesi için yaş/eğitim/KPSS.
@@ -445,14 +457,26 @@ class _KamuHomePageState extends State<KamuHomePage> {
               ListTile(
                 leading: const Icon(Icons.label_outline),
                 title: Text(search.name),
-                subtitle: Text(_filterSummary(search)),
-                trailing: IconButton(
-                  tooltip: 'Sil',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () async {
-                    await _store.deleteSavedSearch(search.id!);
-                    if (sheetContext.mounted) Navigator.pop(sheetContext, true);
+                subtitle: Text(
+                  '${_filterSummary(search)}\nBildirim: ${_modeLabel(alertModeOf(search.filters))}',
+                ),
+                isThreeLine: true,
+                trailing: PopupMenuButton<String>(
+                  tooltip: 'Bildirim modu',
+                  icon: const Icon(Icons.notifications_outlined),
+                  onSelected: (value) async {
+                    final filters = <String, String>{...search.filters};
+                    filters['bildirim'] = value;
+                    await _store.updateSavedSearch(
+                      search.copyWith(filters: filters),
+                    );
+                    await _loadLocal();
                   },
+                  itemBuilder: (menuContext) => const [
+                    PopupMenuItem(value: 'instant', child: Text('Anlık bildirim')),
+                    PopupMenuItem(value: 'digest', child: Text('Günlük özet')),
+                    PopupMenuItem(value: 'off', child: Text('Kapalı')),
+                  ],
                 ),
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -469,6 +493,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
       if (!stillExists) setState(() => _activeSearchName = null);
     }
   }
+
+  String _modeLabel(SearchAlertMode mode) => switch (mode) {
+    SearchAlertMode.instant => 'Anlık',
+    SearchAlertMode.digest => 'Günlük özet',
+    SearchAlertMode.off => 'Kapalı',
+  };
 
   String _filterSummary(SavedSearch search) {
     final parts = <String>[];
@@ -929,6 +959,31 @@ class _KamuHomePageState extends State<KamuHomePage> {
         ),
       ),
       ListTile(
+        leading: const Icon(Icons.notifications_outlined),
+        title: const Text('Bildirimler'),
+        subtitle: const Text(
+          'Kayıtlı aramalarınıza uyan ilanlar ve son başvuru hatırlatıcıları. '
+          'Sessiz saatler: 22:00-08:00.',
+        ),
+        onTap: () async {
+          final granted = await requestAlertPermission(context);
+          if (!mounted) return;
+          final checked = granted ? await runAlertCheckNow() : 0;
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                granted
+                    ? (checked == 0
+                        ? 'Bildirimler açık. Yeni ilan geldiğinde haber verilir.'
+                        : 'Bildirimler açık. $checked uyarı gönderildi.')
+                    : 'Bildirim izni verilmedi; uygulama yine de çalışır.',
+              ),
+            ),
+          );
+        },
+      ),
+      ListTile(
         leading: const Icon(Icons.source_outlined),
         title: const Text('Resmî kaynaklar'),
         onTap: () => Navigator.of(context).push(
@@ -1033,3 +1088,4 @@ class _SourcesPage extends StatelessWidget {
     ),
   );
 }
+
