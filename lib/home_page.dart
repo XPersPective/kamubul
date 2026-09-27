@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'data/listing_store.dart';
 import 'listings/kariyer_detail.dart';
 import 'listings/kariyer_detail_page.dart';
+import 'listings/extract_conditions.dart';
 import 'listings/kariyer_feed.dart';
 import 'listings/sbb_feed.dart';
 
@@ -53,6 +54,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
   String _search = '';
   bool _last30 = false;
   String? _place;
+  int? _ageFilter;
+  String? _educationFilter;
+  String? _kpssFilter;
   String? _activeSearchName;
   bool _loading = false;
   String? _error;
@@ -190,6 +194,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
       quota: detail.quota > 0 ? detail.quota : null,
       places: detail.places,
     );
+    final conditionText = [
+      detail.body,
+      for (final position in detail.positions) position.conditions,
+    ].join('\n');
+    await _store.applyConditions(url, extractConditions(conditionText));
     await _loadLocal();
   }
 
@@ -240,6 +249,18 @@ class _KamuHomePageState extends State<KamuHomePage> {
         !record.title.toLowerCase().contains(_place!.toLowerCase())) {
       return false;
     }
+    // Yaş/eğitim/KPSS süzgeçleri yalnızca alıntı kanıtlı çıkarılmış alanlarda
+    // uygulanır; bilinmeyen değerli ilan bu etikette gösterilmez.
+    if (_ageFilter != null &&
+        (record.maxAge == null || record.maxAge! < _ageFilter!)) {
+      return false;
+    }
+    if (_educationFilter != null && record.education != _educationFilter) {
+      return false;
+    }
+    if (_kpssFilter != null && record.kpss != _kpssFilter) {
+      return false;
+    }
     return record.title.toLowerCase().contains(_search.toLowerCase());
   }).toList();
 
@@ -251,6 +272,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _place = (search.filters['sehir'] ?? '').isEmpty
           ? null
           : search.filters['sehir'];
+      _ageFilter = int.tryParse(search.filters['yas'] ?? '');
+      _educationFilter = (search.filters['egitim'] ?? '').isEmpty
+          ? null
+          : search.filters['egitim'];
+      _kpssFilter = (search.filters['kpss'] ?? '').isEmpty
+          ? null
+          : search.filters['kpss'];
       _activeSearchName = search.name;
     });
   }
@@ -261,6 +289,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _category = 0;
       _last30 = false;
       _place = null;
+      _ageFilter = null;
+      _educationFilter = null;
+      _kpssFilter = null;
       _activeSearchName = null;
     });
   }
@@ -270,15 +301,20 @@ class _KamuHomePageState extends State<KamuHomePage> {
     'kategori': '$_category',
     'son30': _last30 ? '1' : '0',
     'sehir': ?_place,
+    'yas': ?_ageFilter?.toString(),
+    'egitim': ?_educationFilter,
+    'kpss': ?_kpssFilter,
   };
 
   Future<void> _saveCurrentSearch() async {
-    final name = await _promptText(
-      title: 'Aramayı kaydet',
-      label: 'Kayıtlı arama adı',
-      initial: _activeSearchName,
-    );
-    if (name == null || name.trim().isEmpty) return;
+    final saved = await _promptSearchFilters();
+    if (saved == null) return;
+    final (name, yas, egitim, kpss) = saved;
+    if (name.trim().isEmpty) return;
+    final filters = <String, String>{..._currentFilters};
+    if (yas != null) filters['yas'] = '$yas';
+    if (egitim != null) filters['egitim'] = egitim;
+    if (kpss != null) filters['kpss'] = kpss;
     if (_activeSearchName != null) {
       SavedSearch? existing;
       for (final search in _searches) {
@@ -286,7 +322,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       }
       if (existing != null) {
         await _store.updateSavedSearch(
-          existing.copyWith(name: name.trim(), filters: _currentFilters),
+          existing.copyWith(name: name.trim(), filters: filters),
         );
         await _loadLocal();
         if (mounted) setState(() => _activeSearchName = name.trim());
@@ -297,12 +333,92 @@ class _KamuHomePageState extends State<KamuHomePage> {
       SavedSearch(
         id: null,
         name: name.trim(),
-        filters: _currentFilters,
+        filters: filters,
         createdAt: DateTime.now(),
       ),
     );
     await _loadLocal();
     if (mounted) setState(() => _activeSearchName = created.name);
+  }
+
+  /// Kayıtlı arama formu: ad + profil eşleşmesi için yaş/eğitim/KPSS.
+  Future<(String, int?, String?, String?)?> _promptSearchFilters() {
+    final nameController = TextEditingController(text: _activeSearchName);
+    final ageController = TextEditingController(
+      text: _ageFilter?.toString() ?? '',
+    );
+    final kpssController = TextEditingController(text: _kpssFilter ?? '');
+    var education = _educationFilter;
+    return showDialog<(String, int?, String?, String?)>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Aramayı kaydet'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: const InputDecoration(labelText: 'Arama adı'),
+                ),
+                TextField(
+                  controller: ageController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Yaşınız (uyum için, isteğe bağlı)',
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: education,
+                  decoration: const InputDecoration(
+                    labelText: 'Eğitim düzeyi (isteğe bağlı)',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Lise', child: Text('Lise')),
+                    DropdownMenuItem(
+                      value: 'Ön lisans',
+                      child: Text('Ön lisans'),
+                    ),
+                    DropdownMenuItem(value: 'Lisans', child: Text('Lisans')),
+                    DropdownMenuItem(
+                      value: 'Yüksek lisans',
+                      child: Text('Yüksek lisans'),
+                    ),
+                    DropdownMenuItem(value: 'Doktora', child: Text('Doktora')),
+                  ],
+                  onChanged: (value) => setDialogState(() => education = value),
+                ),
+                TextField(
+                  controller: kpssController,
+                  decoration: const InputDecoration(
+                    labelText: 'KPSS puan türü (örn. P3, P93)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Vazgeç'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, (
+                nameController.text,
+                int.tryParse(ageController.text.trim()),
+                education,
+                kpssController.text.trim().isEmpty
+                    ? null
+                    : kpssController.text.trim().toUpperCase(),
+              )),
+              child: const Text('Kaydet'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _manageSearches() async {
@@ -365,36 +481,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
     if (search.filters['son30'] == '1') parts.add('son 30 gün');
     final sehir = search.filters['sehir'];
     if (sehir != null && sehir.isNotEmpty) parts.add(sehir);
+    final yas = search.filters['yas'];
+    if (yas != null && yas.isNotEmpty) parts.add('yaş $yas');
+    final egitim = search.filters['egitim'];
+    if (egitim != null && egitim.isNotEmpty) parts.add(egitim);
+    final kpss = search.filters['kpss'];
+    if (kpss != null && kpss.isNotEmpty) parts.add('KPSS $kpss');
     return parts.isEmpty ? 'Süzgeç yok' : parts.join(' • ');
-  }
-
-  Future<String?> _promptText({
-    required String title,
-    required String label,
-    String? initial,
-  }) {
-    final controller = TextEditingController(text: initial);
-    return showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: label),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Vazgeç'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text),
-            child: const Text('Kaydet'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -574,6 +667,39 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     label: Text(_place!),
                     onDeleted: () => setState(() {
                       _place = null;
+                      _activeSearchName = null;
+                    }),
+                  ),
+                ),
+              if (_ageFilter != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InputChip(
+                    label: Text('Yaş uyarı: $_ageFilter'),
+                    onDeleted: () => setState(() {
+                      _ageFilter = null;
+                      _activeSearchName = null;
+                    }),
+                  ),
+                ),
+              if (_educationFilter != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InputChip(
+                    label: Text(_educationFilter!),
+                    onDeleted: () => setState(() {
+                      _educationFilter = null;
+                      _activeSearchName = null;
+                    }),
+                  ),
+                ),
+              if (_kpssFilter != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InputChip(
+                    label: Text('KPSS $_kpssFilter'),
+                    onDeleted: () => setState(() {
+                      _kpssFilter = null;
                       _activeSearchName = null;
                     }),
                   ),

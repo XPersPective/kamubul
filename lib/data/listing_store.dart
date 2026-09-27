@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../listings/extract_conditions.dart';
+
 /// Yerel ilan kataloğu: sürümlü şema, birleştirmeli yenileme, budama.
 ///
 /// Kullanıcının kaydettiği ilanlar asla sessizce silinmez; yalnızca kaydedilmemiş
@@ -22,6 +24,10 @@ class ListingRecord {
     this.education,
     this.maxAge,
     this.quotaType,
+    this.kpssQuote,
+    this.educationQuote,
+    this.maxAgeQuote,
+    this.quotaTypeQuote,
     this.saved = false,
     this.savedAt,
   });
@@ -39,6 +45,10 @@ class ListingRecord {
   final String? education;
   final int? maxAge;
   final String? quotaType;
+  final String? kpssQuote;
+  final String? educationQuote;
+  final String? maxAgeQuote;
+  final String? quotaTypeQuote;
   final bool saved;
   final DateTime? savedAt;
 
@@ -103,6 +113,10 @@ class ListingRecord {
       education: row['education'] as String?,
       maxAge: row['maxAge'] is int ? row['maxAge'] as int : null,
       quotaType: row['quotaType'] as String?,
+      kpssQuote: row['kpssQuote'] as String?,
+      educationQuote: row['educationQuote'] as String?,
+      maxAgeQuote: row['maxAgeQuote'] as String?,
+      quotaTypeQuote: row['quotaTypeQuote'] as String?,
       saved: row['saved'] == 1,
       savedAt: _date(row['savedAt']),
     );
@@ -195,7 +209,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 1;
+  static const int _schemaVersion = 2;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -216,6 +230,10 @@ class ListingStore {
         education TEXT,
         maxAge INTEGER,
         quotaType TEXT,
+        kpssQuote TEXT,
+        educationQuote TEXT,
+        maxAgeQuote TEXT,
+        quotaTypeQuote TEXT,
         saved INTEGER NOT NULL DEFAULT 0,
         savedAt INTEGER
       )
@@ -230,9 +248,26 @@ class ListingStore {
     ''');
   }
 
-  Future<void> _upgrade(Database db, int oldVersion, int newVersion) async {
-    // v1: ilk şema. Sonraki sürümlerde göçler buraya eklenir ve test edilir.
+  /// v1 → v2: şart alıntısı sütunları. Mevcut veri korunur.
+  static Future<void> upgradeSchema(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      for (final column in [
+        'kpssQuote TEXT',
+        'educationQuote TEXT',
+        'maxAgeQuote TEXT',
+        'quotaTypeQuote TEXT',
+      ]) {
+        await db.execute('ALTER TABLE listings ADD COLUMN $column');
+      }
+    }
   }
+
+  Future<void> _upgrade(Database db, int oldVersion, int newVersion) =>
+      upgradeSchema(db, oldVersion, newVersion);
 
   /// Akıştan gelen ilanları birleştirir: mevcut kayıt korunur, kaydedilen
   /// ilanların saved bayrağı asla sıfırlanmaz. Kaydedilmemiş ve [pruneBefore]
@@ -306,6 +341,27 @@ class ListingStore {
         'deadline': ?deadline?.millisecondsSinceEpoch,
         'quota': ?quota,
         if (places.isNotEmpty) 'places': jsonEncode(places),
+      },
+      where: 'url = ?',
+      whereArgs: [url],
+    );
+  }
+
+  /// Şart çıkarımı sonuçlarını alıntı kanıtlarıyla birlikte yazar.
+  /// Alıntısı olmayan değer yazılmaz; alan "belirtilmemiş" kalır.
+  Future<void> applyConditions(String url, ConditionFields fields) async {
+    final db = await database;
+    await db.update(
+      'listings',
+      {
+        'kpss': ?fields.kpssType?.value,
+        'kpssQuote': ?fields.kpssType?.quote,
+        'education': ?fields.education?.value,
+        'educationQuote': ?fields.education?.quote,
+        'maxAge': ?fields.maxAge?.value,
+        'maxAgeQuote': ?fields.maxAge?.quote,
+        'quotaType': ?fields.quotaType?.value,
+        'quotaTypeQuote': ?fields.quotaType?.quote,
       },
       where: 'url = ?',
       whereArgs: [url],

@@ -143,6 +143,59 @@ void main() {
     await store.close();
   });
 
+  test('v1 veritabanı v2ye göçerken veri korunur ve alıntı sütunları eklenir', () async {
+    final dbPath = '${DateTime.now().microsecondsSinceEpoch}-mig.db';
+    // v1 şemasını elle kur, örnek kayıt yaz.
+    final v1 = await databaseFactory.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(version: 1, onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE listings (
+            url TEXT PRIMARY KEY, sourceId TEXT NOT NULL, title TEXT NOT NULL,
+            category TEXT NOT NULL, publishedAt INTEGER, fetchedAt INTEGER NOT NULL,
+            deadline INTEGER, quota INTEGER, places TEXT NOT NULL DEFAULT '[]',
+            kpss TEXT, education TEXT, maxAge INTEGER, quotaType TEXT,
+            saved INTEGER NOT NULL DEFAULT 0, savedAt INTEGER
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE saved_searches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+            filters TEXT NOT NULL, createdAt INTEGER NOT NULL
+          )
+        ''');
+      }),
+    );
+    await v1.insert('listings', {
+      'url': 'eski',
+      'sourceId': 'kariyerkapisi',
+      'title': 'Eski kayıt',
+      'category': '',
+      'fetchedAt': DateTime(2026, 9, 1).millisecondsSinceEpoch,
+      'saved': 1,
+    });
+    await v1.close();
+    // v2 ile yeniden aç: upgradeSchema çalışmalı, veri durmalı.
+    final v2 = await databaseFactory.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(
+        version: 2,
+        onCreate: ListingStore.createSchema,
+        onUpgrade: ListingStore.upgradeSchema,
+      ),
+    );
+    final rows = await v2.query('listings');
+    expect(rows.single['title'], 'Eski kayıt');
+    expect(rows.single['kpssQuote'], isNull);
+    final columns = await v2.rawQuery('PRAGMA table_info(listings)');
+    expect(
+      columns.map((c) => c['name']),
+      containsAll(['kpssQuote', 'educationQuote', 'maxAgeQuote', 'quotaTypeQuote']),
+    );
+    await v2.close();
+    await databaseFactory.deleteDatabase(dbPath);
+  });
+
   test('bozuk kayıtlı arama süzgeci boş okunur', () async {
     final search = SavedSearch.fromRow({
       'id': 1,

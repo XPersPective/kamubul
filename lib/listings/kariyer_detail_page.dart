@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'extract_conditions.dart';
 import 'kariyer_detail.dart';
 import 'kariyer_feed.dart';
 
@@ -112,6 +113,12 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
     final keyConditions = {
       for (final position in detail.positions) ...position.keyConditions,
     }.take(6).toList();
+    final conditions = extractConditions(
+      [
+        detail.body,
+        for (final position in detail.positions) position.conditions,
+      ].join('\n'),
+    );
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -208,6 +215,47 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
           ),
           const SizedBox(height: 12),
         ],
+        if (conditions.kpssType != null ||
+            conditions.kpssScore != null ||
+            conditions.maxAge != null ||
+            conditions.education != null) ...[
+          Text('Şart alanları', style: Theme.of(context).textTheme.titleMedium),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (conditions.kpssType != null)
+                    _evidenceField(
+                      'KPSS puan türü',
+                      conditions.kpssType!.value,
+                      conditions.kpssType!.quote,
+                    ),
+                  if (conditions.kpssScore != null)
+                    _evidenceField(
+                      'KPSS taban puan',
+                      conditions.kpssScore!.value.toString(),
+                      conditions.kpssScore!.quote,
+                    ),
+                  if (conditions.maxAge != null)
+                    _evidenceField(
+                      'Yaş sınırı',
+                      '${conditions.maxAge!.value} yaş',
+                      conditions.maxAge!.quote,
+                    ),
+                  if (conditions.education != null)
+                    _evidenceField(
+                      'Eğitim',
+                      conditions.education!.value,
+                      conditions.education!.quote,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (detail.body.isNotEmpty) ...[
           Text('İlan metni', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
@@ -227,6 +275,25 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
       ],
     );
   }
+
+  Widget _evidenceField(String label, String value, String quote) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label: $value',
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        Text(
+          '"$quote"',
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(fontStyle: FontStyle.italic),
+        ),
+      ],
+    ),
+  );
 
   Widget _fact(String label, String? value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 3),
