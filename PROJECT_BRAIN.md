@@ -1,15 +1,13 @@
-# PROJECT BRAIN — napp_app_template
-
-> **Status:** şablon deposu; tool/new_app.dart ile uygulamalar üretilir
-> **Phase:** PLAN · **Next:** kaynak erişimi/izin kanıtı · **Updated:** 2026-09-27 · **Synced@:** none
-> **Goal:** KamuBul v1 · **Goal status:** DRAFT
+# Project Brain — KamuBul
 
 ## 0. PROTOCOL
 
-Bu depo şablondur: uygulama beyinleri üretilen projelerde tutulur.
-Kural kaynağı: ORTAK_UYGULAMA_STANDARDI.md (bu repoda).
+Bu depoda çalışmaya başlamadan önce `C:/Users/rubicon/.codex/skills/project-brain/SKILL.md`
+protokolünü oku. Git durumunu incele, aktif görevin kabul ölçütlerini doğrula, mimari
+bilgiyi `current.md` ile eşleştir ve her güvenli kontrol noktasında commit/push yap.
 
-KamuBul ürün araştırması ve uygulama sırası: [KAMUBUL_PLAN.md](KAMUBUL_PLAN.md).
-Şu an çalışan ilan uygulaması yoktur. İlk iş, resmî kaynakların programatik
-erişim ve yeniden kullanım koşullarını doğrulamaktır; plan bunları kesinleşmiş
-varsaymaz. Uygulama üretildiğinde mevcut mimari koddan yeniden belgelenir.
+Güncel proje kaydı `.project-brain/` dizinindedir. Başlangıç sırası:
+`config.yaml` → `current.md` → `target.md` → `constraints.md` → hazır görev.
+Mevcut mimari yalnızca `current.md` içinde, ürün hedefi `target.md` içinde,
+uygulama sırası `tasks/` içinde tutulur. `ORTAK_UYGULAMA_STANDARDI.md`
+kuralları geçerlidir.

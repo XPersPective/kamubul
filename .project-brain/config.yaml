@@ -1,0 +1,10 @@
+schema_version: 3
+architecture:
+  mode: single
+git:
+  history_mode: preserve
+  push_policy: every-task
+tasks:
+  id_prefix: PB
+verification:
+  default_risk: medium
