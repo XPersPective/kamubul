@@ -250,7 +250,7 @@ void _gradleRelease(_Options o) {
   if (props.existsSync() &&
       !props.readAsStringSync().contains('kotlin.incremental')) {
     props.writeAsStringSync(
-        props.readAsStringSync() + 'kotlin.incremental=false\n');
+        '${props.readAsStringSync()}kotlin.incremental=false\n');
   }
   final path = 'android/app/build.gradle.kts';
   var gradle = _normalize(File(path).readAsStringSync());
@@ -372,7 +372,7 @@ void _pubspec(_Options o) {
     }
     pubspec = pubspec.replaceFirst(
       'dev_dependencies:',
-      overrides.toString() + 'dev_dependencies:',
+      '${overrides}dev_dependencies:',
     );
   }
 

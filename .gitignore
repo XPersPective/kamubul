@@ -42,6 +42,7 @@ pubspec_overrides.yaml
 
 # --- İşletim sistemi ---
 Thumbs.db
+.idea/
 .DS_Store
 
 # --- Yerel doğrulama artefaktları ---

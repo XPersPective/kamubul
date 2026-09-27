@@ -1,19 +1,23 @@
-# napp_app_template
+# KamuBul
 
-CrazyPenguin (XPersPective) icin yeni Flutter uygulaması şablonu.
+Türkiye'deki resmî kamu iş ilanlarını takip etmek için Flutter uygulaması. **Geliştirme aşamasında; mağazaya hazır değildir.** Şu an Kariyer Kapısı'nın herkese açık RSS akışından ilanlar okunur. İŞKUR, ilan.gov.tr, Resmî Gazete ve belediye tarayıcıları; yerel ilan veritabanı, bildirimler ve API asistanı henüz tamamlanmadı.
 
-## Yeni uygulama açma
+## Çalıştırma
 
-1. Bu şablonu klonla: git clone https://github.com/XPersPective/napp_app_template.git yeni-uygulama && cd yeni-uygulama
-2. Kurulum betiğini çalıştır:
+Flutter 3.47+ ile:
 
-   dart run tool/new_app.dart      --name "Uygulama Adı" --package com.crazypenguin.uygulama      --ads yes --pro yes --data local      --source-icon assets/brand/example_source_icon.png
+```sh
+flutter pub get
+flutter run
+flutter analyze
+flutter test
+dart run tool/check_live_feed.dart
+```
 
-3. Betik: flutter create (güncel android/ios), platform ayarları (AdMob,
-   R8 keep, yalnızca HTTPS, yedekleme kuralları, imza), pubspec'e seçilen
-   napp paketleri (git etiketine sabitli), PROJECT_BRAIN.md bölüm 0 tablosu,
-   ikon üretimi ve analyze/test/release-build doğrulaması yapar.
+`napp_core`, `napp_pro`, `napp_ads` Git etiketlerine sabittir. Ücretli AI anahtarı uygulamaya gömülmez. AdMob test kimlikleriyle açılır; gerçek kimlikler ve iletişim adresi yalnızca yayın yapılandırmasından gelir. `android/key.properties.example` örnektir, gerçek imza dosyası repoya girmez.
 
-Kural kaynağı: ORTAK_UYGULAMA_STANDARDI.md. Çalışma protokolü: AGENTS.md
-→ PROJECT_BRAIN.md. Lisans: GPL-3.0. Uygulama adı ve logosu markadır;
-lisansa dahil değildir.
+## Proje devamlılığı
+
+Ürün hedefi, mevcut mimari ve sıralı görevler [Project Brain](.project-brain/target.md) içinde. [Ortak uygulama standardı](ORTAK_UYGULAMA_STANDARDI.md) geçerlidir. [Gizlilik açıklaması](PRIVACY.md) yalnızca mevcut geliştirme sürümünün davranışını anlatır; reklam ve AI özellikleri yayınlanmadan önce mağaza beyanları yeniden doğrulanacaktır.
+
+Kod GPL-3.0 lisanslıdır. KamuBul adı ve logosu lisansa dahil değildir.
