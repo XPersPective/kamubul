@@ -6,9 +6,11 @@ import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 
+import 'data/listing_store.dart';
 import 'home_page.dart';
 import 'ads_state.dart';
 import 'notifications/alert_service.dart';
+import 'ui/onboarding_page.dart';
 
 const contactEmail = String.fromEnvironment('CONTACT_EMAIL');
 const privacyUrl = String.fromEnvironment(
@@ -122,7 +124,7 @@ class KamuBulApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('tr'), Locale('en')],
-      home: KamuHomePage(
+      home: _AppHome(
         identity: identity,
         store: store,
         theme: theme,
@@ -135,4 +137,70 @@ class KamuBulApp extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// İlk açılışta 4 adımlı, atlanabilir onboarding; sonrasında ana ekran.
+class _AppHome extends StatefulWidget {
+  const _AppHome({
+    required this.identity,
+    required this.store,
+    required this.theme,
+    required this.pro,
+    required this.purchase,
+    required this.policy,
+    required this.banner,
+    required this.rewarded,
+    required this.saveAdState,
+  });
+
+  final AppIdentity identity;
+  final SettingsStore store;
+  final ThemeModeController theme;
+  final ProController pro;
+  final PurchaseRepository purchase;
+  final AdPolicy policy;
+  final BannerAdController banner;
+  final RewardedAdManager rewarded;
+  final VoidCallback saveAdState;
+
+  @override
+  State<_AppHome> createState() => _AppHomeState();
+}
+
+class _AppHomeState extends State<_AppHome> {
+  late bool _onboarded = widget.store.getInt('kamubul.onboarded') != null;
+
+  @override
+  Widget build(BuildContext context) => _onboarded
+      ? KamuHomePage(
+          identity: widget.identity,
+          store: widget.store,
+          theme: widget.theme,
+          pro: widget.pro,
+          purchase: widget.purchase,
+          policy: widget.policy,
+          banner: widget.banner,
+          rewarded: widget.rewarded,
+          saveAdState: widget.saveAdState,
+        )
+      : OnboardingPage(
+          onCreate: (filters) async {
+            final listingStore = ListingStore();
+            try {
+              await listingStore.addSavedSearch(
+                SavedSearch(
+                  id: null,
+                  name: 'Sizin için',
+                  filters: filters,
+                  createdAt: DateTime.now(),
+                ),
+              );
+            } finally {
+              await listingStore.close();
+            }
+            widget.store.setInt('kamubul.onboarded', 1);
+            widget.store.setInt('kamubul.alerts.asked', 1);
+          },
+          onDone: () => setState(() => _onboarded = true),
+        );
 }

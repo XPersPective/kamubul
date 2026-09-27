@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -12,6 +13,7 @@ import 'listings/kariyer_detail_page.dart';
 import 'listings/extract_conditions.dart';
 import 'listings/kariyer_feed.dart';
 import 'listings/sbb_feed.dart';
+import 'ui/premium.dart';
 
 class KamuHomePage extends StatefulWidget {
   const KamuHomePage({
@@ -185,6 +187,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   }
 
   Future<void> _toggleSaved(ListingRecord record) async {
+    HapticFeedback.mediumImpact();
     await _store.setSaved(record.url, !record.saved);
     await _loadLocal();
   }
@@ -473,7 +476,10 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     await _loadLocal();
                   },
                   itemBuilder: (menuContext) => const [
-                    PopupMenuItem(value: 'instant', child: Text('Anlık bildirim')),
+                    PopupMenuItem(
+                      value: 'instant',
+                      child: Text('Anlık bildirim'),
+                    ),
                     PopupMenuItem(value: 'digest', child: Text('Günlük özet')),
                     PopupMenuItem(value: 'off', child: Text('Kapalı')),
                   ],
@@ -598,9 +604,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       SliverToBoxAdapter(child: _intro()),
       SliverToBoxAdapter(child: _filters()),
       if (_loading && _records.isEmpty)
-        const SliverFillRemaining(
-          child: Center(child: CircularProgressIndicator()),
-        )
+        SliverToBoxAdapter(child: listingSkeletons())
       else if (_visibleRecords.isEmpty)
         SliverFillRemaining(
           child: _emptyState(
@@ -673,10 +677,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   child: ChoiceChip(
                     label: Text(label),
                     selected: _category == index,
-                    onSelected: (_) => setState(() {
-                      _category = index;
-                      _activeSearchName = null;
-                    }),
+                    onSelected: (_) {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _category = index;
+                        _activeSearchName = null;
+                      });
+                    },
                   ),
                 ),
               Padding(
@@ -684,10 +691,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
                 child: FilterChip(
                   label: const Text('Son 30 gün'),
                   selected: _last30,
-                  onSelected: (value) => setState(() {
-                    _last30 = value;
-                    _activeSearchName = null;
-                  }),
+                  onSelected: (value) {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _last30 = value;
+                      _activeSearchName = null;
+                    });
+                  },
                 ),
               ),
               if (_place != null)
@@ -738,6 +748,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ),
         ),
         const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            '${_visibleRecords.length} ilan',
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+        ),
         Row(
           children: [
             Expanded(child: _savedSearchChips()),
@@ -788,17 +805,22 @@ class _KamuHomePageState extends State<KamuHomePage> {
       margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => record.sourceId == 'kamuilan_sbb'
+        onTap: () {
+          HapticFeedback.selectionClick();
+          if (record.sourceId == 'kamuilan_sbb') {
             // SBB kayıtları doğrudan resmî PDF belgeyi açar.
-            ? _open(Uri.parse(record.url))
-            : Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => KariyerDetailPage(
-                    listing: _asPublicListing(record),
-                    onLoaded: (detail) => _cacheDetail(record.url, detail),
-                  ),
-                ),
+            _open(Uri.parse(record.url));
+            return;
+          }
+          Navigator.of(context).push(
+            sharedAxisRoute<void>(
+              KariyerDetailPage(
+                listing: _asPublicListing(record),
+                onLoaded: (detail) => _cacheDetail(record.url, detail),
               ),
+            ),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -975,8 +997,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
               content: Text(
                 granted
                     ? (checked == 0
-                        ? 'Bildirimler açık. Yeni ilan geldiğinde haber verilir.'
-                        : 'Bildirimler açık. $checked uyarı gönderildi.')
+                          ? 'Bildirimler açık. Yeni ilan geldiğinde haber verilir.'
+                          : 'Bildirimler açık. $checked uyarı gönderildi.')
                     : 'Bildirim izni verilmedi; uygulama yine de çalışır.',
               ),
             ),
@@ -1088,4 +1110,3 @@ class _SourcesPage extends StatelessWidget {
     ),
   );
 }
-
