@@ -1,0 +1,172 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'package:napp_core/napp_core.dart';
+@@IF_PRO@@import 'package:napp_pro/napp_pro.dart';
+@@END@@@@IF_ADS@@import 'package:napp_ads/napp_ads.dart';
+@@END@@
+// Gizli degerler KODA YAZILMAZ; derlemede --dart-define ile verilir (1.2).
+const contactEmail = String.fromEnvironment('CONTACT_EMAIL');
+const privacyUrl = String.fromEnvironment('PRIVACY_URL',
+    defaultValue: 'https://example.com/privacy');
+const sourceUrl = String.fromEnvironment('SOURCE_URL',
+    defaultValue: 'https://github.com/XPersPective/@@PROJECT_NAME@@');
+const otherAppsUrl = String.fromEnvironment('OTHER_APPS_URL');
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final store = await SettingsStore.load();
+  final themeModeController = ThemeModeController(store: store)..load();
+  final identity = AppIdentity(
+    appName: '@@APP_NAME@@',
+    packageName: '@@PACKAGE_NAME@@',
+    sourceUrl: sourceUrl,
+    privacyPolicyUrl: privacyUrl,
+    contactEmail: contactEmail.isEmpty ? 'hello@example.com' : contactEmail,
+    otherAppsUrl: otherAppsUrl.isEmpty ? null : otherAppsUrl,
+    sloganKey: 'app.slogan',
+  );
+@@IF_PRO@@  final repository = PurchaseRepository(
+    adapter: InAppPurchaseAdapter(),
+    productId: '@@PRODUCT_ID@@',
+  );
+  final proController = ProController(store: store, repository: repository)
+    ..load();
+  proController.startListening();
+@@END@@@@IF_ADS@@  final policy = AdPolicy();
+  final bannerController = BannerAdController(policy: policy);
+  final rewardedManager = RewardedAdManager(policy: policy);
+  final interstitialManager = InterstitialAdManager(policy: policy);
+  final appOpenManager = AppOpenAdManager(policy: policy);
+  unawaited(() async {
+    final ready = await ConsentManager.initialize();
+    if (!ready) return;
+    policy.setSdkReady(true);
+    bannerController.load();
+    await rewardedManager.load();
+    await interstitialManager.load();
+    if (policy.canShowAppOpen(DateTime.now())) {
+      await appOpenManager.tryLoad(DateTime.now());
+      await appOpenManager.showIfAvailable();
+    }
+  }());
+@@END@@  WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
+  runApp(NappApp(
+    identity: identity,
+    themeModeController: themeModeController,@@IF_PRO@@
+    proController: proController,
+    repository: repository,@@END@@@@IF_ADS@@
+    policy: policy,
+    bannerController: bannerController,
+    rewardedManager: rewardedManager,
+    interstitialManager: interstitialManager,@@END@@
+  ));
+}
+
+class NappApp extends StatelessWidget {
+  const NappApp({
+    super.key,
+    required this.identity,
+    required this.themeModeController,@@IF_PRO@@
+    required this.proController,
+    required this.repository,@@END@@@@IF_ADS@@
+    required this.policy,
+    required this.bannerController,
+    required this.rewardedManager,
+    required this.interstitialManager,@@END@@
+  });
+
+  final AppIdentity identity;
+  final ThemeModeController themeModeController;@@IF_PRO@@
+  final ProController proController;
+  final PurchaseRepository repository;@@END@@@@IF_ADS@@
+  final AdPolicy policy;
+  final BannerAdController bannerController;
+  final RewardedAdManager rewardedManager;
+  final InterstitialAdManager interstitialManager;@@END@@
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([themeModeController@@IF_PRO@@, proController@@END@@]),
+      builder: (context, _) => MaterialApp(
+        title: identity.appName,
+        theme: AppTheme.light(brandColor: identity.brandColor),
+        darkTheme: AppTheme.dark(brandColor: identity.brandColor),
+        themeMode: themeModeController.mode,
+        localizationsDelegates: [
+          NappLocalizationsDelegate(NappTranslations({})),
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('tr'), Locale('en')],
+        home: HomePage(
+          identity: identity,@@IF_PRO@@
+          proController: proController,
+          repository: repository,@@END@@@@IF_ADS@@
+          policy: policy,
+          bannerController: bannerController,
+          rewardedManager: rewardedManager,
+          interstitialManager: interstitialManager,@@END@@
+        ),
+      ),
+    );
+  }
+}
+
+class HomePage extends StatelessWidget {
+  const HomePage({
+    super.key,
+    required this.identity,@@IF_PRO@@
+    required this.proController,
+    required this.repository,@@END@@@@IF_ADS@@
+    required this.policy,
+    required this.bannerController,
+    required this.rewardedManager,
+    required this.interstitialManager,@@END@@
+  });
+
+  final AppIdentity identity;@@IF_PRO@@
+  final ProController proController;
+  final PurchaseRepository repository;@@END@@@@IF_ADS@@
+  final AdPolicy policy;
+  final BannerAdController bannerController;
+  final RewardedAdManager rewardedManager;
+  final InterstitialAdManager interstitialManager;@@END@@
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = NappLocalizations.of(context);
+    final body = Center(child: Text(l10n.aboutTitle));
+    final actions = <Widget>[@@IF_ADS@@
+      GiftFlow(
+        policy: policy,
+        rewardedManager: rewardedManager,
+        onRewardEarned: () =>
+            proController.grantTemporaryPro(const Duration(hours: 24)),
+      ),@@END@@
+    ];
+    return Scaffold(
+      appBar: AppBar(title: Text(identity.appName), actions: actions),
+      body: body,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [@@IF_ADS@@
+          BannerAdWidget(controller: bannerController),@@END@@
+          NavigationBar(
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Ana sayfa',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,49 @@
+# --- ORTAK_UYGULAMA_STANDARDI.md 1.1 — bu bölümden hiçbir satır çıkarılmaz ---
+.env
+.env.*
+*.env
+!.env.example
+android/key.properties
+android/local.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.p8
+*.mobileprovision
+*.cer
+google-services.json
+GoogleService-Info.plist
+**/firebase_options.dart
+service-account*.json
+*-credentials.json
+fastlane/report.xml
+fastlane/*.json
+fastlane/.env*
+ios/Pods/
+build/
+.dart_tool/
+coverage/
+*.log
+.idea/workspace.xml
+.vscode/settings.json
+*.symbols
+
+# --- Flutter / Dart derleme çıktıları (1.1'i zayıflatmayan ekler) ---
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+pubspec_overrides.yaml
+*.iml
+
+# --- İşletim sistemi ---
+Thumbs.db
+.DS_Store
+
+# --- Yerel doğrulama artefaktları ---
+.screenshots/
+ios/Flutter/AdsConfig.xcconfig

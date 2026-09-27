@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  analyze_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Melos bootstrap
+        run: |
+          dart pub get
+          dart run melos bootstrap
+      - name: Analyze
+        run: dart run melos exec -- flutter analyze --fatal-infos
+      - name: Test
+        run: dart run melos exec -- flutter test
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build_verify:
+    runs-on: ubuntu-latest
+    needs: analyze_and_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Melos bootstrap
+        run: |
+          dart pub get
+          dart run melos bootstrap
+      - name: Build core_only release APK
+        run: flutter build apk --release
+        working-directory: examples/core_only
+      - name: Build full release APK
+        run: flutter build apk --release
+        working-directory: examples/full
+      - name: Verify core_only is free of ads/billing classes + report sizes
+        run: |
+          chmod +x tool/check_apk.sh
+          echo "## APK boyutları" >> "$GITHUB_STEP_SUMMARY"
+          echo "- core_only: $(du -m examples/core_only/build/app/outputs/flutter-apk/app-release.apk | cut -f1) MB" >> "$GITHUB_STEP_SUMMARY"
+          echo "- full: $(du -m examples/full/build/app/outputs/flutter-apk/app-release.apk | cut -f1) MB" >> "$GITHUB_STEP_SUMMARY"
+          ./tool/check_apk.sh examples/core_only/build/app/outputs/flutter-apk/app-release.apk --expect-clean
+
+  emulator_smoke:
+    runs-on: ubuntu-latest
+    needs: analyze_and_test
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        example: [core_only, full]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Melos bootstrap
+        run: |
+          dart pub get
+          dart run melos bootstrap
+      - name: Build release APK
+        run: flutter build apk --release
+        working-directory: examples/${{ matrix.example }}
+      - name: Emulator smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          script: |
+            adb install "examples/${{ matrix.example }}/build/app/outputs/flutter-apk/app-release.apk"
+            PACKAGE=$(grep -o 'applicationId = "[^"]*"' "examples/${{ matrix.example }}/android/app/build.gradle.kts" | cut -d'"' -f2)
+            adb shell am start -W -n "$PACKAGE/.MainActivity"
+            sleep 12
+            FOREGROUND=$(adb shell dumpsys activity activities | grep topResumedActivity)
+            echo "$FOREGROUND"
+            echo "$FOREGROUND" | grep -q "$PACKAGE"

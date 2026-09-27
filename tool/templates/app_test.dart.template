@@ -1,0 +1,10 @@
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:@@PROJECT_NAME@@/main.dart';
+
+void main() {
+  test('kurulum tamam; NappApp tanımlı', () {
+    expect(NappApp, isNotNull);
+    expect('@@PRODUCT_ID@@'.endsWith('_pro_lifetime'), isTrue);
+  });
+}
