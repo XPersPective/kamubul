@@ -12,6 +12,7 @@ import 'listings/kariyer_detail.dart';
 import 'listings/kariyer_detail_page.dart';
 import 'listings/extract_conditions.dart';
 import 'listings/kariyer_feed.dart';
+import 'listings/listing_guide.dart';
 import 'listings/sbb_feed.dart';
 import 'ui/premium.dart';
 
@@ -907,42 +908,45 @@ class _KamuHomePageState extends State<KamuHomePage> {
         )
       : ListView(children: [_intro(), ..._visibleRecords.map(_listingCard)]);
 
-  Widget _assistantView() => ListView(
-    padding: const EdgeInsets.all(20),
-    children: [
-      Icon(
-        Icons.auto_awesome,
-        size: 48,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-      const SizedBox(height: 12),
-      Text('İlan Rehberi', style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 8),
-      const Text(
-        'İlan koşullarını anlamanız ve size uygun ilanları bulmanız için hazırlanıyor.',
-      ),
-      if (_assistantListing != null) ...[
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            title: Text(_assistantListing!.title),
-            subtitle: const Text('Resmî ilan bağlantısı hazır'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => _open(Uri.parse(_assistantListing!.url)),
+  Widget _assistantView() {
+    final selected = _assistantListing;
+    if (selected != null) {
+      return ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text('Seçili ilan', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Card(
+            child: ListTile(
+              title: Text(selected.title),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () => _open(Uri.parse(selected.url)),
+            ),
           ),
+          const SizedBox(height: 8),
+          ListingGuideView(listingUrl: selected.url),
+        ],
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Icon(
+          Icons.auto_awesome,
+          size: 48,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(height: 12),
+        Text('İlan Rehberi', style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 8),
+        const Text(
+          'Bir ilanın yanındaki "Rehbere sor" düğmesine dokunun; yaş, eğitim, '
+          'KPSS gibi koşulları kaynak cümlesiyle yanıtlayalım. Serbest soru '
+          'sorma (yapay zekâ sohbeti) hazırlanıyor.',
         ),
       ],
-      const SizedBox(height: 16),
-      const TextField(
-        enabled: false,
-        decoration: InputDecoration(
-          labelText: 'İlan hakkında sorun',
-          helperText: 'API bağlantısı ve kaynaklı yanıtlar hazırlanıyor.',
-          border: OutlineInputBorder(),
-        ),
-      ),
-    ],
-  );
+    );
+  }
 
   Widget _settingsView() => ListView(
     children: [
