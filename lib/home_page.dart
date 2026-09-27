@@ -4,6 +4,8 @@ import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'data/listing_store.dart';
+import 'listings/kariyer_detail.dart';
 import 'listings/kariyer_detail_page.dart';
 import 'listings/kariyer_feed.dart';
 
@@ -36,22 +38,84 @@ class KamuHomePage extends StatefulWidget {
 }
 
 class _KamuHomePageState extends State<KamuHomePage> {
-  static const _savedKey = 'kamubul.saved_urls';
+  static const _legacySavedKey = 'kamubul.saved_urls';
+  static const _pruneAfter = Duration(days: 45);
+  static const _kategoriAdlari = [
+    'Tümü',
+    'İŞKUR / İşçi',
+    'Personel',
+    'Belediye',
+  ];
+
   int _tab = 0;
   int _category = 0;
   String _search = '';
+  bool _last30 = false;
+  String? _place;
+  String? _activeSearchName;
   bool _loading = false;
   String? _error;
   DateTime? _lastRefresh;
-  List<PublicListing> _items = const [];
-  late final Set<String> _saved =
-      widget.store.getStringList(_savedKey)?.toSet() ?? <String>{};
-  PublicListing? _assistantListing;
+  List<ListingRecord> _records = const [];
+  List<SavedSearch> _searches = const [];
+  ListingRecord? _assistantListing;
+  final ListingStore _store = ListingStore();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _migrateLegacyBookmarks();
+      await _loadLocal();
+      await _refresh();
+    });
+  }
+
+  /// PB-002 öncesi URL listesiyle kaydedilen yer imlerini veritabanına taşır.
+  Future<void> _migrateLegacyBookmarks() async {
+    final legacy = widget.store.getStringList(_legacySavedKey);
+    if (legacy == null || legacy.isEmpty) return;
+    final now = DateTime.now();
+    final migrated = <ListingRecord>[];
+    for (final raw in legacy) {
+      final url = Uri.tryParse(raw);
+      if (url == null || url.host != 'kariyerkapisi.gov.tr') continue;
+      migrated.add(
+        ListingRecord(
+          url: raw,
+          sourceId: 'kariyerkapisi',
+          title: 'Kaydedilmiş ilan',
+          category: '',
+          publishedAt: null,
+          fetchedAt: now,
+          saved: true,
+          savedAt: now,
+        ),
+      );
+    }
+    if (migrated.isNotEmpty) {
+      try {
+        await _store.mergeFeed(migrated, pruneBefore: now);
+      } on Exception {
+        // Taşıma sonraki açılışta yeniden denenir; liste korunur.
+        return;
+      }
+    }
+    widget.store.setStringList(_legacySavedKey, const []);
+  }
+
+  Future<void> _loadLocal() async {
+    try {
+      final records = await _store.allListings();
+      final searches = await _store.savedSearches();
+      if (!mounted) return;
+      setState(() {
+        _records = records;
+        _searches = searches;
+      });
+    } on Exception {
+      // Yerel okuma hatası: boş katalogla çevrimiçi yenileme denenir.
+    }
   }
 
   Future<void> _refresh() async {
@@ -62,11 +126,21 @@ class _KamuHomePageState extends State<KamuHomePage> {
     });
     try {
       final items = await loadKariyerFeed();
+      final now = DateTime.now();
+      await _store.mergeFeed([
+        for (final item in items)
+          ListingRecord(
+            url: item.url.toString(),
+            sourceId: 'kariyerkapisi',
+            title: item.title,
+            category: item.category,
+            publishedAt: item.publishedAt,
+            fetchedAt: now,
+          ),
+      ], pruneBefore: now.subtract(_pruneAfter));
+      await _loadLocal();
       if (!mounted) return;
-      setState(() {
-        _items = items;
-        _lastRefresh = DateTime.now();
-      });
+      setState(() => _lastRefresh = now);
     } catch (_) {
       if (!mounted) return;
       setState(
@@ -77,13 +151,19 @@ class _KamuHomePageState extends State<KamuHomePage> {
     }
   }
 
-  void _toggleSaved(PublicListing item) {
-    setState(() {
-      if (!_saved.add(item.url.toString())) {
-        _saved.remove(item.url.toString());
-      }
-      widget.store.setStringList(_savedKey, _saved.toList());
-    });
+  Future<void> _toggleSaved(ListingRecord record) async {
+    await _store.setSaved(record.url, !record.saved);
+    await _loadLocal();
+  }
+
+  Future<void> _cacheDetail(String url, KariyerDetail detail) async {
+    await _store.applyDetail(
+      url,
+      deadline: detail.deadline,
+      quota: detail.quota > 0 ? detail.quota : null,
+      places: detail.places,
+    );
+    await _loadLocal();
   }
 
   Future<void> _open(Uri url) async {
@@ -100,8 +180,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
     }
   }
 
-  List<PublicListing> get _visibleItems => _items.where((item) {
-    if (_tab == 1 && !_saved.contains(item.url.toString())) return false;
+  List<ListingRecord> get _visibleRecords => _records.where((record) {
+    if (_tab == 1 && !record.saved) return false;
     if (_tab == 0 && _category == 1) {
       // İŞKUR kaynağı PB-003'te eklenene kadar bu sekme bilinçli olarak boş;
       // kaynak kimliğiyle filtreleme o görevde gelir.
@@ -109,31 +189,200 @@ class _KamuHomePageState extends State<KamuHomePage> {
     }
     if (_tab == 0 &&
         _category == 2 &&
-        !item.category.toLowerCase().contains('personel')) {
+        !record.category.toLowerCase().contains('personel')) {
       return false;
     }
     if (_tab == 0 &&
         _category == 3 &&
-        !item.title.toLowerCase().contains('belediye')) {
+        !record.title.toLowerCase().contains('belediye')) {
       return false;
     }
-    return item.title.toLowerCase().contains(_search.toLowerCase());
+    if (_last30) {
+      final published = record.publishedAt;
+      if (published == null ||
+          published.isBefore(
+            DateTime.now().subtract(const Duration(days: 30)),
+          )) {
+        return false;
+      }
+    }
+    if (_place != null &&
+        !record.places.any(
+          (place) => place.toLowerCase().contains(_place!.toLowerCase()),
+        ) &&
+        !record.title.toLowerCase().contains(_place!.toLowerCase())) {
+      return false;
+    }
+    return record.title.toLowerCase().contains(_search.toLowerCase());
   }).toList();
+
+  void _applySearch(SavedSearch search) {
+    setState(() {
+      _search = search.filters['q'] ?? '';
+      _category = int.tryParse(search.filters['kategori'] ?? '') ?? 0;
+      _last30 = search.filters['son30'] == '1';
+      _place = (search.filters['sehir'] ?? '').isEmpty
+          ? null
+          : search.filters['sehir'];
+      _activeSearchName = search.name;
+    });
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _search = '';
+      _category = 0;
+      _last30 = false;
+      _place = null;
+      _activeSearchName = null;
+    });
+  }
+
+  Map<String, String> get _currentFilters => {
+    'q': _search,
+    'kategori': '$_category',
+    'son30': _last30 ? '1' : '0',
+    'sehir': ?_place,
+  };
+
+  Future<void> _saveCurrentSearch() async {
+    final name = await _promptText(
+      title: 'Aramayı kaydet',
+      label: 'Kayıtlı arama adı',
+      initial: _activeSearchName,
+    );
+    if (name == null || name.trim().isEmpty) return;
+    if (_activeSearchName != null) {
+      SavedSearch? existing;
+      for (final search in _searches) {
+        if (search.name == _activeSearchName) existing = search;
+      }
+      if (existing != null) {
+        await _store.updateSavedSearch(
+          existing.copyWith(name: name.trim(), filters: _currentFilters),
+        );
+        await _loadLocal();
+        if (mounted) setState(() => _activeSearchName = name.trim());
+        return;
+      }
+    }
+    final created = await _store.addSavedSearch(
+      SavedSearch(
+        id: null,
+        name: name.trim(),
+        filters: _currentFilters,
+        createdAt: DateTime.now(),
+      ),
+    );
+    await _loadLocal();
+    if (mounted) setState(() => _activeSearchName = created.name);
+  }
+
+  Future<void> _manageSearches() async {
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          children: [
+            Text(
+              'Kayıtlı aramalar',
+              style: Theme.of(sheetContext).textTheme.titleMedium,
+            ),
+            if (_searches.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Henüz kayıtlı arama yok. Süzgeçleri seçip kaydedin.',
+                ),
+              ),
+            for (final search in _searches)
+              ListTile(
+                leading: const Icon(Icons.label_outline),
+                title: Text(search.name),
+                subtitle: Text(_filterSummary(search)),
+                trailing: IconButton(
+                  tooltip: 'Sil',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () async {
+                    await _store.deleteSavedSearch(search.id!);
+                    if (sheetContext.mounted) Navigator.pop(sheetContext, true);
+                  },
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _applySearch(search);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+    await _loadLocal();
+    if (changed == true && _activeSearchName != null && mounted) {
+      final stillExists = _searches.any((s) => s.name == _activeSearchName);
+      if (!stillExists) setState(() => _activeSearchName = null);
+    }
+  }
+
+  String _filterSummary(SavedSearch search) {
+    final parts = <String>[];
+    final q = search.filters['q'];
+    if (q != null && q.isNotEmpty) parts.add('"$q"');
+    final kategori = int.tryParse(search.filters['kategori'] ?? '') ?? 0;
+    if (kategori > 0 && kategori < _kategoriAdlari.length) {
+      parts.add(_kategoriAdlari[kategori]);
+    }
+    if (search.filters['son30'] == '1') parts.add('son 30 gün');
+    final sehir = search.filters['sehir'];
+    if (sehir != null && sehir.isNotEmpty) parts.add(sehir);
+    return parts.isEmpty ? 'Süzgeç yok' : parts.join(' • ');
+  }
+
+  Future<String?> _promptText({
+    required String title,
+    required String label,
+    String? initial,
+  }) {
+    final controller = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(labelText: label),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor: scheme.primaryContainer,
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
               child: Icon(
                 Icons.account_balance_outlined,
                 size: 18,
-                color: scheme.onPrimaryContainer,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
             ),
             const SizedBox(width: 10),
@@ -198,24 +447,24 @@ class _KamuHomePageState extends State<KamuHomePage> {
     slivers: [
       SliverToBoxAdapter(child: _intro()),
       SliverToBoxAdapter(child: _filters()),
-      if (_loading && _items.isEmpty)
+      if (_loading && _records.isEmpty)
         const SliverFillRemaining(
           child: Center(child: CircularProgressIndicator()),
         )
-      else if (_visibleItems.isEmpty)
+      else if (_visibleRecords.isEmpty)
         SliverFillRemaining(
           child: _emptyState(
             _error ??
                 (_category == 1
                     ? 'İŞKUR otomatik bağlantısı hazırlanıyor. Resmî siteye Kaynaklar ekranından ulaşabilirsiniz.'
                     : 'Bu seçimde henüz doğrulanmış ilan yok.'),
-            onPressed: _refresh,
+            onPressed: _clearFilters,
           ),
         )
       else
         SliverList.builder(
-          itemCount: _visibleItems.length,
-          itemBuilder: (_, index) => _listingCard(_visibleItems[index]),
+          itemCount: _visibleRecords.length,
+          itemBuilder: (_, index) => _listingCard(_visibleRecords[index]),
         ),
     ],
   );
@@ -232,7 +481,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
         const SizedBox(height: 4),
         Text(
           _lastRefresh == null
-              ? 'Kariyer Kapısı akışı yükleniyor.'
+              ? 'Katalog cihazdan yükleniyor.'
               : 'Kariyer Kapısı • Son kontrol: ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -258,43 +507,110 @@ class _KamuHomePageState extends State<KamuHomePage> {
             hintText: 'Kurum veya meslek ara',
             border: OutlineInputBorder(),
           ),
-          onChanged: (value) => setState(() => _search = value),
+          onChanged: (value) => setState(() {
+            _search = value;
+            _activeSearchName = null;
+          }),
         ),
         const SizedBox(height: 8),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              for (final (index, label) in [
-                'Tümü',
-                'İŞKUR / İşçi',
-                'Personel',
-                'Belediye',
-              ].indexed)
+              for (final (index, label) in _kategoriAdlari.indexed)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
                     label: Text(label),
                     selected: _category == index,
-                    onSelected: (_) => setState(() => _category = index),
+                    onSelected: (_) => setState(() {
+                      _category = index;
+                      _activeSearchName = null;
+                    }),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: const Text('Son 30 gün'),
+                  selected: _last30,
+                  onSelected: (value) => setState(() {
+                    _last30 = value;
+                    _activeSearchName = null;
+                  }),
+                ),
+              ),
+              if (_place != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InputChip(
+                    label: Text(_place!),
+                    onDeleted: () => setState(() {
+                      _place = null;
+                      _activeSearchName = null;
+                    }),
                   ),
                 ),
             ],
           ),
         ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(child: _savedSearchChips()),
+            IconButton(
+              tooltip: 'Bu aramayı kaydet',
+              onPressed: _saveCurrentSearch,
+              icon: const Icon(Icons.bookmark_add_outlined),
+            ),
+            IconButton(
+              tooltip: 'Kayıtlı aramaları yönet',
+              onPressed: _manageSearches,
+              icon: const Icon(Icons.manage_search),
+            ),
+          ],
+        ),
       ],
     ),
   );
 
-  Widget _listingCard(PublicListing item) {
-    final saved = _saved.contains(item.url.toString());
+  Widget _savedSearchChips() {
+    if (_searches.isEmpty) {
+      return Text(
+        'Süzgeçleri kaydedip tek dokunuşla uygulayın.',
+        style: Theme.of(context).textTheme.bodySmall,
+      );
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final search in _searches)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(search.name),
+                selected: _activeSearchName == search.name,
+                onSelected: (_) => _applySearch(search),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _listingCard(ListingRecord record) {
+    final expired = record.expired;
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => KariyerDetailPage(listing: item),
+            builder: (_) => KariyerDetailPage(
+              listing: _asPublicListing(record),
+              onLoaded: (detail) => _cacheDetail(record.url, detail),
+            ),
           ),
         ),
         child: Padding(
@@ -303,31 +619,56 @@ class _KamuHomePageState extends State<KamuHomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                item.category.isEmpty ? 'Kamu ilanı' : item.category,
+                record.category.isEmpty ? 'Kamu ilanı' : record.category,
                 style: TextStyle(color: Theme.of(context).colorScheme.primary),
               ),
               const SizedBox(height: 8),
-              Text(item.title, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                record.title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
-              Text('Kariyer Kapısı • ${_date(item.publishedAt)}'),
-              const Text('Son başvuru tarihi: kaynakta kontrol edin'),
+              Text('Kariyer Kapısı • ${_date(record.publishedAt)}'),
+              Text(
+                record.deadline == null
+                    ? 'Son başvuru tarihi: kaynakta kontrol edin'
+                    : 'Son başvuru: ${_date(record.deadline)}',
+                style: expired
+                    ? TextStyle(color: Theme.of(context).colorScheme.error)
+                    : null,
+              ),
+              if (record.quota != null) Text('Kontenjan: ${record.quota} kişi'),
+              if (record.places.isNotEmpty)
+                Text('Yerler: ${record.places.join(', ')}'),
+              if (expired)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Son başvuru geçti',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 children: [
                   FilledButton.tonalIcon(
-                    onPressed: () => _open(item.url),
+                    onPressed: () => _open(Uri.parse(record.url)),
                     icon: const Icon(Icons.open_in_new),
                     label: const Text('Resmî ilana git'),
                   ),
                   IconButton(
-                    tooltip: saved ? 'Kaydı kaldır' : 'Kaydet',
-                    onPressed: () => _toggleSaved(item),
-                    icon: Icon(saved ? Icons.bookmark : Icons.bookmark_outline),
+                    tooltip: record.saved ? 'Kaydı kaldır' : 'Kaydet',
+                    onPressed: () => _toggleSaved(record),
+                    icon: Icon(
+                      record.saved ? Icons.bookmark : Icons.bookmark_outline,
+                    ),
                   ),
                   TextButton.icon(
                     onPressed: () => setState(() {
-                      _assistantListing = item;
+                      _assistantListing = record;
                       _tab = 2;
                     }),
                     icon: const Icon(Icons.auto_awesome_outlined),
@@ -342,12 +683,19 @@ class _KamuHomePageState extends State<KamuHomePage> {
     );
   }
 
-  Widget _savedView() => _visibleItems.isEmpty
+  PublicListing _asPublicListing(ListingRecord record) => PublicListing(
+    title: record.title,
+    category: record.category,
+    url: Uri.parse(record.url),
+    publishedAt: record.publishedAt,
+  );
+
+  Widget _savedView() => _visibleRecords.isEmpty
       ? _emptyState(
-          'Kaydedilen ilanlar burada görünecek.',
+          'Kaydedilen ilanlar burada görünecek. Kaynak ilanı kaldırsa da kaydınız korunur.',
           onPressed: () => setState(() => _tab = 0),
         )
-      : ListView(children: [_intro(), ..._visibleItems.map(_listingCard)]);
+      : ListView(children: [_intro(), ..._visibleRecords.map(_listingCard)]);
 
   Widget _assistantView() => ListView(
     padding: const EdgeInsets.all(20),
@@ -370,7 +718,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
             title: Text(_assistantListing!.title),
             subtitle: const Text('Resmî ilan bağlantısı hazır'),
             trailing: const Icon(Icons.open_in_new),
-            onTap: () => _open(_assistantListing!.url),
+            onTap: () => _open(Uri.parse(_assistantListing!.url)),
           ),
         ),
       ],
@@ -454,7 +802,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: onPressed,
-                child: const Text('İlanlara bak'),
+                child: const Text('Süzgeçleri temizle'),
               ),
             ],
           ),

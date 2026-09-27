@@ -7,9 +7,13 @@ import 'kariyer_feed.dart';
 /// Resmî ilanın ayrıntısı: Kariyer Kapısı'nın herkese açık okuma çağrılarından
 /// kurum, kontenjan, yer, tarih ve şartlar; resmî başvuru bağlantısıyla.
 class KariyerDetailPage extends StatefulWidget {
-  const KariyerDetailPage({super.key, required this.listing});
+  const KariyerDetailPage({super.key, required this.listing, this.onLoaded});
 
   final PublicListing listing;
+
+  /// Ayrıntı başarıyla okunduğunda çağrılır; katalog yapılandırılmış
+  /// alanları (kontenjan, son başvuru, yerler) yerel kayda işler.
+  final void Function(KariyerDetail detail)? onLoaded;
 
   @override
   State<KariyerDetailPage> createState() => _KariyerDetailPageState();
@@ -21,11 +25,21 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
   @override
   void initState() {
     super.initState();
-    _future = loadKariyerDetail(widget.listing.url);
+    final loaded = widget.onLoaded;
+    _future = loadKariyerDetail(widget.listing.url).then((detail) {
+      loaded?.call(detail);
+      return detail;
+    });
   }
 
   void _retry() {
-    setState(() => _future = loadKariyerDetail(widget.listing.url));
+    final loaded = widget.onLoaded;
+    setState(() {
+      _future = loadKariyerDetail(widget.listing.url).then((detail) {
+        loaded?.call(detail);
+        return detail;
+      });
+    });
   }
 
   Future<void> _open(Uri url) async {
