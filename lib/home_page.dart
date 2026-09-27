@@ -8,6 +8,7 @@ import 'data/listing_store.dart';
 import 'listings/kariyer_detail.dart';
 import 'listings/kariyer_detail_page.dart';
 import 'listings/kariyer_feed.dart';
+import 'listings/sbb_feed.dart';
 
 class KamuHomePage extends StatefulWidget {
   const KamuHomePage({
@@ -124,10 +125,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _loading = true;
       _error = null;
     });
+    final incoming = <ListingRecord>[];
+    final failed = <String>[];
+    final now = DateTime.now();
     try {
       final items = await loadKariyerFeed();
-      final now = DateTime.now();
-      await _store.mergeFeed([
+      incoming.addAll([
         for (final item in items)
           ListingRecord(
             url: item.url.toString(),
@@ -137,18 +140,42 @@ class _KamuHomePageState extends State<KamuHomePage> {
             publishedAt: item.publishedAt,
             fetchedAt: now,
           ),
-      ], pruneBefore: now.subtract(_pruneAfter));
-      await _loadLocal();
-      if (!mounted) return;
-      setState(() => _lastRefresh = now);
-    } catch (_) {
-      if (!mounted) return;
-      setState(
-        () => _error = 'İlanlar yenilenemedi. Son görülen liste korunuyor.',
-      );
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      ]);
+    } on Exception {
+      failed.add('Kariyer Kapısı');
     }
+    try {
+      final sbbItems = await loadSbbListings();
+      incoming.addAll([
+        for (final item in sbbItems)
+          ListingRecord(
+            url: item.url.toString(),
+            sourceId: 'kamuilan_sbb',
+            title: item.institution,
+            category: item.category,
+            publishedAt: item.publishedAt,
+            deadline: item.deadline,
+            quota: item.quota,
+            fetchedAt: now,
+          ),
+      ]);
+    } on Exception {
+      failed.add('Kamu İlanları (SBB)');
+    }
+    try {
+      await _store.mergeFeed(incoming, pruneBefore: now.subtract(_pruneAfter));
+    } on Exception {
+      failed.add('Yerel katalog');
+    }
+    await _loadLocal();
+    if (!mounted) return;
+    setState(() {
+      _lastRefresh = now;
+      _error = failed.isEmpty
+          ? null
+          : '${failed.join(' ve ')} yenilenemedi. Son görülen liste korunuyor.';
+    });
+    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _toggleSaved(ListingRecord record) async {
@@ -482,7 +509,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
         Text(
           _lastRefresh == null
               ? 'Katalog cihazdan yükleniyor.'
-              : 'Kariyer Kapısı • Son kontrol: ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')}',
+              : 'Son kontrol: ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')} • Resmî kaynaklar',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         if (_error != null)
@@ -605,14 +632,17 @@ class _KamuHomePageState extends State<KamuHomePage> {
       margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => KariyerDetailPage(
-              listing: _asPublicListing(record),
-              onLoaded: (detail) => _cacheDetail(record.url, detail),
-            ),
-          ),
-        ),
+        onTap: () => record.sourceId == 'kamuilan_sbb'
+            // SBB kayıtları doğrudan resmî PDF belgeyi açar.
+            ? _open(Uri.parse(record.url))
+            : Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => KariyerDetailPage(
+                    listing: _asPublicListing(record),
+                    onLoaded: (detail) => _cacheDetail(record.url, detail),
+                  ),
+                ),
+              ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -628,7 +658,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
-              Text('Kariyer Kapısı • ${_date(record.publishedAt)}'),
+              Text(
+                '${_sourceLabel(record.sourceId)} • ${_date(record.publishedAt)}',
+              ),
               Text(
                 record.deadline == null
                     ? 'Son başvuru tarihi: kaynakta kontrol edin'
@@ -809,6 +841,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
         ),
       );
 
+  String _sourceLabel(String sourceId) => switch (sourceId) {
+    'kamuilan_sbb' => 'Kamu İlanları (SBB)',
+    _ => 'Kariyer Kapısı',
+  };
+
   String _date(DateTime? value) => value == null
       ? 'Yayın tarihi belirtilmemiş'
       : '${value.day}.${value.month}.${value.year}';
@@ -826,19 +863,39 @@ class _SourcesPage extends StatelessWidget {
         const ListTile(
           leading: Icon(Icons.check_circle_outline),
           title: Text('Kariyer Kapısı'),
-          subtitle: Text('Resmî RSS akışından ilanlar gösteriliyor.'),
+          subtitle: Text(
+            'Resmî RSS akışı ve ilan ayrıntı okuması kullanılıyor.',
+          ),
         ),
-        for (final (name, url) in [
-          ('İŞKUR', 'https://esube.iskur.gov.tr/'),
-          ('ilan.gov.tr', 'https://www.ilan.gov.tr/'),
-          ('Resmî Gazete', 'https://resmigazete.gov.tr/fihrist'),
+        const ListTile(
+          leading: Icon(Icons.check_circle_outline),
+          title: Text('Kamu İlanları (SBB)'),
+          subtitle: Text(
+            'Strateji ve Bütçe Başkanlığı güncel yıl listesi okunuyor; ilan kaydı resmî PDF belgeyi açar.',
+          ),
+        ),
+        for (final (name, status, url) in [
+          (
+            'İŞKUR',
+            'Herkese açık arayüz oturum akışına bağlı; otomatik tarama için çalışma sürüyor.',
+            'https://esube.iskur.gov.tr/',
+          ),
+          (
+            'ilan.gov.tr',
+            'Arama arayüzü dokümanlanmamış bir ağ geçidi ardında; otomatik tarama hazırlanıyor.',
+            'https://www.ilan.gov.tr/',
+          ),
+          (
+            'Resmî Gazete',
+            'Eski sayfa kodlaması ve belge sınıflandırması gerektiriyor; hazırlanıyor.',
+            'https://resmigazete.gov.tr/fihrist',
+          ),
         ])
           ListTile(
-            leading: const Icon(Icons.open_in_new),
+            leading: const Icon(Icons.schedule_outlined),
             title: Text(name),
-            subtitle: const Text(
-              'Otomatik tarama hazırlanıyor; resmî siteyi aç.',
-            ),
+            subtitle: Text(status),
+            trailing: const Icon(Icons.open_in_new),
             onTap: () => open(Uri.parse(url)),
           ),
         const ListTile(
