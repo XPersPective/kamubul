@@ -216,8 +216,12 @@ class ListingStore {
   Database? _db;
 
   Future<Database> get database async {
-    final existing = _injected ?? _db;
-    if (existing != null) return existing;
+    final injected = _injected;
+    if (injected != null) return injected;
+    // sqflite aynı veritabanı yolu için tek ortak örnek döndürür; örnek
+    // başka bir kullanıcı tarafından kapatılmışsa yeniden açmak gerekir.
+    final existing = _db;
+    if (existing != null && existing.isOpen) return existing;
     final opened = await openDatabase(
       p.join(await getDatabasesPath(), 'kamubul_listings.db'),
       version: _schemaVersion,
@@ -495,8 +499,11 @@ class ListingStore {
   /// Yalnızca enjekte edilen (test) veritabanını kapatır. Uygulama
   /// veritabanı sqflite'ın yol başına tek ortak örneğidir; kapatmak
   /// arayüzün elindeki diğer mağazaları database_closed ile bozar.
+  /// Yalnızca enjekte edilen (test) veritabanını kapatır. Uygulama
+  /// veritabanı sqflite'ın yol başına tek ortak örneğidir; kapatmak
+  /// arayüzün elindeki diğer mağazaları database_closed ile bozar.
   Future<void> close() async {
-    await (_injected ?? _db)?.close();
+    await _injected?.close();
     _db = null;
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -345,4 +347,40 @@ void main() {
       await store.close();
     },
   );
+
+  test('bir mağaza kapatılınca ortak veritabanı kullanılmaya devam eder', () async {
+    // sqflite aynı yol için tek örnek döndürür; bir mağazanın kapatması
+    // diğerinin yazmalarını database_closed ile bozuyordu (kayıtlı arama
+    // yeniden adlandırma/silme). Ayrıca örnek dışarıdan kapatılsa bile
+    // okuma/yazma yeniden açılarak sürmeli.
+    final originalPath = await databaseFactory.getDatabasesPath();
+    final tmp = Directory.systemTemp.createTempSync('kamubul_store_lifecycle');
+    await databaseFactory.setDatabasesPath(tmp.path);
+    final first = ListingStore();
+    final second = ListingStore();
+    try {
+      final saved = await first.addSavedSearch(
+        SavedSearch(
+          id: null,
+          name: 'eski ad',
+          filters: const {},
+          createdAt: DateTime(2026, 9, 28),
+        ),
+      );
+      final shared = await first.database;
+      await second.database;
+      await second.close();
+      expect(shared.isOpen, isTrue);
+      await first.updateSavedSearch(saved.copyWith(name: 'yeni ad'));
+      await (await second.database).close();
+      final searches = await first.savedSearches();
+      expect(searches.singleWhere((s) => s.id == saved.id).name, 'yeni ad');
+    } finally {
+      await (await first.database).close();
+      await first.close();
+      await second.close();
+      await databaseFactory.setDatabasesPath(originalPath);
+      tmp.deleteSync(recursive: true);
+    }
+  });
 }
