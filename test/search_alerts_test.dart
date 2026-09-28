@@ -110,6 +110,44 @@ void main() {
       config: night,
     );
     expect(decision.notifications, isEmpty);
+    // Sessiz saatte bulunan ilan kaybolmaz; kuyruğa alınır.
+    expect(decision.held, hasLength(1));
+    expect(decision.held.single.listingUrl, 'a');
+  });
+
+  test('günlük tavan taşması ertelenir, ilk gelen önce gönderilir', () {
+    final search = savedSearch({'kategori': '2'});
+    final listings = [record('yeni1'), record('yeni2'), record('yeni3'), record('yeni4')];
+    final decision = decideAlerts(
+      search: search,
+      listings: listings,
+      previouslySeen: {},
+      config: config(instantSentToday: 2),
+    );
+    // Tavan 3, bugün 2 gönderilmiş: 1 gider, 3 ertelenir.
+    expect(decision.notifications, hasLength(1));
+    expect(decision.held.map((item) => item.listingUrl), ['yeni2', 'yeni3', 'yeni4']);
+  });
+
+  test('özet sessiz saatte üretilir ama kuyruğa alınır', () {
+    final search = savedSearch({'kategori': '2', 'bildirim': 'digest'});
+    final night = AlertConfig(
+      now: DateTime(2026, 9, 27, 23, 30),
+      quietStartHour: 22,
+      quietEndHour: 8,
+      maxInstantPerDay: 3,
+      instantSentToday: 0,
+      digestSentDay: null,
+    );
+    final decision = decideAlerts(
+      search: search,
+      listings: [record('a'), record('b')],
+      previouslySeen: {},
+      config: night,
+    );
+    expect(decision.notifications, isEmpty);
+    expect(decision.held, hasLength(1));
+    expect(decision.held.single.title, contains('2 yeni ilan'));
   });
 
   test('özet mod günde bir kez, kuyrukla gönderilir', () {

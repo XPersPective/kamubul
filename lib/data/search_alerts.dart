@@ -1,3 +1,4 @@
+import '../notifications/alert_history.dart';
 import 'listing_store.dart';
 
 /// Kayıtlı arama süzgeçlerini ilan kaydına uygulayan saf eşleştirici.
@@ -72,11 +73,20 @@ class PendingNotification {
 }
 
 class NotificationDecision {
-  const NotificationDecision({required this.notifications, required this.seenUrls});
+  const NotificationDecision({
+    required this.notifications,
+    required this.seenUrls,
+    this.held = const [],
+  });
 
   /// Gönderilecek bildirimler (anlık mod: ilan başına, günlük tavanlı;
   /// özet mod: tek toplu bildirim).
   final List<PendingNotification> notifications;
+
+  /// Gönderimi ertelenen bildirimler: sessiz saat ya da günlük tavan dolu
+  /// olduğu için şu an çıkmazlar; kuyruğa alınıp sonraki uygun denetimde
+  /// gönderilirler.
+  final List<PendingNotification> held;
 
   /// "Görüldü" işaretlenecek ilan URL'leri (bildirim gönderilse de gönderilmese
   /// de işlenmiş sayılır; aynı ilan ikinci kez bildirilmez).
@@ -130,11 +140,25 @@ NotificationDecision decideAlerts({
     return NotificationDecision(notifications: const [], seenUrls: seen);
   }
 
-  final quiet = _isQuiet(config.now, config.quietStartHour, config.quietEndHour);
-  if (mode == SearchAlertMode.instant && !quiet) {
-    final room = (config.maxInstantPerDay - config.instantSentToday).clamp(0, fresh.length);
+  final quiet = isQuietHour(config.now, config.quietStartHour, config.quietEndHour);
+  final held = <PendingNotification>[];
+  if (mode == SearchAlertMode.instant) {
+    // Sessiz saatte gönderim payı sıfırdır; taşanlar kuyruğa alınır.
+    final room = quiet
+        ? 0
+        : (config.maxInstantPerDay - config.instantSentToday).clamp(0, fresh.length);
     for (final record in fresh.take(room)) {
       notifications.add(
+        PendingNotification(
+          searchName: search.name,
+          title: search.name,
+          body: record.title,
+          listingUrl: record.url,
+        ),
+      );
+    }
+    for (final record in fresh.skip(room)) {
+      held.add(
         PendingNotification(
           searchName: search.name,
           title: search.name,
@@ -148,27 +172,22 @@ NotificationDecision decideAlerts({
     final summary = fresh.length == 1
         ? fresh.single.title
         : '${fresh.length} yeni ilan';
-    notifications.add(
-      PendingNotification(
-        searchName: search.name,
-        title: '${search.name}: $summary',
-        body: fresh.take(3).map((record) => record.title).join('\n'),
-        listingUrl: fresh.first.url,
-      ),
+    final digest = PendingNotification(
+      searchName: search.name,
+      title: '${search.name}: $summary',
+      body: fresh.take(3).map((record) => record.title).join('\n'),
+      listingUrl: fresh.first.url,
     );
+    (quiet ? held : notifications).add(digest);
   }
-  // Sessiz saatlerdeki anlık bildirimler bir sonraki denetimde özetle
-  // kuyruğa düşmez; ilan "görüldü" işaretlendiği için tekrar bildirilmez
-  // (kullanıcı listede hâlâ görebilir). Kayıtlı arama özetleri gündüz
-  // pencerelerinde zamanlanır.
-  return NotificationDecision(notifications: notifications, seenUrls: seen);
-}
-
-bool _isQuiet(DateTime now, int startHour, int endHour) {
-  final hour = now.hour;
-  return startHour > endHour
-      ? hour >= startHour || hour < endHour
-      : hour >= startHour && hour < endHour;
+  // Ertelenen bildirimler kuyruğa alınır ve bir sonraki uygun denetimde
+  // gönderilir; ilan "görüldü" işaretlendiği için aynı ilan tekrar
+  // bildirilmez.
+  return NotificationDecision(
+    notifications: notifications,
+    held: held,
+    seenUrls: seen,
+  );
 }
 
 /// Son başvuru hatırlatıcısı: kaydedilen ilanlar için son X gün içinde bir kez.

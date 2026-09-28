@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'data/listing_store.dart';
 import 'data/search_alerts.dart';
 import 'notifications/alert_service.dart';
+import 'notifications/notification_center_page.dart';
 import 'listings/kariyer_detail.dart';
 import 'listings/kariyer_detail_page.dart';
 import 'listings/extract_conditions.dart';
@@ -565,6 +566,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Bildirimler',
+            onPressed: () => Navigator.of(context).push(
+              sharedAxisRoute<void>(const NotificationCenterPage()),
+            ),
+            icon: const Icon(Icons.notifications_outlined),
+          ),
           if (_tab == 0)
             IconButton(
               tooltip: 'Yenile',
@@ -1027,6 +1035,17 @@ class _KamuHomePageState extends State<KamuHomePage> {
             ),
           );
         },
+      ),
+      ListTile(
+        leading: const Icon(Icons.history),
+        title: const Text('Bildirim geçmişi'),
+        subtitle: const Text(
+          'Gönderilen, bekleyen ve gönderilmeyen tüm uyarılar. '
+          'Veriler yalnızca bu cihazda tutulur.',
+        ),
+        onTap: () => Navigator.of(context).push(
+          sharedAxisRoute<void>(const NotificationCenterPage()),
+        ),
       ),
       ListTile(
         leading: const Icon(Icons.source_outlined),

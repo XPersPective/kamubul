@@ -7,6 +7,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../data/listing_store.dart';
 import '../data/search_alerts.dart';
+import 'alert_history.dart';
 
 const _channelId = 'kamubul_alerts';
 const _backgroundTaskName = 'kamubulRefreshAlerts';
@@ -144,6 +145,54 @@ class AlertSettings {
   Future<void> markReminded(String url) async {
     store.setStringList('kamubul.alerts.reminded', [...remindedUrls, url]);
   }
+
+  static const _historyKey = 'kamubul.alerts.history';
+  static const _queueKey = 'kamubul.alerts.queue';
+
+  /// Bildirim geçmişi (en yeni başta). Yalnızca bu cihazda tutulur.
+  List<AlertRecord> history() => decodeAlerts(store.getString(_historyKey));
+
+  Future<void> _saveHistory(List<AlertRecord> records) async {
+    store.setString(_historyKey, encodeAlerts(records));
+    await store.flush();
+  }
+
+  Future<void> appendHistory(AlertRecord record) async {
+    await _saveHistory(appendAlert(history(), record));
+  }
+
+  /// Kaydı teslim edildi olarak işler; geçmiş temizlenmişse teslim kaydı
+  /// eklenir ki bildirim kaybolmasın.
+  Future<void> markHistoryDelivered(AlertRecord record, DateTime at) async {
+    final current = history();
+    final updated = current.any((item) => item.id == record.id)
+        ? markAlertDelivered(current, record.id, at)
+        : appendAlert(
+            current,
+            record
+              ..delivery = AlertDelivery.delivered
+              ..deliveredAt = at,
+          );
+    await _saveHistory(updated);
+  }
+
+  /// Geçmişi siler (C-021: kullanıcı verisini istediği an silebilir).
+  Future<void> clearHistory() async {
+    await _saveHistory(const []);
+  }
+
+  /// Sessiz saat/tavan nedeniyle ertelenmiş bildirimlerin kuyruğu.
+  List<AlertRecord> pendingQueue() => decodeAlerts(store.getString(_queueKey));
+
+  /// Kuyruğu yazar; sınırı aşan en eski kayıtlar "gönderilmedi" işaretlenir.
+  Future<void> savePendingQueue(List<AlertRecord> queue) async {
+    final dropped = trimmedQueueIds(queue);
+    if (dropped.isNotEmpty) {
+      await _saveHistory(markAlertDropped(history(), dropped));
+    }
+    store.setString(_queueKey, encodeAlerts(trimQueue(queue)));
+    await store.flush();
+  }
 }
 
 /// Kayıtlı aramalar + hatırlatıcılar için bir denetim turu; arka plan ve
@@ -151,13 +200,41 @@ class AlertSettings {
 Future<int> runAlertCheckOnce() async {
   final store = ListingStore();
   final settings = await AlertSettings.load();
+  final now = DateTime.now();
+  var sent = 0;
+
+  // Ertelenmiş bildirimler: sessiz saat dışındaki ilk denetimde günlük tavan
+  // kadar gönderilir; kalanlar kuyrukta bekler, kaybolmaz.
+  final queue = settings.pendingQueue();
+  final flushing = planQueueFlush(
+    queue: queue,
+    now: now,
+    quietStartHour: 22,
+    quietEndHour: 8,
+    maxInstantPerDay: 6,
+    instantSentToday: settings.instantSentToday,
+  );
+  for (final record in flushing) {
+    await showPendingNotification(
+      PendingNotification(
+        searchName: record.searchName,
+        title: record.title,
+        body: record.body,
+        listingUrl: record.listingUrl,
+      ),
+    );
+    await settings.markHistoryDelivered(record, now);
+    sent++;
+  }
+  final queued = [...queue.skip(flushing.length)];
+  if (flushing.isNotEmpty) await settings.addInstantSent(flushing.length);
+
   final listings = await store.allListings();
   final searches = await store.savedSearches();
-  var sent = 0;
   for (final search in searches) {
     final mode = alertModeOf(search.filters);
     final config = AlertConfig(
-      now: DateTime.now(),
+      now: now,
       quietStartHour: 22,
       quietEndHour: 8,
       maxInstantPerDay: 6,
@@ -170,15 +247,42 @@ Future<int> runAlertCheckOnce() async {
       previouslySeen: settings.seenFor(search.id!),
       config: config,
     );
+    final kind = mode == SearchAlertMode.digest
+        ? AlertKind.digest
+        : AlertKind.instant;
     for (final notification in decision.notifications) {
       await showPendingNotification(notification);
+      await settings.appendHistory(
+        AlertRecord.create(
+          kind: kind,
+          searchName: notification.searchName,
+          title: notification.title,
+          body: notification.body,
+          listingUrl: notification.listingUrl,
+          createdAt: now,
+          delivery: AlertDelivery.delivered,
+          deliveredAt: now,
+        ),
+      );
       sent++;
+    }
+    for (final notification in decision.held) {
+      final record = AlertRecord.create(
+        kind: kind,
+        searchName: notification.searchName,
+        title: notification.title,
+        body: notification.body,
+        listingUrl: notification.listingUrl,
+        createdAt: now,
+      );
+      queued.add(record);
+      await settings.appendHistory(record);
     }
     if (mode == SearchAlertMode.instant && decision.notifications.isNotEmpty) {
       await settings.addInstantSent(decision.notifications.length);
     }
     if (mode == SearchAlertMode.digest && decision.notifications.isNotEmpty) {
-      await settings.saveDigestDay(search.id!, DateTime.now().day);
+      await settings.saveDigestDay(search.id!, now.day);
     }
     await settings.saveSeen(search.id!, decision.seenUrls);
   }
@@ -186,13 +290,26 @@ Future<int> runAlertCheckOnce() async {
     final reminder = deadlineReminder(
       record: record,
       alreadyReminded: settings.remindedUrls,
-      now: DateTime.now(),
+      now: now,
     );
     if (reminder == null) continue;
     await showPendingNotification(reminder);
+    await settings.appendHistory(
+      AlertRecord.create(
+        kind: AlertKind.reminder,
+        searchName: reminder.searchName,
+        title: reminder.title,
+        body: reminder.body,
+        listingUrl: reminder.listingUrl,
+        createdAt: now,
+        delivery: AlertDelivery.delivered,
+        deliveredAt: now,
+      ),
+    );
     sent++;
     await settings.markReminded(record.url);
   }
+  await settings.savePendingQueue(queued);
   await store.close();
   return sent;
 }
