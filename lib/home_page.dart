@@ -13,6 +13,7 @@ import 'listings/kariyer_detail_page.dart';
 import 'listings/extract_conditions.dart';
 import 'listings/kariyer_feed.dart';
 import 'listings/listing_guide.dart';
+import 'listings/rg_feed.dart';
 import 'listings/sbb_feed.dart';
 import 'ui/premium.dart';
 
@@ -170,6 +171,23 @@ class _KamuHomePageState extends State<KamuHomePage> {
       ]);
     } on Exception {
       failed.add('Kamu İlanları (SBB)');
+    }
+    try {
+      // Dünün Resmî Gazete'si; ilanlar gecikmeli yayımlandığı için dün taranır.
+      final rgItems = await loadRgPersonnelNotices();
+      incoming.addAll([
+        for (final item in rgItems)
+          ListingRecord(
+            url: item.url.toString(),
+            sourceId: 'resmigazete',
+            title: item.title,
+            category: 'Resmî Gazete',
+            publishedAt: item.publishedAt,
+            fetchedAt: now,
+          ),
+      ]);
+    } on Exception {
+      failed.add('Resmî Gazete');
     }
     try {
       await _store.mergeFeed(incoming, pruneBefore: now.subtract(_pruneAfter));
@@ -808,8 +826,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
       child: InkWell(
         onTap: () {
           HapticFeedback.selectionClick();
-          if (record.sourceId == 'kamuilan_sbb') {
-            // SBB kayıtları doğrudan resmî PDF belgeyi açar.
+          if (record.sourceId == 'kamuilan_sbb' ||
+              record.sourceId == 'resmigazete') {
+            // SBB ve RG kayıtları doğrudan resmî belgeyi açar.
             _open(Uri.parse(record.url));
             return;
           }
@@ -1050,6 +1069,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   String _sourceLabel(String sourceId) => switch (sourceId) {
     'kamuilan_sbb' => 'Kamu İlanları (SBB)',
+    'resmigazete' => 'Resmî Gazete',
     _ => 'Kariyer Kapısı',
   };
 
@@ -1081,6 +1101,13 @@ class _SourcesPage extends StatelessWidget {
             'Strateji ve Bütçe Başkanlığı güncel yıl listesi okunuyor; ilan kaydı resmî PDF belgeyi açar.',
           ),
         ),
+        const ListTile(
+          leading: Icon(Icons.check_circle_outline),
+          title: Text('Resmî Gazete'),
+          subtitle: Text(
+            'Dünkü sayıda personel alımı duyuruları taranıyor; kayıt resmî belgeyi açar.',
+          ),
+        ),
         for (final (name, status, url) in [
           (
             'İŞKUR',
@@ -1091,11 +1118,6 @@ class _SourcesPage extends StatelessWidget {
             'ilan.gov.tr',
             'Arama arayüzü dokümanlanmamış bir ağ geçidi ardında; otomatik tarama hazırlanıyor.',
             'https://www.ilan.gov.tr/',
-          ),
-          (
-            'Resmî Gazete',
-            'Eski sayfa kodlaması ve belge sınıflandırması gerektiriyor; hazırlanıyor.',
-            'https://resmigazete.gov.tr/fihrist',
           ),
         ])
           ListTile(
