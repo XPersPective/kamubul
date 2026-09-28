@@ -48,3 +48,11 @@ Thumbs.db
 # --- Yerel doğrulama artefaktları ---
 .screenshots/
 ios/Flutter/AdsConfig.xcconfig
+
+# --- Yerel doğrulama artefaktları (ek) ---
+.tmp/
+test/failures/
+
+# --- Desteklenmeyen platform iskeletleri (ürün yalnız Android/iOS) ---
+web/
+windows/
