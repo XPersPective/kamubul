@@ -1,0 +1,199 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kamubul/data/listing_store.dart';
+import 'package:kamubul/home_page.dart';
+import 'package:napp_ads/napp_ads.dart';
+import 'package:napp_core/napp_core.dart';
+import 'package:napp_pro/napp_pro.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+/// PB-008 1.3x liste erişilebilirlik kontrolü: liste kartları ve ayarlar
+/// yüzeyi büyük metin ölçeğinde taşmadan yerleşir.
+///
+/// Ağ kapalı tutulur (yenileme yerel katalogla çalışır gibi davranır);
+/// mağaza arayüzü sahte adaptörle beslenir.
+class _NoNetwork extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) =>
+      throw const SocketException('test: ağ kapalı');
+}
+
+class _FakeStore implements StoreAdapter {
+  @override
+  Future<List<StoreProduct>> queryProducts(Set<String> productIds) async =>
+      const [];
+
+  @override
+  Future<void> buy(StoreProduct product) async {}
+
+  @override
+  Future<void> restore() async {}
+
+  @override
+  Stream<List<StorePurchaseUpdate>> get updates => const Stream.empty();
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
+  HttpOverrides.global = _NoNetwork();
+
+  late String dbPath;
+
+  setUpAll(() async {
+    dbPath = p.join(
+      await databaseFactory.getDatabasesPath(),
+      'kamubul_listings.db',
+    );
+  });
+
+  setUp(() async {
+    await databaseFactory.deleteDatabase(dbPath);
+    final store = ListingStore();
+    final now = DateTime.now();
+    await store.mergeFeed(
+      [
+        ListingRecord(
+          url: 'https://kariyerkapisi.gov.tr/ilan/1',
+          sourceId: 'kariyerkapisi',
+          title: 'TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)',
+          category: 'Sözleşmeli Personel',
+          publishedAt: now.subtract(const Duration(days: 1)),
+          fetchedAt: now,
+          deadline: now.add(const Duration(days: 3)),
+          quota: 5,
+          places: const ['ANKARA'],
+          saved: true,
+          savedAt: now,
+        ),
+        ListingRecord(
+          url: 'https://ilan.gov.tr/ilan/2',
+          sourceId: 'kamuilan_sbb',
+          title: 'BELEDİYE BAŞKANLIĞI - Memur Alımı',
+          category: 'Personel',
+          publishedAt: now.subtract(const Duration(days: 2)),
+          fetchedAt: now,
+          deadline: now.add(const Duration(days: 10)),
+          quota: 2,
+          places: const ['İZMİR', 'KARŞIYAKA'],
+        ),
+      ],
+      // İçe aktarma gibi: yerel önbudama yapılmaz.
+      pruneBefore: DateTime(2000),
+    );
+  });
+
+  Future<void> pumpHome(WidgetTester tester, {double textScale = 1.0}) async {
+    tester.view.devicePixelRatio = 2;
+    tester.view.physicalSize = const Size(390, 844) * 2;
+    addTearDown(tester.view.reset);
+    final settings = SettingsStore();
+    final theme = ThemeModeController(store: settings)..load();
+    final policy = AdPolicy();
+    final purchase = PurchaseRepository(
+      adapter: _FakeStore(),
+      productId: 'kamubul_pro_lifetime',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+        home: KamuHomePage(
+          identity: AppIdentity(
+            appName: 'KamuBul',
+            packageName: 'com.crazypenguin.kamubul',
+            sourceUrl: 'https://kariyerkapisi.gov.tr',
+            privacyPolicyUrl: 'https://kariyerkapisi.gov.tr/gizlilik',
+            contactEmail: 'test@example.com',
+            iconAsset: 'assets/brand/kamubul_icon.png',
+            brandColor: Color(0xFF17659C),
+          ),
+          store: settings,
+          theme: theme,
+          pro: ProController(store: settings, repository: purchase),
+          purchase: purchase,
+          policy: policy,
+          banner: BannerAdController(policy: policy),
+          rewarded: RewardedAdManager(policy: policy),
+          saveAdState: () {},
+        ),
+      ),
+    );
+    // Yerel yükleme gerçek iş parçacığı sorgularıdır; sahte zaman
+    // akışında görünmeleri için gerçek gecikme turu gerekir.
+    await tester.pump();
+    for (var i = 0; i < 50; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      if (find
+          .text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)')
+          .evaluate()
+          .isNotEmpty) {
+        break;
+      }
+    }
+  }
+
+  testWidgets('liste 1.3x metin ölçeğinde taşmasız yerleşir', (tester) async {
+    await pumpHome(tester, textScale: 1.3);
+    expect(
+      find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
+      findsOneWidget,
+    );
+    expect(find.text('İlanı incele'), findsAtLeastNWidgets(1));
+    expect(find.textContaining('5 kişi'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    // Liste tembel kurar: ikinci kart görünür alana kaydırılır.
+    for (var i = 0; i < 10; i++) {
+      if (find
+          .text('BELEDİYE BAŞKANLIĞI - Memur Alımı')
+          .evaluate()
+          .isNotEmpty) {
+        break;
+      }
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(find.text('BELEDİYE BAŞKANLIĞI - Memur Alımı'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ayarlar 1.3x metinde yedek satırlarıyla yerleşir', (
+    tester,
+  ) async {
+    await pumpHome(tester, textScale: 1.3);
+    await tester.tap(find.text('Ayarlar'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Görünüm ve üyelik'), findsOneWidget);
+    // ListView tembel kurar: her satır kendi kaydırma adımıyla doğrulanır.
+    for (final row in [
+      'Uygulamayı paylaş',
+      'Puan ver',
+      'Verileri dışa aktar',
+      'Verileri içe aktar',
+      'Hakkında ve lisanslar',
+    ]) {
+      await tester.scrollUntilVisible(
+        find.text(row),
+        300,
+        scrollable: find.descendant(
+          of: find.byType(ListView),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      expect(find.text(row), findsOneWidget, reason: '"$row" satırı eksik');
+    }
+    expect(tester.takeException(), isNull);
+  });
+}
