@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/home_page.dart';
+import 'package:kamubul/listings/kariyer_detail_page.dart';
+import 'package:kamubul/listings/official_listing_page.dart';
+import 'package:kamubul/notifications/alert_service.dart';
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -11,11 +14,10 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'support/isolate_db.dart';
 
-/// PB-008 1.3x liste erişilebilirlik kontrolü: liste kartları ve ayarlar
-/// yüzeyi büyük metin ölçeğinde taşmadan yerleşir.
+/// PB-004 bildirim dokunuşu yönlendirmesi: yerel kayıt uygulama içi ayrıntıda,
+/// budanmış kayıt resmî sayfada açılır.
 ///
-/// Ağ kapalı tutulur (yenileme yerel katalogla çalışır gibi davranır);
-/// mağaza arayüzü sahte adaptörle beslenir.
+/// Ağ kapalı tutulur; mağaza arayüzü sahte adaptörle beslenir.
 class _NoNetwork extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) =>
@@ -46,10 +48,11 @@ void main() {
   late String dbPath;
 
   setUpAll(() async {
-    dbPath = await isolateListingsDb('ui_list_scale');
+    dbPath = await isolateListingsDb('alert_tap');
   });
 
   setUp(() async {
+    alertTapUrl.value = null;
     await databaseFactory.deleteDatabase(dbPath);
     final store = ListingStore();
     final now = DateTime.now();
@@ -63,8 +66,6 @@ void main() {
           publishedAt: now.subtract(const Duration(days: 1)),
           fetchedAt: now,
           deadline: now.add(const Duration(days: 3)),
-          quota: 5,
-          places: const ['ANKARA'],
           saved: true,
           savedAt: now,
         ),
@@ -76,16 +77,13 @@ void main() {
           publishedAt: now.subtract(const Duration(days: 2)),
           fetchedAt: now,
           deadline: now.add(const Duration(days: 10)),
-          quota: 2,
-          places: const ['İZMİR', 'KARŞIYAKA'],
         ),
       ],
-      // İçe aktarma gibi: yerel önbudama yapılmaz.
       pruneBefore: DateTime(2000),
     );
   });
 
-  Future<void> pumpHome(WidgetTester tester, {double textScale = 1.0}) async {
+  Future<void> pumpHome(WidgetTester tester) async {
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = const Size(390, 844) * 2;
     addTearDown(tester.view.reset);
@@ -99,12 +97,6 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
-        ),
         home: KamuHomePage(
           identity: AppIdentity(
             appName: 'KamuBul',
@@ -126,8 +118,6 @@ void main() {
         ),
       ),
     );
-    // Yerel yükleme gerçek iş parçacığı sorgularıdır; sahte zaman
-    // akışında görünmeleri için gerçek gecikme turu gerekir.
     await tester.pump();
     for (var i = 0; i < 50; i++) {
       await tester.runAsync(
@@ -143,55 +133,44 @@ void main() {
     }
   }
 
-  testWidgets('liste 1.3x metin ölçeğinde taşmasız yerleşir', (tester) async {
-    await pumpHome(tester, textScale: 1.3);
-    expect(
-      find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
-      findsOneWidget,
-    );
-    expect(find.text('İlanı incele'), findsAtLeastNWidgets(1));
-    expect(find.textContaining('5 kişi'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    // Liste tembel kurar: ikinci kart görünür alana kaydırılır.
-    for (var i = 0; i < 10; i++) {
-      if (find
-          .text('BELEDİYE BAŞKANLIĞI - Memur Alımı')
-          .evaluate()
-          .isNotEmpty) {
-        break;
-      }
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
-      await tester.pump(const Duration(milliseconds: 300));
+  Future<void> settleUntil(WidgetTester tester, Finder finder) async {
+    for (var i = 0; i < 50; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      if (finder.evaluate().isNotEmpty) return;
     }
-    expect(find.text('BELEDİYE BAŞKANLIĞI - Memur Alımı'), findsOneWidget);
+  }
+
+  testWidgets('Kariyer bildirimi yerel ayrıntıyı açar', (tester) async {
+    await pumpHome(tester);
+    alertTapUrl.value = 'https://kariyerkapisi.gov.tr/ilan/1';
+    await settleUntil(tester, find.byType(KariyerDetailPage));
+    expect(find.byType(KariyerDetailPage), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('ayarlar 1.3x metinde yedek satırlarıyla yerleşir', (
-    tester,
-  ) async {
-    await pumpHome(tester, textScale: 1.3);
-    await tester.tap(find.text('Ayarlar'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Görünüm ve üyelik'), findsOneWidget);
-    // ListView tembel kurar: her satır kendi kaydırma adımıyla doğrulanır.
-    for (final row in [
-      'Uygulamayı paylaş',
-      'Puan ver',
-      'Verileri dışa aktar',
-      'Verileri içe aktar',
-      'Hakkında ve lisanslar',
-    ]) {
-      await tester.scrollUntilVisible(
-        find.text(row),
-        300,
-        scrollable: find.descendant(
-          of: find.byType(ListView),
-          matching: find.byType(Scrollable),
-        ),
+  testWidgets('SBB bildirimi yerel özet sayfasını açar', (tester) async {
+    await pumpHome(tester);
+    alertTapUrl.value = 'https://ilan.gov.tr/ilan/2';
+    await settleUntil(tester, find.byType(OfficialListingPage));
+    expect(find.byType(OfficialListingPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('budanmış kayıt sessiz kalır ve ayrıntı açmaz', (tester) async {
+    await pumpHome(tester);
+    alertTapUrl.value = 'https://kariyerkapisi.gov.tr/ilan/silinmis';
+    // Dış açılış platform kanalı testte yok; yutulur ve çökme olmaz.
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
-      expect(find.text(row), findsOneWidget, reason: '"$row" satırı eksik');
+      await tester.pump(const Duration(milliseconds: 50));
     }
+    expect(find.byType(KariyerDetailPage), findsNothing);
+    expect(find.byType(OfficialListingPage), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

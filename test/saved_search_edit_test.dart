@@ -11,11 +11,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'support/isolate_db.dart';
 
-/// PB-008 1.3x liste erişilebilirlik kontrolü: liste kartları ve ayarlar
-/// yüzeyi büyük metin ölçeğinde taşmadan yerleşir.
-///
-/// Ağ kapalı tutulur (yenileme yerel katalogla çalışır gibi davranır);
-/// mağaza arayüzü sahte adaptörle beslenir.
+/// PB-005 profil düzenleme: kayıtlı aramanın adı ve profil alanları
+/// (yaş/eğitim/KPSS) yönet listesinden düzenlenebilir.
 class _NoNetwork extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) =>
@@ -37,6 +34,18 @@ class _FakeStore implements StoreAdapter {
   Stream<List<StorePurchaseUpdate>> get updates => const Stream.empty();
 }
 
+/// Animasyonlu açılış ve gerçek veritabanı girişi için: sahte zaman
+/// akışında yalnızca pump() ile izole yanıtları hiç işlemez; kısa gerçek
+/// gecikme turları ikisini de ilerletir.
+Future<void> pumpRoute(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
@@ -44,15 +53,33 @@ void main() {
   HttpOverrides.global = _NoNetwork();
 
   late String dbPath;
+  late String searchName;
+  late String updatedName;
+  late String age;
+  late String kpss;
 
   setUpAll(() async {
-    dbPath = await isolateListingsDb('ui_list_scale');
+    dbPath = await isolateListingsDb('saved_search_edit');
   });
 
   setUp(() async {
+    // Windows kilitleri dosya silmeyi engelleyebilir; bu yüzden artan
+    // kayıtlar ayrıca temizlenir ve adlar benzersiz tutulur.
     await databaseFactory.deleteDatabase(dbPath);
     final store = ListingStore();
+    for (final search in await store.savedSearches()) {
+      final id = search.id;
+      if (id != null) await store.deleteSavedSearch(id);
+    }
     final now = DateTime.now();
+    // Ad ve profil değerleri her koşulda benzersiz: kalan eski satırlarla
+    // eşleşmez. Tohumlama setUp'tadır; test gövdesindeki gerçek veritabanı
+    // işlemi sahte zaman akışında asla tamamlanmaz.
+    final stamp = now.microsecondsSinceEpoch;
+    searchName = 'DÜZENLE $stamp';
+    updatedName = 'GÜNCEL $stamp';
+    age = '4${stamp % 100000}';
+    kpss = 'P${stamp % 9000 + 100}';
     await store.mergeFeed(
       [
         ListingRecord(
@@ -63,29 +90,23 @@ void main() {
           publishedAt: now.subtract(const Duration(days: 1)),
           fetchedAt: now,
           deadline: now.add(const Duration(days: 3)),
-          quota: 5,
-          places: const ['ANKARA'],
-          saved: true,
-          savedAt: now,
-        ),
-        ListingRecord(
-          url: 'https://ilan.gov.tr/ilan/2',
-          sourceId: 'kamuilan_sbb',
-          title: 'BELEDİYE BAŞKANLIĞI - Memur Alımı',
-          category: 'Personel',
-          publishedAt: now.subtract(const Duration(days: 2)),
-          fetchedAt: now,
-          deadline: now.add(const Duration(days: 10)),
-          quota: 2,
-          places: const ['İZMİR', 'KARŞIYAKA'],
         ),
       ],
-      // İçe aktarma gibi: yerel önbudama yapılmaz.
       pruneBefore: DateTime(2000),
+    );
+    await store.addSavedSearch(
+      SavedSearch(
+        id: null,
+        name: searchName,
+        filters: const {'sehir': 'ANKARA', 'yas': '30', 'kpss': 'P93'},
+        createdAt: now,
+      ),
     );
   });
 
-  Future<void> pumpHome(WidgetTester tester, {double textScale = 1.0}) async {
+  testWidgets('profil alanları yönet listesinden düzenlenebilir', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = const Size(390, 844) * 2;
     addTearDown(tester.view.reset);
@@ -99,12 +120,6 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
-        ),
         home: KamuHomePage(
           identity: AppIdentity(
             appName: 'KamuBul',
@@ -126,8 +141,6 @@ void main() {
         ),
       ),
     );
-    // Yerel yükleme gerçek iş parçacığı sorgularıdır; sahte zaman
-    // akışında görünmeleri için gerçek gecikme turu gerekir.
     await tester.pump();
     for (var i = 0; i < 50; i++) {
       await tester.runAsync(
@@ -141,57 +154,64 @@ void main() {
         break;
       }
     }
-  }
 
-  testWidgets('liste 1.3x metin ölçeğinde taşmasız yerleşir', (tester) async {
-    await pumpHome(tester, textScale: 1.3);
+    await tester.tap(find.byTooltip('Kayıtlı aramaları yönet'));
+    await pumpRoute(tester);
+    var sheet = find.byType(BottomSheet);
     expect(
-      find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
+      find.descendant(of: sheet, matching: find.text(searchName)),
       findsOneWidget,
     );
-    expect(find.text('İlanı incele'), findsAtLeastNWidgets(1));
-    expect(find.textContaining('5 kişi'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    // Liste tembel kurar: ikinci kart görünür alana kaydırılır.
-    for (var i = 0; i < 10; i++) {
-      if (find
-          .text('BELEDİYE BAŞKANLIĞI - Memur Alımı')
-          .evaluate()
-          .isNotEmpty) {
-        break;
-      }
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
-      await tester.pump(const Duration(milliseconds: 300));
-    }
-    expect(find.text('BELEDİYE BAŞKANLIĞI - Memur Alımı'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
 
-  testWidgets('ayarlar 1.3x metinde yedek satırlarıyla yerleşir', (
-    tester,
-  ) async {
-    await pumpHome(tester, textScale: 1.3);
-    await tester.tap(find.text('Ayarlar'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Görünüm ve üyelik'), findsOneWidget);
-    // ListView tembel kurar: her satır kendi kaydırma adımıyla doğrulanır.
-    for (final row in [
-      'Uygulamayı paylaş',
-      'Puan ver',
-      'Verileri dışa aktar',
-      'Verileri içe aktar',
-      'Hakkında ve lisanslar',
-    ]) {
-      await tester.scrollUntilVisible(
-        find.text(row),
-        300,
-        scrollable: find.descendant(
-          of: find.byType(ListView),
-          matching: find.byType(Scrollable),
-        ),
-      );
-      expect(find.text(row), findsOneWidget, reason: '"$row" satırı eksik');
-    }
+    final menu = find.descendant(
+      of: sheet,
+      matching: find.byType(PopupMenuButton<String>),
+    );
+    await tester.tap(menu);
+    await pumpRoute(tester);
+    await tester.tap(find.text('Düzenle'));
+    await pumpRoute(tester);
+
+    final dialog = find.byType(AlertDialog);
+    expect(
+      find.descendant(of: dialog, matching: find.text('Aramayı düzenle')),
+      findsOneWidget,
+    );
+    final fields = find.descendant(
+      of: dialog,
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(fields.at(0), updatedName);
+    await tester.enterText(fields.at(1), age);
+    await tester.enterText(fields.at(2), kpss);
+    await tester.tap(
+      find.descendant(of: dialog, matching: find.text('Kaydet')),
+    );
+    await pumpRoute(tester);
+
+    // Düzenleme sonrası liste kapanır; yeniden açıldığında yeni değer görünür.
+    await tester.tap(find.byTooltip('Kayıtlı aramaları yönet'));
+    await pumpRoute(tester);
+    sheet = find.byType(BottomSheet);
+    expect(
+      find.descendant(of: sheet, matching: find.text(updatedName)),
+      findsOneWidget,
+    );
+    expect(find.text(searchName), findsNothing);
+    expect(
+      find.descendant(
+        of: sheet,
+        matching: find.textContaining('KPSS $kpss'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: sheet,
+        matching: find.textContaining('yaş $age'),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

@@ -23,6 +23,7 @@ import 'listings/listing_guide.dart';
 import 'listings/official_listing_page.dart';
 import 'rate_prompt_state.dart';
 import 'ui/premium.dart';
+import 'ui/turkish.dart';
 
 class KamuHomePage extends StatefulWidget {
   const KamuHomePage({
@@ -94,11 +95,41 @@ class _KamuHomePageState extends State<KamuHomePage> {
     restoreRatePrompt(_ratePolicy, widget.store);
     _ratePolicy.markFirstSeen(DateTime.now());
     saveRatePrompt(_ratePolicy, widget.store);
+    alertTapUrl.addListener(_openAlertFromNotification);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _migrateLegacyBookmarks();
       await _loadLocal();
+      // Soğuk açılışta bildirim dokunuşu: kayıt yereldeyse ayrıntı açılır.
+      await consumeLaunchAlertTap();
+      if (alertTapUrl.value != null) await _openAlertFromNotification();
       await _refresh();
     });
+  }
+
+  /// Bildirim dokunuşu hedefi: yerel kayıt uygulama içinde açılır; kayıt
+  /// budanmışsa resmî sayfa dışarıda açılır.
+  Future<void> _openAlertFromNotification() async {
+    final url = alertTapUrl.value;
+    if (url == null) return;
+    alertTapUrl.value = null;
+    await _loadLocal();
+    if (!mounted) return;
+    ListingRecord? record;
+    for (final candidate in _records) {
+      if (candidate.url == url) record = candidate;
+    }
+    if (record == null) {
+      final uri = Uri.tryParse(url);
+      if (uri != null && uri.scheme == 'https') {
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } on Exception {
+          // Budanmış kayıtta sessiz kalınır; kullanıcı listeye bakabilir.
+        }
+      }
+      return;
+    }
+    _showListing(record);
   }
 
   /// PB-002 öncesi URL listesiyle kaydedilen yer imlerini veritabanına taşır.
@@ -162,7 +193,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _failedSources = result.failedSources;
       _error = result.failedSources.isEmpty
           ? null
-          : '${result.failedSources.join(' ve ')} yenilenemedi. Son görülen liste korunuyor.';
+          : '${turkishList(result.failedSources)} yenilenemedi. Son görülen liste korunuyor.';
     });
     if (result.failedSources.isEmpty) {
       _ratePolicy.markPositiveMoment();
@@ -446,6 +477,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   @override
   void dispose() {
+    alertTapUrl.removeListener(_openAlertFromNotification);
     _searchController.dispose();
     super.dispose();
   }
@@ -635,6 +667,18 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       }
                       return;
                     }
+                    if (value == 'edit') {
+                      final updated = await _promptEditSearch(search);
+                      if (updated == null) return;
+                      await _store.updateSavedSearch(updated);
+                      if (_activeSearchName == search.name) {
+                        _activeSearchName = updated.name;
+                      }
+                      if (sheetContext.mounted) {
+                        Navigator.pop(sheetContext, true);
+                      }
+                      return;
+                    }
                     final filters = <String, String>{...search.filters};
                     filters['bildirim'] = value;
                     await _store.updateSavedSearch(
@@ -650,6 +694,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     PopupMenuItem(value: 'digest', child: Text('Günlük özet')),
                     PopupMenuItem(value: 'off', child: Text('Kapalı')),
                     PopupMenuDivider(),
+                    PopupMenuItem(value: 'edit', child: Text('Düzenle')),
                     PopupMenuItem(
                       value: 'rename',
                       child: Text('Yeniden adlandır'),
@@ -671,6 +716,106 @@ class _KamuHomePageState extends State<KamuHomePage> {
       final stillExists = _searches.any((s) => s.name == _activeSearchName);
       if (!stillExists) setState(() => _activeSearchName = null);
     }
+  }
+
+  /// Kayıtlı aramanın adını ve profil alanlarını (yaş/eğitim/KPSS) düzenler;
+  /// vazgeçilirse null döner. Süzgeçlerin diğer alanları korunur.
+  Future<SavedSearch?> _promptEditSearch(SavedSearch search) {
+    final nameController = TextEditingController(text: search.name);
+    final ageController = TextEditingController(
+      text: search.filters['yas'] ?? '',
+    );
+    final kpssController = TextEditingController(
+      text: search.filters['kpss'] ?? '',
+    );
+    var education = search.filters['egitim'];
+    return showDialog<SavedSearch>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Aramayı düzenle'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Arama adı'),
+                ),
+                TextField(
+                  controller: ageController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Yaşınız (uyum için, isteğe bağlı)',
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: education,
+                  decoration: const InputDecoration(
+                    labelText: 'Eğitim düzeyi (isteğe bağlı)',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Lise', child: Text('Lise')),
+                    DropdownMenuItem(
+                      value: 'Ön lisans',
+                      child: Text('Ön lisans'),
+                    ),
+                    DropdownMenuItem(value: 'Lisans', child: Text('Lisans')),
+                    DropdownMenuItem(
+                      value: 'Yüksek lisans',
+                      child: Text('Yüksek lisans'),
+                    ),
+                    DropdownMenuItem(value: 'Doktora', child: Text('Doktora')),
+                  ],
+                  onChanged: (value) => setDialogState(() => education = value),
+                ),
+                TextField(
+                  controller: kpssController,
+                  decoration: const InputDecoration(
+                    labelText: 'KPSS puan türü (örn. P3, P93)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Vazgeç'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                final filters = <String, String>{...search.filters};
+                final yas = ageController.text.trim();
+                final kpss = kpssController.text.trim();
+                if (yas.isEmpty) {
+                  filters.remove('yas');
+                } else {
+                  filters['yas'] = yas;
+                }
+                if (education == null) {
+                  filters.remove('egitim');
+                } else {
+                  filters['egitim'] = education!;
+                }
+                if (kpss.isEmpty) {
+                  filters.remove('kpss');
+                } else {
+                  filters['kpss'] = kpss;
+                }
+                Navigator.pop(
+                  dialogContext,
+                  search.copyWith(name: name, filters: filters),
+                );
+              },
+              child: const Text('Kaydet'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Kayıtlı aramayı yeniden adlandırır; vazgeçilirse null döner.
@@ -1359,8 +1504,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
         title: const Text('Ömür boyu Pro'),
         subtitle: Text(widget.pro.isPro ? 'Etkin' : 'Reklamsız kullanım'),
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => PaywallPage(
+          sharedAxisRoute<void>(
+            PaywallPage(
               identity: widget.identity,
               controller: widget.pro,
               repository: widget.purchase,
@@ -1409,8 +1554,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
         leading: const Icon(Icons.source_outlined),
         title: const Text('Resmî kaynaklar'),
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => _SourcesPage(
+          sharedAxisRoute<void>(
+            _SourcesPage(
               open: _open,
               checkedAt: _lastRefresh,
               failedSources: _failedSources,
@@ -1448,9 +1593,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
         leading: const Icon(Icons.info_outline),
         title: const Text('Hakkında ve lisanslar'),
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => AboutPage(identity: widget.identity),
-          ),
+          sharedAxisRoute<void>(AboutPage(identity: widget.identity)),
         ),
       ),
     ],

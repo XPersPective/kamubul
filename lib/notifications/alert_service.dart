@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:napp_core/napp_core.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../data/catalogue_refresh.dart';
@@ -17,6 +16,20 @@ final FlutterLocalNotificationsPlugin _plugin =
     FlutterLocalNotificationsPlugin();
 bool _initialized = false;
 
+/// Bildirim dokunuşunda açılacak ilanın URL'si.
+///
+/// Ana ekran bu değeri dinler: kayıt yerel önbellekteyse uygulama içi ayrıntı
+/// açılır, değilse resmî sayfa dışarıda açılır. Soğuk açılışta
+/// [consumeLaunchAlertTap] aynı yolu kullanır.
+final ValueNotifier<String?> alertTapUrl = ValueNotifier<String?>(null);
+
+void _setAlertTap(String? payload) {
+  final uri = payload == null ? null : Uri.tryParse(payload);
+  if (uri != null && uri.scheme == 'https') {
+    alertTapUrl.value = uri.toString();
+  }
+}
+
 Future<void> _ensureInitialized() async {
   if (_initialized) return;
   await _plugin.initialize(
@@ -24,16 +37,8 @@ Future<void> _ensureInitialized() async {
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(),
     ),
-    onDidReceiveNotificationResponse: (response) {
-      // Bildirim dokunuşu ilanın resmî sayfasını dışarıda açar.
-      final url = response.payload;
-      if (url != null) {
-        final uri = Uri.tryParse(url);
-        if (uri != null && uri.scheme == 'https') {
-          launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      }
-    },
+    onDidReceiveNotificationResponse: (response) =>
+        _setAlertTap(response.payload),
   );
   await _plugin
       .resolvePlatformSpecificImplementation<
@@ -48,6 +53,24 @@ Future<void> _ensureInitialized() async {
         ),
       );
   _initialized = true;
+}
+
+/// Uygulama bir bildirim dokunuşuyla açıldıysa bekleyen URL'yi [alertTapUrl]
+/// yazar; kendi simgesinden açılışta hiçbir şey yapmaz.
+///
+/// En iyi çabadır: bildirim altyapısı bu ortamda yoksa sessizce geçilir,
+/// açılış akışı asla bundan etkilenmez.
+Future<void> consumeLaunchAlertTap() async {
+  try {
+    await _ensureInitialized();
+    if (alertTapUrl.value != null) return;
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp ?? false) {
+      _setAlertTap(details?.notificationResponse?.payload);
+    }
+  } catch (_) {
+    // Bildirim eklentisi yoksa dokunuş köprüsü kullanılamaz; uygulama açılır.
+  }
 }
 
 /// Bildirim izni: önce değer açıklaması (primer), sonra sistem penceresi.
