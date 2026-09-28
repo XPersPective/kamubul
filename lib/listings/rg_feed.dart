@@ -48,10 +48,17 @@ final _docLinkRegex = RegExp(
 
 final _tagRegex = RegExp(r'<[^>]+>');
 
+/// Arşiv dizini HTML'indeki belge bağlantılarının adlarını verir.
+List<String> rgDocLinkNames(String indexHtml) => _docLinkRegex
+    .allMatches(indexHtml)
+    .map((match) => match.group(1)!)
+    .toSet()
+    .toList();
+
 /// RG belge başlıkları tarih olur; personel alım ilanı kısa bir başlık
 /// satırıyla (örn. "... PERSONEL ALINACAKTIR") ayrışır. Belge düzeyi
 /// gevşek eşleşme yönetmelikleri yanlış pozitif yapar; satır düzeyi şart.
-String? _personnelLine(String bodyText) {
+String? rgPersonnelTitle(String bodyText) {
   for (final rawLine in bodyText.split('\n')) {
     final line = rawLine.trim();
     if (line.length < 12 || line.length > 200) continue;
@@ -70,6 +77,17 @@ String? _personnelLine(String bodyText) {
   }
   return null;
 }
+
+/// Belge HTML'ini düz metne çevirir (betik/stil hariç, etiketler satır olur).
+String rgDocBodyText(String html) => html
+    .replaceAll(
+      RegExp(r'<(script|style)[\s\S]*?</\1>', caseSensitive: false),
+      ' ',
+    )
+    .replaceAll(_tagRegex, '\n')
+    .replaceAll(RegExp(r'[ \t]+'), ' ')
+    .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+    .trim();
 
 /// Verilen günün Resmî Gazete'sinde personel alımı duyurularını arar.
 /// Belge başlığı uymayan belgeler atlanır; dizin bozuksa FormatException.
@@ -92,12 +110,7 @@ Future<List<RgNotice>> loadRgPersonnelNotices({
       throw FormatException('RG dizini okunamadı ($path)');
     }
     final indexHtml = decodeWindows1254(index.bodyBytes);
-    final docs = _docLinkRegex
-        .allMatches(indexHtml)
-        .map((match) => match.group(1))
-        .toSet()
-        .take(maxDocs)
-        .toList();
+    final docs = rgDocLinkNames(indexHtml).take(maxDocs).toList();
     if (docs.isEmpty) {
       throw const FormatException('RG dizin düzeni değişti');
     }
@@ -116,17 +129,9 @@ Future<List<RgNotice>> loadRgPersonnelNotices({
         continue;
       }
       final html = decodeWindows1254(response.bodyBytes);
-      final bodyText = html
-          .replaceAll(
-            RegExp(r'<(script|style)[\\s\\S]*?</\1>', caseSensitive: false),
-            ' ',
-          )
-          .replaceAll(_tagRegex, '\n')
-          .replaceAll(RegExp(r'[ \t]+'), ' ')
-          .replaceAll(RegExp(r'\n{3,}'), '\n\n')
-          .trim();
+      final bodyText = rgDocBodyText(html);
       if (bodyText.isEmpty) continue;
-      final title = _personnelLine(bodyText);
+      final title = rgPersonnelTitle(bodyText);
       if (title != null) {
         notices.add(
           RgNotice(
