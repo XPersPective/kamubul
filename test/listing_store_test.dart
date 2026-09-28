@@ -196,6 +196,57 @@ void main() {
     await databaseFactory.deleteDatabase(dbPath);
   });
 
+  test('v2 veritabanı v3e göçerken veri korunur ve parmak izi sütunu eklenir', () async {
+    final dbPath = '${DateTime.now().microsecondsSinceEpoch}-mig3.db';
+    // v2 şemasını elle kur (alıntı sütunları var, parmak izi yok), örnek kayıt yaz.
+    final v2 = await databaseFactory.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(version: 2, onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE listings (
+            url TEXT PRIMARY KEY, sourceId TEXT NOT NULL, title TEXT NOT NULL,
+            category TEXT NOT NULL, publishedAt INTEGER, fetchedAt INTEGER NOT NULL,
+            deadline INTEGER, quota INTEGER, places TEXT NOT NULL DEFAULT '[]',
+            kpss TEXT, education TEXT, maxAge INTEGER, quotaType TEXT,
+            kpssQuote TEXT, educationQuote TEXT, maxAgeQuote TEXT, quotaTypeQuote TEXT,
+            saved INTEGER NOT NULL DEFAULT 0, savedAt INTEGER
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE saved_searches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+            filters TEXT NOT NULL, createdAt INTEGER NOT NULL
+          )
+        ''');
+      }),
+    );
+    await v2.insert('listings', {
+      'url': 'eski',
+      'sourceId': 'kariyerkapisi',
+      'title': 'Eski kayıt',
+      'category': '',
+      'fetchedAt': DateTime(2026, 9, 1).millisecondsSinceEpoch,
+      'saved': 1,
+    });
+    await v2.close();
+    // v3 ile yeniden aç: fingerprint sütunu eklenmeli, veri durmalı.
+    final v3 = await databaseFactory.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(
+        version: 3,
+        onCreate: ListingStore.createSchema,
+        onUpgrade: ListingStore.upgradeSchema,
+      ),
+    );
+    final rows = await v3.query('listings');
+    expect(rows.single['title'], 'Eski kayıt');
+    expect(rows.single['fingerprint'], isNull);
+    final columns = await v3.rawQuery('PRAGMA table_info(listings)');
+    expect(columns.map((c) => c['name']), contains('fingerprint'));
+    await v3.close();
+    await databaseFactory.deleteDatabase(dbPath);
+  });
+
   test('bozuk kayıtlı arama süzgeci boş okunur', () async {
     final search = SavedSearch.fromRow({
       'id': 1,

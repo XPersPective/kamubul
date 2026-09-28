@@ -4,13 +4,14 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import '../listings/extract_conditions.dart';
+import 'dedupe.dart';
 
 /// Yerel ilan kataloğu: sürümlü şema, birleştirmeli yenileme, budama.
 ///
 /// Kullanıcının kaydettiği ilanlar asla sessizce silinmez; yalnızca kaydedilmemiş
 /// ve uzun süredir görülmeyen ilanlar budanır.
 class ListingRecord {
-  const ListingRecord({
+  ListingRecord({
     required this.url,
     required this.sourceId,
     required this.title,
@@ -28,6 +29,7 @@ class ListingRecord {
     this.educationQuote,
     this.maxAgeQuote,
     this.quotaTypeQuote,
+    this.fingerprint,
     this.saved = false,
     this.savedAt,
   });
@@ -49,6 +51,7 @@ class ListingRecord {
   final String? educationQuote;
   final String? maxAgeQuote;
   final String? quotaTypeQuote;
+  String? fingerprint;
   final bool saved;
   final DateTime? savedAt;
 
@@ -93,6 +96,7 @@ class ListingRecord {
     'education': education,
     'maxAge': maxAge,
     'quotaType': quotaType,
+    'fingerprint': fingerprint,
     'saved': saved ? 1 : 0,
     'savedAt': savedAt?.millisecondsSinceEpoch,
   };
@@ -117,6 +121,7 @@ class ListingRecord {
       educationQuote: row['educationQuote'] as String?,
       maxAgeQuote: row['maxAgeQuote'] as String?,
       quotaTypeQuote: row['quotaTypeQuote'] as String?,
+      fingerprint: row['fingerprint'] as String?,
       saved: row['saved'] == 1,
       savedAt: _date(row['savedAt']),
     );
@@ -209,7 +214,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 2;
+  static const int _schemaVersion = 3;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -234,6 +239,7 @@ class ListingStore {
         educationQuote TEXT,
         maxAgeQuote TEXT,
         quotaTypeQuote TEXT,
+        fingerprint TEXT,
         saved INTEGER NOT NULL DEFAULT 0,
         savedAt INTEGER
       )
@@ -248,12 +254,16 @@ class ListingStore {
     ''');
   }
 
-  /// v1 → v2: şart alıntısı sütunları. Mevcut veri korunur.
+  /// Şema yükseltmeleri: v1→v2 şart alıntısı sütunları, v2→v3 parmak izi
+  /// sütunu. Mevcut veri korunur.
   static Future<void> upgradeSchema(
     Database db,
     int oldVersion,
     int newVersion,
   ) async {
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE listings ADD COLUMN fingerprint TEXT');
+    }
     if (oldVersion < 2) {
       for (final column in [
         'kpssQuote TEXT',
@@ -295,7 +305,30 @@ class ListingStore {
     final batch = db.batch();
     final pruneLimit =
         pruneBefore ?? DateTime.now().subtract(const Duration(days: 45));
+    // Kaynaklar-arasi kopyalar: ayni kurum+son basvuru parmak izine sahip
+    // farkli URL'ler yalnizca ilk gelen olarak alinir.
+    final known = <String, String?>{};
+    for (final row in await db.query(
+      'listings',
+      columns: ['url', 'fingerprint'],
+    )) {
+      known[row['url'] as String] = row['fingerprint'] as String?;
+    }
+    final seenFingerprints = <String>{
+      for (final fp in known.values) ?fp,
+    };
     for (final record in incoming) {
+      record.fingerprint ??= listingFingerprint(
+        title: record.title,
+        sourceId: record.sourceId,
+        deadline: record.deadline,
+      );
+      if (!known.containsKey(record.url)) {
+        if (seenFingerprints.contains(record.fingerprint)) {
+          continue;
+        }
+        seenFingerprints.add(record.fingerprint!);
+      }
       batch.insert(
         'listings',
         record.toRow(),
@@ -307,8 +340,8 @@ class ListingStore {
           'fetchedAt': record.fetchedAt.millisecondsSinceEpoch,
           'title': record.title,
           'category': record.category,
-          if (record.publishedAt != null)
-            'publishedAt': record.publishedAt!.millisecondsSinceEpoch,
+          'fingerprint': record.fingerprint,
+          'publishedAt': ?record.publishedAt?.millisecondsSinceEpoch,
         },
         where: 'url = ? AND saved = 0',
         whereArgs: [record.url],
