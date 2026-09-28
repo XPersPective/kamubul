@@ -37,27 +37,62 @@ void main() {
     createdAt: DateTime(2026, 9, 1),
   );
 
-  AlertConfig config({int instantSentToday = 0, int? digestSentDay}) => AlertConfig(
-    now: DateTime(2026, 9, 27, 10),
-    quietStartHour: 22,
-    quietEndHour: 8,
-    maxInstantPerDay: 3,
-    instantSentToday: instantSentToday,
-    digestSentDay: digestSentDay,
-  );
+  AlertConfig config({int instantSentToday = 0, int? digestSentDay}) =>
+      AlertConfig(
+        now: DateTime(2026, 9, 27, 10),
+        quietStartHour: 22,
+        quietEndHour: 8,
+        maxInstantPerDay: 3,
+        instantSentToday: instantSentToday,
+        digestSentDay: digestSentDay,
+      );
 
   test('eşleştirici temel ve kanıtlı süzgeçleri uygular', () {
     final filters = {'kategori': '2', 'yas': '35', 'kpss': 'P3'};
-    expect(matchesFilters(record('a', maxAge: 35, kpss: 'P3'), filters), isTrue);
+    expect(
+      matchesFilters(record('a', maxAge: 35, kpss: 'P3'), filters),
+      isTrue,
+    );
     // Bilinmeyen yaşlı ilan yaş süzgecinde gösterilmez.
     expect(matchesFilters(record('b'), filters), isFalse);
-    expect(matchesFilters(record('c', maxAge: 35, kpss: 'P94'), filters), isFalse);
+    expect(
+      matchesFilters(record('c', maxAge: 35, kpss: 'P94'), filters),
+      isFalse,
+    );
     expect(matchesFilters(record('d', category: 'İşçi'), filters), isFalse);
+  });
+
+  test('kurum adındaki şehir, ilan yeri olarak kabul edilmez', () {
+    final titled = record('a', title: 'Ankara Üniversitesi personel alımı');
+    expect(matchesFilters(titled, {'sehir': 'Ankara'}), isFalse);
+    final located = ListingRecord(
+      url: 'b',
+      sourceId: 'kariyerkapisi',
+      title: 'Personel alımı',
+      category: 'Personel',
+      publishedAt: DateTime(2026, 9, 20),
+      fetchedAt: DateTime(2026, 9, 27),
+      places: const ['ANKARA'],
+    );
+    expect(matchesFilters(located, {'sehir': 'Ankara'}), isTrue);
+  });
+
+  test('resmî SBB işçi ilanı işçi kategorisine girer', () {
+    expect(
+      matchesFilters(record('iscilik', category: 'İşçi'), {'kategori': '1'}),
+      isTrue,
+    );
+    expect(matchesFilters(record('personel'), {'kategori': '1'}), isFalse);
   });
 
   test('anlık mod: yalnızca yeni ilanlar, günlük tavan', () {
     final search = savedSearch({'kategori': '2'});
-    final listings = [record('yeni1'), record('yeni2'), record('yeni3'), record('yeni4')];
+    final listings = [
+      record('yeni1'),
+      record('yeni2'),
+      record('yeni3'),
+      record('yeni4'),
+    ];
     final decision = decideAlerts(
       search: search,
       listings: listings,
@@ -71,7 +106,12 @@ void main() {
   test('aynı ilan ikinci denetimde tekrar bildirilmez', () {
     final search = savedSearch({'kategori': '2'});
     final listings = [record('a'), record('b')];
-    final first = decideAlerts(search: search, listings: listings, previouslySeen: {}, config: config());
+    final first = decideAlerts(
+      search: search,
+      listings: listings,
+      previouslySeen: {},
+      config: config(),
+    );
     final second = decideAlerts(
       search: search,
       listings: listings,
@@ -117,7 +157,12 @@ void main() {
 
   test('günlük tavan taşması ertelenir, ilk gelen önce gönderilir', () {
     final search = savedSearch({'kategori': '2'});
-    final listings = [record('yeni1'), record('yeni2'), record('yeni3'), record('yeni4')];
+    final listings = [
+      record('yeni1'),
+      record('yeni2'),
+      record('yeni3'),
+      record('yeni4'),
+    ];
     final decision = decideAlerts(
       search: search,
       listings: listings,
@@ -126,7 +171,11 @@ void main() {
     );
     // Tavan 3, bugün 2 gönderilmiş: 1 gider, 3 ertelenir.
     expect(decision.notifications, hasLength(1));
-    expect(decision.held.map((item) => item.listingUrl), ['yeni2', 'yeni3', 'yeni4']);
+    expect(decision.held.map((item) => item.listingUrl), [
+      'yeni2',
+      'yeni3',
+      'yeni4',
+    ]);
   });
 
   test('özet sessiz saatte üretilir ama kuyruğa alınır', () {
@@ -153,7 +202,12 @@ void main() {
   test('özet mod günde bir kez, kuyrukla gönderilir', () {
     final search = savedSearch({'kategori': '2', 'bildirim': 'digest'});
     final listings = [record('a'), record('b')];
-    final first = decideAlerts(search: search, listings: listings, previouslySeen: {}, config: config());
+    final first = decideAlerts(
+      search: search,
+      listings: listings,
+      previouslySeen: {},
+      config: config(),
+    );
     expect(first.notifications, hasLength(1));
     expect(first.notifications.single.title, contains('2 yeni ilan'));
     // Aynı gün ikinci denetim: yeni ilan yoksa özet tekrarlanmaz.
@@ -181,12 +235,20 @@ void main() {
     expect(reminder!.title, 'Son 2 gün');
     // Kaydedilmemiş ilan hatırlatılmaz.
     expect(
-      deadlineReminder(record: record('kayitsiz', deadline: DateTime(2026, 9, 29)), alreadyReminded: {}, now: DateTime(2026, 9, 27)),
+      deadlineReminder(
+        record: record('kayitsiz', deadline: DateTime(2026, 9, 29)),
+        alreadyReminded: {},
+        now: DateTime(2026, 9, 27),
+      ),
       isNull,
     );
     // Süresi geçmiş ilan hatırlatılmaz.
     expect(
-      deadlineReminder(record: soon, alreadyReminded: {}, now: DateTime(2026, 10, 1)),
+      deadlineReminder(
+        record: soon,
+        alreadyReminded: {},
+        now: DateTime(2026, 10, 1),
+      ),
       isNull,
     );
   });

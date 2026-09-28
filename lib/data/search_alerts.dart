@@ -8,6 +8,9 @@ bool matchesFilters(ListingRecord record, Map<String, String> filters) {
   if (q.isNotEmpty && !record.title.toLowerCase().contains(q)) return false;
 
   final kategori = int.tryParse(filters['kategori'] ?? '') ?? 0;
+  if (kategori == 1 && !record.category.toLowerCase().contains('işçi')) {
+    return false;
+  }
   if (kategori == 2 && !record.category.toLowerCase().contains('personel')) {
     return false;
   }
@@ -27,8 +30,7 @@ bool matchesFilters(ListingRecord record, Map<String, String> filters) {
   if (sehir.isNotEmpty &&
       !record.places.any(
         (place) => place.toLowerCase().contains(sehir.toLowerCase()),
-      ) &&
-      !record.title.toLowerCase().contains(sehir.toLowerCase())) {
+      )) {
     return false;
   }
 
@@ -132,7 +134,9 @@ NotificationDecision decideAlerts({
     return NotificationDecision(notifications: const [], seenUrls: seen);
   }
 
-  final fresh = matches.where((record) => !previouslySeen.contains(record.url)).toList();
+  final fresh = matches
+      .where((record) => !previouslySeen.contains(record.url))
+      .toList();
   for (final record in matches) {
     seen.add(record.url);
   }
@@ -140,13 +144,20 @@ NotificationDecision decideAlerts({
     return NotificationDecision(notifications: const [], seenUrls: seen);
   }
 
-  final quiet = isQuietHour(config.now, config.quietStartHour, config.quietEndHour);
+  final quiet = isQuietHour(
+    config.now,
+    config.quietStartHour,
+    config.quietEndHour,
+  );
   final held = <PendingNotification>[];
   if (mode == SearchAlertMode.instant) {
     // Sessiz saatte gönderim payı sıfırdır; taşanlar kuyruğa alınır.
     final room = quiet
         ? 0
-        : (config.maxInstantPerDay - config.instantSentToday).clamp(0, fresh.length);
+        : (config.maxInstantPerDay - config.instantSentToday).clamp(
+            0,
+            fresh.length,
+          );
     for (final record in fresh.take(room)) {
       notifications.add(
         PendingNotification(
@@ -168,7 +179,7 @@ NotificationDecision decideAlerts({
       );
     }
   } else if (mode == SearchAlertMode.digest &&
-             config.digestSentDay != config.now.day) {
+      config.digestSentDay != config.now.day) {
     final summary = fresh.length == 1
         ? fresh.single.title
         : '${fresh.length} yeni ilan';

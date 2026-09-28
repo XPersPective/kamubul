@@ -50,7 +50,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   static const _legacySavedKey = 'kamubul.saved_urls';
   static const _kategoriAdlari = [
     'Tümü',
-    'İŞKUR / İşçi',
+    'İşçi',
     'Personel',
     'Belediye',
   ];
@@ -184,53 +184,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
     }
   }
 
-  List<ListingRecord> get _visibleRecords => _records.where((record) {
-    if (_tab == 1 && !record.saved) return false;
-    if (_tab == 0 && _category == 1) {
-      // İŞKUR kaynağı PB-003'te eklenene kadar bu sekme bilinçli olarak boş;
-      // kaynak kimliğiyle filtreleme o görevde gelir.
-      return false;
-    }
-    if (_tab == 0 &&
-        _category == 2 &&
-        !record.category.toLowerCase().contains('personel')) {
-      return false;
-    }
-    if (_tab == 0 &&
-        _category == 3 &&
-        !record.title.toLowerCase().contains('belediye')) {
-      return false;
-    }
-    if (_last30) {
-      final published = record.publishedAt;
-      if (published == null ||
-          published.isBefore(
-            DateTime.now().subtract(const Duration(days: 30)),
-          )) {
-        return false;
-      }
-    }
-    if (_place != null &&
-        !record.places.any(
-          (place) => place.toLowerCase().contains(_place!.toLowerCase()),
-        ) &&
-        !record.title.toLowerCase().contains(_place!.toLowerCase())) {
-      return false;
-    }
-    // Yaş/eğitim/KPSS süzgeçleri yalnızca alıntı kanıtlı çıkarılmış alanlarda
-    // uygulanır; bilinmeyen değerli ilan bu etikette gösterilmez.
-    if (_ageFilter != null &&
-        (record.maxAge == null || record.maxAge! < _ageFilter!)) {
-      return false;
-    }
-    if (_educationFilter != null && record.education != _educationFilter) {
-      return false;
-    }
-    if (_kpssFilter != null && record.kpss != _kpssFilter) {
-      return false;
-    }
-    return record.title.toLowerCase().contains(_search.toLowerCase());
-  }).toList();
+  List<ListingRecord> get _visibleRecords {
+    final filters = _currentFilters;
+    if (_tab == 1) filters['kategori'] = '0';
+    return _records.where((record) {
+      if (_tab == 1 && !record.saved) return false;
+      return matchesFilters(record, filters);
+    }).toList();
+  }
 
   void _applySearch(SavedSearch search) {
     setState(() {
@@ -661,7 +622,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
           child: _emptyState(
             _error ??
                 (_category == 1
-                    ? 'İŞKUR otomatik bağlantısı hazırlanıyor. Resmî siteye Kaynaklar ekranından ulaşabilirsiniz.'
+                    ? 'Bu seçimde doğrulanmış işçi ilanı yok. İŞKUR otomatik bağlantısı henüz hazır değil.'
                     : 'Bu seçimde henüz doğrulanmış ilan yok.'),
             onPressed: _clearFilters,
           ),
@@ -852,6 +813,17 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   Widget _listingCard(ListingRecord record) {
     final expired = record.expired;
+    final profileMatch = _searches.any(
+      (search) =>
+          search.name == 'Sizin için' &&
+          [
+            'sehir',
+            'yas',
+            'egitim',
+            'kpss',
+          ].any((key) => (search.filters[key] ?? '').isNotEmpty) &&
+          matchesFilters(record, search.filters),
+    );
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
       clipBehavior: Clip.antiAlias,
@@ -877,6 +849,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Text(
                 '${_sourceLabel(record.sourceId)} • ${_date(record.publishedAt)}',
               ),
+              if (profileMatch)
+                Text(
+                  'Arama tercihlerinizle eşleşiyor',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
@@ -979,10 +958,27 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   Widget _assistantView() {
     final selected = _assistantListing;
+    SavedSearch? profile;
+    for (final search in _searches) {
+      if (search.name == 'Sizin için') profile = search;
+    }
     if (selected != null) {
       return ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          if (profile != null)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.tune),
+                title: const Text('Arama tercihleriniz'),
+                subtitle: Text(_filterSummary(profile)),
+                trailing: const Icon(Icons.arrow_forward),
+                onTap: () {
+                  _applySearch(profile!);
+                  setState(() => _tab = 0);
+                },
+              ),
+            ),
           Text('Seçili ilan', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
           Card(
@@ -1013,6 +1009,18 @@ class _KamuHomePageState extends State<KamuHomePage> {
           'KPSS gibi koşulları kaynak cümlesiyle yanıtlayalım. Serbest soru '
           'sorma (yapay zekâ sohbeti) hazırlanıyor.',
         ),
+        if (profile != null)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.person_search_outlined),
+              title: const Text('Sizin için arama'),
+              subtitle: Text(_filterSummary(profile)),
+              onTap: () {
+                _applySearch(profile!);
+                setState(() => _tab = 0);
+              },
+            ),
+          ),
       ],
     );
   }
