@@ -85,6 +85,28 @@ void main() {
     expect(matchesFilters(record('personel'), {'kategori': '1'}), isFalse);
   });
 
+  test('ileri yayın tarihli ilan genel listede ve bildirimde bekler', () {
+    final scheduled = record('gelecek', publishedAt: DateTime(2026, 10, 12));
+    final today = DateTime(2026, 9, 28, 15);
+    expect(matchesFilters(scheduled, const {}, now: today), isFalse);
+    expect(
+      matchesFilters(scheduled, const {}, now: today, includeScheduled: true),
+      isTrue,
+    );
+    expect(
+      matchesFilters(scheduled, const {}, now: DateTime(2026, 10, 12)),
+      isTrue,
+    );
+    final decision = decideAlerts(
+      search: savedSearch(const {}),
+      listings: [scheduled],
+      previouslySeen: {},
+      config: config(),
+    );
+    expect(decision.notifications, isEmpty);
+    expect(decision.seenUrls, isEmpty);
+  });
+
   test('anlık mod: yalnızca yeni ilanlar, günlük tavan', () {
     final search = savedSearch({'kategori': '2'});
     final listings = [

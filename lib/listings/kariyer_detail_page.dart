@@ -96,9 +96,11 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
   Widget _loadingView() => CustomScrollView(
     slivers: [
       const SliverAppBar.large(title: Text('İlan ayrıntısı')),
-      const SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(child: CircularProgressIndicator()),
+      SliverToBoxAdapter(
+        child: Semantics(
+          label: 'İlan ayrıntısı yükleniyor',
+          child: listingSkeletons(),
+        ),
       ),
     ],
   );

@@ -48,12 +48,7 @@ class KamuHomePage extends StatefulWidget {
 
 class _KamuHomePageState extends State<KamuHomePage> {
   static const _legacySavedKey = 'kamubul.saved_urls';
-  static const _kategoriAdlari = [
-    'Tümü',
-    'İşçi',
-    'Personel',
-    'Belediye',
-  ];
+  static const _kategoriAdlari = ['Tümü', 'İşçi', 'Personel', 'Belediye'];
 
   int _tab = 0;
   int _category = 0;
@@ -72,6 +67,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   List<SavedSearch> _searches = const [];
   ListingRecord? _assistantListing;
   final ListingStore _store = ListingStore();
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -189,11 +185,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
     if (_tab == 1) filters['kategori'] = '0';
     return _records.where((record) {
       if (_tab == 1 && !record.saved) return false;
-      return matchesFilters(record, filters);
+      return matchesFilters(record, filters, includeScheduled: _tab == 1);
     }).toList();
   }
 
   void _applySearch(SavedSearch search) {
+    _searchController.text = search.filters['q'] ?? '';
     setState(() {
       _search = search.filters['q'] ?? '';
       _category = int.tryParse(search.filters['kategori'] ?? '') ?? 0;
@@ -213,6 +210,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   }
 
   void _clearFilters() {
+    _searchController.clear();
     setState(() {
       _search = '';
       _category = 0;
@@ -234,6 +232,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
     'egitim': ?_educationFilter,
     'kpss': ?_kpssFilter,
   };
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _saveCurrentSearch() async {
     final saved = await _promptSearchFilters();
@@ -637,29 +641,63 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   Widget _intro() => Padding(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Fırsatları resmî kaynağında bulun',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          _lastRefresh == null
-              ? 'Katalog cihazdan yükleniyor.'
-              : 'Son kontrol: ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')} • Resmî kaynaklar',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(PremiumShape.barRadius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _tab == 1 ? 'KİŞİSEL LİSTE' : 'RESMÎ KAYNAKLAR',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              letterSpacing: 1.2,
             ),
           ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            _tab == 1 ? 'Kaydettiğiniz ilanlar' : 'Güncel kamu ilanları',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _tab == 1
+                ? '${_visibleRecords.length} kayıt • çevrimdışı erişim'
+                : _lastRefresh == null
+                ? _records.isEmpty
+                      ? 'Katalog cihazdan yükleniyor.'
+                      : 'Kaydedilmiş katalog gösteriliyor • kaynaklar kontrol ediliyor'
+                : 'Son kontrol ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')} • ${_records.where((record) => matchesFilters(record, const {})).length} ilan',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+          ),
+          if (_tab == 0 && _error != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _error!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     ),
   );
 
@@ -668,10 +706,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
     child: Column(
       children: [
         TextField(
+          controller: _searchController,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.search),
             hintText: 'Kurum veya meslek ara',
-            border: OutlineInputBorder(),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+            filled: true,
           ),
           onChanged: (value) => setState(() {
             _search = value;
@@ -827,6 +869,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
       clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(PremiumShape.cardRadius),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
       child: InkWell(
         onTap: () => _showListing(record),
         child: Padding(
@@ -834,29 +882,69 @@ class _KamuHomePageState extends State<KamuHomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                record.category.isEmpty ? 'Kamu ilanı' : record.category,
-                style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              Row(
+                children: [
+                  Icon(
+                    Icons.account_balance_outlined,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      record.category.isEmpty ? 'Kamu ilanı' : record.category,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: record.saved ? 'Kaydı kaldır' : 'Kaydet',
+                    onPressed: () => _toggleSaved(record),
+                    icon: Icon(
+                      record.saved ? Icons.bookmark : Icons.bookmark_outline,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
                 record.title,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
-                '${_sourceLabel(record.sourceId)} • ${_date(record.publishedAt)}',
+                '${_sourceLabel(record.sourceId)} • Yayın ${_date(record.publishedAt)}',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              if (profileMatch)
-                Text(
-                  'Arama tercihlerinizle eşleşiyor',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
+              if (_tab == 1 &&
+                  record.publishedAt != null &&
+                  record.publishedAt!.isAfter(DateTime.now()))
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Yayın tarihi bekleniyor',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
-              const SizedBox(height: 8),
+              if (profileMatch)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '✓ Arama tercihlerinizle eşleşiyor',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -874,21 +962,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     _factChip(Icons.place_outlined, record.places.join(', ')),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
+                runSpacing: 4,
                 children: [
                   FilledButton.tonalIcon(
                     onPressed: () => _showListing(record),
                     icon: const Icon(Icons.article_outlined),
                     label: const Text('İlanı incele'),
-                  ),
-                  IconButton(
-                    tooltip: record.saved ? 'Kaydı kaldır' : 'Kaydet',
-                    onPressed: () => _toggleSaved(record),
-                    icon: Icon(
-                      record.saved ? Icons.bookmark : Icons.bookmark_outline,
-                    ),
                   ),
                   TextButton.icon(
                     onPressed: () => setState(() {

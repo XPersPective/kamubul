@@ -3,7 +3,19 @@ import 'listing_store.dart';
 
 /// Kayıtlı arama süzgeçlerini ilan kaydına uygulayan saf eşleştirici.
 /// Hem ana ekran listesi hem arka plan bildirim eşleştirmesi bunu kullanır.
-bool matchesFilters(ListingRecord record, Map<String, String> filters) {
+bool matchesFilters(
+  ListingRecord record,
+  Map<String, String> filters, {
+  DateTime? now,
+  bool includeScheduled = false,
+}) {
+  final today = now ?? DateTime.now();
+  final tomorrow = DateTime(today.year, today.month, today.day + 1);
+  if (!includeScheduled &&
+      record.publishedAt != null &&
+      !record.publishedAt!.isBefore(tomorrow)) {
+    return false;
+  }
   final q = (filters['q'] ?? '').toLowerCase();
   if (q.isNotEmpty && !record.title.toLowerCase().contains(q)) return false;
 
@@ -21,7 +33,7 @@ bool matchesFilters(ListingRecord record, Map<String, String> filters) {
   if (filters['son30'] == '1') {
     final published = record.publishedAt;
     if (published == null ||
-        published.isBefore(DateTime.now().subtract(const Duration(days: 30)))) {
+        published.isBefore(today.subtract(const Duration(days: 30)))) {
       return false;
     }
   }
@@ -123,7 +135,9 @@ NotificationDecision decideAlerts({
 }) {
   final mode = alertModeOf(search.filters);
   final matches = listings
-      .where((record) => matchesFilters(record, search.filters))
+      .where(
+        (record) => matchesFilters(record, search.filters, now: config.now),
+      )
       .toList();
   final seen = <String>{...previouslySeen};
   final notifications = <PendingNotification>[];
