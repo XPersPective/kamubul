@@ -1,0 +1,892 @@
+{
+ "1": {
+  "education": null,
+  "id": "27cf966f-b2b9-4671-a21a-731cb060436a",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Bu Kılavuz, 657 sayılı Devlet Memurları Kanunu’nun 4’üncü maddesinin (B) fıkrası kapsamında istihdam edilmek üzere, 06.06.1978 tarihli ve 7/15754 sayılı Bakanlar Kurulu Kararı ile yürürlüğe konulan Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar’ın Ek 2’nci maddesinin (b) fıkrası uyarınca, Üniversitemiz akademik ve idari birimlerinin ihtiyaçları doğrultusunda 15 Eylül 2026 tarihli ve 33371 sayılı Resmî Gazete’de yayımlanan Bolu Abant İzzet Baysal Üniversitesi Sözleşmeli Personel Alımı İlanında yer alan ve KPSS (B) grubu puan sıralaması esas alınmak suretiyle yerleştirme yapılacak pozisyonlara ilişkin başvuruların değerlendirilmesi ile değerlendirme sonucunda yürütülecek atanma süreçlerini kapsamaktadır.",
+   "value": "4/B"
+  }
+ },
+ "10": {
+  "education": {
+   "quote": "1)Ağız ve Diş Sağlığı ön lisans programlarından birinden mezun olmak.",
+   "value": "Ön lisans"
+  },
+  "id": "5054018d-07da-4a99-8aa9-6ad471aa90b7",
+  "kpssScore": {
+   "quote": "2) 2024 KPSS P93 puan türünden en az 60 (altmış) ve üzeri puan almış olmak.",
+   "value": 60
+  },
+  "kpssType": {
+   "quote": "2) 2024 KPSS P93 puan türünden en az 60 (altmış) ve üzeri puan almış olmak.",
+   "value": "P93"
+  },
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Üniversitemiz Birimlerinde giderleri Özel Bütçe gelirinden karşılanmak kaydıyla 657 sayılı Devlet Memurları Kanununun 4 üncü maddesinin (B) fıkrası uyarınca Sözleşmeli Personel olarak istihdam edilmek üzere 06.06.1978 tarihli ve 7/15754 sayılı Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar’da yer alan ek 2 inci maddenin (b) fıkrasına göre 2024 KPSS (B) grubu puan sırası esas alınmak suretiyle aşağıda belirtilen pozisyon ve ünvanlarda sözleşmeli personel alınacaktır.",
+   "value": "4/B"
+  }
+ },
+ "11": {
+  "education": null,
+  "id": "ec8cb14d-917f-4d65-951b-281faac1f564",
+  "kpssScore": {
+   "quote": "• 2024 yılı Kamu Personeli Seçme Sınavından (P3) en az 60 puan almış olmak.",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": {
+   "quote": "• 01.01.2026 tarihi itibariyle 35 (otuzbeş) yaşını doldurmamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Herhangi bir kurumda (657 sayılı Kanun 4/B) sözleşmeli olarak istihdam edilenlerin;",
+   "value": "4/B"
+  }
+ },
+ "12": {
+  "education": null,
+  "id": "adbf0488-1319-4ed1-911b-2f991cfb129a",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "3- Başvuru bitimi tarihi itibariyle 35 (otuz beş) yaşını bitirmemiş olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "4/B SÖZLEŞMELİ PERSONEL ALIMI TAKVİMİ",
+   "value": "4/B"
+  }
+ },
+ "13": {
+  "education": null,
+  "id": "69465191-48a2-447c-8f55-edb2ecbeb45a",
+  "kpssScore": {
+   "quote": "1- 2024 Kpss B Grubu P94 Puan Türünden En Az 60 Puan Almış olmak.",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "4/B SÖZLEŞMELİ PERSONEL ALIM İLANI",
+   "value": "4/B"
+  }
+ },
+ "14": {
+  "education": null,
+  "id": "89bd5bac-9eb0-4cd1-93f9-8b154a5189f5",
+  "kpssScore": {
+   "quote": "Başvuracak adayların 2024 yılı KPSS (B) grubu sınavından ilgili puan türünden en az 60 puan almış olmaları",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "657 sayılı Devlet Memurları Kanunu’nun 4’üncü maddesinin (B) fıkrası ve 06.06.1978 tarihli ve 7/15754 sayılı Bakanlar",
+   "value": "4/B"
+  }
+ },
+ "15": {
+  "education": null,
+  "id": "cb98ad26-9f19-467b-97f1-6c657b2c1593",
+  "kpssScore": {
+   "quote": "a) 2024 yılı Kamu Personeli Seçme Sınavına (KPSS) katılmış olup KPSSP93 (Ön Lisans mezunları) puan türünden en az 70 puan almış olmak ve en yüksek puanlı 12 kişi içerisinde bulunmak.",
+   "value": 70
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "a) ÖSYM tarafından (B) grubu kadrolar için 2024 yılında yapılan Kamu Personel Seçme Sınavına (KPSS) katılmış olup giriş sınavına başvuracak adaylarda, aşağıda belirtilen şartları taşımak.",
+   "value": "Kadro"
+  }
+ },
+ "16": {
+  "education": null,
+  "id": "61dc4762-6ce3-483c-b629-eaaf6090fb88",
+  "kpssScore": {
+   "quote": "6) Başvurularda tüm pozisyon ünvanları için ilgili puan türünden en az 60 puan almış olmak gerekmektedir.",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": {
+   "quote": "Ortaöğretim (Lise ve dengi) mezunu olmak, Yükseköğretim Kurumlarında örgün öğretim öğrencisi olarak aktif kaydı bulunmamak, son başvuru tarihi itibari ile 35 yaşını doldurmamış olmak ve temizlik işini yapmalarına engel herhangi bir sağlık sorunu bulunmamak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Üniversitemiz Rektörlüğü ve bağlı birimlerde 657 sayılı Devlet Memurları Kanununun 4. maddesinin (B) fıkrasına göre istihdam edilmek üzere 06.06.1978 tarihli ve 7/15754 sayılı Bakanlar Kurulu Kararı ile yürürlüğe konulan “Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar” gereği aşağıda belirtilen pozisyon ve niteliklerde sözleşmeli personel alınacaktır.",
+   "value": "4/B"
+  }
+ },
+ "17": {
+  "education": {
+   "quote": "Büro Yönetimi, Büro Yönetimi ve Sekreterlik, Büro Yönetimi ve Yönetici Asistanlığı, Ofis Teknolojileri ve Yönetimi, Büro Hizmetleri ve Yönetici Asistanlığı, Genel İşletme, İşletme, İşletmecilik, İşletme Yönetimi, Yönetim ön lisans programlarının birinden mezun olmak.",
+   "value": "Ön lisans"
+  },
+  "id": "90be2def-8597-49a5-a02e-e49b6649aaa4",
+  "kpssScore": null,
+  "kpssType": {
+   "quote": "2024 yılı KPSS P93 puan türünden sınava girmiş olmak,",
+   "value": "P93"
+  },
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Üniversitemizde 657 sayılı Devlet Memurları Kanunu’nun 4 üncü maddesinin (B) fıkrasına göre Sözleşmeli Personel olarak istihdam edilmek üzere 06.06.1978 tarihli ve 7/15754 sayılı Bakanlar Kurulu Kararı ile yürürlüğe konulan Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar’ın Ek 2 nci maddesinin (b) fıkrasına göre 2024 KPSS (B) grubu puan sırası esas alınmak suretiyle sözleşmeli personel alınacaktır.",
+   "value": "4/B"
+  }
+ },
+ "18": {
+  "education": null,
+  "id": "f610d591-850c-4344-ae68-03e5e6c7a169",
+  "kpssScore": {
+   "quote": "*KPSS’den en az 60 puana sahip olmak.",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "657 sayılı Devlet Memurları Kanunu’nun 4’üncü maddesinin (B) fıkrası ile 06.06.1978 tarihli ve 7/15754 sayılı Bakanlar Kurulu Kararı ile yürürlüğe konulan Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar uyarınca;",
+   "value": "4/B"
+  }
+ },
+ "19": {
+  "education": {
+   "quote": "- Ortaöğretim veya dengi okul mezunu olmak.",
+   "value": "Lise"
+  },
+  "id": "215c245e-8d5b-4b93-bc10-0c859069aefa",
+  "kpssScore": {
+   "quote": "- 2024 yılı KPSS (B), KPSSP94 puan türünde en az 70 puan almış olmak.",
+   "value": 70
+  },
+  "kpssType": {
+   "quote": "- 2024 yılı KPSS (B), KPSSP94 puan türünde en az 70 puan almış olmak.",
+   "value": "P94"
+  },
+  "maxAge": {
+   "quote": "16- Tüm ilanlara yapılan başvurularda, ilk başvuru tarihi itibarıyla 35 (otuz beş) yaşını doldurmamış olmak şartı aranmaktadır.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Üniversitemiz Rektörlüğü ve bağlı birimlerinde 657 sayılı Devlet Memurları Kanunu’nun 4’üncü maddesinin (B) fıkrasına göre istihdam edilmek ve giderleri özel bütçeden karşılanmak üzere;",
+   "value": "4/B"
+  }
+ },
+ "2": {
+  "education": null,
+  "id": "4c8c21d7-0131-486c-968c-375ecc3b9822",
+  "kpssScore": {
+   "quote": "2- 2024 KPSS‘den en az 60 (altmış) ve üzeri puan almak",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": {
+   "quote": "3- İlanın son başvuru tarihi itibarıyla 35 yaşını doldurmamış olmak",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "B- 657 sayılı Devlet Memurları Kanunu'nun 4/B maddesi gereğince, “sözleşmeli olarak istihdam edilenler, hizmet sözleşmesine aykırı hareket etmesi nedeniyle kurumlarınca sözleşmelerinin feshedilmesi veya sözleşme dönemi içerisinde Bakanlar Kurulu Kararı ile belirlenen istisnalar hariç sözleşmeyi tek taraflı feshetmeleri halinde, fesih tarihinden itibaren bir yıl geçmedikçe kurumların sözleşmeli personel pozisyonlarında istihdam edilemezler.” hükmü uyarınca başvuruları kabul edilmeyecektir.",
+   "value": "4/B"
+  }
+ },
+ "20": {
+  "education": {
+   "quote": "Fakültelerin dört yıllık bilgisayar mühendisliği, yazılım mühendisliği, elektrik mühendisliği, elektronik mühendisliği, elektrik ve elektronik mühendisliği ve endüstri mühendisliği bölümlerinden ya da bunlara denkliği Yükseköğretim Kurulunca kabul edilmiş yurt dışındaki yükseköğretim kurumlarından mezun olmak.",
+   "value": "Lisans"
+  },
+  "id": "12c5b0ac-cd05-4316-9d7c-39ed4d06a358",
+  "kpssScore": null,
+  "kpssType": {
+   "quote": "Başvuru yapacak adayların 2025 veya 2026 yılı Kamu Personel Seçme Sınavında aldıkları KPSSP3 puanının %70 (yüzde yetmiş)’i ile başvuru süresinin son günü itibariyle son 5 (beş) yıl içerisinde, İngilizce dilinde YDS (Yabancı Dil Bilgisi Seviye Tespit Sınavı)’ndan alınmış olan veya buna denkliği Yükseköğretim Kurulunca kabul edilen YDS puanının %30 (yüzde otuz)’ unun toplamı esas alınarak yapılacak sıralamaya göre en yüksek puana sahip adaydan başlanarak, belirtilen her pozisyon için 10 (on) katı aday sınava çağrılacaktır.",
+   "value": "P3"
+  },
+  "maxAge": null,
+  "quotaType": {
+   "quote": "657 sayılı Devlet Memurları Kanunu ile Kamu Kurum ve Kuruluşlarının Büyük Ölçekli Bilgi İşlem Birimlerinde Sözleşmeli Bilişim Personeli İstihdamına İlişkin Esas ve Usuller Hakkında Yönetmelik hükümleri uygulanır.",
+   "value": "Sözleşmeli"
+  }
+ },
+ "21": {
+  "education": {
+   "quote": "Üniversite ve yüksekokulların en az dört yıllık eğitim veren;",
+   "value": "Lisans"
+  },
+  "id": "1559e356-a0e2-44e2-869b-beb38c5fdb7a",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "3) Sınavın yapıldığı yılın ocak ayının birinci günü itibarıyla 35 yaşını doldurmamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Kurum tarafından ihtiyaç duyulması halinde, atama yapılacak kadro sayısının yarısını geçmemek üzere yedek aday belirlenebilir.",
+   "value": "Kadro"
+  }
+ },
+ "22": {
+  "education": {
+   "quote": "Öğrenim Dalı (Lisans):",
+   "value": "Lisans"
+  },
+  "id": "826fbdb8-f082-4294-9ac6-cd0abd98a7c9",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "b) Giriş sınavının yapıldığı yılın Ocak ayının birinci günü itibarıyla 35 (otuz beş) yaşını doldurmamış olmak (01.01.1991 tarihinde ve bu tarihten sonra doğanlar başvurabilecektir),",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Atama Yapılabilecek Boş Kadro Sayısı:",
+   "value": "Kadro"
+  }
+ },
+ "23": {
+  "education": {
+   "quote": "a) Tablo–1’de belirtilen bölümlerden veya bunlara denkliği Yüksek Öğretim Kurulunca (YÖK) kabul edilen yurt dışındaki yükseköğretim kurumlarından lisans düzeyinde mezun olmak,",
+   "value": "Lisans"
+  },
+  "id": "ac9395a0-1096-4384-abba-76719301f64a",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Yarışma sınavı sonucunda başarılı olan adaylar ile iki ayı deneme süresi olmak üzere, Genel Sekreterin önerisi üzerine Yönetim Kurulu kararı ile belirsiz süreli iş akdi yapılır.",
+   "value": "Sözleşmeli"
+  }
+ },
+ "24": {
+  "education": {
+   "quote": "a) En az dört yıllık lisans eğitimi veren yükseköğretim kurumlarının veya bunlara denkliği Yükseköğretim Kurulunca (YÖK) kabul edilen yurt içindeki veya yurt dışındaki yükseköğretim kurumlarından Tablo 2’de belirtilen öğrenim dallarından lisans düzeyinde mezun olmak,",
+   "value": "Lisans"
+  },
+  "id": "eff11df8-6568-4b54-9deb-2865aa9ac767",
+  "kpssScore": {
+   "quote": "b) Öğrenci Seçme ve Yerleştirme Merkezi tarafından 2025 veya 2026 yıllarında yapılan Kamu Personeli Seçme Sınavından mezun oldukları öğrenim dalları itibariyle Tablo 2’de gösterilen ilgili puan türlerinden son başvuru tarihi itibarıyla geçerliliği bulunan en az 80 (seksen) puan almış olmak,",
+   "value": 80
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Batı Akdeniz Kalkınma Ajansı, 15/7/2018 tarihli ve 30479 sayılı Resmi Gazete’de yayımlanan 4 sayılı Bakanlıklara Bağlı, İlgili, İlişkili Kurum ve Kuruluşlar İle Diğer Kurum ve Kuruluşların Teşkilatı Hakkında Cumhurbaşkanlığı Kararnamesi’nin 187’nci maddesinin ikinci fıkrasının (g) bendi ve 200’üncü maddesi ile 27/6/1989 tarihli ve 375 sayılı Kanun Hükmünde Kararnamenin Ek 28’inci maddesinin dördüncü fıkrası hükümlerine dayanılarak hazırlanan ve 29 Mayıs 2019 tarihli ve 30788 sayılı Resmi Gazete’de yayımlanan Kalkınma Ajansları Personel Yönetmeliği hükümleri çerçevesinde, TR61 Bölgesinin (Antalya, Burdur ve Isparta illeri) kalkınmasına ve gelişmesine hizmet etmek ve katkıda bulunmak isteyen, yeniliğe ve gelişime açık, analitik düşünebilen, değişen çalışma koşullarına uyum sağlayabilen, hizmet ve kalkınma bilinciyle ve sorumluluğuyla hareket eden, seyahat engeli olmayan 3 Uzman Personel alımı gerçekleştirecektir.",
+   "value": "375/B"
+  }
+ },
+ "25": {
+  "education": {
+   "quote": "En az dört yıllık lisans eğitimi veren yükseköğretim kurumlarının veya bunlara denkliği YÖK tarafından kabul edilen yurt içindeki veya yurt dışındaki yükseköğretim kurumlarının aşağıdaki belirtilen bölümlerinden mezun olmak,",
+   "value": "Lisans"
+  },
+  "id": "063bde4d-166c-4f59-8da4-9263fa4a59be",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Başarılı olan adaylar ile iş mevzuatı hükümlerine göre iki ayı deneme süresi olmak üzere, Genel Sekreter’in önerisi üzerine Yönetim Kurulu kararı ile belirsiz süreli iş akdi yapılacaktır.",
+   "value": "Sözleşmeli"
+  }
+ },
+ "26": {
+  "education": null,
+  "id": "0652f160-59b2-4c19-92de-3e1e55676627",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": null
+ },
+ "27": {
+  "education": {
+   "quote": "1.Yükseköğretim kurumlarının aşağıda belirtilen Önlisans programından mezun olmak:",
+   "value": "Ön lisans"
+  },
+  "id": "08f8bf25-2255-4016-8506-55c9fb231f9e",
+  "kpssScore": {
+   "quote": "4.2024 yılı KPSS P93 puan türünden altmış (60) ve üzeri puan almış olmak.",
+   "value": 60
+  },
+  "kpssType": {
+   "quote": "4.2024 yılı KPSS P93 puan türünden altmış (60) ve üzeri puan almış olmak.",
+   "value": "P93"
+  },
+  "maxAge": {
+   "quote": "4.35 yaşını bitirmemiş olmak 13.04.1991 tarihinden sonra doğanlar başvuru yapabilecektir.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "2.Kamu Kurum ve Kuruluşlarına İşçi Alınmasında Uygulanacak Usul ve Esaslar Hakkında Yönetmeliğin 4.maddesinde belirtilen şartları taşımak.",
+   "value": "İşçi"
+  }
+ },
+ "28": {
+  "education": {
+   "quote": "b) Fakültelerin dört yıllık bilgisayar mühendisliği, yazılım mühendisliği, elektrik mühendisliği, elektronik mühendisliği, elektrik-elektronik mühendisliği ve endüstri mühendisliği bölümlerinden ya da bunlara denkliği Yükseköğretim Kurulunca kabul edilmiş yurt dışındaki yükseköğretim kurumlarından mezun olmak,",
+   "value": "Lisans"
+  },
+  "id": "094d6cb7-bdbd-47ed-a5fd-b214c3ead8b1",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "SÖZLEŞMELİ BİLİŞİM PERSONELİ SINAV DUYURUSU",
+   "value": "Sözleşmeli"
+  }
+ },
+ "29": {
+  "education": {
+   "quote": "En az dört yıllık lisans eğitimi veren yükseköğretim kurumlarının ilanda belirtilen bölümleri ile bunlara denkliği Yükseköğretim Kurulu tarafından kabul edilen yurt içindeki veya yurt dışındaki öğretim kurumlarından mezun olmak,",
+   "value": "Lisans"
+  },
+  "id": "15688135-6380-4ae5-9d24-faab1fec6ebd",
+  "kpssScore": {
+   "quote": "Son başvuru tarihi itibarıyla, geçerlik süresi dolmamış KPSS P3 puan türünden en az 70 (yetmiş) puan almış olmak,",
+   "value": 70
+  },
+  "kpssType": {
+   "quote": "Son başvuru tarihi itibarıyla, geçerlik süresi dolmamış KPSS P3 puan türünden en az 70 (yetmiş) puan almış olmak,",
+   "value": "P3"
+  },
+  "maxAge": {
+   "quote": "Yarışma sınavının yapıldığı yılın Ocak ayının birinci günü itibarıyla 35 (otuz beş) yaşını doldurmamış olmak,",
+   "value": 35
+  },
+  "quotaType": null
+ },
+ "3": {
+  "education": {
+   "quote": "lisans mezuniyeti sonrasındaki hizmetler dikkate alınacaktır.",
+   "value": "Lisans"
+  },
+  "id": "f4915f84-3749-4c5d-9272-bb194f2b938b",
+  "kpssScore": null,
+  "kpssType": {
+   "quote": "a) Başvuruların incelenmesi sonucunda genel ve özel şartları sağlayan adaylardan, 2024 veya 2025 yıllarında yapılan Kamu Personel Seçme Sınavında (KPSS) KPSSP3 puanının yüzde yetmişi (%70) ile İngilizce dilinde geçerli bir Yabancı Dil Sınavı (YDS), Elektronik Yabancı Dil Sınavı (e-YDS) veya bu dilde yapılan denkliği ÖSYM tarafından kabul edilen diğer yabancı dil sınavından alınan puanın yüzde otuzunun (%30) toplamı esas alınarak yapılacak sıralamaya göre, en yüksek puandan başlanarak her pozisyon için ayrı liste oluşturulacaktır.",
+   "value": "P3"
+  },
+  "maxAge": null,
+  "quotaType": {
+   "quote": "SÖZLEŞMELİ BİLİŞİM PERSONELİ ALIM İLANI",
+   "value": "Sözleşmeli"
+  }
+ },
+ "30": {
+  "education": null,
+  "id": "15bfeb72-5695-4e13-8b4c-5633d72cbf21",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "-Son başvuru tarihi itibariyle 35 (otuzbeş) yaşından gün almamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Üniversitemiz Rektörlüğüne bağlı birimlerde 657 sayılı Devlet Memurları Kanunu’nun 4’üncü maddesinin (B) fıkrasına göre istihdam edilmek ve giderleri özel bütçeden karşılanmak üzere;",
+   "value": "4/B"
+  }
+ },
+ "31": {
+  "education": {
+   "quote": "b) Fakültelerin dört yıllık bilgisayar mühendisliği, yazılım mühendisliği, elektrik mühendisliği, elektronik mühendisliği, elektrik ve elektronik mühendisliği ve endüstri mühendisliği bölümlerinden ya da bunlara denkliği Yükseköğretim Kurulunca kabul edilmiş yurt dışındaki yüksek öğretim kurumlarından mezun olmak.",
+   "value": "Lisans"
+  },
+  "id": "1918e780-13f8-453f-9527-228099e377ae",
+  "kpssScore": null,
+  "kpssType": {
+   "quote": "b) 2024 veya 2025 yıllarında yapılan Kamu Personeli Seçme Sınavında (KPSS) alınan KPSSP3 puanını gösterir barkodlu belge,",
+   "value": "P3"
+  },
+  "maxAge": null,
+  "quotaType": {
+   "quote": "SÖZLEŞMELİ BİLİŞİM PERSONELİ ALIM İLANI",
+   "value": "Sözleşmeli"
+  }
+ },
+ "32": {
+  "education": {
+   "quote": "1-Lise ve dengi okul mezunu olmak,",
+   "value": "Lise"
+  },
+  "id": "1a597fd2-3307-4c10-8553-0488272a2a6e",
+  "kpssScore": {
+   "quote": "2- Ölçme, Seçme ve Yerleştirme Merkezi (ÖSYM) tarafından 2024 yılında yapılan, Kamu Personeli Seçme Sınavının KPSS (B) Grubu için KPSSP94 puan türünden asgari 55 ve daha yukarı puan almak kaydıyla, müracaat edenlerin en yüksek puandan başlanarak sıralanması neticesinde alınacak sözleşmeli personel sayısı kadar aday arasına girmek,",
+   "value": 55
+  },
+  "kpssType": {
+   "quote": "2- Ölçme, Seçme ve Yerleştirme Merkezi (ÖSYM) tarafından 2024 yılında yapılan, Kamu Personeli Seçme Sınavının KPSS (B) Grubu için KPSSP94 puan türünden asgari 55 ve daha yukarı puan almak kaydıyla, müracaat edenlerin en yüksek puandan başlanarak sıralanması neticesinde alınacak sözleşmeli personel sayısı kadar aday arasına girmek,",
+   "value": "P94"
+  },
+  "maxAge": {
+   "quote": "4- Son başvuru tarihi itibarıyla 35 (otuz beş) yaşını doldurmamış olmak, (01.01.1990 ve daha sonraki tarihlerde doğanlar başvurabilecektir.),",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "2- KPSS (B) GRUBU PUAN SIRALAMASI İLE ALINACAK 4/B SÖZLEŞMELİ PERSONEL DAĞILIMI İLE ARANACAK ŞARTLAR",
+   "value": "4/B"
+  }
+ },
+ "33": {
+  "education": null,
+  "id": "1aaa3600-6e5d-465d-a4a1-66b350593847",
+  "kpssScore": {
+   "quote": "-2024 KPSS (P94) puan türünden 60 ve üzeri almış olmak.",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "657 sayılı Devlet Memurları Kanununun 4 üncü maddesinin (B) fıkrası uyarınca istihdam edilmek üzere, 06/06/1978 tarihli ve 7/15754 sayılı Bakanlar Kurulu Kararı ile yürürlüğe konulan Sözleşmeli Personel Çalıştırılmasına İlişkin Esasların Ek 2 nci maddesinin (b) fıkrası gereğince yazılı ve/veya sözlü sınav yapılmaksızın, 2024 KPSS (B) grubu puan sıralaması esas alınmak suretiyle aşağıda belirtilen pozisyonlara toplam 261 (ikiyüzaltmışbir) adet sözleşmeli personel alınacaktır.",
+   "value": "4/B"
+  }
+ },
+ "34": {
+  "education": {
+   "quote": "a) Meslek Liselerinin Güzellik ve Saç Bakım Hizmetleri alanının Erkek Kuaförlüğü bölümünden mezun olmak.",
+   "value": "Lise"
+  },
+  "id": "1b96a4b8-3a50-4d6e-9706-6d71ede4d94b",
+  "kpssScore": {
+   "quote": "b) 2024 yılı KPSS ortaöğretim düzeyinde KPSS-P94 puan türünden en az 60 puan almış olmak.",
+   "value": 60
+  },
+  "kpssType": {
+   "quote": "b) 2024 yılı KPSS ortaöğretim düzeyinde KPSS-P94 puan türünden en az 60 puan almış olmak.",
+   "value": "P94"
+  },
+  "maxAge": {
+   "quote": "b)Yapılacak sınav için başvuru tarihi itibariyle 30 yaşını tamamlamış ve 36 yaşından gün almamış olmak.",
+   "value": 36
+  },
+  "quotaType": {
+   "quote": "a) Emniyet Hizmetleri Sınıfı Dışında Görevli Kadrolu ve Sözleşmeli Personel Yönetmeliği çerçevesinde, 657 sayılı Devlet Memurları Kanunu kapsamında merkez ve taşra teşkilatına Kadrolu statüde personel alımı yapılacaktır.",
+   "value": "Kadro"
+  }
+ },
+ "35": {
+  "education": {
+   "quote": "En az Ortaöğretim mezunu olmak,",
+   "value": "Lise"
+  },
+  "id": "25b9991a-4cc5-43b3-8ad4-708424ca3dfc",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "3.Başvuru süresinin ilk günü itibarıyla 35 yaşını doldurmamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "ENGELLİ DAİMİ İŞÇİ ALIMI GENEL VE ÖZEL ŞARTLAR",
+   "value": "İşçi"
+  }
+ },
+ "36": {
+  "education": {
+   "quote": "Lise ve dengi okul mezunu olmak,",
+   "value": "Lise"
+  },
+  "id": "270da9d9-9aa2-4200-bd3d-05a0322a5842",
+  "kpssScore": {
+   "quote": "Ölçme, Seçme ve Yerleştirme Merkezi (ÖSYM) tarafından 2024 yılında yapılan, Kamu Personeli Seçme Sınavının KPSS (B) Grubu için KPSSP94 puan türünden en az 60 ve daha yukarı puan almak kaydıyla, müracaat edenlerin en yüksek puandan başlanarak sıralanması neticesinde alınacak sözleşmeli personel sayısı kadar aday arasına girmek,",
+   "value": 60
+  },
+  "kpssType": {
+   "quote": "Ölçme, Seçme ve Yerleştirme Merkezi (ÖSYM) tarafından 2024 yılında yapılan, Kamu Personeli Seçme Sınavının KPSS (B) Grubu için KPSSP94 puan türünden en az 60 ve daha yukarı puan almak kaydıyla, müracaat edenlerin en yüksek puandan başlanarak sıralanması neticesinde alınacak sözleşmeli personel sayısı kadar aday arasına girmek,",
+   "value": "P94"
+  },
+  "maxAge": {
+   "quote": "Son başvuru tarihi itibarıyla 35 (otuz beş) yaşını doldurmamış olmak,",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "KPSS PUAN SIRALAMASI İLE ALINACAK 4/B SÖZLEŞMELİ PERSONEL POZİSYON VE ADETLERİ",
+   "value": "4/B"
+  }
+ },
+ "37": {
+  "education": null,
+  "id": "2803961b-1ed3-426a-b99d-df5201c49aee",
+  "kpssScore": {
+   "quote": "e-2024 yılı Kamu Personeli Seçme Sınavından P94 puan türünden en az 60 (altmış) puan almış olmak.",
+   "value": 60
+  },
+  "kpssType": {
+   "quote": "e-2024 yılı Kamu Personeli Seçme Sınavından P94 puan türünden en az 60 (altmış) puan almış olmak.",
+   "value": "P94"
+  },
+  "maxAge": null,
+  "quotaType": {
+   "quote": "28 Haziran 2007 tarihli ve 26566 sayılı Resmî Gazete’de yayımlanan Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar ile ek ve değişikliklerine tabi 657 sayılı Devlet Memurları Kanununun 4. maddesinin (B) fıkrasına göre sözleşmeli personel istihdam edilecektir.",
+   "value": "4/B"
+  }
+ },
+ "38": {
+  "education": null,
+  "id": "2a92c735-e21b-45b2-884f-efd6d347c2a5",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "2025 yılının Ocak ayının birinci günü itibarıyla 35 (otuz beş) yaşını doldurmamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Kamu kurum ve kuruluşlarında 4/B sözleşmeli personel olarak çalışmıyor olmak ya da kamu kurum ve kuruluşlarında 4/B sözleşmeli personel pozisyonlarında tam zamanlı olarak görev yapmakta iken sözleşmenin herhangi bir nedenle feshedilmesi halinde son başvuru tarihi itibariyle bir yıllık bekleme süresini tamamlamış olmak.",
+   "value": "4/B"
+  }
+ },
+ "39": {
+  "education": null,
+  "id": "2bf3e9dc-cbfa-49f8-90d6-3480c449671a",
+  "kpssScore": {
+   "quote": "Erkek/ Kadın KPSS Puan Türü:KPSS P3 KPSS Taban Puanı:En az 70 Puan",
+   "value": 70
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Mahalli idarelerle ilgili temel mevzuat konuları ile kadro unvanına ilişkin mesleki ve uygulamalı bilgi ve yeteneğinin ölçülmesini kapsar.",
+   "value": "Kadro"
+  }
+ },
+ "4": {
+  "education": null,
+  "id": "1f94b6b1-1143-4b0a-9d84-c7dcfa542586",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "01.01.2026 tarihi itibarıyla 35 yaşından gün almamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Üniversitemiz Rektörlüğüne bağlı birimlerde 657 sayılı Devlet Memurları Kanununun 4 üncü maddesinin (B) fıkrasına istinaden istihdam edilmek üzere;",
+   "value": "4/B"
+  }
+ },
+ "40": {
+  "education": null,
+  "id": "31c401d3-ee8e-46c6-a8f5-bbe112f74573",
+  "kpssScore": {
+   "quote": "2- 2024 Kamu Personeli Seçme Sınavında B Grubu (KPSS P3) 60 ve Üzeri Puan almış olmak,",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": {
+   "quote": "5- Müracaat tarihi itibariyle 35 yaşını doldurmamış olmak",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Üniversitemiz bünyesinde 657 Sayılı Devlet Memurları Kanunu’nun 4’üncü maddesinin (B) fıkrası uyarınca Sözleşmeli olarak istihdam edilmek ve tam zamanlı olarak çalıştırılmak üzere, Sözleşmeli Personel Çalıştırılmasına İlişkin Esasların Ek 2’nci maddesinin (b) fıkrasına göre KPSS (B) grubu puan sırası esas alınmak suretiyle Üniversitemize bağlı birimlerinde istihdam edilmek ve ücretleri Özel Bütçeden karşılanmak üzere aşağıda belirtilen unvanlarda 29 (yirmi dokuz) adet sözleşmeli personel alınacaktır.",
+   "value": "4/B"
+  }
+ },
+ "41": {
+  "education": {
+   "quote": "Sürelerin hesabında ilgili lisans mezuniyeti sonrasındaki hizmetler dikkate alınacaktır.)",
+   "value": "Lisans"
+  },
+  "id": "38850b7e-a042-4dfb-b22e-84939b4a4b81",
+  "kpssScore": null,
+  "kpssType": {
+   "quote": "j) KPSS Sonuç Belgesi (Belge ibraz etmeyenlerin KPSS P3 puanı 70 olarak değerlendirilecektir)",
+   "value": "P3"
+  },
+  "maxAge": null,
+  "quotaType": {
+   "quote": "f) \"Kamu Kurum ve Kuruluşlarının Büyük Ölçekli Bilgi İşlem Birimlerinde Sözleşmeli Bilişim Personeli İstihdamına İlişkin Esas ve Usuller Hakkında Yönetmelik\"te belirtilen özlük hakları ve diğer kuralları kabul etmek.",
+   "value": "Sözleşmeli"
+  }
+ },
+ "42": {
+  "education": null,
+  "id": "3a1e4e94-2ebf-4d34-9b86-c0c3df7d00cb",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "10- İlanın son başvuru tarihi itibariyle 35 (otuz beş) yaşını doldurmamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Doğa Koruma ve Milli Parklar Genel Müdürlüğü merkez ve taşra teşkilatında 657 sayılı Devlet Memurları Kanunu'nun 4 üncü maddesinin (B) fıkrasına göre istihdam edilmek üzere 06/06//1978 tarihli ve 7/15754 sayılı Bakanlar Kurulu Kararı’na ekli Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar’ın Ek 2'inci maddesinin (b) fıkrası uyarınca sözleşmeli personel pozisyonlarında istihdam edilmek üzere;",
+   "value": "4/B"
+  }
+ },
+ "43": {
+  "education": {
+   "quote": "yurt içindeki üniversitelerin veya diploma denkliği Yükseköğretim Kurulu (YÖK) tarafından onaylanmış olmak kaydıyla yabancı üniversitelerin lisans düzeyinde eğitim verilen fakültelerinin Tablo-1’de belirtilen bölümlerinden mezun olmak.",
+   "value": "Lisans"
+  },
+  "id": "3a708cfb-2f5d-405f-a691-b0380a38cee0",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "b) Giriş sınavının yapıldığı yılın Ocak ayının birinci günü (01.01.2026) itibarıyla 35 yaşını doldurmamış olmak (01.01.1991 ve daha sonra doğmuş olanlar),",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "derece kadrolara yapılabilecektir.",
+   "value": "Kadro"
+  }
+ },
+ "44": {
+  "education": null,
+  "id": "3b7f2871-13d5-49ec-a2db-3ba8fb2ca92a",
+  "kpssScore": {
+   "quote": "[*]Ölçme, Seçme ve Yerleştirme Merkezi (ÖSYM) tarafından 2024 yılında yapılan, Kamu Personeli Seçme Sınavının KPSS (B) Grubu için KPSSP3 puan türünden asgari 60 ve daha yukarı puan almak kaydıyla, müracaat edenlerin en yüksek puandan başlanarak sıralanması neticesinde alınacak sözleşmeli personel sayısı kadar aday arasına girmek,",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": {
+   "quote": "[*]Son başvuru tarihi itibarıyla 35 (otuz beş) yaşını doldurmamış olmak,",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "KPSS PUAN SIRALAMASI İLE ALINACAK 4/B SÖZLEŞMELİ PERSONEL POZİSYON VE ADETLERİ",
+   "value": "4/B"
+  }
+ },
+ "45": {
+  "education": {
+   "quote": "b) Fakültelerin dört yıllık bilgisayar mühendisliği, yazılım mühendisliği, elektrik mühendisliği, elektronik mühendisliği, elektrik ve elektronik mühendisliği, elektrik-elektronik mühendisliği ve endüstri mühendisliği bölümlerinden ya da bunlara denkliği Yükseköğretim Kurulunca kabul edilmiş yurt dışındaki yükseköğretim kurumlarından mezun olmak,",
+   "value": "Lisans"
+  },
+  "id": "3cbcb0b7-7f09-4375-92a8-7e333816b9fc",
+  "kpssScore": null,
+  "kpssType": {
+   "quote": "ÖSYM tarafından 2024 yılında yapılan Kamu Personel Seçme Sınavı KPSS (P3) puanının yüzde yetmişi (%70) ile Yabancı Dil Sınav (İngilizce) puanının yüzde otuzunun (%30) toplamı esas alınarak, usulüne uygun başvuran ve genel ile özel şartları sağlayan adaylardan, her bir pozisyon için ayrı ayrı en yüksek puanlı adaydan başlamak üzere oluşturulacak sıralamaya göre, alım yapılacak sözleşmeli bilişim personeli pozisyonunun 10 (on) katı aday giriş (yazılı) sınavına alınacaktır.",
+   "value": "P3"
+  },
+  "maxAge": null,
+  "quotaType": {
+   "quote": "SÖZLEŞMELİ BİLİŞİM PERSONELİ İLANI",
+   "value": "Sözleşmeli"
+  }
+ },
+ "46": {
+  "education": null,
+  "id": "3e58db70-f771-4073-937d-669655bd3544",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "e) Başvuru tarihi itibariyle 18 (on sekiz) yaşını tamamlamış olmak, ilanın son başvuru tarihi itibariyle 35 (otuz beş) yaşını doldurmamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "Son 1 (bir) yıl içerisinde 4/B’li (sözleşmeli) personel pozisyonunda çalışmış olanlar için, daha önce 4/B’li (sözleşmeli) personel pozisyonunda çalıştığı kurumdan alınacak 1 (bir) yıl bekleme süresine tabi olmadığını gösteren belge ve e-devlet sisteminden alınmış BARKODLU SGK Hizmet Dökümü.",
+   "value": "4/B"
+  }
+ },
+ "47": {
+  "education": null,
+  "id": "3e8a88bb-4a82-4352-b8d9-22dd0378c32c",
+  "kpssScore": {
+   "quote": "İlgili puan türünden en az 65 puan almış olmak.",
+   "value": 65
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "4/B maddesi kapsamında) çalışmıyor olmak.",
+   "value": "4/B"
+  }
+ },
+ "48": {
+  "education": null,
+  "id": "48655e78-1009-4f25-a938-698c5a7e9998",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Üniversitemiz Birimlerinde giderleri Özel Bütçe gelirinden karşılanmak üzere 657 sayılı Devlet Memurları Kanunun 4. maddesinin (B) fıkrası uyarınca istihdam edilmek üzere 28.06.2007 tarih ve 26566 sayılı Resmi Gazete’de yayımlanan “Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslarda Değişiklik Yapılmasına Dair Esaslar” da yer alan Ek 2. maddesinin (b) fıkrasına göre 2024 KPSS (B) grubu puan sıralaması esas alınmak suretiyle aşağıda belirtilen ünvanlarda sözleşmeli personel alınacaktır.",
+   "value": "4/B"
+  }
+ },
+ "49": {
+  "education": {
+   "quote": "b) Fakültelerin dört yıllık bilgisayar mühendisliği, yazılım mühendisliği, elektrik mühendisliği, elektronik mühendisliği, elektrik ve elektronik mühendisliği ve endüstri mühendisliği bölümlerinden ya da bunlara denkliği Yükseköğretim Kurulunca kabul edilmiş yurt dışındaki yükseköğretim kurumlarından mezun olması,",
+   "value": "Lisans"
+  },
+  "id": "4e101ef5-ce2f-498e-aeb3-292c472a381f",
+  "kpssScore": null,
+  "kpssType": {
+   "quote": "Başvuru şartlarını taşıyan aday adayları arasından 2024 ve 2025 yılında yapılan Kamu Personeli Seçme Sınavı B Grubu (KPSSP3) puanının %70 (yüzde yetmiş)’i ile Yabancı Dil Bilgisi Seviye Tespit Sınavı (YDS) veya buna denkliği Yükseköğretim Kurulu’nca kabul edilen YDS dengi sınavlardan alınan puanının %30 (yüzde otuz)’u hesaplanarak elde edilecek toplam puana göre belirtilen pozisyonlardan en fazla 1 (bir) tanesine başvurulabilecektir.",
+   "value": "P3"
+  },
+  "maxAge": {
+   "quote": "k) İlan edilen tüm pozisyonlar için ilan başvuru tarihinin ilk günü itibariyle 35 (otuz beş) yaşını doldurmamış olmak (1991 ve sonrası doğumlular başvuru yapabilecektir.)",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "SÖZLEŞMELİ BİLİŞİM PERSONELİ ALIM İLANI",
+   "value": "Sözleşmeli"
+  }
+ },
+ "5": {
+  "education": null,
+  "id": "c2122f16-3cd3-447f-8878-47f4b16a296c",
+  "kpssScore": {
+   "quote": "-2024 KPSS(B) grubu P3 puan türünden en az 60 puan almış olmak.",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "5- 657 sayılı Devlet Memurları Kanunu’nun 4/B maddesine eklenen “Bu şekilde istihdam edilenler, hizmet sözleşmesi esaslarına aykırı hareket etmesi nedeniyle kurumlarınca sözleşmelerinin feshedilmesi veya sözleşme dönemi içerisinde Cumhurbaşkanı kararı ile belirlenen istisnalar hariç sözleşmeyi tek taraflı feshetmeleri halinde fesih tarihinden, sözleşmeyi yenilememeleri hâlinde sözleşmenin bitiminden itibaren bir yıl geçmedikçe kurumların sözleşmeli personel pozisyonlarında istihdam edilemezler.” şartını sağlıyor olmak.",
+   "value": "4/B"
+  }
+ },
+ "50": {
+  "education": {
+   "quote": "a) En az dört yıllık lisans eğitimi veren yükseköğretim kurumlarının veya bunlara denkliği YÖK tarafından kabul edilen yurt içindeki veya yurt dışındaki yükseköğretim kurumlarından Tablo 2’de belirtilen bölümden lisans düzeyinde mezun olmak,",
+   "value": "Lisans"
+  },
+  "id": "4f014575-0a7d-46a9-9357-1edf6833f7fb",
+  "kpssScore": {
+   "quote": "c) ÖSYM tarafından 2024-2025 yıllarında yapılmış olan Kamu Personeli Seçme Sınavı (KPSS)’ndan mezun oldukları öğrenim dalları itibarıyla Tablo 2’de belirtilen puan türlerinin birinden en az 80 puan almış olmak.",
+   "value": 80
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Ajans hizmetleri 375 sayılı Kanun Hükmünde Kararnamenin ek 28 inci maddesine göre iş mevzuatı hükümlerine göre belirsiz süreli hizmet akdine bağlı olarak istihdam edilen uzman personel ve destek personeli eliyle yürütülür.",
+   "value": "375/B"
+  }
+ },
+ "51": {
+  "education": null,
+  "id": "57cf315b-bf9d-4dca-85b5-01d8812ddf52",
+  "kpssScore": {
+   "quote": "3) ÖSYM tarafından 2024 veya 2025 yıllarında yapılan Kamu Personeli Seçme Sınavına (KPSS) girmiş olmak ve KPSSP4 puan türünden asgari 80 ve üzeri puan almış olmak kaydıyla giriş sınav duyurusunda yer alan usulle belirlenen sayıda aday arasına girmiş olmak.",
+   "value": 80
+  },
+  "kpssType": null,
+  "maxAge": {
+   "quote": "2) Sınavın yapılacağı yılın Ocak ayının birinci günü (01 Ocak 2025) itibarıyla 35 (otuz beş) yaşını doldurmamış olmak (02 Ocak 1990 ve daha sonraki doğumlular başvurabilir).",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "3) Giriş sınavının yazılı aşamasına, atama yapılacak kadro sayısının en fazla 20 (yirmi) katı aday çağırılacaktır.",
+   "value": "Kadro"
+  }
+ },
+ "52": {
+  "education": null,
+  "id": "597fae91-2a66-4c66-860f-21f4e24f3880",
+  "kpssScore": {
+   "quote": "[*]2024 KPSS (B) grubunun KPSSP3 puan türünden en az 70 (yetmiş) puan almış olmak.",
+   "value": 70
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Genel Müdürlüğümüz merkez ve taşra teşkilatı birimlerinde 657 sayılı Devlet Memurları Kanunu'nun 4'üncü maddesinin (B) fıkrasına göre istihdam edilmek üzere, 06/06/1978 tarihli ve 7/15754 sayılı Bakanlar Kurulu Kararı ile yürürlüğe konulan \"Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar”ın Ek Madde 2’nin (b) fıkrasına göre aşağıda belirtilen ünvanlarda toplam 150 sözleşmeli personel alınacaktır.",
+   "value": "4/B"
+  }
+ },
+ "53": {
+  "education": {
+   "quote": "- Ortaöğretim (lise ve dengi) kurumlarından mezun olmak.",
+   "value": "Lise"
+  },
+  "id": "59ba3258-2572-469d-8e9e-715a44d361ec",
+  "kpssScore": null,
+  "kpssType": {
+   "quote": "- 2024 KPSS P94 puanı olmak.",
+   "value": "P94"
+  },
+  "maxAge": {
+   "quote": "- Son başvuru tarihi itibarıyla 35 yaşını doldurmamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "7- Başvuracak adayların 657 sayılı Devlet Memurları Kanunu'nun 4/B maddesinin \"Bu şekilde istihdam edilenler, hizmet sözleşmesi esaslarına aykırı hareket etmesi nedeniyle kurumlarınca sözleşmelerinin feshedilmesi veya sözleşme dönemi içerisinde Bakanlar Kurulu Kararı ile belirlenen istisnalar hariç sözleşmeyi tek taraflı feshetmeleri halinde, fesih tarihinden itibaren bir yıl geçmedikçe kurumların sözleşmeli personel pozisyonlarında istihdam edilemezler\" hükmü gereğince bu maddeye aykırı durumu tespit edilenlerin atamaları yapılmayacaktır.",
+   "value": "4/B"
+  }
+ },
+ "54": {
+  "education": null,
+  "id": "5e0e2db6-9a6b-4abf-88cc-b47942ff41b0",
+  "kpssScore": {
+   "quote": "2) Adli Tıp Kurumu Başkanlığınca yapılacak sözlü sınavlara 2024 yılı KPSS’ye giren adaylardan her pozisyon için aranan puan türünden en az 70 puan alanlar başvurabilecektir.",
+   "value": 70
+  },
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "1) Adli Tıp Kurumu Merkez ve Taşra Teşkilatında 6/6/1978 tarihli ve 7/15754 sayılı Bakanlar Kurulu Kararıyla yürürlüğe giren “Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar”a göre, 657 sayılı Devlet Memurları Kanunu’nun 4/B maddesi uyarınca sözleşmeli personel statüsünde istihdam edilmek üzere;",
+   "value": "4/B"
+  }
+ },
+ "55": {
+  "education": {
+   "quote": "a) Fakülte veya 4 yıllık yüksekokul mezunu olmak,",
+   "value": "Lisans"
+  },
+  "id": "5ee1a55b-72b4-4cf9-b50a-b2027adc64ee",
+  "kpssScore": {
+   "quote": "KPSSP3 puan türünden en az 70 puan.",
+   "value": 70
+  },
+  "kpssType": {
+   "quote": "KPSSP3 puan türünden en az 70 puan.",
+   "value": "P3"
+  },
+  "maxAge": null,
+  "quotaType": null
+ },
+ "6": {
+  "education": {
+   "quote": "Lisans düzeyinde eğitim veren fakültelerin makine mühendisliği bölümünden mezun olmak.",
+   "value": "Lisans"
+  },
+  "id": "79f7e5c7-8baf-44a5-b056-57e332c66743",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Birliğimizin yukarıda belirtilen boş memur kadrosu için yapılacak başvurularda aranan genel ve özel şartlar aşağıdadır.",
+   "value": "Kadro"
+  }
+ },
+ "7": {
+  "education": null,
+  "id": "a3fc2acb-8b4d-48c0-b273-1a68554b2772",
+  "kpssScore": {
+   "quote": "* 2024 KPSS (P3) puanı en az 60 puan ve üzeri olmak.",
+   "value": 60
+  },
+  "kpssType": null,
+  "maxAge": {
+   "quote": "* Son başvuru tarihi itibarıyla 35 yaşını doldurmamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "8-Başvuracak adaylardan 657 sayılı Devlet Memuru Kanunu’nun 4/B maddesine göre kamu kurumlarında istihdam edilenlerin Sözleşmeli Personel Çalıştırılmasına İlişkin Esaslar’da “Bu şekilde istihdam edilenler, hizmet sözleşmesi esaslarına aykırı hareket etmesi nedeniyle kurumlarınca sözleşmelerinin feshedilmesi veya sözleşme dönemi içerisinden Bakanlar Kurulu kararı ile belirlenen istisnalar hariç sözleşmeyi tek taraflı fesh etmeleri halinde, fesih tarihinden itibaren 1 (bir) yıl geçmedikçe kurumların sözleşmeli personel pozisyonlarında istihdam edilemezler.” hükmü gereğince başvuramazlar.",
+   "value": "4/B"
+  }
+ },
+ "8": {
+  "education": null,
+  "id": "b06c870a-74b4-4292-aefd-99b0b4ea6263",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": {
+   "quote": "Son başvuru tarihi itibarıyla 35 yaşını doldurmamış olmak.",
+   "value": 35
+  },
+  "quotaType": {
+   "quote": "4/B SÖZLEŞMELİ PERSONEL ALIM İLANI",
+   "value": "4/B"
+  }
+ },
+ "9": {
+  "education": {
+   "quote": "b) Fakültelerin dört yıllık bilgisayar mühendisliği, yazılım mühendisliği, elektrik mühendisliği, elektronik mühendisliği, elektrik-elektronik mühendisliği ve endüstri mühendisliği bölümlerinden ya da bunlara denkliği Yükseköğretim Kurulunca kabul edilmiş yurt dışındaki yükseköğretim kurumlarından mezun olmak,",
+   "value": "Lisans"
+  },
+  "id": "30329a62-04f3-445a-985f-f6a0b8c2e1b7",
+  "kpssScore": null,
+  "kpssType": null,
+  "maxAge": null,
+  "quotaType": {
+   "quote": "Göç İdaresi Başkanlığı Yönetim Hizmetleri Genel Müdürlüğü Bilgi İşlem Daire Başkanlığı bünyesinde istihdam edilmek üzere 375 sayılı Kanun Hükmünde Kararnamenin Ek 6 ncı maddesi ile 31/12/2008 tarih ve 27097 sayılı Resmi Gazete’de yayımlanan Kamu Kurum ve Kuruluşlarının Büyük Ölçekli Bilgi İşlem Birimlerinde Sözleşmeli Bilişim Personeli İstihdamına İlişkin Esas ve Usuller Hakkında Yönetmelik'in 8 inci maddesi uyarınca sözlü/uygulamalı sınav başarı sırasına göre yapılacak yerleştirme ile 3 (üç) sözleşmeli bilişim personeli alınacaktır.",
+   "value": "Sözleşmeli"
+  }
+ }
+}
