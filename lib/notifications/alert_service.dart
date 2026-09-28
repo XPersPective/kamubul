@@ -234,8 +234,22 @@ Future<int> runAlertCheckOnce() async {
   final queued = [...queue.skip(flushing.length)];
   if (flushing.isNotEmpty) await settings.addInstantSent(flushing.length);
 
-  final listings = await store.allListings();
   final searches = await store.savedSearches();
+  // Denetim başına en fazla beş farklı şehir sorgulanır; daha fazlası için
+  // sıralı tur işaretçisi ve kaynak başına kalıcı kota eklenmeli.
+  final cities = searches
+      .map((search) => search.filters['sehir']?.trim() ?? '')
+      .where((city) => city.isNotEmpty)
+      .toSet()
+      .take(5);
+  for (final city in cities) {
+    try {
+      await refreshKariyerCity(store, city);
+    } on Exception {
+      // Çevrimdışı durumda önceden doğrulanmış yerlerle devam edilir.
+    }
+  }
+  final listings = await store.allListings();
   for (final search in searches) {
     final mode = alertModeOf(search.filters);
     final config = AlertConfig(

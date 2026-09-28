@@ -2,6 +2,7 @@ import '../listings/kariyer_feed.dart';
 import '../listings/rg_feed.dart';
 import '../listings/sbb_feed.dart';
 import 'listing_store.dart';
+import 'turkish_cities.dart';
 
 const cataloguePruneAfter = Duration(days: 45);
 
@@ -10,6 +11,18 @@ class CatalogueRefreshResult {
 
   final DateTime checkedAt;
   final List<String> failedSources;
+}
+
+/// Seçilen şehri resmî Kariyer Kapısı liste süzgeciyle doğrular.
+Future<int> refreshKariyerCity(ListingStore store, String city) async {
+  final canonical = canonicalCity(city);
+  if (canonical == null) throw const FormatException('Geçersiz şehir adı');
+  final items = await loadKariyerCityListings(canonical);
+  await store.addVerifiedCity(
+    canonical,
+    items.map((item) => item.url.toString()),
+  );
+  return items.length;
 }
 
 /// Ekran, elle denetim ve arka plan görevi aynı yenileme yolunu kullanır.

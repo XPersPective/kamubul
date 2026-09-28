@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'data/catalogue_refresh.dart';
 import 'data/listing_store.dart';
 import 'data/search_alerts.dart';
+import 'data/turkish_cities.dart';
 import 'notifications/alert_service.dart';
 import 'notifications/notification_center_page.dart';
 import 'listings/kariyer_detail.dart';
@@ -60,6 +61,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
   String? _kpssFilter;
   String? _activeSearchName;
   bool _loading = false;
+  bool _cityLoading = false;
+  String? _cityError;
   String? _error;
   List<String> _failedSources = const [];
   DateTime? _lastRefresh;
@@ -191,6 +194,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   void _applySearch(SavedSearch search) {
     _searchController.text = search.filters['q'] ?? '';
+    final city = search.filters['sehir'];
     setState(() {
       _search = search.filters['q'] ?? '';
       _category = int.tryParse(search.filters['kategori'] ?? '') ?? 0;
@@ -207,6 +211,107 @@ class _KamuHomePageState extends State<KamuHomePage> {
           : search.filters['kpss'];
       _activeSearchName = search.name;
     });
+    if (city != null && city.isNotEmpty) _refreshCity(city);
+  }
+
+  Future<void> _refreshCity(String city) async {
+    setState(() {
+      _cityLoading = true;
+      _cityError = null;
+    });
+    try {
+      await refreshKariyerCity(_store, city);
+      await _loadLocal();
+    } on Exception {
+      if (mounted && _place == city) {
+        setState(
+          () => _cityError = 'Şehir kaynağına ulaşılamadı; yalnızca önceden doğrulanmış yerler gösteriliyor.',
+        );
+      }
+    } finally {
+      if (mounted && _place == city) setState(() => _cityLoading = false);
+    }
+  }
+
+  Future<void> _chooseCity() async {
+    final controller = TextEditingController(text: _place ?? '');
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, update) {
+          final city = controller.text.trim();
+          final canonical = canonicalCity(city);
+          final known = _records
+              .where(
+                (record) =>
+                    record.places.any((place) => placeMatchesCity(place, city)),
+              )
+              .length;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Şehre göre ara',
+                  style: Theme.of(sheetContext).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  maxLength: 40,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Şehir',
+                    hintText: 'Örn. Ankara',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => update(() {}),
+                  onSubmitted: (_) {
+                    if (canonical != null) {
+                      Navigator.pop(sheetContext, canonical);
+                    }
+                  },
+                ),
+                Text(
+                  city.isEmpty
+                      ? 'Şehir yazın; resmî kaynakta doğrulayalım.'
+                      : canonical == null
+                      ? '81 ilden birini yazın.'
+                      : '$canonical • önbellekte $known doğrulanmış ilan; kaynak sorgusuyla tamamlanır',
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: canonical == null
+                        ? null
+                        : () => Navigator.pop(sheetContext, canonical),
+                    child: const Text('Resmî kaynakta ara'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    controller.dispose();
+    if (!mounted || chosen == null) return;
+    setState(() {
+      _place = chosen;
+      _activeSearchName = null;
+    });
+    await _refreshCity(chosen);
   }
 
   void _clearFilters() {
@@ -220,6 +325,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _educationFilter = null;
       _kpssFilter = null;
       _activeSearchName = null;
+      _cityError = null;
+      _cityLoading = false;
     });
   }
 
@@ -725,6 +832,26 @@ class _KamuHomePageState extends State<KamuHomePage> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
+              if (_place != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InputChip(
+                    label: Text(_place!),
+                    onDeleted: () => setState(() {
+                      _place = null;
+                      _activeSearchName = null;
+                    }),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ActionChip(
+                    avatar: const Icon(Icons.place_outlined, size: 18),
+                    label: const Text('Şehir'),
+                    onPressed: _chooseCity,
+                  ),
+                ),
               for (final (index, label) in _kategoriAdlari.indexed)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -754,17 +881,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   },
                 ),
               ),
-              if (_place != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InputChip(
-                    label: Text(_place!),
-                    onDeleted: () => setState(() {
-                      _place = null;
-                      _activeSearchName = null;
-                    }),
-                  ),
-                ),
               if (_ageFilter != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -802,6 +918,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ),
         ),
         const SizedBox(height: 4),
+        if (_cityLoading) const LinearProgressIndicator(),
+        if (_cityError != null)
+          Text(
+            _cityError!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         Padding(
           padding: const EdgeInsets.only(bottom: 2),
           child: Text(

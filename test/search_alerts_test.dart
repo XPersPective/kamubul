@@ -75,6 +75,7 @@ void main() {
       places: const ['ANKARA'],
     );
     expect(matchesFilters(located, {'sehir': 'Ankara'}), isTrue);
+    expect(placeMatchesCity('İSTANBUL / MERKEZ', 'Istanbul'), isTrue);
   });
 
   test('resmî SBB işçi ilanı işçi kategorisine girer', () {

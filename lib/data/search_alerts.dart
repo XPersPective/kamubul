@@ -43,9 +43,7 @@ bool matchesFilters(
 
   final sehir = filters['sehir'] ?? '';
   if (sehir.isNotEmpty &&
-      !record.places.any(
-        (place) => place.toLowerCase().contains(sehir.toLowerCase()),
-      )) {
+      !record.places.any((place) => placeMatchesCity(place, sehir))) {
     return false;
   }
 

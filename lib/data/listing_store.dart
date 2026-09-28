@@ -5,6 +5,11 @@ import 'package:sqflite/sqflite.dart';
 
 import '../listings/extract_conditions.dart';
 import 'dedupe.dart';
+import 'turkish_cities.dart';
+
+bool placeMatchesCity(String place, String city) {
+  return foldTurkish(place).contains(foldTurkish(city));
+}
 
 /// Yerel ilan kataloğu: sürümlü şema, birleştirmeli yenileme, budama.
 ///
@@ -371,6 +376,32 @@ class ListingStore {
     return rows.map(ListingRecord.fromRow).toList();
   }
 
+  /// Resmî şehir sorgusunun döndürdüğü mevcut ilanlara doğrulanmış yeri ekler.
+  Future<void> addVerifiedCity(String city, Iterable<String> urls) async {
+    final db = await database;
+    for (final url in urls.toSet()) {
+      final rows = await db.query(
+        'listings',
+        columns: ['places'],
+        where: 'url = ? AND sourceId = ?',
+        whereArgs: [url, 'kariyerkapisi'],
+      );
+      if (rows.isEmpty) continue;
+      final places = ListingRecord._decodePlaces(rows.single['places']);
+      if (places.any((place) => placeMatchesCity(place, city))) {
+        continue;
+      }
+      await db.update(
+        'listings',
+        {
+          'places': jsonEncode([...places, city]),
+        },
+        where: 'url = ? AND sourceId = ?',
+        whereArgs: [url, 'kariyerkapisi'],
+      );
+    }
+  }
+
   Future<void> setSaved(String url, bool saved) async {
     final db = await database;
     await db.update(
@@ -458,6 +489,12 @@ class ListingStore {
     await db.delete('saved_searches', where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Yalnızca enjekte edilen (test) veritabanını kapatır. Uygulama
+  /// veritabanı sqflite'ın yol başına tek ortak örneğidir; kapatmak
+  /// arayüzün elindeki diğer mağazaları database_closed ile bozar.
+  /// Yalnızca enjekte edilen (test) veritabanını kapatır. Uygulama
+  /// veritabanı sqflite'ın yol başına tek ortak örneğidir; kapatmak
+  /// arayüzün elindeki diğer mağazaları database_closed ile bozar.
   Future<void> close() async {
     await (_injected ?? _db)?.close();
     _db = null;

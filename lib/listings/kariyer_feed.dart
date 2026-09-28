@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
+import '../data/turkish_cities.dart';
+
 const kariyerFeedUrl = 'https://kariyerkapisi.gov.tr/RSS';
 const kariyerIndexUrl =
     'https://api.kariyerkapisi.gov.tr/api/ilan/GetIseAlimPage';
@@ -31,23 +33,7 @@ Future<List<PublicListing>> loadKariyerListings({http.Client? client}) async {
   try {
     List<PublicListing> indexed;
     try {
-      final response = await client
-          .post(
-            Uri.parse(kariyerIndexUrl),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'krM_ID': 0,
-              'searchText': '',
-              'il': '0',
-              'ilanTuru': '0',
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200 ||
-          response.bodyBytes.length > 1024 * 1024) {
-        throw const FormatException('İlan listesi okunamadı');
-      }
-      indexed = parseKariyerIndex(jsonDecode(utf8.decode(response.bodyBytes)));
+      indexed = await _loadKariyerIndex(client);
     } on Exception {
       return await loadKariyerFeed(client: client);
     }
@@ -70,6 +56,46 @@ Future<List<PublicListing>> loadKariyerListings({http.Client? client}) async {
   } finally {
     if (ownedClient) client.close();
   }
+}
+
+/// Kaynağın kendi şehir süzgeci, başlıktaki kurum adından konum çıkarmaz.
+Future<List<PublicListing>> loadKariyerCityListings(
+  String city, {
+  http.Client? client,
+}) async {
+  final normalized = canonicalCity(city);
+  if (normalized == null) {
+    throw const FormatException('Geçersiz şehir adı');
+  }
+  final ownedClient = client == null;
+  client ??= http.Client();
+  try {
+    return await _loadKariyerIndex(client, city: normalized);
+  } finally {
+    if (ownedClient) client.close();
+  }
+}
+
+Future<List<PublicListing>> _loadKariyerIndex(
+  http.Client client, {
+  String city = '0',
+}) async {
+  final response = await client
+      .post(
+        Uri.parse(kariyerIndexUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'krM_ID': 0,
+          'searchText': '',
+          'il': city,
+          'ilanTuru': '0',
+        }),
+      )
+      .timeout(const Duration(seconds: 15));
+  if (response.statusCode != 200 || response.bodyBytes.length > 1024 * 1024) {
+    throw const FormatException('İlan listesi okunamadı');
+  }
+  return parseKariyerIndex(jsonDecode(utf8.decode(response.bodyBytes)));
 }
 
 List<PublicListing> parseKariyerIndex(Object? raw) {

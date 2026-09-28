@@ -327,4 +327,22 @@ void main() {
     );
     expect(pending.id, isNull);
   });
+
+  test(
+    'resmî şehir eşleşmesi mevcut yerlere eklenir, başka ilana taşmaz',
+    () async {
+      final store = await freshStore();
+      await store.mergeFeed([record('a'), record('b')]);
+      await store.addVerifiedCity('Ankara', ['a', 'yok']);
+      await store.addVerifiedCity('İzmir', ['a']);
+      await store.addVerifiedCity('Ankara', ['a']);
+      final listings = await store.allListings();
+      expect(listings.firstWhere((item) => item.url == 'a').places, [
+        'Ankara',
+        'İzmir',
+      ]);
+      expect(listings.firstWhere((item) => item.url == 'b').places, isEmpty);
+      await store.close();
+    },
+  );
 }
