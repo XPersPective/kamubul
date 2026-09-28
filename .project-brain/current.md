@@ -37,3 +37,4 @@ Verified repository reality. Recheck `git status` and source on resume.
 
 - Access/redistribution terms and stable page structure for İŞKUR, ilan.gov.tr, Resmî Gazete and municipalities.
 - Source freshness, extraction accuracy, iOS device behavior and store product configuration. Contact email is still a development placeholder if `CONTACT_EMAIL` is not supplied; do not publish with it. `PRIVACY.md` is a development disclosure, not final store review.
+- Resmî Gazete yields 0 recruitment notices currently (7-day evidence: indexed eskiler docs contain no 'personel al' occurrences — the channel moved to Kariyer Kapısı/ilan.gov.tr); the RG adapter stays live with the bundled public TLS chain fix (GeoTrust intermediate + DigiCert Global Root G2 added to the default SecurityContext; openssl-verified; device handshake succeeds).

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'rg_certificates.dart';
+
 const rgHost = 'www.resmigazete.gov.tr';
 
 /// Resmî Gazete "personel alımı" duyuruları (PB-009).
@@ -46,26 +48,27 @@ final _docLinkRegex = RegExp(
 
 final _tagRegex = RegExp(r'<[^>]+>');
 
-/// Başlıklar yalnızca tarih içerir; sınıflandırma gövde metnine bakar.
-bool _looksLikePersonnelNotice(String bodyText) {
-  final lower = bodyText.toLowerCase();
-  return (lower.contains('personel') &&
-          (lower.contains('alın') || lower.contains('alim'))) ||
-      lower.contains('memur alım') ||
-      lower.contains('kadroya atan');
-}
-
-String _noticeTitle(String bodyText, String fallback) {
-  for (final line in bodyText.split('\\n')) {
-    final clean = line.trim();
-    if (clean.length < 12 || clean.length > 200) continue;
-    final lower = clean.toLowerCase();
-    if (lower.contains('personel') &&
-        (lower.contains('alın') || lower.contains('alim'))) {
-      return clean;
+/// RG belge başlıkları tarih olur; personel alım ilanı kısa bir başlık
+/// satırıyla (örn. "... PERSONEL ALINACAKTIR") ayrışır. Belge düzeyi
+/// gevşek eşleşme yönetmelikleri yanlış pozitif yapar; satır düzeyi şart.
+String? _personnelLine(String bodyText) {
+  for (final rawLine in bodyText.split('\n')) {
+    final line = rawLine.trim();
+    if (line.length < 12 || line.length > 200) continue;
+    final lower = line.toLowerCase();
+    if ((lower.contains('personel') &&
+            (lower.contains('alın') || lower.contains('alım'))) ||
+        lower.contains('memur alım') ||
+        lower.contains('kadroya atan')) {
+      final personelIndex = lower.indexOf('personel');
+      final sentenceEnd = personelIndex >= 0
+          ? line.indexOf('.', personelIndex)
+          : -1;
+      final title = sentenceEnd > 0 ? line.substring(0, sentenceEnd + 1) : line;
+      return title.length > 140 ? '${title.substring(0, 137)}...' : title;
     }
   }
-  return fallback;
+  return null;
 }
 
 /// Verilen günün Resmî Gazete'sinde personel alımı duyurularını arar.
@@ -79,6 +82,8 @@ Future<List<RgNotice>> loadRgPersonnelNotices({
   client ??= http.Client();
   final day = date ?? DateTime.now().subtract(const Duration(days: 1));
   final path = _pagePath(day);
+  // Sunucu ara sertifikayı göndermiyor; eksik halka güven deposuna eklenir.
+  ensureRgTrustChain();
   try {
     final index = await client
         .get(Uri.https(rgHost, path))
@@ -121,10 +126,11 @@ Future<List<RgNotice>> loadRgPersonnelNotices({
           .replaceAll(RegExp(r'\n{3,}'), '\n\n')
           .trim();
       if (bodyText.isEmpty) continue;
-      if (_looksLikePersonnelNotice(bodyText)) {
+      final title = _personnelLine(bodyText);
+      if (title != null) {
         notices.add(
           RgNotice(
-            title: _noticeTitle(bodyText, 'Resmî Gazete ilanı'),
+            title: title,
             url: Uri.https(
               rgHost,
               '/eskiler/${day.year}/${day.month.toString().padLeft(2, '0')}/$doc',
