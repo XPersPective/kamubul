@@ -281,4 +281,45 @@ void main() {
       isNull,
     );
   });
+
+  test('son30 süzgeci yayın tarihindeki SBB satırına başvuru bitişinden bakar', () {
+    // SBB satırı yayın tarihi vermez; yakınlık göstergesi başvuru penceresi
+    // bitişidir. Hem tarihi bilinmeyen hem penceresi eski satır dışarıda kalır.
+    ListingRecord sbbRecord(String url, {DateTime? deadline}) => ListingRecord(
+      url: url,
+      sourceId: 'kamuilan_sbb',
+      title: 'Kurum — Personel Alımı',
+      category: 'Kamu Personeli',
+      publishedAt: null,
+      fetchedAt: DateTime(2026, 9, 27),
+      deadline: deadline,
+    );
+    final now = DateTime(2026, 9, 27);
+    final filters = {'son30': '1'};
+    expect(
+      matchesFilters(
+        sbbRecord('acik', deadline: DateTime(2026, 10, 5)),
+        filters,
+        now: now,
+      ),
+      isTrue,
+    );
+    expect(
+      matchesFilters(
+        sbbRecord('yeni-kapandi', deadline: DateTime(2026, 9, 20)),
+        filters,
+        now: now,
+      ),
+      isTrue,
+    );
+    expect(
+      matchesFilters(
+        sbbRecord('eski', deadline: DateTime(2026, 8, 1)),
+        filters,
+        now: now,
+      ),
+      isFalse,
+    );
+    expect(matchesFilters(sbbRecord('belirsiz'), filters, now: now), isFalse);
+  });
 }

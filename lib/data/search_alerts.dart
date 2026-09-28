@@ -34,9 +34,11 @@ bool matchesFilters(
   }
 
   if (filters['son30'] == '1') {
-    final published = record.publishedAt;
-    if (published == null ||
-        published.isBefore(today.subtract(const Duration(days: 30)))) {
+    // Yayın tarihi bilinmeyen satırda (SBB) yakınlık göstergesi başvuru
+    // penceresinin bitişidir; o da yoksa "son 30 gün" karşılanamaz.
+    final evidence = record.publishedAt ?? record.deadline;
+    if (evidence == null ||
+        evidence.isBefore(today.subtract(const Duration(days: 30)))) {
       return false;
     }
   }

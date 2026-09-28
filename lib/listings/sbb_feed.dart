@@ -14,7 +14,6 @@ class SbbListing {
     required this.title,
     required this.url,
     required this.category,
-    required this.publishedAt,
     required this.start,
     required this.deadline,
     required this.quota,
@@ -24,13 +23,28 @@ class SbbListing {
   final String title;
   final Uri url;
   final String category;
-  final DateTime? publishedAt;
+
+  /// Başvuru penceresi (ilan satırındaki tek tarih verisi).
   final DateTime? start;
   final DateTime? deadline;
   final int? quota;
 }
 
 Future<List<SbbListing>> loadSbbListings({
+  http.Client? client,
+  int? year,
+}) async {
+  final owned = client == null;
+  client ??= http.Client();
+  try {
+    return parseSbbListings(await loadSbbListPage(client: client, year: year));
+  } finally {
+    if (owned) client.close();
+  }
+}
+
+/// Yıl formunun POST edildiği ham liste sayfasını verir (PB-007 korpusu).
+Future<String> loadSbbListPage({
   http.Client? client,
   int? year,
 }) async {
@@ -68,7 +82,7 @@ Future<List<SbbListing>> loadSbbListings({
         '${listed.bodyBytes.length} bayt)',
       );
     }
-    return parseSbbListings(utf8.decode(listed.bodyBytes));
+    return utf8.decode(listed.bodyBytes);
   } finally {
     if (owned) client.close();
   }
@@ -102,11 +116,82 @@ final _spanRegex = RegExp(
   "<span[^>]*class\\s*=\\s*['\"]?([a-zA-Z0-9]+)['\"]?[^>]*>(.*?)</span>",
   dotAll: true,
 );
-final _imgDateRegex = RegExp(r'#(\d{1,2})\.(\d{1,2})\.(\d{4})');
 final _tagRegex = RegExp(r'<[^>]+>');
 
+final _altP1Regex = RegExp(
+  "<p[^>]*class\\s*=\\s*['\"]?alt_p1['\"]?[^>]*>(.*?)</p>",
+  dotAll: true,
+);
+final _altP2Regex = RegExp(
+  "<p[^>]*class\\s*=\\s*['\"]?alt_p2['\"]?[^>]*>(.*?)</p>",
+  dotAll: true,
+);
+final _emRegex = RegExp(r'<em[^>]*>(.*?)</em>', dotAll: true);
+
+/// (kurum, başlık, tarih aralığı) üçlüsü; iki satır şablonunu da okur.
+///
+/// Şablon A: `black`/`patrol`/`h5date` span'ları. Şablon B: `alt_p1`/`alt_p2`
+/// paragrafları, tarih aralığı `<em>` içinde parantezli. Logo URL'sindeki
+/// `#gün.ay.yıl` eki sunucu anlık damgasıdır (tüm satırlarda aynı gün),
+/// yayın tarihi SANILMAMALIDIR; bu yüzden yayınlanma tarihi yoktur.
+(String, String, String)? _parseRow(String block) {
+  final spans = <String, String>{};
+  for (final span in _spanRegex.allMatches(block)) {
+    spans[span.group(1)!] = _clean(span.group(2)!);
+  }
+  final institution = spans['black'] ?? '';
+  final patrol = spans['patrol'] ?? '';
+  if (institution.isNotEmpty && patrol.isNotEmpty) {
+    return (institution, patrol, spans['h5date'] ?? '');
+  }
+  final instMatch = _altP1Regex.firstMatch(block);
+  final bodyMatch = _altP2Regex.firstMatch(block);
+  if (instMatch == null || bodyMatch == null) return null;
+  final body = bodyMatch.group(1)!;
+  final em = _emRegex.firstMatch(body);
+  final titleRaw = em == null ? body : body.substring(0, em.start);
+  final dateRaw = em == null ? '' : em.group(1)!;
+  final altInstitution = _clean(instMatch.group(1)!);
+  final altTitle = _clean(titleRaw);
+  if (altInstitution.isEmpty || altTitle.isEmpty) return null;
+  final dateRange = _clean(dateRaw)
+      .replaceAll(RegExp(r'^\s*\(|\)\s*$'), '')
+      .trim();
+  return (altInstitution, altTitle, dateRange);
+}
+
+/// Kontenjan: başlıktaki 1-999 arası sayıların toplamı ("3 UZMAN, 2 DESTEK
+/// PERSONEL" = 5). Yıl gibi büyük sayılar kontenjan değildir ("2026 YILI").
+int? _parseQuota(String title) {
+  final values = RegExp(r'\d+')
+      .allMatches(title)
+      .map((match) => int.parse(match.group(0)!))
+      .where((value) => value >= 1 && value <= 999);
+  var total = 0;
+  var found = false;
+  for (final value in values) {
+    total += value;
+    found = true;
+  }
+  return found ? total : null;
+}
+
+String _parseCategory(String title) {
+  final upper = title.toUpperCase();
+  return upper.contains('SÖZLEŞMELİ')
+      ? 'Sözleşmeli Personel'
+      : upper.contains('İŞÇİ')
+      ? 'İşçi'
+      : 'Kamu Personeli';
+}
+
 /// Liste HTML'inden ilanları çıkarır; düzen değişirse FormatException verir.
-List<SbbListing> parseSbbListings(String raw) {
+///
+/// [referenceYear]: satır tarihlerindeki yıl bağlamı (yıl seçimi dekoratif
+/// olduğu ve satırda yıl yazılmadığı için). Üretimde bırakılır; PB-007
+/// değerlendirmesi sabit yıl ile deterministik çalışır.
+List<SbbListing> parseSbbListings(String raw, {int? referenceYear}) {
+  final year = referenceYear ?? DateTime.now().year;
   final items = <SbbListing>[];
   for (final match in _itemRegex.allMatches(raw).take(500)) {
     final href = match.group(1)!;
@@ -115,40 +200,19 @@ List<SbbListing> parseSbbListings(String raw) {
     );
     if (kod.isEmpty) continue;
     final block = match.group(2)!;
-    final spans = <String, String>{};
-    for (final span in _spanRegex.allMatches(block)) {
-      spans[span.group(1)!] = _clean(span.group(2)!);
-    }
-    final institution = spans['black'] ?? '';
-    final patrol = spans['patrol'] ?? '';
-    final dateRange = spans['h5date'] ?? '';
-    if (institution.isEmpty || patrol.isEmpty) continue;
-    final quota = RegExp(r'\d+').firstMatch(patrol);
-    final upper = patrol.toUpperCase();
-    final category = upper.contains('SÖZLEŞMELİ')
-        ? 'Sözleşmeli Personel'
-        : upper.contains('İŞÇİ')
-        ? 'İşçi'
-        : 'Kamu Personeli';
-    final imgMatch = _imgDateRegex.firstMatch(block);
-    final publishedAt = imgMatch == null
-        ? null
-        : DateTime(
-            int.parse(imgMatch.group(3)!),
-            int.parse(imgMatch.group(2)!),
-            int.parse(imgMatch.group(1)!),
-          );
-    final range = _parseDateRange(dateRange, publishedAt);
+    final row = _parseRow(block);
+    if (row == null) continue;
+    final (institution, title, dateRange) = row;
+    final range = _parseDateRange(dateRange, year);
     items.add(
       SbbListing(
         institution: institution,
-        title: patrol,
+        title: title,
         url: Uri.https(sbbHost, '/ilanDetay.aspx', {'kod': kod}),
-        category: category,
-        publishedAt: publishedAt,
+        category: _parseCategory(title),
         start: range.$1,
         deadline: range.$2,
-        quota: quota == null ? null : int.tryParse(quota.group(0)!),
+        quota: _parseQuota(title),
       ),
     );
   }
@@ -164,24 +228,23 @@ String _clean(String value) => _tagRegex
     .replaceAll(RegExp(r'\s+'), ' ')
     .trim();
 
-(DateTime?, DateTime?) _parseDateRange(String value, DateTime? anchor) {
+(DateTime?, DateTime?) _parseDateRange(String value, int year) {
   final parts = value.split(RegExp(r'[-–]'));
   if (parts.length != 2) return (null, null);
-  final start = _parseTrDate(parts[0], anchor);
-  var deadline = _parseTrDate(parts[1], anchor);
+  final start = _parseTrDate(parts[0], year);
+  var deadline = _parseTrDate(parts[1], year);
   if (start != null && deadline != null && deadline.isBefore(start)) {
     deadline = DateTime(deadline.year + 1, deadline.month, deadline.day);
   }
   return (start, deadline);
 }
 
-DateTime? _parseTrDate(String value, DateTime? anchor) {
+DateTime? _parseTrDate(String value, int year) {
   final match = RegExp(r'(\d{1,2})\s+([A-Za-zÇĞİÖŞÜçğıöşü]+)')
       .firstMatch(value.trim());
   if (match == null) return null;
   final month = _aylar.indexOf(match.group(2)!.toLowerCase());
   if (month < 0) return null;
-  final year = anchor?.year ?? DateTime.now().year;
   final day = int.parse(match.group(1)!);
   final date = DateTime(year, month + 1, day);
   return date.day == day && date.month == month + 1 ? date : null;

@@ -63,7 +63,9 @@ Future<CatalogueRefreshResult> refreshCatalogue(
           sourceId: 'kamuilan_sbb',
           title: '${item.institution} — ${item.title}',
           category: item.category,
-          publishedAt: item.publishedAt,
+          // SBB satırı yayın tarihi vermez; satırdaki tek tarih başvuru
+          // penceresidir, yayın tarihi gibi sunulmamalıdır.
+          publishedAt: null,
           deadline: item.deadline,
           quota: item.quota,
           fetchedAt: now,
