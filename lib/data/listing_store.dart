@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import '../listings/extract_conditions.dart';
+import '../listings/extraction_policy.dart';
 import 'dedupe.dart';
 import 'turkish_cities.dart';
 
@@ -440,20 +441,22 @@ class ListingStore {
   }
 
   /// Şart çıkarımı sonuçlarını alıntı kanıtlarıyla birlikte yazar.
-  /// Alıntısı olmayan değer yazılmaz; alan "belirtilmemiş" kalır.
+  /// Alıntısı olmayan ya da politikası kapalı alan yazılmaz; alan
+  /// "belirtilmemiş" kalır.
   Future<void> applyConditions(String url, ConditionFields fields) async {
+    final claimed = applyExtractionPolicy(fields);
     final db = await database;
     await db.update(
       'listings',
       {
-        'kpss': ?fields.kpssType?.value,
-        'kpssQuote': ?fields.kpssType?.quote,
-        'education': ?fields.education?.value,
-        'educationQuote': ?fields.education?.quote,
-        'maxAge': ?fields.maxAge?.value,
-        'maxAgeQuote': ?fields.maxAge?.quote,
-        'quotaType': ?fields.quotaType?.value,
-        'quotaTypeQuote': ?fields.quotaType?.quote,
+        'kpss': ?claimed.kpssType?.value,
+        'kpssQuote': ?claimed.kpssType?.quote,
+        'education': ?claimed.education?.value,
+        'educationQuote': ?claimed.education?.quote,
+        'maxAge': ?claimed.maxAge?.value,
+        'maxAgeQuote': ?claimed.maxAge?.quote,
+        'quotaType': ?claimed.quotaType?.value,
+        'quotaTypeQuote': ?claimed.quotaType?.quote,
       },
       where: 'url = ?',
       whereArgs: [url],
@@ -493,12 +496,6 @@ class ListingStore {
     await db.delete('saved_searches', where: 'id = ?', whereArgs: [id]);
   }
 
-  /// Yalnızca enjekte edilen (test) veritabanını kapatır. Uygulama
-  /// veritabanı sqflite'ın yol başına tek ortak örneğidir; kapatmak
-  /// arayüzün elindeki diğer mağazaları database_closed ile bozar.
-  /// Yalnızca enjekte edilen (test) veritabanını kapatır. Uygulama
-  /// veritabanı sqflite'ın yol başına tek ortak örneğidir; kapatmak
-  /// arayüzün elindeki diğer mağazaları database_closed ile bozar.
   /// Yalnızca enjekte edilen (test) veritabanını kapatır. Uygulama
   /// veritabanı sqflite'ın yol başına tek ortak örneğidir; kapatmak
   /// arayüzün elindeki diğer mağazaları database_closed ile bozar.

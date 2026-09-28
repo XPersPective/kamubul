@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/listing_store.dart';
 import '../listings/extract_conditions.dart';
+import '../listings/extraction_policy.dart';
 import '../listings/kariyer_detail.dart';
 
 /// İlan Rehberi'nin deterministik çekirdeği (PB-005): seçili ilanın şart
@@ -58,7 +59,7 @@ class ListingGuideView extends StatelessWidget {
           detail.body,
           for (final position in detail.positions) position.conditions,
         ].join('\n');
-        final fields = extractConditions(text);
+        final fields = applyExtractionPolicy(extractConditions(text));
         // Ana ListView içinde gömülü; kendi kaydırmasını devre dışı bırakır.
         return ListView(
           shrinkWrap: true,

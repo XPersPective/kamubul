@@ -86,4 +86,17 @@ void main() {
       matchesGoldenFile('goldens/detail_tablet.png'),
     );
   });
+
+  testWidgets('şart alanları alıntılı satırlarla gösterilir', (tester) async {
+    await pumpDetail(tester, logicalSize: const Size(1024, 1366));
+    for (final row in const [
+      'KPSS puan türü: P3',
+      'KPSS taban puan: 60',
+      'Yaş sınırı: 65 yaş',
+      'Eğitim: Lisans',
+      'Kadro/kota tipi: Sözleşmeli',
+    ]) {
+      expect(find.text(row), findsOneWidget, reason: '$row satırı yok');
+    }
+  });
 }

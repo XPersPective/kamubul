@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../ui/premium.dart';
 import 'extract_conditions.dart';
+import 'extraction_policy.dart';
 import 'kariyer_detail.dart';
 import 'kariyer_feed.dart';
 
@@ -168,11 +169,13 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
     final keyConditions = {
       for (final position in detail.positions) ...position.keyConditions,
     }.take(6).toList();
-    final conditions = extractConditions(
-      [
-        detail.body,
-        for (final position in detail.positions) position.conditions,
-      ].join('\n'),
+    final conditions = applyExtractionPolicy(
+      extractConditions(
+        [
+          detail.body,
+          for (final position in detail.positions) position.conditions,
+        ].join('\n'),
+      ),
     );
     return CustomScrollView(
       slivers: [
@@ -283,7 +286,8 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
               if (conditions.kpssType != null ||
                   conditions.kpssScore != null ||
                   conditions.maxAge != null ||
-                  conditions.education != null) ...[
+                  conditions.education != null ||
+                  conditions.quotaType != null) ...[
                 Text(
                   'Şart alanları',
                   style: Theme.of(context).textTheme.titleMedium,
@@ -317,6 +321,12 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                             'Eğitim',
                             conditions.education!.value,
                             conditions.education!.quote,
+                          ),
+                        if (conditions.quotaType != null)
+                          _evidenceField(
+                            'Kadro/kota tipi',
+                            conditions.quotaType!.value,
+                            conditions.quotaType!.quote,
                           ),
                       ],
                     ),
