@@ -13,4 +13,17 @@ void main() {
     expect(restored.snapshot().firstLaunchAt, DateTime(2026, 9, 1));
     expect(restored.snapshot().sessionCount, 1);
   });
+
+  test('Pro kullanıcıdan hiçbir reklam istenmez', () {
+    final policy = AdPolicy()
+      ..setPro(true)
+      ..setSdkReady(true)
+      ..setOnboardingCompleted(true)
+      ..startSession(DateTime(2026, 9, 28));
+    expect(policy.isPro, isTrue);
+    expect(policy.canShowBanner(), isFalse);
+    expect(policy.canShowAppOpen(DateTime(2026, 9, 28)), isFalse);
+    expect(policy.canShowInterstitial(DateTime(2026, 9, 28)), isFalse);
+    expect(policy.canShowRewarded(DateTime(2026, 9, 28)), isFalse);
+  });
 }

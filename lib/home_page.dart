@@ -1,14 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'data/catalogue_refresh.dart';
 import 'data/listing_store.dart';
 import 'data/search_alerts.dart';
 import 'data/turkish_cities.dart';
+import 'data/user_data.dart';
 import 'notifications/alert_service.dart';
 import 'notifications/notification_center_page.dart';
 import 'listings/kariyer_detail.dart';
@@ -17,6 +21,7 @@ import 'listings/extract_conditions.dart';
 import 'listings/kariyer_feed.dart';
 import 'listings/listing_guide.dart';
 import 'listings/official_listing_page.dart';
+import 'rate_prompt_state.dart';
 import 'ui/premium.dart';
 
 class KamuHomePage extends StatefulWidget {
@@ -31,6 +36,9 @@ class KamuHomePage extends StatefulWidget {
     required this.banner,
     required this.rewarded,
     required this.saveAdState,
+    this.shareService,
+    this.reviewService,
+    this.ratePolicy,
   });
 
   final AppIdentity identity;
@@ -42,6 +50,10 @@ class KamuHomePage extends StatefulWidget {
   final BannerAdController banner;
   final RewardedAdManager rewarded;
   final VoidCallback saveAdState;
+  // Testler servisleri enjekte eder; üretime kendi örnekleri kurulur.
+  final ShareService? shareService;
+  final ReviewService? reviewService;
+  final RatePromptPolicy? ratePolicy;
 
   @override
   State<KamuHomePage> createState() => _KamuHomePageState();
@@ -71,10 +83,17 @@ class _KamuHomePageState extends State<KamuHomePage> {
   ListingRecord? _assistantListing;
   final ListingStore _store = ListingStore();
   final TextEditingController _searchController = TextEditingController();
+  late final ShareService _share = widget.shareService ?? ShareService();
+  late final ReviewService _review = widget.reviewService ?? ReviewService();
+  late final RatePromptPolicy _ratePolicy =
+      widget.ratePolicy ?? RatePromptPolicy();
 
   @override
   void initState() {
     super.initState();
+    restoreRatePrompt(_ratePolicy, widget.store);
+    _ratePolicy.markFirstSeen(DateTime.now());
+    saveRatePrompt(_ratePolicy, widget.store);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _migrateLegacyBookmarks();
       await _loadLocal();
@@ -145,6 +164,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ? null
           : '${result.failedSources.join(' ve ')} yenilenemedi. Son görülen liste korunuyor.';
     });
+    if (result.failedSources.isEmpty) {
+      _ratePolicy.markPositiveMoment();
+      try {
+        await _review.maybePromptInApp(_ratePolicy, DateTime.now());
+      } catch (_) {
+        // Puan istemi en iyi çabadır; yenilemeyi asla engellemez.
+      }
+      saveRatePrompt(_ratePolicy, widget.store);
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -181,6 +209,82 @@ class _KamuHomePageState extends State<KamuHomePage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Resmî sayfa açılamadı.')));
     }
+  }
+
+  Future<void> _shareApp() async {
+    try {
+      await _share.shareApp(
+        widget.identity,
+        message: 'KamuBul ile resmî kamu ilanlarını takip edin: {url}',
+        isIos: Platform.isIOS,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Paylaşım penceresi açılamadı.')),
+      );
+    }
+  }
+
+  Future<void> _openRatePage() async {
+    try {
+      await _review.openRatePage(widget.identity, isIos: Platform.isIOS);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mağaza sayfası açılamadı.')),
+      );
+    }
+  }
+
+  Future<void> _exportData() async {
+    try {
+      final json = exportUserDataJson(
+        searches: _searches,
+        bookmarks: [for (final record in _records) if (record.saved) record],
+      );
+      await SharePlus.instance.share(ShareParams(text: json));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Yedek oluşturulamadı ya da paylaşılamadı.')),
+      );
+    }
+  }
+
+  Future<void> _importData() async {
+    final raw = await showDialog<String>(
+      context: context,
+      builder: (_) => const _ImportDialog(),
+    );
+    if (raw == null || raw.trim().isEmpty) return;
+    final UserDataImport imported;
+    try {
+      imported = parseUserDataJson(raw);
+    } on FormatException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      return;
+    }
+    for (final search in imported.searches) {
+      await _store.addSavedSearch(search);
+    }
+    if (imported.bookmarks.isNotEmpty) {
+      // DateTime(2000): içe aktarma yerel önbellekteki eski kayıtları budamaz.
+      await _store.mergeFeed(imported.bookmarks, pruneBefore: DateTime(2000));
+    }
+    await _loadLocal();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'İçe aktarıldı: ${imported.searches.length} arama, '
+          '${imported.bookmarks.length} yer imi.',
+        ),
+      ),
+    );
   }
 
   List<ListingRecord> get _visibleRecords {
@@ -1314,6 +1418,32 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ),
         ),
       ),
+      const ListTile(
+        title: Text('Veriler ve geri bildirim'),
+        subtitle: Text('Yedek dosyası yalnızca sizin paylaştığınız yere gider.'),
+      ),
+      ListTile(
+        leading: const Icon(Icons.ios_share),
+        title: const Text('Uygulamayı paylaş'),
+        onTap: _shareApp,
+      ),
+      ListTile(
+        leading: const Icon(Icons.star_rate_outlined),
+        title: const Text('Puan ver'),
+        onTap: _openRatePage,
+      ),
+      ListTile(
+        leading: const Icon(Icons.file_upload_outlined),
+        title: const Text('Verileri dışa aktar'),
+        subtitle: const Text('Kayıtlı aramalar ve yer imleri JSON yedeği olur.'),
+        onTap: _exportData,
+      ),
+      ListTile(
+        leading: const Icon(Icons.file_download_outlined),
+        title: const Text('Verileri içe aktar'),
+        subtitle: const Text('Yedek yapıştırılır; mevcut kayıtlar korunur.'),
+        onTap: _importData,
+      ),
       ListTile(
         leading: const Icon(Icons.info_outline),
         title: const Text('Hakkında ve lisanslar'),
@@ -1434,5 +1564,47 @@ class _SourcesPage extends StatelessWidget {
         ),
       ],
     ),
+  );
+}
+
+/// Yedek JSON'unun yapıştırıldığı içe aktarma penceresi; metin denetçisi
+/// kendi ömründe tutulur.
+class _ImportDialog extends StatefulWidget {
+  const _ImportDialog();
+
+  @override
+  State<_ImportDialog> createState() => _ImportDialogState();
+}
+
+class _ImportDialogState extends State<_ImportDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Verileri içe aktar'),
+    content: TextField(
+      controller: _controller,
+      maxLines: 6,
+      decoration: const InputDecoration(
+        labelText: 'Yedek JSON',
+        helperText: 'Yalnızca KamuBul yedek dosyası kabul edilir.',
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Vazgeç'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.of(context).pop(_controller.text),
+        child: const Text('İçe aktar'),
+      ),
+    ],
   );
 }

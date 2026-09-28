@@ -58,6 +58,8 @@ dependencies:
   path: ^1.9.1
   flutter_local_notifications: ^22.3.1
   workmanager: ^0.10.10
+  # Yedek dosyasını paylaşım sayfasından çıkarmak için doğrudan kullanılır.
+  share_plus: ^13.3.0
 
 # napp_ads ve napp_pro, napp_core'u hosted olarak bildiriyor; aynı etiketli
 # Git kaynağını seçmek için tek override gerekir.
