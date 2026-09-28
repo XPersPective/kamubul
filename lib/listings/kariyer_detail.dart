@@ -20,7 +20,12 @@ class KariyerPosition {
   List<String> get keyConditions => conditions
       .split(RegExp(r'\n+'))
       .map((line) => line.trim())
-      .where((line) => RegExp(r'KPSS|yaş|mezun|öğrenim', caseSensitive: false).hasMatch(line))
+      .where(
+        (line) => RegExp(
+          r'KPSS|yaş|mezun|öğrenim',
+          caseSensitive: false,
+        ).hasMatch(line),
+      )
       .take(4)
       .toList();
 }
@@ -43,11 +48,15 @@ class KariyerDetail {
   final List<KariyerPosition> positions;
 
   int get quota => positions.fold(0, (total, item) => total + item.quota);
-  List<String> get places => positions.expand((item) => item.places).toSet().toList();
+  List<String> get places =>
+      positions.expand((item) => item.places).toSet().toList();
 }
 
 /// Kariyer Kapısı ilan sayfasının kullandığı herkese açık iki okuma çağrısı.
-Future<KariyerDetail> loadKariyerDetail(Uri listingUrl, {http.Client? client}) async {
+Future<KariyerDetail> loadKariyerDetail(
+  Uri listingUrl, {
+  http.Client? client,
+}) async {
   if (listingUrl.scheme != 'https' ||
       listingUrl.host != 'kariyerkapisi.gov.tr' ||
       listingUrl.path != '/IlanDetay' ||
@@ -98,16 +107,22 @@ KariyerDetail parseKariyerDetail(Object? main, Object? rawPositions) {
         final count = item['kontenjan'];
         if (count is int && count > 0 && count < 100000) quota += count;
         final place = field(item, 'il').trim();
-        if (place.isNotEmpty) places.add(place);
+        final halves = place.split(' / ');
+        final cleaned = halves.length == 2 && halves[0] == halves[1]
+            ? halves[0]
+            : place;
+        if (cleaned.isNotEmpty) places.add(cleaned);
       }
     }
-    positions.add(KariyerPosition(
-      title: field(raw, 'ilanBaslik').trim(),
-      profession: field(raw, 'unvan').trim(),
-      conditions: plainNoticeText(field(raw, 'ilanMetni')),
-      quota: quota,
-      places: places,
-    ));
+    positions.add(
+      KariyerPosition(
+        title: field(raw, 'ilanBaslik').trim(),
+        profession: field(raw, 'unvan').trim(),
+        conditions: plainNoticeText(field(raw, 'ilanMetni')),
+        quota: quota,
+        places: places.toSet().toList(),
+      ),
+    );
   }
   final rawUrl = main['eDevletteGorunsun'] == 1
       ? field(main, 'eDevletServisURL')

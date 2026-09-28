@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 const kariyerFeedUrl = 'https://kariyerkapisi.gov.tr/RSS';
+const kariyerIndexUrl =
+    'https://api.kariyerkapisi.gov.tr/api/ilan/GetIseAlimPage';
 
 class PublicListing {
   const PublicListing({
@@ -11,12 +13,101 @@ class PublicListing {
     required this.category,
     required this.url,
     required this.publishedAt,
+    this.deadline,
   });
 
   final String title;
   final String category;
   final Uri url;
   final DateTime? publishedAt;
+  final DateTime? deadline;
+}
+
+/// Portalın ilan listesinde kullandığı açık okuma çağrısı son başvuru tarihini
+/// verir. RSS yayın gününü tamamlar; API değişirse RSS çalışmaya devam eder.
+Future<List<PublicListing>> loadKariyerListings({http.Client? client}) async {
+  final ownedClient = client == null;
+  client ??= http.Client();
+  try {
+    List<PublicListing> indexed;
+    try {
+      final response = await client
+          .post(
+            Uri.parse(kariyerIndexUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'krM_ID': 0,
+              'searchText': '',
+              'il': '0',
+              'ilanTuru': '0',
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200 ||
+          response.bodyBytes.length > 1024 * 1024) {
+        throw const FormatException('İlan listesi okunamadı');
+      }
+      indexed = parseKariyerIndex(jsonDecode(utf8.decode(response.bodyBytes)));
+    } on Exception {
+      return await loadKariyerFeed(client: client);
+    }
+    try {
+      final feed = await loadKariyerFeed(client: client);
+      final dates = {for (final item in feed) item.url: item.publishedAt};
+      return [
+        for (final item in indexed)
+          PublicListing(
+            title: item.title,
+            category: item.category,
+            url: item.url,
+            publishedAt: dates[item.url],
+            deadline: item.deadline,
+          ),
+      ];
+    } on Exception {
+      return indexed;
+    }
+  } finally {
+    if (ownedClient) client.close();
+  }
+}
+
+List<PublicListing> parseKariyerIndex(Object? raw) {
+  if (raw is! Map<String, dynamic> || raw['searchIlan'] is! List) {
+    throw const FormatException('İlan listesi biçimi değişti');
+  }
+  final seen = <String>{};
+  final result = <PublicListing>[];
+  final items = raw['searchIlan'] as List;
+  for (final item in items.take(200)) {
+    if (item is! Map<String, dynamic>) continue;
+    final id = item['guid'];
+    final title = item['ilanBaslik'];
+    if (id is! String ||
+        !RegExp(
+          r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+        ).hasMatch(id) ||
+        title is! String ||
+        title.trim().isEmpty ||
+        title.length > 300 ||
+        !seen.add(id)) {
+      continue;
+    }
+    final deadline = DateTime.tryParse(
+      item['bitTarih'] is String ? item['bitTarih'] as String : '',
+    );
+    if (deadline == null) continue;
+    result.add(
+      PublicListing(
+        title: title.trim(),
+        category: item['ilanTuru'] is String ? item['ilanTuru'] as String : '',
+        url: Uri.https('kariyerkapisi.gov.tr', '/IlanDetay', {'i': id}),
+        publishedAt: null,
+        deadline: deadline,
+      ),
+    );
+  }
+  return result;
 }
 
 /// Kariyer Kapısı'nın kendi yayımladığı RSS; sayfa kazıma yalnızca feed yoksa.

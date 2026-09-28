@@ -1,20 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../data/listing_store.dart';
 import '../listings/extract_conditions.dart';
 import '../listings/kariyer_detail.dart';
-import '../listings/kariyer_feed.dart';
 
 /// İlan Rehberi'nin deterministik çekirdeği (PB-005): seçili ilanın şart
 /// alanlarını kaynak cümleleriyle yanıtlar. AI sohbeti TD-001 kararına bağlı;
 /// bu ekran hiçbir koşulda uydurma yanıt üretemez — yalnızca kanıtlı alan.
 class ListingGuideView extends StatelessWidget {
-  const ListingGuideView({super.key, required this.listingUrl});
+  const ListingGuideView({super.key, required this.listing});
 
-  final String listingUrl;
+  final ListingRecord listing;
+
+  Future<void> _openOfficial(BuildContext context, Uri url) async {
+    if (url.scheme != 'https') return;
+    try {
+      if (await launchUrl(url, mode: LaunchMode.externalApplication)) return;
+    } catch (_) {
+      // Başvuru bağlantısı açılamazsa anlaşılır bir hata gösterilir.
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Resmî sayfa açılamadı.')));
+    }
+  }
 
   Future<KariyerDetail?> _loadDetail() async {
     try {
-      return await loadKariyerDetail(Uri.parse(listingUrl));
+      return await loadKariyerDetail(Uri.parse(listing.url));
     } on Exception {
       return null;
     }
@@ -22,6 +37,9 @@ class ListingGuideView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (listing.sourceId != 'kariyerkapisi') {
+      return _localSummary(context);
+    }
     final scheme = Theme.of(context).colorScheme;
     return FutureBuilder<KariyerDetail?>(
       future: _loadDetail(),
@@ -97,10 +115,10 @@ class ListingGuideView extends StatelessWidget {
                       ? 'Kaynak: kariyerkapisi.gov.tr'
                       : detail.institution,
                 ),
-                onTap: () {
-                  // Ana ekranla aynı dış açma yolu kullanılır.
-                  Navigator.of(context).maybePop();
-                },
+                onTap: () => _openOfficial(
+                  context,
+                  detail.applyUrl ?? Uri.parse(listing.url),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -115,6 +133,36 @@ class ListingGuideView extends StatelessWidget {
       },
     );
   }
+
+  Widget _localSummary(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Rehber yanıtı', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        const Text(
+          'Bu kaynaktan doğrulanan bilgiler aşağıda. Yaş, eğitim ve KPSS '
+          'koşulları henüz güvenilir biçimde ayıklanmadı.',
+        ),
+        _GuideField(
+          label: 'Kontenjan',
+          value: listing.quota == null ? null : '${listing.quota} kişi',
+          quote: null,
+        ),
+        _GuideField(
+          label: 'Son başvuru',
+          value: listing.deadline == null
+              ? null
+              : '${listing.deadline!.day}.${listing.deadline!.month}.${listing.deadline!.year}',
+          quote: null,
+        ),
+        const _GuideField(label: 'Yaş sınırı', value: null, quote: null),
+        const _GuideField(label: 'Eğitim şartı', value: null, quote: null),
+        const _GuideField(label: 'KPSS şartı', value: null, quote: null),
+      ],
+    ),
+  );
 }
 
 class _GuideField extends StatelessWidget {
@@ -190,6 +238,3 @@ class _GuideMessage extends StatelessWidget {
     ),
   );
 }
-
-/// PublicListing tipini rehber ekranına taşımak için basit sarmalayıcı.
-typedef GuideListing = PublicListing;

@@ -1,5 +1,35 @@
 import 'package:flutter/material.dart';
 
+/// PB-008 premium şekil tokenları: kart, çip, düğme ve sayfa altı yarıçapları.
+abstract final class PremiumShape {
+  static const cardRadius = 16.0;
+  static const chipRadius = 999.0;
+  static const buttonRadius = 14.0;
+  static const barRadius = 24.0;
+}
+
+/// PB-008 premium hareket tokenları: yay (spring) hissi veren eğri ve
+/// süreler; geçişlerde tek kaynaktan yönetilir.
+abstract final class PremiumMotion {
+  /// 250ms ileri profili: hafif overshoot'lu yay hissi.
+  static const springCurve = Curves.easeOutBack;
+
+  /// Geri dönüşte overshoot yok; sakin iniş.
+  static const settleCurve = Curves.easeOutCubic;
+
+  static const springDuration = Duration(milliseconds: 250);
+  static const settleDuration = Duration(milliseconds: 200);
+  static const shimmerDuration = Duration(milliseconds: 1200);
+}
+
+/// PB-008 teslimat durumu renkleri: ekranlar sabit renk yazmaz, durum
+/// anlamlı renkler tek kaynaktan gelir (açık/koyu temada aynı kalır).
+abstract final class PremiumStatus {
+  static const delivered = Color(0xFF2E7D32);
+  static const held = Color(0xFFE65100);
+  static const dropped = Color(0xFFC62828);
+}
+
 /// PB-008 premium UI yardımcıları: iskelet yükleyiciler, paylaşılan eksen
 /// geçişi ve geri sayım rozeti.
 class SkeletonBox extends StatefulWidget {
@@ -16,7 +46,7 @@ class _SkeletonBoxState extends State<SkeletonBox>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1200),
+    duration: PremiumMotion.shimmerDuration,
   )..repeat(reverse: true);
 
   @override
@@ -73,15 +103,16 @@ Widget listingSkeletons() => Column(
 );
 
 /// Liste → ayrıntı için paylaşılan eksen (ileri) geçişi: kısa fade + yukarı
-/// kayma; Material motion sistemasının 250ms ileri profili.
+/// kayma; Material motion sistemasının 250ms ileri profili, yay tokenıyla.
 PageRouteBuilder<T> sharedAxisRoute<T>(Widget page) => PageRouteBuilder<T>(
-  transitionDuration: const Duration(milliseconds: 250),
-  reverseTransitionDuration: const Duration(milliseconds: 200),
+  transitionDuration: PremiumMotion.springDuration,
+  reverseTransitionDuration: PremiumMotion.settleDuration,
   pageBuilder: (_, _, _) => page,
   transitionsBuilder: (context, animation, secondaryAnimation, child) {
     final curved = CurvedAnimation(
       parent: animation,
-      curve: Curves.easeOutCubic,
+      curve: PremiumMotion.springCurve,
+      reverseCurve: PremiumMotion.settleCurve,
     );
     return FadeTransition(
       opacity: curved,

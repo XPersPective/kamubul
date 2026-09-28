@@ -5,6 +5,7 @@ import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'data/catalogue_refresh.dart';
 import 'data/listing_store.dart';
 import 'data/search_alerts.dart';
 import 'notifications/alert_service.dart';
@@ -14,8 +15,7 @@ import 'listings/kariyer_detail_page.dart';
 import 'listings/extract_conditions.dart';
 import 'listings/kariyer_feed.dart';
 import 'listings/listing_guide.dart';
-import 'listings/rg_feed.dart';
-import 'listings/sbb_feed.dart';
+import 'listings/official_listing_page.dart';
 import 'ui/premium.dart';
 
 class KamuHomePage extends StatefulWidget {
@@ -48,7 +48,6 @@ class KamuHomePage extends StatefulWidget {
 
 class _KamuHomePageState extends State<KamuHomePage> {
   static const _legacySavedKey = 'kamubul.saved_urls';
-  static const _pruneAfter = Duration(days: 45);
   static const _kategoriAdlari = [
     'Tümü',
     'İŞKUR / İşçi',
@@ -67,6 +66,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   String? _activeSearchName;
   bool _loading = false;
   String? _error;
+  List<String> _failedSources = const [];
   DateTime? _lastRefresh;
   List<ListingRecord> _records = const [];
   List<SavedSearch> _searches = const [];
@@ -136,72 +136,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _loading = true;
       _error = null;
     });
-    final incoming = <ListingRecord>[];
-    final failed = <String>[];
-    final now = DateTime.now();
-    try {
-      final items = await loadKariyerFeed();
-      incoming.addAll([
-        for (final item in items)
-          ListingRecord(
-            url: item.url.toString(),
-            sourceId: 'kariyerkapisi',
-            title: item.title,
-            category: item.category,
-            publishedAt: item.publishedAt,
-            fetchedAt: now,
-          ),
-      ]);
-    } on Exception {
-      failed.add('Kariyer Kapısı');
-    }
-    try {
-      final sbbItems = await loadSbbListings();
-      incoming.addAll([
-        for (final item in sbbItems)
-          ListingRecord(
-            url: item.url.toString(),
-            sourceId: 'kamuilan_sbb',
-            title: item.institution,
-            category: item.category,
-            publishedAt: item.publishedAt,
-            deadline: item.deadline,
-            quota: item.quota,
-            fetchedAt: now,
-          ),
-      ]);
-    } on Exception {
-      failed.add('Kamu İlanları (SBB)');
-    }
-    try {
-      // Dünün Resmî Gazete'si; ilanlar gecikmeli yayımlandığı için dün taranır.
-      final rgItems = await loadRgPersonnelNotices();
-      incoming.addAll([
-        for (final item in rgItems)
-          ListingRecord(
-            url: item.url.toString(),
-            sourceId: 'resmigazete',
-            title: item.title,
-            category: 'Resmî Gazete',
-            publishedAt: item.publishedAt,
-            fetchedAt: now,
-          ),
-      ]);
-    } on Exception {
-      failed.add('Resmî Gazete');
-    }
-    try {
-      await _store.mergeFeed(incoming, pruneBefore: now.subtract(_pruneAfter));
-    } on Exception {
-      failed.add('Yerel katalog');
-    }
+    final result = await refreshCatalogue(_store);
     await _loadLocal();
     if (!mounted) return;
     setState(() {
-      _lastRefresh = now;
-      _error = failed.isEmpty
+      _lastRefresh = result.checkedAt;
+      _failedSources = result.failedSources;
+      _error = result.failedSources.isEmpty
           ? null
-          : '${failed.join(' ve ')} yenilenemedi. Son görülen liste korunuyor.';
+          : '${result.failedSources.join(' ve ')} yenilenemedi. Son görülen liste korunuyor.';
     });
     if (mounted) setState(() => _loading = false);
   }
@@ -485,9 +428,37 @@ class _KamuHomePageState extends State<KamuHomePage> {
                 ),
                 isThreeLine: true,
                 trailing: PopupMenuButton<String>(
-                  tooltip: 'Bildirim modu',
+                  tooltip: 'Arama işlemleri',
                   icon: const Icon(Icons.notifications_outlined),
                   onSelected: (value) async {
+                    if (value == 'rename') {
+                      final name = await _promptRename(search);
+                      final trimmed = name?.trim();
+                      if (trimmed == null || trimmed.isEmpty) return;
+                      await _store.updateSavedSearch(
+                        search.copyWith(name: trimmed),
+                      );
+                      if (_activeSearchName == search.name) {
+                        _activeSearchName = trimmed;
+                      }
+                      if (sheetContext.mounted) {
+                        Navigator.pop(sheetContext, true);
+                      }
+                      return;
+                    }
+                    if (value == 'delete') {
+                      final ok = await _confirmDeleteSearch(search);
+                      if (ok != true) return;
+                      final id = search.id;
+                      if (id != null) await _store.deleteSavedSearch(id);
+                      if (_activeSearchName == search.name) {
+                        _activeSearchName = null;
+                      }
+                      if (sheetContext.mounted) {
+                        Navigator.pop(sheetContext, true);
+                      }
+                      return;
+                    }
                     final filters = <String, String>{...search.filters};
                     filters['bildirim'] = value;
                     await _store.updateSavedSearch(
@@ -502,6 +473,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     ),
                     PopupMenuItem(value: 'digest', child: Text('Günlük özet')),
                     PopupMenuItem(value: 'off', child: Text('Kapalı')),
+                    PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: Text('Yeniden adlandır'),
+                    ),
+                    PopupMenuItem(value: 'delete', child: Text('Sil')),
                   ],
                 ),
                 onTap: () {
@@ -519,6 +496,54 @@ class _KamuHomePageState extends State<KamuHomePage> {
       if (!stillExists) setState(() => _activeSearchName = null);
     }
   }
+
+  /// Kayıtlı aramayı yeniden adlandırır; vazgeçilirse null döner.
+  Future<String?> _promptRename(SavedSearch search) {
+    final controller = TextEditingController(text: search.name);
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Aramayı yeniden adlandır'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Arama adı'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Kayıtlı aramayı silmek için onay ister (C-021: kullanıcı verisi
+  /// her zaman silinebilir).
+  Future<bool?> _confirmDeleteSearch(SavedSearch search) => showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Arama silinsin mi?'),
+      content: Text(
+        '"${search.name}" ve bildirim tercihi bu cihazdan silinir.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Sil'),
+        ),
+      ],
+    ),
+  );
 
   String _modeLabel(SearchAlertMode mode) => switch (mode) {
     SearchAlertMode.instant => 'Anlık',
@@ -568,9 +593,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
         actions: [
           IconButton(
             tooltip: 'Bildirimler',
-            onPressed: () => Navigator.of(context).push(
-              sharedAxisRoute<void>(const NotificationCenterPage()),
-            ),
+            onPressed: () => Navigator.of(context)
+                .push(sharedAxisRoute<void>(const NotificationCenterPage())),
             icon: const Icon(Icons.notifications_outlined),
           ),
           if (_tab == 0)
@@ -832,23 +856,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          if (record.sourceId == 'kamuilan_sbb' ||
-              record.sourceId == 'resmigazete') {
-            // SBB ve RG kayıtları doğrudan resmî belgeyi açar.
-            _open(Uri.parse(record.url));
-            return;
-          }
-          Navigator.of(context).push(
-            sharedAxisRoute<void>(
-              KariyerDetailPage(
-                listing: _asPublicListing(record),
-                onLoaded: (detail) => _cacheDetail(record.url, detail),
-              ),
-            ),
-          );
-        },
+        onTap: () => _showListing(record),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -862,40 +870,39 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Text(
                 record.title,
                 style: Theme.of(context).textTheme.titleMedium,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
               Text(
                 '${_sourceLabel(record.sourceId)} • ${_date(record.publishedAt)}',
               ),
-              Text(
-                record.deadline == null
-                    ? 'Son başvuru tarihi: kaynakta kontrol edin'
-                    : 'Son başvuru: ${_date(record.deadline)}',
-                style: expired
-                    ? TextStyle(color: Theme.of(context).colorScheme.error)
-                    : null,
-              ),
-              if (record.quota != null) Text('Kontenjan: ${record.quota} kişi'),
-              if (record.places.isNotEmpty)
-                Text('Yerler: ${record.places.join(', ')}'),
-              if (expired)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    'Son başvuru geçti',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _factChip(
+                    Icons.event_outlined,
+                    record.deadline == null
+                        ? 'Son tarih belirtilmemiş'
+                        : '${_date(record.deadline)} • ${countdownLabel(record.deadline, DateTime.now())}',
+                    urgent: expired,
                   ),
-                ),
+                  if (record.quota != null)
+                    _factChip(Icons.groups_outlined, '${record.quota} kişi'),
+                  if (record.places.isNotEmpty)
+                    _factChip(Icons.place_outlined, record.places.join(', ')),
+                ],
+              ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 children: [
                   FilledButton.tonalIcon(
-                    onPressed: () => _open(Uri.parse(record.url)),
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Resmî ilana git'),
+                    onPressed: () => _showListing(record),
+                    icon: const Icon(Icons.article_outlined),
+                    label: const Text('İlanı incele'),
                   ),
                   IconButton(
                     tooltip: record.saved ? 'Kaydı kaldır' : 'Kaydet',
@@ -917,6 +924,41 @@ class _KamuHomePageState extends State<KamuHomePage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _factChip(IconData icon, String label, {bool urgent = false}) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: urgent
+              ? Theme.of(context).colorScheme.errorContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      );
+
+  void _showListing(ListingRecord record) {
+    HapticFeedback.selectionClick();
+    Navigator.of(context).push(
+      sharedAxisRoute<void>(
+        record.sourceId == 'kariyerkapisi'
+            ? KariyerDetailPage(
+                listing: _asPublicListing(record),
+                onLoaded: (detail) => _cacheDetail(record.url, detail),
+              )
+            : OfficialListingPage(listing: record),
       ),
     );
   }
@@ -946,12 +988,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
           Card(
             child: ListTile(
               title: Text(selected.title),
-              trailing: const Icon(Icons.open_in_new),
-              onTap: () => _open(Uri.parse(selected.url)),
+              trailing: const Icon(Icons.article_outlined),
+              onTap: () => _showListing(selected),
             ),
           ),
           const SizedBox(height: 8),
-          ListingGuideView(listingUrl: selected.url),
+          ListingGuideView(listing: selected),
         ],
       );
     }
@@ -1043,15 +1085,21 @@ class _KamuHomePageState extends State<KamuHomePage> {
           'Gönderilen, bekleyen ve gönderilmeyen tüm uyarılar. '
           'Veriler yalnızca bu cihazda tutulur.',
         ),
-        onTap: () => Navigator.of(context).push(
-          sharedAxisRoute<void>(const NotificationCenterPage()),
-        ),
+        onTap: () =>
+            Navigator.of(context)
+                .push(sharedAxisRoute<void>(const NotificationCenterPage())),
       ),
       ListTile(
         leading: const Icon(Icons.source_outlined),
         title: const Text('Resmî kaynaklar'),
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => _SourcesPage(open: _open)),
+          MaterialPageRoute<void>(
+            builder: (_) => _SourcesPage(
+              open: _open,
+              checkedAt: _lastRefresh,
+              failedSources: _failedSources,
+            ),
+          ),
         ),
       ),
       ListTile(
@@ -1098,35 +1146,56 @@ class _KamuHomePageState extends State<KamuHomePage> {
 }
 
 class _SourcesPage extends StatelessWidget {
-  const _SourcesPage({required this.open});
+  const _SourcesPage({
+    required this.open,
+    required this.checkedAt,
+    required this.failedSources,
+  });
   final Future<void> Function(Uri) open;
+  final DateTime? checkedAt;
+  final List<String> failedSources;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Resmî kaynaklar')),
     body: ListView(
       children: [
-        const ListTile(
-          leading: Icon(Icons.check_circle_outline),
-          title: Text('Kariyer Kapısı'),
+        ListTile(
+          leading: const Icon(Icons.update_outlined),
+          title: const Text('Son denetim'),
           subtitle: Text(
-            'Resmî RSS akışı ve ilan ayrıntı okuması kullanılıyor.',
+            checkedAt == null
+                ? 'Bu oturumda henüz denetlenmedi'
+                : '${checkedAt!.day}.${checkedAt!.month}.${checkedAt!.year} '
+                      '${checkedAt!.hour.toString().padLeft(2, '0')}:${checkedAt!.minute.toString().padLeft(2, '0')}',
           ),
         ),
-        const ListTile(
-          leading: Icon(Icons.check_circle_outline),
-          title: Text('Kamu İlanları (SBB)'),
-          subtitle: Text(
-            'Strateji ve Bütçe Başkanlığı güncel yıl listesi okunuyor; ilan kaydı resmî PDF belgeyi açar.',
+        for (final (name, description) in [
+          (
+            'Kariyer Kapısı',
+            'Resmî liste ve RSS; ayrıntılar ilan açılınca okunur.',
           ),
-        ),
-        const ListTile(
-          leading: Icon(Icons.check_circle_outline),
-          title: Text('Resmî Gazete'),
-          subtitle: Text(
-            'Dünkü sayıda personel alımı duyuruları taranıyor; kayıt resmî belgeyi açar.',
+          (
+            'Kamu İlanları (SBB)',
+            'Güncel yıl listesi; asıl ilan resmî PDF belgedir.',
           ),
-        ),
+          ('Resmî Gazete', 'Arşivde personel duyuruları taranır.'),
+        ])
+          ListTile(
+            leading: Icon(
+              checkedAt == null
+                  ? Icons.help_outline
+                  : failedSources.contains(name)
+                  ? Icons.error_outline
+                  : Icons.check_circle_outline,
+            ),
+            title: Text(name),
+            subtitle: Text(
+              checkedAt != null && failedSources.contains(name)
+                  ? 'Son denetim başarısız; önbellek korunuyor. $description'
+                  : description,
+            ),
+          ),
         for (final (name, status, url) in [
           (
             'İŞKUR',

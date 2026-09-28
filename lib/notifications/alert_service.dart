@@ -5,6 +5,7 @@ import 'package:napp_core/napp_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../data/catalogue_refresh.dart';
 import '../data/listing_store.dart';
 import '../data/search_alerts.dart';
 import 'alert_history.dart';
@@ -202,6 +203,10 @@ Future<int> runAlertCheckOnce() async {
   final settings = await AlertSettings.load();
   final now = DateTime.now();
   var sent = 0;
+
+  // Arka plan denetimi önce resmî kaynakları yeniler; yalnızca eski yerel
+  // kayıtları taramak yeni ilan bildirimi üretemez.
+  await refreshCatalogue(store, at: now);
 
   // Ertelenmiş bildirimler: sessiz saat dışındaki ilk denetimde günlük tavan
   // kadar gönderilir; kalanlar kuyrukta bekler, kaybolmaz.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../ui/premium.dart';
 import 'alert_history.dart';
 import 'alert_service.dart';
 
@@ -203,15 +204,15 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (record.delivery) {
-      AlertDelivery.delivered => ('Gönderildi', Colors.green.shade700),
-      AlertDelivery.held => ('Beklemede', Colors.orange.shade800),
-      AlertDelivery.dropped => ('Gönderilmedi', Colors.red.shade700),
+      AlertDelivery.delivered => ('Gönderildi', PremiumStatus.delivered),
+      AlertDelivery.held => ('Beklemede', PremiumStatus.held),
+      AlertDelivery.dropped => ('Gönderilmedi', PremiumStatus.dropped),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
       ),
       child: Text(
         label,

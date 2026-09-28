@@ -43,7 +43,11 @@ void main() {
     var items = await store.allListings();
     expect(items, hasLength(1));
     await store.mergeFeed([
-      record('a', fetchedAt: DateTime(2026, 9, 28), publishedAt: DateTime(2026, 9, 21)),
+      record(
+        'a',
+        fetchedAt: DateTime(2026, 9, 28),
+        publishedAt: DateTime(2026, 9, 21),
+      ),
       record('b'),
     ]);
     items = await store.allListings();
@@ -63,14 +67,30 @@ void main() {
     ]);
     await store.setSaved('kayitli', true);
     // Budama sınırı: 2026-09-26'dan eski görülen kaydedilmemiş ilanlar silinir.
-    await store.mergeFeed(
-      [record('yeni', fetchedAt: DateTime(2026, 9, 27))],
-      pruneBefore: DateTime(2026, 9, 26),
-    );
+    await store.mergeFeed([
+      record('yeni', fetchedAt: DateTime(2026, 9, 27)),
+    ], pruneBefore: DateTime(2026, 9, 26));
     final items = await store.allListings();
     expect(items.map((item) => item.url), containsAll(['kayitli', 'yeni']));
     expect(items.map((item) => item.url), isNot(contains('eski')));
     expect(items.firstWhere((item) => item.url == 'kayitli').saved, isTrue);
+    await store.close();
+  });
+
+  test('akıştan gelen yeni alanlar kayıtlı ilanda da güncellenir', () async {
+    final store = await freshStore();
+    await store.mergeFeed([record('a')]);
+    await store.setSaved('a', true);
+    final refreshed = record(
+      'a',
+      fetchedAt: DateTime(2026, 9, 28),
+    ).copyWith(deadline: DateTime(2026, 10, 10), quota: 12, places: ['ANKARA']);
+    await store.mergeFeed([refreshed]);
+    final result = (await store.allListings()).single;
+    expect(result.saved, isTrue);
+    expect(result.deadline, DateTime(2026, 10, 10));
+    expect(result.quota, 12);
+    expect(result.places, ['ANKARA']);
     await store.close();
   });
 
@@ -79,7 +99,10 @@ void main() {
     final store = ListingStore(
       database: await databaseFactory.openDatabase(
         dbPath,
-        options: OpenDatabaseOptions(version: 1, onCreate: ListingStore.createSchema),
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: ListingStore.createSchema,
+        ),
       ),
     );
     await store.mergeFeed([record('detay')]);
@@ -94,7 +117,10 @@ void main() {
     final reopened = ListingStore(
       database: await databaseFactory.openDatabase(
         dbPath,
-        options: OpenDatabaseOptions(version: 1, onCreate: ListingStore.createSchema),
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: ListingStore.createSchema,
+        ),
       ),
     );
     final items = await reopened.allListings();
@@ -123,33 +149,56 @@ void main() {
     await store.close();
   });
 
-  test('kayıtlı arama ekleme, güncelleme, silme ve bozuk süzgeç okuma', () async {
+  test('önbellekte tekrarlanan yer tek gösterilir', () async {
     final store = await freshStore();
-    final created = await store.addSavedSearch(
-      SavedSearch(
-        id: null,
-        name: 'Ankara P3',
-        filters: const {'sehir': 'ANKARA', 'kpss': 'P3'},
-        createdAt: DateTime(2026, 9, 27),
+    await store.mergeFeed([
+      record('yer').copyWith(
+        places: [
+          'BAKANLIK MERKEZ TEŞKİLATI / BAKANLIK MERKEZ TEŞKİLATI',
+          'BAKANLIK MERKEZ TEŞKİLATI',
+        ],
       ),
-    );
-    expect(created.id, isNotNull);
-    await store.updateSavedSearch(created.copyWith(name: 'Ankara P3 Lisans'));
-    var searches = await store.savedSearches();
-    expect(searches.single.name, 'Ankara P3 Lisans');
-    expect(searches.single.filters['sehir'], 'ANKARA');
-    await store.deleteSavedSearch(created.id!);
-    expect(await store.savedSearches(), isEmpty);
+    ]);
+    expect((await store.allListings()).single.places, [
+      'BAKANLIK MERKEZ TEŞKİLATI',
+    ]);
     await store.close();
   });
 
-  test('v1 veritabanı v2ye göçerken veri korunur ve alıntı sütunları eklenir', () async {
-    final dbPath = '${DateTime.now().microsecondsSinceEpoch}-mig.db';
-    // v1 şemasını elle kur, örnek kayıt yaz.
-    final v1 = await databaseFactory.openDatabase(
-      dbPath,
-      options: OpenDatabaseOptions(version: 1, onCreate: (db, version) async {
-        await db.execute('''
+  test(
+    'kayıtlı arama ekleme, güncelleme, silme ve bozuk süzgeç okuma',
+    () async {
+      final store = await freshStore();
+      final created = await store.addSavedSearch(
+        SavedSearch(
+          id: null,
+          name: 'Ankara P3',
+          filters: const {'sehir': 'ANKARA', 'kpss': 'P3'},
+          createdAt: DateTime(2026, 9, 27),
+        ),
+      );
+      expect(created.id, isNotNull);
+      await store.updateSavedSearch(created.copyWith(name: 'Ankara P3 Lisans'));
+      var searches = await store.savedSearches();
+      expect(searches.single.name, 'Ankara P3 Lisans');
+      expect(searches.single.filters['sehir'], 'ANKARA');
+      await store.deleteSavedSearch(created.id!);
+      expect(await store.savedSearches(), isEmpty);
+      await store.close();
+    },
+  );
+
+  test(
+    'v1 veritabanı v2ye göçerken veri korunur ve alıntı sütunları eklenir',
+    () async {
+      final dbPath = '${DateTime.now().microsecondsSinceEpoch}-mig.db';
+      // v1 şemasını elle kur, örnek kayıt yaz.
+      final v1 = await databaseFactory.openDatabase(
+        dbPath,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (db, version) async {
+            await db.execute('''
           CREATE TABLE listings (
             url TEXT PRIMARY KEY, sourceId TEXT NOT NULL, title TEXT NOT NULL,
             category TEXT NOT NULL, publishedAt INTEGER, fetchedAt INTEGER NOT NULL,
@@ -158,51 +207,62 @@ void main() {
             saved INTEGER NOT NULL DEFAULT 0, savedAt INTEGER
           )
         ''');
-        await db.execute('''
+            await db.execute('''
           CREATE TABLE saved_searches (
             id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
             filters TEXT NOT NULL, createdAt INTEGER NOT NULL
           )
         ''');
-      }),
-    );
-    await v1.insert('listings', {
-      'url': 'eski',
-      'sourceId': 'kariyerkapisi',
-      'title': 'Eski kayıt',
-      'category': '',
-      'fetchedAt': DateTime(2026, 9, 1).millisecondsSinceEpoch,
-      'saved': 1,
-    });
-    await v1.close();
-    // v2 ile yeniden aç: upgradeSchema çalışmalı, veri durmalı.
-    final v2 = await databaseFactory.openDatabase(
-      dbPath,
-      options: OpenDatabaseOptions(
-        version: 2,
-        onCreate: ListingStore.createSchema,
-        onUpgrade: ListingStore.upgradeSchema,
-      ),
-    );
-    final rows = await v2.query('listings');
-    expect(rows.single['title'], 'Eski kayıt');
-    expect(rows.single['kpssQuote'], isNull);
-    final columns = await v2.rawQuery('PRAGMA table_info(listings)');
-    expect(
-      columns.map((c) => c['name']),
-      containsAll(['kpssQuote', 'educationQuote', 'maxAgeQuote', 'quotaTypeQuote']),
-    );
-    await v2.close();
-    await databaseFactory.deleteDatabase(dbPath);
-  });
+          },
+        ),
+      );
+      await v1.insert('listings', {
+        'url': 'eski',
+        'sourceId': 'kariyerkapisi',
+        'title': 'Eski kayıt',
+        'category': '',
+        'fetchedAt': DateTime(2026, 9, 1).millisecondsSinceEpoch,
+        'saved': 1,
+      });
+      await v1.close();
+      // v2 ile yeniden aç: upgradeSchema çalışmalı, veri durmalı.
+      final v2 = await databaseFactory.openDatabase(
+        dbPath,
+        options: OpenDatabaseOptions(
+          version: 2,
+          onCreate: ListingStore.createSchema,
+          onUpgrade: ListingStore.upgradeSchema,
+        ),
+      );
+      final rows = await v2.query('listings');
+      expect(rows.single['title'], 'Eski kayıt');
+      expect(rows.single['kpssQuote'], isNull);
+      final columns = await v2.rawQuery('PRAGMA table_info(listings)');
+      expect(
+        columns.map((c) => c['name']),
+        containsAll([
+          'kpssQuote',
+          'educationQuote',
+          'maxAgeQuote',
+          'quotaTypeQuote',
+        ]),
+      );
+      await v2.close();
+      await databaseFactory.deleteDatabase(dbPath);
+    },
+  );
 
-  test('v2 veritabanı v3e göçerken veri korunur ve parmak izi sütunu eklenir', () async {
-    final dbPath = '${DateTime.now().microsecondsSinceEpoch}-mig3.db';
-    // v2 şemasını elle kur (alıntı sütunları var, parmak izi yok), örnek kayıt yaz.
-    final v2 = await databaseFactory.openDatabase(
-      dbPath,
-      options: OpenDatabaseOptions(version: 2, onCreate: (db, version) async {
-        await db.execute('''
+  test(
+    'v2 veritabanı v3e göçerken veri korunur ve parmak izi sütunu eklenir',
+    () async {
+      final dbPath = '${DateTime.now().microsecondsSinceEpoch}-mig3.db';
+      // v2 şemasını elle kur (alıntı sütunları var, parmak izi yok), örnek kayıt yaz.
+      final v2 = await databaseFactory.openDatabase(
+        dbPath,
+        options: OpenDatabaseOptions(
+          version: 2,
+          onCreate: (db, version) async {
+            await db.execute('''
           CREATE TABLE listings (
             url TEXT PRIMARY KEY, sourceId TEXT NOT NULL, title TEXT NOT NULL,
             category TEXT NOT NULL, publishedAt INTEGER, fetchedAt INTEGER NOT NULL,
@@ -212,40 +272,42 @@ void main() {
             saved INTEGER NOT NULL DEFAULT 0, savedAt INTEGER
           )
         ''');
-        await db.execute('''
+            await db.execute('''
           CREATE TABLE saved_searches (
             id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
             filters TEXT NOT NULL, createdAt INTEGER NOT NULL
           )
         ''');
-      }),
-    );
-    await v2.insert('listings', {
-      'url': 'eski',
-      'sourceId': 'kariyerkapisi',
-      'title': 'Eski kayıt',
-      'category': '',
-      'fetchedAt': DateTime(2026, 9, 1).millisecondsSinceEpoch,
-      'saved': 1,
-    });
-    await v2.close();
-    // v3 ile yeniden aç: fingerprint sütunu eklenmeli, veri durmalı.
-    final v3 = await databaseFactory.openDatabase(
-      dbPath,
-      options: OpenDatabaseOptions(
-        version: 3,
-        onCreate: ListingStore.createSchema,
-        onUpgrade: ListingStore.upgradeSchema,
-      ),
-    );
-    final rows = await v3.query('listings');
-    expect(rows.single['title'], 'Eski kayıt');
-    expect(rows.single['fingerprint'], isNull);
-    final columns = await v3.rawQuery('PRAGMA table_info(listings)');
-    expect(columns.map((c) => c['name']), contains('fingerprint'));
-    await v3.close();
-    await databaseFactory.deleteDatabase(dbPath);
-  });
+          },
+        ),
+      );
+      await v2.insert('listings', {
+        'url': 'eski',
+        'sourceId': 'kariyerkapisi',
+        'title': 'Eski kayıt',
+        'category': '',
+        'fetchedAt': DateTime(2026, 9, 1).millisecondsSinceEpoch,
+        'saved': 1,
+      });
+      await v2.close();
+      // v3 ile yeniden aç: fingerprint sütunu eklenmeli, veri durmalı.
+      final v3 = await databaseFactory.openDatabase(
+        dbPath,
+        options: OpenDatabaseOptions(
+          version: 3,
+          onCreate: ListingStore.createSchema,
+          onUpgrade: ListingStore.upgradeSchema,
+        ),
+      );
+      final rows = await v3.query('listings');
+      expect(rows.single['title'], 'Eski kayıt');
+      expect(rows.single['fingerprint'], isNull);
+      final columns = await v3.rawQuery('PRAGMA table_info(listings)');
+      expect(columns.map((c) => c['name']), contains('fingerprint'));
+      await v3.close();
+      await databaseFactory.deleteDatabase(dbPath);
+    },
+  );
 
   test('bozuk kayıtlı arama süzgeci boş okunur', () async {
     final search = SavedSearch.fromRow({

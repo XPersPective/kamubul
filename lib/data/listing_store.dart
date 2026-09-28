@@ -132,7 +132,16 @@ class ListingRecord {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is List) {
-        return decoded.whereType<String>().toList();
+        return decoded
+            .whereType<String>()
+            .map((place) {
+              final halves = place.split(' / ');
+              return halves.length == 2 && halves[0] == halves[1]
+                  ? halves[0]
+                  : place;
+            })
+            .toSet()
+            .toList();
       }
     } on FormatException {
       // Bozuk kayıt tek alanı düşürür, uygulamayı çökertmez.
@@ -314,9 +323,7 @@ class ListingStore {
     )) {
       known[row['url'] as String] = row['fingerprint'] as String?;
     }
-    final seenFingerprints = <String>{
-      for (final fp in known.values) ?fp,
-    };
+    final seenFingerprints = <String>{for (final fp in known.values) ?fp};
     for (final record in incoming) {
       record.fingerprint ??= listingFingerprint(
         title: record.title,
@@ -342,8 +349,11 @@ class ListingStore {
           'category': record.category,
           'fingerprint': record.fingerprint,
           'publishedAt': ?record.publishedAt?.millisecondsSinceEpoch,
+          'deadline': ?record.deadline?.millisecondsSinceEpoch,
+          'quota': ?record.quota,
+          if (record.places.isNotEmpty) 'places': jsonEncode(record.places),
         },
-        where: 'url = ? AND saved = 0',
+        where: 'url = ?',
         whereArgs: [record.url],
       );
     }
