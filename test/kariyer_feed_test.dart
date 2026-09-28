@@ -10,6 +10,8 @@ void main() {
         <link>https://kariyerkapisi.gov.tr/IlanDetay?i=123</link>
         <pubDate>Mon, 14 Sep 2026 00:00:00 +0300</pubDate></item>
       <item><title>Yinelenen</title><link>https://kariyerkapisi.gov.tr/IlanDetay?i=123</link></item>
+      <item><title>Yurt dışı staj</title><category>Yurt Dışı Eğitim İlanları</category>
+        <link>https://kariyerkapisi.gov.tr/IlanDetay?i=456</link></item>
       <item><title>Sahte</title><link>https://evil.example/IlanDetay?i=123</link></item>
     </channel></rss>''';
     final items = parseKariyerFeed(xml);
@@ -34,6 +36,8 @@ void main() {
             '''{"searchIlan":[
           {"guid":"$id","ilanBaslik":"29 kişi alımı","ilanTuru":"Personel",
            "bitTarih":"2026-09-29T13:00:00"},
+          {"guid":"0b99929b-9164-4adc-b4fb-78894857f700","ilanBaslik":"Yurt dışı staj",
+           "ilanTuru":"Yurt Dışı Eğitim İlanları","bitTarih":"2026-09-29T13:00:00"},
           {"guid":"kötü","ilanBaslik":"Sahte","bitTarih":"2026-09-29T13:00:00"}
         ]}''',
             200,

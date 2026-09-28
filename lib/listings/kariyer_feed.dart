@@ -83,6 +83,7 @@ List<PublicListing> parseKariyerIndex(Object? raw) {
     if (item is! Map<String, dynamic>) continue;
     final id = item['guid'];
     final title = item['ilanBaslik'];
+    final category = item['ilanTuru'];
     if (id is! String ||
         !RegExp(
           r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -90,6 +91,7 @@ List<PublicListing> parseKariyerIndex(Object? raw) {
         title is! String ||
         title.trim().isEmpty ||
         title.length > 300 ||
+        category == 'Yurt Dışı Eğitim İlanları' ||
         !seen.add(id)) {
       continue;
     }
@@ -100,7 +102,7 @@ List<PublicListing> parseKariyerIndex(Object? raw) {
     result.add(
       PublicListing(
         title: title.trim(),
-        category: item['ilanTuru'] is String ? item['ilanTuru'] as String : '',
+        category: category is String ? category : '',
         url: Uri.https('kariyerkapisi.gov.tr', '/IlanDetay', {'i': id}),
         publishedAt: null,
         deadline: deadline,
@@ -140,12 +142,14 @@ List<PublicListing> parseKariyerFeed(String raw) {
   for (final item in document.findAllElements('item').take(200)) {
     final url = Uri.tryParse(value(item, 'link'));
     final title = value(item, 'title');
+    final category = value(item, 'category');
     if (url == null ||
         url.scheme != 'https' ||
         url.host != 'kariyerkapisi.gov.tr' ||
         url.path != '/IlanDetay' ||
         title.isEmpty ||
         title.length > 300 ||
+        category == 'Yurt Dışı Eğitim İlanları' ||
         !seen.add(url)) {
       continue;
     }
@@ -153,7 +157,7 @@ List<PublicListing> parseKariyerFeed(String raw) {
     result.add(
       PublicListing(
         title: title,
-        category: value(item, 'category'),
+        category: category,
         url: url,
         publishedAt: publishedAt,
       ),

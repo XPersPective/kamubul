@@ -7,11 +7,14 @@ bool matchesFilters(
   ListingRecord record,
   Map<String, String> filters, {
   DateTime? now,
-  bool includeScheduled = false,
+  bool forSaved = false,
 }) {
   final today = now ?? DateTime.now();
   final tomorrow = DateTime(today.year, today.month, today.day + 1);
-  if (!includeScheduled &&
+  if (!forSaved && record.category == 'Yurt Dışı Eğitim İlanları') {
+    return false;
+  }
+  if (!forSaved &&
       record.publishedAt != null &&
       !record.publishedAt!.isBefore(tomorrow)) {
     return false;

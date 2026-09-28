@@ -90,7 +90,7 @@ void main() {
     final today = DateTime(2026, 9, 28, 15);
     expect(matchesFilters(scheduled, const {}, now: today), isFalse);
     expect(
-      matchesFilters(scheduled, const {}, now: today, includeScheduled: true),
+      matchesFilters(scheduled, const {}, now: today, forSaved: true),
       isTrue,
     );
     expect(
@@ -105,6 +105,12 @@ void main() {
     );
     expect(decision.notifications, isEmpty);
     expect(decision.seenUrls, isEmpty);
+  });
+
+  test('eğitim ve staj duyurusu iş listesine girmez; kayıt korunur', () {
+    final training = record('egitim', category: 'Yurt Dışı Eğitim İlanları');
+    expect(matchesFilters(training, const {}), isFalse);
+    expect(matchesFilters(training, const {}, forSaved: true), isTrue);
   });
 
   test('anlık mod: yalnızca yeni ilanlar, günlük tavan', () {

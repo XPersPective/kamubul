@@ -185,7 +185,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
     if (_tab == 1) filters['kategori'] = '0';
     return _records.where((record) {
       if (_tab == 1 && !record.saved) return false;
-      return matchesFilters(record, filters, includeScheduled: _tab == 1);
+      return matchesFilters(record, filters, forSaved: _tab == 1);
     }).toList();
   }
 
