@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/listings/extract_conditions.dart';
+import 'package:kamubul/listings/extraction_policy.dart';
 
 void main() {
   // Fikstürler 2026-09-27'de canlı kamu ilan metinlerinde görülen kalıplardır.
@@ -62,5 +63,18 @@ Yazılı sınav aşamasında, adayın katılmakla yükümlü olduğu her bir otu
     expect(fields.quotaType!.value, '4/B');
     final other = extractConditions('Engelli kontenjanı için ayrılmışdır.');
     expect(other.quotaType!.value, 'Engelli');
+  });
+
+  test('politikası kapalı alan düşürülür, açık alan korunur', () {
+    const text = '2024 KPSS P3 puan türünden en az 70 puan almış olmak. '
+        'Dört yıllık lisans programlarından mezun olmak.';
+    final fields = extractConditions(text);
+    final gated = applyExtractionPolicy(
+      fields,
+      policy: const {'education': true, 'kpssType': false},
+    );
+    expect(gated.education!.value, 'Lisans');
+    expect(gated.kpssType, isNull);
+    expect(gated.kpssScore, isNull); // politikada adı geçmiyorsa düşer
   });
 }
