@@ -23,11 +23,24 @@ abstract final class PremiumMotion {
 }
 
 /// PB-008 teslimat durumu renkleri: ekranlar sabit renk yazmaz, durum
-/// anlamlı renkler tek kaynaktan gelir (açık/koyu temada aynı kalır).
+/// renkleri tek kaynaktan gelir. Her tema kendi varyantını kullanır; her
+/// varyant %12 kendi zeminine karşı WCAG AA (4.5:1) kontrastını geçer —
+/// tek sabit renk koyu temada eşiğin altına düşüyordu.
 abstract final class PremiumStatus {
-  static const delivered = Color(0xFF2E7D32);
-  static const held = Color(0xFFE65100);
-  static const dropped = Color(0xFFC62828);
+  static Color delivered(Brightness brightness) => switch (brightness) {
+    Brightness.light => const Color(0xFF1B5E20),
+    Brightness.dark => const Color(0xFF81C784),
+  };
+
+  static Color held(Brightness brightness) => switch (brightness) {
+    Brightness.light => const Color(0xFFA62E00),
+    Brightness.dark => const Color(0xFFFFB74D),
+  };
+
+  static Color dropped(Brightness brightness) => switch (brightness) {
+    Brightness.light => const Color(0xFFB71C1C),
+    Brightness.dark => const Color(0xFFEF9A9A),
+  };
 }
 
 /// PB-008 premium UI yardımcıları: iskelet yükleyiciler, paylaşılan eksen

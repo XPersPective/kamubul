@@ -1458,7 +1458,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   Widget _emptyState(String message, {required VoidCallback onPressed}) =>
       Center(
-        child: Padding(
+        // 1.3x metinde bile taşma olmasın: içerik kırpılmak yerine kayar.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,

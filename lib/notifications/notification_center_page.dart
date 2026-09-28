@@ -203,10 +203,17 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     final (label, color) = switch (record.delivery) {
-      AlertDelivery.delivered => ('Gönderildi', PremiumStatus.delivered),
-      AlertDelivery.held => ('Beklemede', PremiumStatus.held),
-      AlertDelivery.dropped => ('Gönderilmedi', PremiumStatus.dropped),
+      AlertDelivery.delivered => (
+        'Gönderildi',
+        PremiumStatus.delivered(brightness),
+      ),
+      AlertDelivery.held => ('Beklemede', PremiumStatus.held(brightness)),
+      AlertDelivery.dropped => (
+        'Gönderilmedi',
+        PremiumStatus.dropped(brightness),
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
