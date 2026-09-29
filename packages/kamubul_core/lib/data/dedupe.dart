@@ -50,3 +50,22 @@ String _normalizeKurum(String value) {
       .toList();
   return tokens.join(' ');
 }
+
+/// Sunucu birleştirmesi için ÇAPRAZ KAYNAK anahtarı: yalnızca kurum adı +
+/// son başvuru günü. [listingFingerprint]'ten farkı: SBB başlığı
+/// `Kurum — İlan` biçiminde olduğundan kurum kısmı ayrıştırılır. Yalnızca
+/// FARKLI kaynaklar arasında kopya sayılır; aynı kaynaktaki iki ilan
+/// (aynı kurum ve son gün) ayrı kalır.
+String crossSourceKey({
+  required String title,
+  required String sourceId,
+  DateTime? deadline,
+}) {
+  final separator = sourceId == 'kariyerkapisi' ? ' - ' : ' — ';
+  final kurum = title.split(separator).first;
+  final day = deadline == null
+      ? '-'
+      : '${deadline.year}-${deadline.month.toString().padLeft(2, '0')}-'
+            '${deadline.day.toString().padLeft(2, '0')}';
+  return '${_normalizeKurum(kurum)}|$day';
+}

@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// İstemci (uygulama) Firestore'a HİÇBİR koşulda doğrudan erişemez. Tüm okuma
+// ve yazma arka uç sunucusu üzerinden, servis hesabıyla yapılır (yönetici
+// kimlik bilgileri bu kuralları atlar). Uygulama yalnızca /v1 API'sini bilir.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

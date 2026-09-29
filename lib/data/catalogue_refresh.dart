@@ -1,3 +1,5 @@
+import 'package:kamubul_core/listings/source_records.dart';
+
 import '../listings/kariyer_feed.dart';
 import '../listings/sbb_feed.dart';
 import 'listing_store.dart';
@@ -37,38 +39,13 @@ Future<CatalogueRefreshResult> refreshCatalogue(
   final failed = <String>[];
   try {
     final items = await (kariyer ?? loadKariyerListings)();
-    incoming.addAll([
-      for (final item in items)
-        ListingRecord(
-          url: item.url.toString(),
-          sourceId: 'kariyerkapisi',
-          title: item.title,
-          category: item.category,
-          publishedAt: item.publishedAt,
-          deadline: item.deadline,
-          fetchedAt: now,
-        ),
-    ]);
+    incoming.addAll([for (final item in items) kariyerRecord(item, now)]);
   } on Exception {
     failed.add('Kariyer Kapısı');
   }
   try {
     final items = await (sbb ?? loadSbbListings)();
-    incoming.addAll([
-      for (final item in items)
-        ListingRecord(
-          url: item.url.toString(),
-          sourceId: 'kamuilan_sbb',
-          title: '${item.institution} — ${item.title}',
-          category: item.category,
-          // SBB satırı yayın tarihi vermez; satırdaki tek tarih başvuru
-          // penceresidir, yayın tarihi gibi sunulmamalıdır.
-          publishedAt: null,
-          deadline: item.deadline,
-          quota: item.quota,
-          fetchedAt: now,
-        ),
-    ]);
+    incoming.addAll([for (final item in items) sbbRecord(item, now)]);
   } on Exception {
     failed.add('Kamu İlanları (SBB)');
   }
