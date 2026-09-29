@@ -65,6 +65,10 @@ dependencies:
   workmanager: ^0.10.10
   # Yedek dosyasını paylaşım sayfasından çıkarmak için doğrudan kullanılır.
   share_plus: ^13.3.0
+  # Sunucu bildirimleri (FCM). Ayar derleme anında --dart-define ile verilir;
+  # verilmezse özellik kapalıdır (bkz. lib/notifications/firebase_push.dart).
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
 
 # napp_ads ve napp_pro, napp_core'u hosted olarak bildiriyor; aynı etiketli
 # Git kaynağını seçmek için tek override gerekir.

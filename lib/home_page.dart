@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kamubul_core/kamubul_core.dart' show SourceStatus;
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -15,6 +17,8 @@ import 'data/turkish_cities.dart';
 import 'data/user_data.dart';
 import 'notifications/alert_service.dart';
 import 'notifications/notification_center_page.dart';
+import 'notifications/push_registration.dart';
+import 'notifications/push_setup.dart';
 import 'listings/kariyer_detail.dart';
 import 'listings/kariyer_detail_page.dart';
 import 'listings/extract_conditions.dart';
@@ -78,6 +82,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   String? _cityError;
   String? _error;
   List<String> _failedSources = const [];
+  List<SourceStatus> _sourceStatuses = const [];
   DateTime? _lastRefresh;
   List<ListingRecord> _records = const [];
   List<SavedSearch> _searches = const [];
@@ -174,9 +179,48 @@ class _KamuHomePageState extends State<KamuHomePage> {
         _records = records;
         _searches = searches;
       });
+      // Kullanıcı sunucu bildirimini açtıysa etiketler değişince kayıt tazelenir;
+      // içerik değişmediyse ağa çıkılmaz.
+      final registrar = pushRegistrar;
+      if (registrar != null && registrar.enabled) {
+        unawaited(registrar.sync(searches));
+      }
     } on Exception {
       // Yerel okuma hatası: boş katalogla çevrimiçi yenileme denenir.
     }
+  }
+
+  /// Sunucu bildirimini açar/kapatır. Açmak kullanıcı eylemidir: bildirim izni
+  /// istenir ve ancak o zaman sunucuya kayıt gider. Kapatmak sunucudaki kaydı
+  /// siler ("bildirim verilerimi sil").
+  Future<void> _setServerPush(bool on) async {
+    final registrar = pushRegistrar;
+    if (registrar == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    String message;
+    if (on) {
+      final outcome = await registrar.enable(_searches);
+      if (outcome == PushSyncOutcome.registered ||
+          outcome == PushSyncOutcome.unchanged) {
+        unawaited(attachPushListeners());
+      }
+      message = switch (outcome) {
+        PushSyncOutcome.registered ||
+        PushSyncOutcome.unchanged => 'Sunucu bildirimleri açık.',
+        PushSyncOutcome.permissionDenied => 'Bildirim izni verilmedi.',
+        PushSyncOutcome.unavailable =>
+          'Bu sürümde sunucu bildirimi yapılandırılmamış.',
+        _ => 'Şu an bağlanılamadı; daha sonra otomatik denenecek.',
+      };
+    } else {
+      final deleted = await registrar.disable();
+      message = deleted
+          ? 'Sunucu bildirimleri kapatıldı; kaydınız silindi.'
+          : 'Kapatıldı; kaydınız bağlantı gelince silinecek.';
+    }
+    if (!mounted) return;
+    setState(() {});
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _refresh() async {
@@ -191,6 +235,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
     setState(() {
       _lastRefresh = result.checkedAt;
       _failedSources = result.failedSources;
+      if (result.sourceStatuses.isNotEmpty) {
+        _sourceStatuses = result.sourceStatuses;
+      }
       _error = result.failedSources.isEmpty
           ? null
           : '${turkishList(result.failedSources)} yenilenemedi. Son görülen liste korunuyor.';
@@ -1388,6 +1435,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
         record.sourceId == 'kariyerkapisi'
             ? KariyerDetailPage(
                 listing: _asPublicListing(record),
+                summary: record.summary,
                 onLoaded: (detail) => _cacheDetail(record.url, detail),
               )
             : OfficialListingPage(listing: record),
@@ -1539,6 +1587,18 @@ class _KamuHomePageState extends State<KamuHomePage> {
           );
         },
       ),
+      if (pushRegistrar != null)
+        SwitchListTile(
+          secondary: const Icon(Icons.cloud_outlined),
+          title: const Text('Sunucudan anlık bildirim'),
+          subtitle: const Text(
+            'Uygulama kapalıyken de yeni ilanlar için haber alın. Sunucuya '
+            'yalnızca bildirim jetonunuz ve kayıtlı arama süzgeçleriniz gider; '
+            'hesap yoktur. Kapatınca kaydınız silinir.',
+          ),
+          value: pushRegistrar!.enabled,
+          onChanged: _setServerPush,
+        ),
       ListTile(
         leading: const Icon(Icons.history),
         title: const Text('Bildirim geçmişi'),
@@ -1559,6 +1619,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
               open: _open,
               checkedAt: _lastRefresh,
               failedSources: _failedSources,
+              sourceStatuses: _sourceStatuses,
             ),
           ),
         ),
@@ -1636,10 +1697,21 @@ class _SourcesPage extends StatelessWidget {
     required this.open,
     required this.checkedAt,
     required this.failedSources,
+    this.sourceStatuses = const [],
   });
   final Future<void> Function(Uri) open;
   final DateTime? checkedAt;
   final List<String> failedSources;
+
+  /// Sunucunun bildirdiği kaynak durumları (boşsa sunucu kapalı/okunamadı).
+  final List<SourceStatus> sourceStatuses;
+
+  String? _serverNote(String id) {
+    for (final status in sourceStatuses) {
+      if (status.id == id) return status.note;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1681,14 +1753,16 @@ class _SourcesPage extends StatelessWidget {
                   : description,
             ),
           ),
-        for (final (name, status, url) in [
+        for (final (name, id, status, url) in [
           (
             'İŞKUR',
+            'iskur',
             'Herkese açık arayüz oturum akışına bağlı; otomatik tarama için çalışma sürüyor.',
             'https://esube.iskur.gov.tr/',
           ),
           (
             'ilan.gov.tr',
+            'ilan_gov_tr',
             'Arama arayüzü dokümanlanmamış bir ağ geçidi ardında; otomatik tarama hazırlanıyor.',
             'https://www.ilan.gov.tr/',
           ),
@@ -1696,7 +1770,11 @@ class _SourcesPage extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.schedule_outlined),
             title: Text(name),
-            subtitle: Text(status),
+            subtitle: Text(
+              _serverNote(id) == null
+                  ? status
+                  : 'Sunucu denetimi: ${_serverNote(id)}',
+            ),
             trailing: const Icon(Icons.open_in_new),
             onTap: () => open(Uri.parse(url)),
           ),

@@ -30,6 +30,9 @@ void _setAlertTap(String? payload) {
   }
 }
 
+/// Sunucu bildirimine (FCM) dokunulduğunda aynı yol kullanılır.
+void openAlertUrl(String url) => _setAlertTap(url);
+
 Future<void> _ensureInitialized() async {
   if (_initialized) return;
   await _plugin.initialize(

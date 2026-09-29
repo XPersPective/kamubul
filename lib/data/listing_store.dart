@@ -7,7 +7,6 @@ import 'package:sqflite/sqflite.dart';
 import '../listings/extract_conditions.dart';
 import '../listings/extraction_policy.dart';
 import 'dedupe.dart';
-import 'turkish_cities.dart';
 
 export 'package:kamubul_core/data/listing_models.dart';
 
