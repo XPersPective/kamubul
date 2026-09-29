@@ -9,7 +9,7 @@ Use official channels: feed/API first, otherwise public page parsing. Include İ
 No app account. **Revised 2026-09-29:** a serverless Firebase/Google Cloud backend (no self-managed host, no UI) fetches official sources about three times a day and serves the catalogue; the app caches it locally with offline reading, manual refresh and saved-search notifications through FCM. Local profile/preferences stay local. Prune expired cache without losing saved items.
 
 ### C-003 Assistant and ALH
-Server-side AI (developer's own Gemini API/Vertex key, server only) extracts and summarizes once per listing; an in-app Q&A assistant is phase 2. 10,000-user cost trial. Optional profession/age/education profile, announcement Q&A, matching, text then speech. Preserve the user's “ALH” term for later resolution.
+Server-side AI (developer's own key, server only; provider selectable: Anthropic, OpenAI-compatible or Gemini) extracts and summarizes once per listing; an in-app Q&A assistant is phase 2. 10,000-user cost trial. Optional profession/age/education profile, announcement Q&A, matching, text then speech. Preserve the user's “ALH” term for later resolution.
 
 ### C-004 Revenue
 Small banners, restrained splash/fullscreen ads, seven-day/five-session protection, lifetime non-consumable Pro and restore. No ad while reading or applying.

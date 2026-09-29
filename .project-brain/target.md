@@ -32,8 +32,9 @@ Release a premium Flutter Android/iOS app for current Turkish public-sector jobs
 
 ### Server-side AI extraction and summary (revision 2026-09-29)
 
-- After the deterministic parsers, the backend calls an LLM (Gemini API or Vertex AI with the developer's own key/service account, held only on the server) **once per new listing**, not per user or per tag: it returns candidate structured fields and a short bullet summary. Cost is independent of the user count.
-- A consumer Gemini subscription does not grant API access; the API/Vertex is billed separately. The developer chooses the provider and budget; the key never enters the app.
+- After the deterministic parsers, the backend calls an LLM (any supported provider, with the developer's own key held only on the server) **once per new listing**, not per user or per tag: it returns candidate structured fields and a short bullet summary. Cost is independent of the user count.
+- **Provider-agnostic (decided 2026-09-29):** the backend talks to the model through one small adapter interface with three implementations — Anthropic Messages API, OpenAI-compatible Chat Completions (configurable base URL, which also covers OpenAI, OpenRouter, self-hosted and any compatible gateway) and Gemini (API/Vertex). Provider, base URL, model and key are server configuration (`AI_PROVIDER`, `AI_BASE_URL`, `AI_MODEL`, key in Secret Manager); switching needs no app release. Because structured-output features differ per provider, the backend requests plain JSON and validates it itself against the strict schema, so the C-005 gates never depend on a provider guarantee. Consumer chat subscriptions (Gemini/ChatGPT/Claude apps) are not API access; API usage is billed separately. The developer chooses provider and budget; the key never enters the app.
+- Cost is metered per call (input/output tokens, model) with a daily budget cap that stops AI calls and falls back to deterministic parsing.
 - Every AI field passes the three C-005 gates (strict schema, verbatim quote located in the fetched text, confidence threshold). Failing fields stay "belirtilmemiş" with the raw sentence. Summaries are labelled as AI summaries. Tag matching stays deterministic on validated fields; the model never decides eligibility or matches.
 - Measure real token cost and precision/recall on the labeled corpus before enabling any AI field in production.
 
@@ -84,7 +85,7 @@ At the [GPT-5.6 Luna list price](https://developers.openai.com/api/docs/models/g
 
 ### TD-001 — Centrally paid AI
 
-**Status:** DIRECTION DECIDED 2026-09-29. The user will use their own API key (Gemini API/Vertex) held server-side in the Firebase/Cloud Run backend for extraction and summaries; the app never carries the key. A free-form in-app assistant remains phase 2 behind caps and cost metering.
+**Status:** DIRECTION DECIDED 2026-09-29. The user will use their own API key held server-side, with the provider selectable (Anthropic, OpenAI-compatible or Gemini) in the Firebase/Cloud Run backend for extraction and summaries; the app never carries the key. A free-form in-app assistant remains phase 2 behind caps and cost metering.
 
 ### TD-002 — Source access
 
