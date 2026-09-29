@@ -1,5 +1,22 @@
 # Değişiklik kaydı
 
+## Yayınlanmamış
+
+### Eklenenler
+- `packages/kamubul_core`: uygulama ve sunucunun paylaştığı saf Dart çekirdek.
+- `backend/`: arayüzsüz API, günlük çekim işi, Firestore/dosya depolama, FCM
+  gönderimi ve dağıtım dosyaları (Google öncelikli, taşınabilir).
+- Uygulama: sunucu kataloğu (`KAMUBUL_API`), kaynak başına cihaz yedeği,
+  isteğe bağlı anonim sunucu bildirimi ve silinebilir kayıt, "Yapay zekâ özeti"
+  kartı, yerel şema v4.
+- Sağlayıcıdan bağımsız yapay zekâ katmanı (Anthropic, OpenAI uyumlu, Gemini);
+  varsayılan kapalı, alanlar ölçüm kapısı geçilene kadar açılmaz.
+
+### Değişenler
+- Resmî Gazete kapsam dışı bırakıldı (adaptör ve sertifika zinciri kaldırıldı).
+- Ayrıştırıcı ve şart çıkarım testleri ile değerlendirme korpusu
+  `packages/kamubul_core` altına taşındı.
+
 ## 1.0.0+1
 
 İlk sürüm.

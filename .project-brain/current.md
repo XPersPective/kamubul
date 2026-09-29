@@ -30,6 +30,9 @@ Verified repository reality as of 2026-09-28. Recheck Git and live sources on re
 
 - `napp_core`, `napp_pro`, `napp_ads` come from tagged `napp_kit`; `napp_core` has a Git override to match the package graph. Developer-paid AI key is not embedded in the app. The configured local OpenCode Zen endpoint returned HTTP 402 for one model and 403 for another in a 2026-09-28 trial, so an in-app paid AI path is not verified. Store products, source terms and redistribution require review before release.
 
-## Planned migration (decided 2026-09-29, not built)
+## Remote backend (implemented in the repo 2026-09-29; not deployed)
 
-- Reality above is still on-device fetch and local notifications. The target is a Firebase/Google Cloud backend (Cloud Scheduler → Cloud Run → Firestore + Hosting snapshot + FCM) with server-side AI extraction; see `target.md` and tasks PB-010..PB-014. Resmî Gazete is dropped from the planned server scope. Do not describe any of this as implemented until a task records verification.
+- `packages/kamubul_core` holds the pure-Dart code shared by app and server (parsers, extraction, dedupe, filter matching, snapshot schema v1, remote client, provider-agnostic AI layer, push planner). The app keeps thin bridge files under `lib/` that re-export it. The extraction gate (0.95) and its fixtures now live in the package.
+- `backend/` is the UI-less service: `bin/job.dart` (fetch → merge → detail/AI → publish snapshot → match and send FCM) and `bin/server.dart` (`/v1/listings.json`, `/v1/sources.json`, `/v1/health`, `PUT|DELETE /v1/devices/{id}`), storage behind an interface (Firestore for Google, files for any VPS), Dockerfile, Firebase Hosting/Firestore config and docker-compose.
+- The app reads the snapshot only when built with `--dart-define=KAMUBUL_API=...`; otherwise it behaves as before. Per-source fallback to the embedded fetch is implemented and tested. Server push registration is opt-in and deletable; local schema is v4 (AI summary column).
+- Verified here: package and backend tests, compiled binaries, a local API smoke test, and a subset of app tests in a scratch copy with stubbed `napp_*`. Not verified: deployment, real FCM/AI/source calls, Android/iOS builds, the `home_page.dart`/`main.dart` glue. See tasks PB-010..PB-014.
