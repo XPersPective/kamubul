@@ -57,10 +57,7 @@ void _resetItems(String source) {
 void _writeItem(String source, Map<String, Object?> item) {
   _evalDir.createSync(recursive: true);
   final file = File('${_evalDir.path}/$source.jsonl');
-  file.writeAsStringSync(
-    '${jsonEncode(item)}\n',
-    mode: FileMode.append,
-  );
+  file.writeAsStringSync('${jsonEncode(item)}\n', mode: FileMode.append);
 }
 
 void _writeDigest(String source, String digest) {
@@ -84,7 +81,11 @@ List<String> hintSentences(String text) {
     final candidate = sentence.trim();
     if (candidate.length < 12) continue;
     if (_hintWords.hasMatch(candidate)) {
-      hits.add(candidate.length > 400 ? '${candidate.substring(0, 397)}...' : candidate);
+      hits.add(
+        candidate.length > 400
+            ? '${candidate.substring(0, 397)}...'
+            : candidate,
+      );
     }
     if (hits.length >= 40) break;
   }
@@ -158,14 +159,19 @@ Future<void> _captureKariyer(http.Client client, int count) async {
         'source': 'kariyerkapisi',
         'url': url.toString(),
         'institution': detail.institution,
-        'title': titles[guid] ??
+        'title':
+            titles[guid] ??
             (detail.positions.isEmpty ? '' : detail.positions.first.title),
         'text': text,
       });
       buffer.writeln('## [$captured] $guid');
       buffer.writeln('Kurum: ${detail.institution}');
-      if (titles[guid]?.isNotEmpty ?? false) buffer.writeln('Başlık: ${titles[guid]}');
-      buffer.writeln('İlk 400 karakter: ${text.substring(0, text.length < 400 ? text.length : 400)}');
+      if (titles[guid]?.isNotEmpty ?? false) {
+        buffer.writeln('Başlık: ${titles[guid]}');
+      }
+      buffer.writeln(
+        'İlk 400 karakter: ${text.substring(0, text.length < 400 ? text.length : 400)}',
+      );
       buffer.writeln('İşaretli cümleler:');
       for (final sentence in hintSentences(text)) {
         buffer.writeln('- $sentence');
@@ -201,12 +207,17 @@ Future<void> _captureSbb(http.Client client, int count) async {
     for (final match in blockRegex.allMatches(page)) {
       if (captured >= count) break;
       final href = match.group(1)!;
-      final kod = Uri.decodeComponent(href.replaceFirst('ilanDetay.aspx?kod=', ''));
+      final kod = Uri.decodeComponent(
+        href.replaceFirst('ilanDetay.aspx?kod=', ''),
+      );
       if (kod.isEmpty) continue;
       final raw = match.group(0)!;
       final text = tagRegex
           .allMatches(match.group(2)!)
-          .fold(match.group(2)!, (current, tag) => current.replaceFirst(tag.group(0)!, ''))
+          .fold(
+            match.group(2)!,
+            (current, tag) => current.replaceFirst(tag.group(0)!, ''),
+          )
           .replaceAll(RegExp(r'\s+'), ' ')
           .trim();
       captured++;

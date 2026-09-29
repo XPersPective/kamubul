@@ -1,6 +1,8 @@
 /// Uygulama ve sunucunun paylaştığı saf Dart çekirdek.
 library;
 
+export 'ai/enrichment.dart';
+export 'ai/llm_client.dart';
 export 'data/dedupe.dart';
 export 'data/listing_models.dart';
 export 'data/search_alerts.dart';

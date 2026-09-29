@@ -19,8 +19,8 @@ Future<void> main(List<String> args) async {
   final goldKariyer = _goldById(
     _readJson('${evalDir.path}/gold_kariyer.json') as Map<String, dynamic>,
   );
-  final goldSbb = _readJson('${evalDir.path}/gold_sbb.json')
-      as Map<String, dynamic>;
+  final goldSbb =
+      _readJson('${evalDir.path}/gold_sbb.json') as Map<String, dynamic>;
 
   final reports = [
     evaluateKariyerCorpus(records: kariyerRecords, gold: goldKariyer),
@@ -73,18 +73,18 @@ Future<void> main(List<String> args) async {
   stdout.writeln('ÖLÇÜM GEÇTİ: politikası açık tüm alanlar çubukta.');
 }
 
-List<Map<String, dynamic>> _readJsonl(String path) => File(path)
-    .readAsStringSync()
-    .split('\n')
-    .where((line) => line.trim().isNotEmpty)
-    .map((line) => jsonDecode(line) as Map<String, dynamic>)
-    .toList();
+List<Map<String, dynamic>> _readJsonl(String path) =>
+    File(path)
+        .readAsStringSync()
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .map((line) => jsonDecode(line) as Map<String, dynamic>)
+        .toList();
 
-dynamic _readJson(String path) =>
-    jsonDecode(File(path).readAsStringSync());
+dynamic _readJson(String path) => jsonDecode(File(path).readAsStringSync());
 
 /// Kariyer altını sıra anahtarıyla gelir; kimliğe çevirir.
 Map<String, dynamic> _goldById(Map<String, dynamic> byIndex) => {
-      for (final cell in byIndex.values)
-        (cell as Map<String, dynamic>)['id'] as String: cell,
-    };
+  for (final cell in byIndex.values)
+    (cell as Map<String, dynamic>)['id'] as String: cell,
+};
