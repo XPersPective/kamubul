@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:kamubul/listings/kariyer_feed.dart';
-import 'package:kamubul/data/turkish_cities.dart';
+import 'package:kamubul_core/listings/kariyer_feed.dart';
+import 'package:kamubul_core/data/turkish_cities.dart';
 
 void main() {
   test('81 il adı yazım farklarından resmî ada çevrilir', () {

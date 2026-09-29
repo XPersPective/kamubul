@@ -2,10 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:kamubul/listings/kariyer_detail.dart';
-import 'package:kamubul/listings/kariyer_feed.dart';
-import 'package:kamubul/listings/rg_feed.dart';
-import 'package:kamubul/listings/sbb_feed.dart';
+import 'package:kamubul_core/listings/kariyer_detail.dart';
+import 'package:kamubul_core/listings/kariyer_feed.dart';
+import 'package:kamubul_core/listings/sbb_feed.dart';
 
 /// PB-007 değerlendirme korpusu yakalayıcı (tek seferlik kanıt aracı).
 ///
@@ -21,7 +20,6 @@ import 'package:kamubul/listings/sbb_feed.dart';
 /// Kullanım:
 ///   dart run tool/build_eval_corpus.dart kariyer [adet]
 ///   dart run tool/build_eval_corpus.dart sbb [adet]
-///   dart run tool/build_eval_corpus.dart rg [başlangıç] [bitiş] [adet]
 ///
 /// Çıktı: `test/fixtures/eval/kaynak.jsonl` + `.tmp/labeling/kaynak.txt`
 Future<void> main(List<String> args) async {
@@ -33,19 +31,9 @@ Future<void> main(List<String> args) async {
         await _captureKariyer(client, _intArg(args, 1) ?? 55);
       case 'sbb':
         await _captureSbb(client, _intArg(args, 1) ?? 55);
-      case 'rg':
-        await _captureRg(
-          client,
-          DateTime.tryParse(args.length > 1 ? args[1] : '') ??
-              DateTime(2026, 6, 1),
-          DateTime.tryParse(args.length > 2 ? args[2] : '') ??
-              DateTime(2026, 9, 27),
-          _intArg(args, 3) ?? 60,
-        );
       case 'all':
         await _captureKariyer(client, 55);
         await _captureSbb(client, 55);
-        await _captureRg(client, DateTime(2026, 6, 1), DateTime(2026, 9, 27), 60);
       default:
         stderr.writeln('Bilinmeyen komut: $command');
         exitCode = 64;
@@ -235,73 +223,4 @@ Future<void> _captureSbb(http.Client client, int count) async {
   }
   _writeDigest('sbb', buffer.toString());
   stdout.writeln('SBB: $captured ilan yazıldı');
-}
-
-Future<void> _captureRg(
-  http.Client client,
-  DateTime start,
-  DateTime end,
-  int count,
-) async {
-  _resetItems('rg');
-  final buffer = StringBuffer('# RG korpus özeti (etiketleme için)\n\n');
-  var captured = 0;
-  var day = end;
-  while (!day.isBefore(start) && captured < count) {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    final path =
-        '/eskiler/${day.year}/${day.month.toString().padLeft(2, '0')}/'
-        '${day.year}${day.month.toString().padLeft(2, '0')}'
-        '${day.day.toString().padLeft(2, '0')}.htm';
-    List<String> docs;
-    try {
-      final index = await client
-          .get(Uri.https(rgHost, path))
-          .timeout(const Duration(seconds: 20));
-      if (index.statusCode != 200) throw const FormatException('dizin yok');
-      docs = rgDocLinkNames(decodeWindows1254(index.bodyBytes)).take(12).toList();
-    } on Exception {
-      day = day.subtract(const Duration(days: 1));
-      continue;
-    }
-    for (final doc in docs) {
-      if (captured >= count) break;
-      await Future<void>.delayed(const Duration(milliseconds: 150));
-      try {
-        final response = await client
-            .get(
-              Uri.https(
-                rgHost,
-                '/eskiler/${day.year}/${day.month.toString().padLeft(2, '0')}/$doc',
-              ),
-            )
-            .timeout(const Duration(seconds: 20));
-        if (response.statusCode != 200 || response.bodyBytes.length > 1024 * 1024) {
-          continue;
-        }
-        final html = decodeWindows1254(response.bodyBytes);
-        final text = rgDocBodyText(html);
-        if (text.isEmpty) continue;
-        captured++;
-        _writeItem('rg', {
-          'id': '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}/$doc',
-          'source': 'rg',
-          'url': Uri.https(
-            rgHost,
-            '/eskiler/${day.year}/${day.month.toString().padLeft(2, '0')}/$doc',
-          ).toString(),
-          'date': day.toIso8601String().substring(0, 10),
-          'text': text,
-        });
-        buffer.writeln('## [$captured] $doc (${day.toIso8601String().substring(0, 10)})');
-        buffer.writeln(text.substring(0, text.length < 1200 ? text.length : 1200));
-        buffer.writeln();
-      } on Exception {
-        // Okunamayan belge korpus dışında.
-      }
-    }
-    day = day.subtract(const Duration(days: 1));
-  }
-  _writeDigest('rg', buffer.toString());
-  stdout.writeln('RG: $captured belge yazıldı');
 }

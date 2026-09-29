@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:kamubul/listings/extraction_eval.dart';
-import 'package:kamubul/listings/extraction_policy.dart';
+import 'package:kamubul_core/listings/extraction_eval.dart';
+import 'package:kamubul_core/listings/extraction_policy.dart';
 
 /// PB-007 ölçüm CLI'sı: çıkarıcıyı altın etiketlere karşı ölçer.
 ///

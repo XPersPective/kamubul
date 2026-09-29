@@ -1665,7 +1665,6 @@ class _SourcesPage extends StatelessWidget {
             'Kamu İlanları (SBB)',
             'Güncel yıl listesi; asıl ilan resmî PDF belgedir.',
           ),
-          ('Resmî Gazete', 'Arşivde personel duyuruları taranır.'),
         ])
           ListTile(
             leading: Icon(

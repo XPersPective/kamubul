@@ -1,6 +1,6 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:kamubul/data/listing_store.dart';
-import 'package:kamubul/data/search_alerts.dart';
+import 'package:test/test.dart';
+import 'package:kamubul_core/data/listing_models.dart';
+import 'package:kamubul_core/data/search_alerts.dart';
 
 void main() {
   ListingRecord record(

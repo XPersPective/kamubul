@@ -36,7 +36,6 @@ void main() {
         ),
       ],
       sbb: () async => [],
-      gazete: () async => [],
     );
     expect(first.failedSources, isEmpty);
     expect(
@@ -50,9 +49,8 @@ void main() {
       at: at.add(const Duration(days: 90)),
       kariyer: () async => throw const FormatException('kaynak kapalı'),
       sbb: () async => throw const FormatException('kaynak kapalı'),
-      gazete: () async => throw const FormatException('kaynak kapalı'),
     );
-    expect(failed.failedSources, hasLength(3));
+    expect(failed.failedSources, hasLength(2));
     final cached = (await store.allListings()).single;
     expect(cached.saved, isTrue);
     expect(cached.deadline, DateTime(2026, 9, 29, 13));

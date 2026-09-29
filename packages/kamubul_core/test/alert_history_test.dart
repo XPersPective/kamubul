@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:kamubul/notifications/alert_history.dart';
+import 'package:test/test.dart';
+import 'package:kamubul_core/notifications/alert_history.dart';
 
 void main() {
   AlertRecord record(String id, {AlertDelivery delivery = AlertDelivery.held}) =>

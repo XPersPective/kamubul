@@ -1,6 +1,6 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:kamubul/listings/extract_conditions.dart';
-import 'package:kamubul/listings/extraction_policy.dart';
+import 'package:test/test.dart';
+import 'package:kamubul_core/listings/extract_conditions.dart';
+import 'package:kamubul_core/listings/extraction_policy.dart';
 
 void main() {
   // Fikstürler 2026-09-27'de canlı kamu ilan metinlerinde görülen kalıplardır.

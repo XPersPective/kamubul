@@ -1,5 +1,4 @@
 import '../listings/kariyer_feed.dart';
-import '../listings/rg_feed.dart';
 import '../listings/sbb_feed.dart';
 import 'listing_store.dart';
 import 'turkish_cities.dart';
@@ -31,7 +30,6 @@ Future<CatalogueRefreshResult> refreshCatalogue(
   ListingStore store, {
   Future<List<PublicListing>> Function()? kariyer,
   Future<List<SbbListing>> Function()? sbb,
-  Future<List<RgNotice>> Function()? gazete,
   DateTime? at,
 }) async {
   final now = at ?? DateTime.now();
@@ -73,22 +71,6 @@ Future<CatalogueRefreshResult> refreshCatalogue(
     ]);
   } on Exception {
     failed.add('Kamu İlanları (SBB)');
-  }
-  try {
-    final items = await (gazete ?? loadRgPersonnelNotices)();
-    incoming.addAll([
-      for (final item in items)
-        ListingRecord(
-          url: item.url.toString(),
-          sourceId: 'resmigazete',
-          title: item.title,
-          category: 'Resmî Gazete',
-          publishedAt: item.publishedAt,
-          fetchedAt: now,
-        ),
-    ]);
-  } on Exception {
-    failed.add('Resmî Gazete');
   }
   if (incoming.isNotEmpty) {
     try {

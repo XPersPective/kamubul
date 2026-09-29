@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:kamubul/listings/kariyer_feed.dart';
+import 'package:kamubul_core/listings/kariyer_feed.dart';
 
 Future<void> main() async {
   final items = await loadKariyerListings();

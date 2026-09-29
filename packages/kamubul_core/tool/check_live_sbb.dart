@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:kamubul/listings/sbb_feed.dart';
+import 'package:kamubul_core/listings/sbb_feed.dart';
 
 /// kamuilan.sbb.gov.tr canlı kontrolü: yıl listesi POST edilir, ilanların
 /// kurum/kontenjan/tarih alanlarının okunduğu doğrulanır.

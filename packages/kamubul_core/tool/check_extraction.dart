@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:kamubul/listings/extract_conditions.dart';
-import 'package:kamubul/listings/kariyer_detail.dart';
-import 'package:kamubul/listings/kariyer_feed.dart';
+import 'package:kamubul_core/listings/extract_conditions.dart';
+import 'package:kamubul_core/listings/kariyer_detail.dart';
+import 'package:kamubul_core/listings/kariyer_feed.dart';
 
 /// PB-007 kanıt aracı: canlı ilanlarda deterministik çıkarımın alan
 /// kapsamını ölçer (kesinlik etiketi değil; alan bulunma oranı).

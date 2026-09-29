@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:kamubul/listings/kariyer_detail.dart';
+import 'package:test/test.dart';
+import 'package:kamubul_core/listings/kariyer_detail.dart';
 
 void main() {
   // Alan adları 2026-09-27'de canlı GetIlanPreviewPublic /

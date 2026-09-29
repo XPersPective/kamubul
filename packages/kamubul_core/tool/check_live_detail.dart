@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:kamubul/listings/kariyer_detail.dart';
-import 'package:kamubul/listings/kariyer_feed.dart';
+import 'package:kamubul_core/listings/kariyer_detail.dart';
+import 'package:kamubul_core/listings/kariyer_feed.dart';
 
 /// Kariyer Kapısı ayrıntı okumalarının canlı kontrolü: ilk ilanın kurum,
 /// kontenjan, son başvuru ve resmî başvuru bağlantısının okunduğunu doğrular.

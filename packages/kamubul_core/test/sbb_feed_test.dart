@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:kamubul/listings/sbb_feed.dart';
+import 'package:test/test.dart';
+import 'package:kamubul_core/listings/sbb_feed.dart';
 
 void main() {
   // Fikstür 2026-09-27'de kamuilan.sbb.gov.tr 2026 listesinden alınmıştır.
