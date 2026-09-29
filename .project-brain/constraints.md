@@ -6,10 +6,10 @@
 Use official channels: feed/API first, otherwise public page parsing. Include İŞKUR, ilan.gov.tr, Resmî Gazete, Kariyer Kapısı, municipalities and other trustworthy institutions. Keep original application URL.
 
 ### C-002 Local-first
-No app account or developer server for core. Local listings/profile/preferences. Open/manual refresh and best-effort one or two background checks daily; user-selected category notifications. Prune expired cache without losing saved items.
+No app account. **Revised 2026-09-29:** a serverless Firebase/Google Cloud backend (no self-managed host, no UI) fetches official sources about three times a day and serves the catalogue; the app caches it locally with offline reading, manual refresh and saved-search notifications through FCM. Local profile/preferences stay local. Prune expired cache without losing saved items.
 
 ### C-003 Assistant and ALH
-Prepare in-app API assistant for 10,000-user cost trial. Optional profession/age/education profile, announcement Q&A, matching, text then speech. Preserve the user's “ALH” term for later resolution.
+Server-side AI (developer's own Gemini API/Vertex key, server only) extracts and summarizes once per listing; an in-app Q&A assistant is phase 2. 10,000-user cost trial. Optional profession/age/education profile, announcement Q&A, matching, text then speech. Preserve the user's “ALH” term for later resolution.
 
 ### C-004 Revenue
 Small banners, restrained splash/fullscreen ads, seven-day/five-session protection, lifetime non-consumable Pro and restore. No ad while reading or applying.
@@ -26,12 +26,12 @@ The app must feel premium and simple: skeleton loaders (no bare spinners), sprin
 Never commit real `.env`, signing/ad/AI keys. No developer API secret in a distributed binary. Validate untrusted HTML/XML/PDF and outbound URLs. Keep all existing `.gitignore` secret rules.
 
 ### C-021 Privacy
-Minimize profile fields; local by default, deletable/exportable. Explicit user action before sending profile/announcement to AI. No hidden telemetry.
+Minimize profile fields; local by default, deletable/exportable. The backend holds only an anonymous device ID, FCM token and saved-search filters, deletable from the app; store declarations and PRIVACY.md must be updated before release. Explicit user action before sending profile/announcement to AI. No hidden telemetry.
 
 ## Operations
 
 ### C-030 Platform truth
-Background scheduling is discretionary. Do not claim instant push from device-only polling. Handle permission denial and offline mode.
+Server push is best effort at the OS level; never promise guaranteed delivery. Backend fetch must respect reasonable per-source rates and never bypass login/CAPTCHA/WAF. Handle permission denial and offline mode.
 
 ## Development
 

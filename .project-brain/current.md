@@ -29,3 +29,7 @@ Verified repository reality as of 2026-09-28. Recheck Git and live sources on re
 ## External dependencies and constraints
 
 - `napp_core`, `napp_pro`, `napp_ads` come from tagged `napp_kit`; `napp_core` has a Git override to match the package graph. Developer-paid AI key is not embedded in the app. The configured local OpenCode Zen endpoint returned HTTP 402 for one model and 403 for another in a 2026-09-28 trial, so an in-app paid AI path is not verified. Store products, source terms and redistribution require review before release.
+
+## Planned migration (decided 2026-09-29, not built)
+
+- Reality above is still on-device fetch and local notifications. The target is a Firebase/Google Cloud backend (Cloud Scheduler → Cloud Run → Firestore + Hosting snapshot + FCM) with server-side AI extraction; see `target.md` and tasks PB-010..PB-014. Resmî Gazete is dropped from the planned server scope. Do not describe any of this as implemented until a task records verification.
