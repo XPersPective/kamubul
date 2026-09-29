@@ -104,3 +104,12 @@ At the [GPT-5.6 Luna list price](https://developers.openai.com/api/docs/models/g
 - In-app assistant trial answers with source citations and no exposed developer key, with measurable caps/cost.
 - Purchase restore and ad behavior pass real-device tests; Pro generates no ad requests.
 - Analysis, tests, Android/iOS release, security/accessibility/privacy checks pass. Unverified work stays in tasks.
+
+## Backend success conditions (added 2026-09-29)
+
+- The deployed job reads Kariyer Kapısı and SBB (or reports an honest blocker) three times a day; `/v1/sources.json` shows each source's real state; a failed run keeps the previous snapshot and raises an alert.
+- A real device receives an FCM notification for a matching new listing, honoring instant/digest, quiet hours and the daily cap, and a tap opens the listing.
+- Switching server notifications off deletes the server record; no account, no profile fields beyond saved-search filters.
+- AI fields ship only after per-field precision >= 0.95 on the labeled corpus; summaries are quote-verified and labeled; cost per listing is measured and capped.
+- Ordered open work: PB-015.
+
