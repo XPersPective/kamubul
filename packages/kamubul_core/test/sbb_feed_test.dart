@@ -11,7 +11,10 @@ void main() {
     final items = parseSbbListings(fixture, referenceYear: 2026);
     expect(items, hasLength(3));
     final first = items.first;
-    expect(first.institution, 'TÜRKİYE ULUSLARARASI İSLAM, BİLİM VE TEKNOLOJİ ÜNİVERSİTESİ');
+    expect(
+      first.institution,
+      'TÜRKİYE ULUSLARARASI İSLAM, BİLİM VE TEKNOLOJİ ÜNİVERSİTESİ',
+    );
     expect(first.title, contains('7 SÖZLEŞMELİ PERSONEL ALACAK'));
     expect(first.category, 'Sözleşmeli Personel');
     expect(first.quota, 7);
@@ -94,6 +97,9 @@ void main() {
   });
 
   test('düzen değişirse FormatException verir', () {
-    expect(() => parseSbbListings('<html><body>boş</body></html>'), throwsFormatException);
+    expect(
+      () => parseSbbListings('<html><body>boş</body></html>'),
+      throwsFormatException,
+    );
   });
 }

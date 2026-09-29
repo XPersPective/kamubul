@@ -2,17 +2,19 @@ import 'package:test/test.dart';
 import 'package:kamubul_core/notifications/alert_history.dart';
 
 void main() {
-  AlertRecord record(String id, {AlertDelivery delivery = AlertDelivery.held}) =>
-      AlertRecord(
-        id: id,
-        kind: AlertKind.instant,
-        searchName: 'Ankara P3',
-        title: 'Ankara P3',
-        body: 'TEST KURUMU ilanı',
-        listingUrl: 'https://kariyerkapisi.gov.tr/IlanDetay?i=x',
-        createdAt: DateTime(2026, 9, 27, 23),
-        delivery: delivery,
-      );
+  AlertRecord record(
+    String id, {
+    AlertDelivery delivery = AlertDelivery.held,
+  }) => AlertRecord(
+    id: id,
+    kind: AlertKind.instant,
+    searchName: 'Ankara P3',
+    title: 'Ankara P3',
+    body: 'TEST KURUMU ilanı',
+    listingUrl: 'https://kariyerkapisi.gov.tr/IlanDetay?i=x',
+    createdAt: DateTime(2026, 9, 27, 23),
+    delivery: delivery,
+  );
 
   test('JSON gidiş dönüşü alanları korur, bozuk JSON boş okunur', () {
     final encoded = encodeAlerts([record('a'), record('b')]);
@@ -24,20 +26,34 @@ void main() {
     expect(decodeAlerts('{bozuk'), isEmpty);
     expect(decodeAlerts(null), isEmpty);
     // Bozuk tek kayıt listeyi düşürür, diğerleri kalır.
-    final mixed = decodeAlerts('[{"id":"x","createdAt":"bozuk"},{"id":"y","createdAt":1}]');
+    final mixed = decodeAlerts(
+      '[{"id":"x","createdAt":"bozuk"},{"id":"y","createdAt":1}]',
+    );
     expect(mixed.single.id, 'y');
   });
 
   test('teslim ve düşürme işaretleri kaydı günceller', () {
     var history = [record('a'), record('b')];
     history = markAlertDelivered(history, 'a', DateTime(2026, 9, 28, 8));
-    expect(history.firstWhere((item) => item.id == 'a').delivery, AlertDelivery.delivered);
-    expect(history.firstWhere((item) => item.id == 'a').deliveredAt, DateTime(2026, 9, 28, 8));
+    expect(
+      history.firstWhere((item) => item.id == 'a').delivery,
+      AlertDelivery.delivered,
+    );
+    expect(
+      history.firstWhere((item) => item.id == 'a').deliveredAt,
+      DateTime(2026, 9, 28, 8),
+    );
     // Bilinmeyen kimlik geçmişi değiştirmez.
     final same = markAlertDelivered(history, 'yok', DateTime(2026, 9, 28));
-    expect(same.firstWhere((item) => item.id == 'b').delivery, AlertDelivery.held);
+    expect(
+      same.firstWhere((item) => item.id == 'b').delivery,
+      AlertDelivery.held,
+    );
     history = markAlertDropped(history, ['b']);
-    expect(history.firstWhere((item) => item.id == 'b').delivery, AlertDelivery.dropped);
+    expect(
+      history.firstWhere((item) => item.id == 'b').delivery,
+      AlertDelivery.dropped,
+    );
   });
 
   test('ekleme en yeni başta tutar ve sınırı aşmaz', () {

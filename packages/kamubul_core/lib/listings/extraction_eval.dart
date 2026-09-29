@@ -105,8 +105,13 @@ Object? _goldValue(Object? cell) {
   return map['value'];
 }
 
-void _checkQuote(EvalReport report, String id, String field, String? quote,
-    String text) {
+void _checkQuote(
+  EvalReport report,
+  String id,
+  String field,
+  String? quote,
+  String text,
+) {
   if (quote == null) return;
   if (!text.contains(quote)) {
     report.quoteIssues.add('$id/$field: alıntı metinde yok: $quote');

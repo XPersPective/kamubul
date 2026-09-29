@@ -19,7 +19,7 @@ String listingFingerprint({
   final day = deadline == null
       ? '-'
       : '${deadline.year}-${deadline.month.toString().padLeft(2, '0')}-'
-          '${deadline.day.toString().padLeft(2, '0')}';
+            '${deadline.day.toString().padLeft(2, '0')}';
   return '${_normalizeKurum(kurum)}|$day';
 }
 

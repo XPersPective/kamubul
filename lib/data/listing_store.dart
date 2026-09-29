@@ -1,15 +1,15 @@
 import 'dart:convert';
 
+import 'package:kamubul_core/data/listing_models.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import '../listings/extract_conditions.dart';
 import '../listings/extraction_policy.dart';
 import 'dedupe.dart';
-import 'listing_models.dart';
 import 'turkish_cities.dart';
 
-export 'listing_models.dart';
+export 'package:kamubul_core/data/listing_models.dart';
 
 class ListingStore {
   ListingStore({Database? database}) : _injected = database;
@@ -34,7 +34,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 3;
+  static const int _schemaVersion = 4;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -59,6 +59,7 @@ class ListingStore {
         educationQuote TEXT,
         maxAgeQuote TEXT,
         quotaTypeQuote TEXT,
+        summary TEXT,
         fingerprint TEXT,
         saved INTEGER NOT NULL DEFAULT 0,
         savedAt INTEGER
@@ -75,7 +76,7 @@ class ListingStore {
   }
 
   /// Şema yükseltmeleri: v1→v2 şart alıntısı sütunları, v2→v3 parmak izi
-  /// sütunu. Mevcut veri korunur.
+  /// sütunu, v3→v4 yapay zekâ özeti sütunu. Mevcut veri korunur.
   static Future<void> upgradeSchema(
     Database db,
     int oldVersion,
@@ -83,6 +84,9 @@ class ListingStore {
   ) async {
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE listings ADD COLUMN fingerprint TEXT');
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE listings ADD COLUMN summary TEXT');
     }
     if (oldVersion < 2) {
       for (final column in [
@@ -163,6 +167,17 @@ class ListingStore {
           'deadline': ?record.deadline?.millisecondsSinceEpoch,
           'quota': ?record.quota,
           if (record.places.isNotEmpty) 'places': jsonEncode(record.places),
+          // Sunucudan gelen doğrulanmış şart alanları ve özet; boş gelen
+          // değer var olan ayrıntı değerini silmez.
+          'kpss': ?record.kpss,
+          'kpssQuote': ?record.kpssQuote,
+          'education': ?record.education,
+          'educationQuote': ?record.educationQuote,
+          'maxAge': ?record.maxAge,
+          'maxAgeQuote': ?record.maxAgeQuote,
+          'quotaType': ?record.quotaType,
+          'quotaTypeQuote': ?record.quotaTypeQuote,
+          if (record.summary.isNotEmpty) 'summary': jsonEncode(record.summary),
         },
         where: 'url = ?',
         whereArgs: [record.url],

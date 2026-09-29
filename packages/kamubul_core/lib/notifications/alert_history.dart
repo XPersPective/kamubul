@@ -142,13 +142,18 @@ List<AlertRecord> markAlertDelivered(
 ) => [
   for (final item in history)
     if (item.id == id)
-      (item..delivery = AlertDelivery.delivered..deliveredAt = at)
+      (item
+        ..delivery = AlertDelivery.delivered
+        ..deliveredAt = at)
     else
       item,
 ];
 
 /// Kayıtları hiç gönderilmemiş olarak işaretler (kuyruk taşması).
-List<AlertRecord> markAlertDropped(List<AlertRecord> history, Iterable<String> ids) {
+List<AlertRecord> markAlertDropped(
+  List<AlertRecord> history,
+  Iterable<String> ids,
+) {
   final dropped = ids.toSet();
   return [
     for (final item in history)
@@ -204,5 +209,5 @@ List<AlertRecord> trimQueue(List<AlertRecord> queue, {int limit = 50}) =>
 /// [trimQueue] ile düşen kayıtların kimlikleri.
 List<String> trimmedQueueIds(List<AlertRecord> queue, {int limit = 50}) =>
     queue.length > limit
-        ? [for (final item in queue.sublist(limit)) item.id]
-        : const [];
+    ? [for (final item in queue.sublist(limit)) item.id]
+    : const [];

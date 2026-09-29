@@ -120,8 +120,7 @@ Set<int> _scoresIn(String folded) {
   final out = <int>{};
   for (final match in _scoreCtx.allMatches(masked)) {
     final start = match.start - 35 < 0 ? 0 : match.start - 35;
-    final end =
-        match.end + 45 > masked.length ? masked.length : match.end + 45;
+    final end = match.end + 45 > masked.length ? masked.length : match.end + 45;
     for (final number in _number23.allMatches(masked.substring(start, end))) {
       final value = int.parse(number.group(1)!);
       if (value >= 30 && value <= 100) out.add(value);
@@ -147,8 +146,9 @@ Set<int> _agesIn(String folded) {
     final preStart = match.start - 24 < 0 ? 0 : match.start - 24;
     final num = _ageNum.firstMatch(folded.substring(preStart, match.start));
     if (num == null) continue;
-    final postEnd =
-        match.end + 30 > folded.length ? folded.length : match.end + 30;
+    final postEnd = match.end + 30 > folded.length
+        ? folded.length
+        : match.end + 30;
     final post = folded.substring(match.end, postEnd);
     if (_ageUpper.hasMatch(post) && !_ageMin.hasMatch(post)) {
       final value = int.parse(num.group(1)!);

@@ -44,10 +44,7 @@ Future<List<SbbListing>> loadSbbListings({
 }
 
 /// Yıl formunun POST edildiği ham liste sayfasını verir (PB-007 korpusu).
-Future<String> loadSbbListPage({
-  http.Client? client,
-  int? year,
-}) async {
+Future<String> loadSbbListPage({http.Client? client, int? year}) async {
   final owned = client == null;
   client ??= http.Client();
   final targetYear = year ?? DateTime.now().year;

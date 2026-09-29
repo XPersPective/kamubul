@@ -13,9 +13,8 @@ import 'package:kamubul_core/listings/extraction_policy.dart';
 void main() {
   final evalDir = Directory('test/fixtures/eval');
 
-  List<Map<String, dynamic>> readJsonl(String name) => File(
-        '${evalDir.path}/$name',
-      )
+  List<Map<String, dynamic>> readJsonl(String name) =>
+      File('${evalDir.path}/$name')
           .readAsStringSync()
           .split('\n')
           .where((line) => line.trim().isNotEmpty)
@@ -59,27 +58,25 @@ void main() {
     'sbb': sbbFieldNames,
   }.entries) {
     for (final name in entry.value) {
-      test(
-        '${entry.key}/$name politika açık ve '
-        'precision >= $kExtractionPrecisionBar',
-        () {
-          final report = entry.key == 'kariyer' ? kariyer : sbb;
-          final field = report.field(name);
-          expect(
-            kExtractionPolicy[name],
-            isTrue,
-            reason: '$name politikası kapalıysa bu test bilerek ayarlanmalı; '
-                'açık kalacaksa çıkarıcı düzeltilmeli',
-          );
-          expect(
-            field.precision,
-            greaterThanOrEqualTo(kExtractionPrecisionBar),
-            reason:
-                'FP=${field.fp} FN=${field.fn} TP=${field.tp} — '
-                '${field.mismatches.take(5).join(' | ')}',
-          );
-        },
-      );
+      test('${entry.key}/$name politika açık ve '
+          'precision >= $kExtractionPrecisionBar', () {
+        final report = entry.key == 'kariyer' ? kariyer : sbb;
+        final field = report.field(name);
+        expect(
+          kExtractionPolicy[name],
+          isTrue,
+          reason:
+              '$name politikası kapalıysa bu test bilerek ayarlanmalı; '
+              'açık kalacaksa çıkarıcı düzeltilmeli',
+        );
+        expect(
+          field.precision,
+          greaterThanOrEqualTo(kExtractionPrecisionBar),
+          reason:
+              'FP=${field.fp} FN=${field.fn} TP=${field.tp} — '
+              '${field.mismatches.take(5).join(' | ')}',
+        );
+      });
     }
   }
 

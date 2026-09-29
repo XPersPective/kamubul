@@ -22,7 +22,8 @@ void main() {
   });
 
   test('alternatif yaş ve puan kalıplarını okur', () {
-    const text = 'Adayların 32 yaşından gün almamış olması; '
+    const text =
+        'Adayların 32 yaşından gün almamış olması; '
         'KPSS P93 puan türünden en az 60 (altmış) ve üzeri puan alması gerekir.';
     final fields = extractConditions(text);
     expect(fields.maxAge!.value, 32);
@@ -31,7 +32,8 @@ void main() {
   });
 
   test('aralık dışı değerleri reddeder', () {
-    const text = 'KPSS P999 puan türü kullanılacaktır. '
+    const text =
+        'KPSS P999 puan türü kullanılacaktır. '
         'Adaylar 99 yaşını doldurmamış olmak koşuluyla başvurabilir.';
     final fields = extractConditions(text);
     expect(fields.kpssType, isNull);
@@ -46,15 +48,18 @@ void main() {
     expect(fields.education, isNull);
   });
 
-  test('sınav oturumu eşiği KPSS taban puanı sanılmaz (BDDK yanlış-pozitifi)', () {
-    const text = '''
+  test(
+    'sınav oturumu eşiği KPSS taban puanı sanılmaz (BDDK yanlış-pozitifi)',
+    () {
+      const text = '''
 Yazılı sınav aşamasında, adayın katılmakla yükümlü olduğu her bir oturum 100 puan üzerinden değerlendirilir ve adayın başarılı sayılabilmesi için her oturumdan en az 60 puan alması ve sınav ortalamasının en az 70 puan olması gerekir.
 2- 2024 yılına ait KPSS B grubu KPSS P3 temel puan türünden en az 70 puan almış olmak.
 ''';
-    final fields = extractConditions(text);
-    expect(fields.kpssScore!.value, 70);
-    expect(fields.kpssScore!.quote, contains('KPSS P3'));
-  });
+      final fields = extractConditions(text);
+      expect(fields.kpssScore!.value, 70);
+      expect(fields.kpssScore!.quote, contains('KPSS P3'));
+    },
+  );
 
   test('kota tipini ayırt eder', () {
     final fields = extractConditions(
@@ -66,7 +71,8 @@ Yazılı sınav aşamasında, adayın katılmakla yükümlü olduğu her bir otu
   });
 
   test('politikası kapalı alan düşürülür, açık alan korunur', () {
-    const text = '2024 KPSS P3 puan türünden en az 70 puan almış olmak. '
+    const text =
+        '2024 KPSS P3 puan türünden en az 70 puan almış olmak. '
         'Dört yıllık lisans programlarından mezun olmak.';
     final fields = extractConditions(text);
     final gated = applyExtractionPolicy(

@@ -311,6 +311,100 @@ void main() {
     },
   );
 
+  test('v3 veritabanı v4e göçerken özet sütunu eklenir, veri korunur', () async {
+    final dbPath = '${DateTime.now().microsecondsSinceEpoch}-mig4.db';
+    final v3 = await databaseFactory.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(
+        version: 3,
+        onCreate: (db, version) async {
+          await db.execute(
+            'CREATE TABLE listings (url TEXT PRIMARY KEY, sourceId TEXT NOT NULL, '
+            'title TEXT NOT NULL, category TEXT NOT NULL, publishedAt INTEGER, '
+            'fetchedAt INTEGER NOT NULL, deadline INTEGER, quota INTEGER, '
+            "places TEXT NOT NULL DEFAULT '[]', kpss TEXT, education TEXT, "
+            'maxAge INTEGER, quotaType TEXT, kpssQuote TEXT, educationQuote TEXT, '
+            'maxAgeQuote TEXT, quotaTypeQuote TEXT, fingerprint TEXT, '
+            'saved INTEGER NOT NULL DEFAULT 0, savedAt INTEGER)',
+          );
+        },
+      ),
+    );
+    await v3.insert('listings', {
+      'url': 'eski',
+      'sourceId': 'kariyerkapisi',
+      'title': 'Eski kayıt',
+      'category': '',
+      'fetchedAt': DateTime(2026, 9, 1).millisecondsSinceEpoch,
+    });
+    await v3.close();
+    final v4 = await databaseFactory.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(
+        version: 4,
+        onCreate: ListingStore.createSchema,
+        onUpgrade: ListingStore.upgradeSchema,
+      ),
+    );
+    final rows = await v4.query('listings');
+    expect(rows.single['title'], 'Eski kayıt');
+    expect(rows.single['summary'], isNull);
+    final columns = await v4.rawQuery('PRAGMA table_info(listings)');
+    expect(columns.map((c) => c['name']), contains('summary'));
+    await v4.close();
+    await databaseFactory.deleteDatabase(dbPath);
+  });
+
+  test(
+    'sunucudan gelen şart alanları ve özet mevcut kayda işlenir, boş değer silmez',
+    () async {
+      final store = await freshStore();
+      final at = DateTime(2026, 9, 29);
+      await store.mergeFeed([
+        ListingRecord(
+          url: 'https://x/1',
+          sourceId: 'kariyerkapisi',
+          title: 'KURUM - İlan',
+          category: 'Personel',
+          publishedAt: DateTime(2026, 9, 28),
+          fetchedAt: at,
+        ),
+      ], pruneBefore: DateTime(2026, 1, 1));
+      await store.mergeFeed([
+        ListingRecord(
+          url: 'https://x/1',
+          sourceId: 'kariyerkapisi',
+          title: 'KURUM - İlan',
+          category: 'Personel',
+          publishedAt: DateTime(2026, 9, 28),
+          fetchedAt: at,
+          maxAge: 35,
+          maxAgeQuote: '35 yaşını doldurmamış olmak',
+          summary: const ['Yaş sınırı 35', 'KPSS şartı yok'],
+        ),
+      ], pruneBefore: DateTime(2026, 1, 1));
+      var stored = (await store.allListings()).single;
+      expect(stored.maxAge, 35);
+      expect(stored.maxAgeQuote, '35 yaşını doldurmamış olmak');
+      expect(stored.summary, ['Yaş sınırı 35', 'KPSS şartı yok']);
+
+      // Alansız yeni akış (ör. yedek gömülü çekim) bilinen değeri silmez.
+      await store.mergeFeed([
+        ListingRecord(
+          url: 'https://x/1',
+          sourceId: 'kariyerkapisi',
+          title: 'KURUM - İlan',
+          category: 'Personel',
+          publishedAt: DateTime(2026, 9, 28),
+          fetchedAt: at.add(const Duration(hours: 6)),
+        ),
+      ], pruneBefore: DateTime(2026, 1, 1));
+      stored = (await store.allListings()).single;
+      expect(stored.maxAge, 35);
+      expect(stored.summary, hasLength(2));
+    },
+  );
+
   test('bozuk kayıtlı arama süzgeci boş okunur', () async {
     final search = SavedSearch.fromRow({
       'id': 1,

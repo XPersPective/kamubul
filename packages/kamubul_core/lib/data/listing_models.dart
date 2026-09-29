@@ -29,6 +29,7 @@ class ListingRecord {
     this.educationQuote,
     this.maxAgeQuote,
     this.quotaTypeQuote,
+    this.summary = const [],
     this.fingerprint,
     this.saved = false,
     this.savedAt,
@@ -51,6 +52,10 @@ class ListingRecord {
   final String? educationQuote;
   final String? maxAgeQuote;
   final String? quotaTypeQuote;
+
+  /// Sunucunun yapay zekâ ile ürettiği kısa madde özeti; boşsa özet yoktur.
+  /// Her madde "Yapay zekâ özeti" olarak etiketlenerek gösterilir.
+  final List<String> summary;
   String? fingerprint;
   final bool saved;
   final DateTime? savedAt;
@@ -76,6 +81,12 @@ class ListingRecord {
     education: education,
     maxAge: maxAge,
     quotaType: quotaType,
+    kpssQuote: kpssQuote,
+    educationQuote: educationQuote,
+    maxAgeQuote: maxAgeQuote,
+    quotaTypeQuote: quotaTypeQuote,
+    summary: summary,
+    fingerprint: fingerprint,
     saved: saved ?? this.saved,
     savedAt: savedAt ?? this.savedAt,
   );
@@ -96,6 +107,11 @@ class ListingRecord {
     'education': education,
     'maxAge': maxAge,
     'quotaType': quotaType,
+    'kpssQuote': kpssQuote,
+    'educationQuote': educationQuote,
+    'maxAgeQuote': maxAgeQuote,
+    'quotaTypeQuote': quotaTypeQuote,
+    'summary': summary.isEmpty ? null : jsonEncode(summary),
     'fingerprint': fingerprint,
     'saved': saved ? 1 : 0,
     'savedAt': savedAt?.millisecondsSinceEpoch,
@@ -121,6 +137,7 @@ class ListingRecord {
       educationQuote: row['educationQuote'] as String?,
       maxAgeQuote: row['maxAgeQuote'] as String?,
       quotaTypeQuote: row['quotaTypeQuote'] as String?,
+      summary: decodeSummary(row['summary']),
       fingerprint: row['fingerprint'] as String?,
       saved: row['saved'] == 1,
       savedAt: _date(row['savedAt']),
@@ -145,6 +162,18 @@ class ListingRecord {
       }
     } on FormatException {
       // Bozuk kayıt tek alanı düşürür, uygulamayı çökertmez.
+    }
+    return const [];
+  }
+
+  /// Bozuk özet alanı boş okunur; kayıt kaybolmaz.
+  static List<String> decodeSummary(Object? raw) {
+    if (raw is! String || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) return decoded.whereType<String>().toList();
+    } on FormatException {
+      // Bozuk özet yalnızca özeti düşürür.
     }
     return const [];
   }

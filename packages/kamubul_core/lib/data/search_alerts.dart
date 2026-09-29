@@ -81,12 +81,16 @@ class PendingNotification {
     required this.title,
     required this.body,
     required this.listingUrl,
+    this.digest = false,
   });
 
   final String searchName;
   final String title;
   final String body;
   final String listingUrl;
+
+  /// Günlük özet bildirimi mi (anlık günlük tavana sayılmaz).
+  final bool digest;
 }
 
 class NotificationDecision {
@@ -205,6 +209,7 @@ NotificationDecision decideAlerts({
       title: '${search.name}: $summary',
       body: fresh.take(3).map((record) => record.title).join('\n'),
       listingUrl: fresh.first.url,
+      digest: true,
     );
     (quiet ? held : notifications).add(digest);
   }
