@@ -1,5 +1,0 @@
-# alan-adiniz.example.com → API (otomatik TLS)
-alan-adiniz.example.com {
-  encode gzip
-  reverse_proxy 127.0.0.1:8080
-}

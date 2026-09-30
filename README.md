@@ -1,45 +1,29 @@
 # KamuBul
 
-Türkiye'deki resmî kamu iş ilanlarını takip etmek için Flutter uygulaması. **Geliştirme aşamasında; mağazaya hazır değildir.** Kariyer Kapısı (liste + resmî RSS + ayrıntı) ve Kamu İlanları (SBB) canlı okunur; Resmî Gazete kapsam dışıdır. İŞKUR ve ilan.gov.tr kanıtlı biçimde engellidir (WAF/oturum; aşma yapılmaz) — ayrıntılar [kaynak kayıt defterinde](docs/SOURCE_REGISTRY.md). Yerel ilan veritabanı, süzgeçler, kayıtlı aramalar, yer imleri, bildirimler (anlık/günlük özet), bildirim merkezi ve JSON yedekleme tamamdır; serbest soru-cevap sohbeti [TD-001](.project-brain/target.md) kararını bekler. iOS cihaz doğrulaması ve mağaza yayını için Apple bilgisayarı ve mağaza hesabı gerekir.
+Türkiye'deki resmî kamu iş ilanları için premium, Türkçe Flutter Android/iOS uygulaması. **Geliştirme/geçiş aşamasında; mağazaya hazır değildir.** Hesap açmadan kişisel profil, kriterlerle isimlendirilmiş kayıtlı aramalar, favori ve uygun yeni ilan bildirimi hedeflenir.
 
-## Mimari
+## Mimari ve mevcut durum
 
-```
-resmî kaynaklar ─► backend/ (Cloud Run işi, günde ~3 kez) ─► Firestore + anlık görüntü
-                                                            └─► FCM ─► bildirim
-uygulama ◄── /v1/listings.json (CDN) ── backend/ API (arayüzsüz)
-```
+Yeni hedef **Cloudflare Workers Free + D1 + Free Workers AI + Firebase Cloud Messaging (Spark)**. Kaynak toplama, AI özet/kanıtlı koşul, kişisel eşleşme ve push kararı sunucuda; SQLite cache/profil/favori, premium UI, izin/token/OS bildirim gösterimi telefondadır.
 
-- `packages/kamubul_core`: uygulama ve sunucunun paylaştığı saf Dart çekirdek (ayrıştırıcılar, şart çıkarımı, tekilleştirme, etiket eşleştirme, anlık görüntü şeması, sağlayıcıdan bağımsız AI katmanı).
-- `backend/`: arayüzsüz API ve çekim işi. Google öncelikli (Cloud Run + Firestore + FCM), aynı imajla her VPS'te taşınabilir. Kurulum ve sınırlar: [backend/README.md](backend/README.md).
-- Uygulama: `--dart-define=KAMUBUL_API=https://...` verilirse kataloğu sunucudan okur; sunucu bir kaynağı sağlayamazsa yalnızca o kaynak cihazdan çekilir. Verilmezse eskisi gibi tamamen cihazda çalışır.
+Şu an test Worker yalnız Hello World ve D1 boş; Firebase Android/FCM hazırlığı yapılmış. Mobil hâlâ local kaynak çekme/Workmanager ve isteğe bağlı v1 remote snapshot fallback kullanıyor. `backend/` önceki native Dart referans kod/testleri; Worker'a deploy edilemez. Eski Google/VPS deployment reçeteleri kaldırıldı. Gerçek server pilotu doğrulanınca PB-019 telefondaki fetch/scheduler ve kullanılmayan legacy runtime'ı kaldıracak; offline cache/favoriler korunacak.
 
-## Çalıştırma
+Etiket modeli: kullanıcı kendi arama adını verir; kriterler ortak typed alan/sözlük değerlerinden oluşur (KPSS türü+puan, yaş, şehir, eğitim, meslek vb.). AI yalnız yeni/değişen ilanın ortak koşul/özetini çıkarır; kullanıcı profillerini modelle eşleştirmez. Match deterministic ve unknown ayrı durumdur.
 
-Uygulama (Flutter 3.47+; `napp_kit` erişimi gerekir):
+[Project Brain başlangıcı](PROJECT_BRAIN.md), [ayrıntılı hedef](.project-brain/target.md), [gerçek durum](.project-brain/current.md), [görev/devir yol haritası](docs/CLOUDFLARE_FCM_YOL_HARITASI.md) ve [ADR-001](.project-brain/decisions/ADR-001.md). İlk implementasyon görevi **PB-016**; Cloud Run/Firestore/Blaze/ücretli AI talimatları geçerli değildir.
+
+## Yerel kontrol
 
 ```sh
 flutter pub get
-flutter run
 flutter analyze
 flutter test
 ```
 
-Çekirdek paket ve arka uç (yalnızca Dart SDK 3.13+):
+Ortak core/backend kendi klasöründe `dart pub get`, `dart analyze`, `dart test` ile kontrol edilir. `napp_core`, `napp_pro`, `napp_ads` Git etiketlerine bağlı; napp_kit repo erişimi gerekir. Backend testleri bulut/FCM/model kanıtı değildir.
 
-```sh
-cd packages/kamubul_core && dart pub get && dart analyze && dart test
-cd backend && dart pub get && dart analyze && dart test
-cd packages/kamubul_core && dart run tool/eval_extraction.dart      # şart çıkarım ölçümü
-cd packages/kamubul_core && dart run tool/check_live_feed.dart      # canlı okuma denemesi
-```
+Firebase client ayarları Git dışında. Yerel Android build için `--dart-define-from-file=.tmp/firebase-android.defines.json` mevcut. KAMUBUL_API gerçek ilan servisi hazır olduğunda verilir; Hello World adresi kullanılmaz. Server private key/AI credential APK veya repoya girmez. AdMob test kimlikleri; gerçek signing/ad/contact ayarları release sahibindedir.
 
-Sunucu bildirimi için derlemeye `KAMUBUL_API` ile birlikte `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID` değerleri `--dart-define` ile verilir (repoya `google-services.json` girmez). Verilmezse sunucu bildirimi seçeneği görünmez.
+Kariyer Kapısı/SBB parserleri mevcut; Resmî Gazete kapsam dışı, İŞKUR/ilan.gov erişim kısıtları ve Cloudflare kaynak probe işi açıktır. [Kaynak kayıt defteri](docs/SOURCE_REGISTRY.md), [gizlilik](PRIVACY.md) ve [ortak standart](ORTAK_UYGULAMA_STANDARDI.md) geçerlidir. Kaynak terms/privacy/store beyanları yeni server kriter/token akışı için release öncesi yenilenecek.
 
-`napp_core`, `napp_pro`, `napp_ads` Git etiketlerine sabittir. Ücretli AI anahtarı uygulamaya gömülmez. AdMob test kimlikleriyle açılır; gerçek kimlikler ve iletişim adresi yalnızca yayın yapılandırmasından gelir. `android/key.properties.example` örnektir, gerçek imza dosyası repoya girmez.
-
-## Proje devamlılığı
-
-Ürün hedefi, mevcut mimari ve sıralı görevler [Project Brain](.project-brain/target.md) içinde. [Ortak uygulama standardı](ORTAK_UYGULAMA_STANDARDI.md) geçerlidir. [Kaynak kayıt defteri](docs/SOURCE_REGISTRY.md) her resmî kaynağın getirme yöntemini, hız sınırını, atfını ve son sonucunu tutar. [Gizlilik açıklaması](PRIVACY.md) yalnızca mevcut geliştirme sürümünün davranışını anlatır; reklam ve AI özellikleri yayınlanmadan önce mağaza beyanları yeniden doğrulanacaktır.
-
-Kod GPL-3.0 lisanslıdır. KamuBul adı ve logosu lisansa dahil değildir.
+Kod GPL-3.0; KamuBul adı ve logosu lisansa dahil değildir.

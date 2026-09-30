@@ -6,8 +6,8 @@ import '../listings/extract_conditions.dart';
 import '../listings/extraction_policy.dart';
 import '../listings/kariyer_detail.dart';
 
-/// İlan Rehberi'nin deterministik çekirdeği (PB-005): seçili ilanın şart
-/// alanlarını kaynak cümleleriyle yanıtlar. AI sohbeti TD-001 kararına bağlı;
+/// İlan Rehberi'nin deterministik çekirdeği: seçili ilanın şart
+/// alanlarını kaynak cümleleriyle yanıtlar. Serbest AI sohbeti ileri aşamadır;
 /// bu ekran hiçbir koşulda uydurma yanıt üretemez — yalnızca kanıtlı alan.
 class ListingGuideView extends StatelessWidget {
   const ListingGuideView({super.key, required this.listing});

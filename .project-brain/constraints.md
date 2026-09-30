@@ -1,43 +1,33 @@
-# Project Constraints
+# KamuBul — Bağlayıcı Kısıtlar
 
-## Latest user direction — 2026-09-30
+30 Eylül 2026. Güncel kullanıcı isteği eski hedeflerin yerini alır. Mevcut davranış current.md, hedef target.md, görevler tasks/.
 
-The user subsequently authorized initial account/setup assistance and logged into Cloudflare and Firebase. Free test Worker/D1 and Firebase Android registration are within scope; the application migration still follows the requested review/roadmap before coding. Cloudflare + FCM is confirmed, not Cloud Run or Firestore. Entirely free operating services, no user login, profile/saved-search matching and closed-app notifications are required. No automatic paid-plan upgrade or paid AI dependency. Earlier Cloud Run/Blaze targets below are historical; do not execute them. Server credentials must remain outside Git and the mobile app. Detailed proposal: `docs/CLOUDFLARE_FCM_YOL_HARITASI.md`.
+## C-001 Ücretsiz işletim
+Cloudflare Workers Free + D1 + Workers AI ücretsiz kotası; Firebase Spark yalnız FCM. Cloud Run, Firestore, Blaze, ücretli AI, ücretli VPS ve otomatik upgrade yok. Kota bitince iş dayanıklı biçimde bekler/cache sunulur; ücret doğuracak fallback açılmaz. 10.000 kurulum kapasitesi ölçüm hedefi, garanti değildir. Model yalnız Free erişimliyse seçilebilir.
 
-## User Requirements
+## C-002 Sunucu sorumluluğu
+Resmî kaynak çekme, ayrıntı/PDF işleme, AI, normalizasyon, kanıtlı koşullar, katalog revizyonu, yeni ilan eşleştirme, instant/digest kararları ve push gönderimi Cloudflare'dadır. Telefon kaynaklara arka planda veya otomatik fallback olarak gitmez. Kaynak engeli açık gösterilir. Resmî başvuru/doküman linkini kullanıcının açması serbesttir.
 
-### C-001 Official sources
-Use official channels: feed/API first, otherwise public page parsing. Include İŞKUR, ilan.gov.tr, Resmî Gazete, Kariyer Kapısı, municipalities and other trustworthy institutions. Keep original application URL.
+## C-003 Hesapsız ve veri minimizasyonu
+Kullanıcı girişi yok; kurulum başına güvenli ID+secret ve FCM token. Profil/favori yerelde; bildirim açılırsa yalnız gerekli kayıtlı kriterler/tercihler sunucuya gönderilir. Kullanıcı tanımlı arama adı kişisel etiket, public global taxonomy değildir. Hiçbir kullanıcı profili AI'ya gönderilmez. Silme/izin kapatma/token yenileme/reinstall davranışı açık; server kaydı 120 gün heartbeat yoksa temizlenir. Kimlik doğrulama secret'ı güvenli cihaz deposunda ve backup dışında.
 
-### C-002 Local-first
-No app account. **Revised 2026-09-29:** a serverless Firebase/Google Cloud backend (no self-managed host, no UI) fetches official sources about three times a day and serves the catalogue; the app caches it locally with offline reading, manual refresh and saved-search notifications through FCM. Local profile/preferences stay local. Prune expired cache without losing saved items.
+## C-004 Resmî veri ve çıkarım doğruluğu
+Yalnız resmî kaynak; WAF/login/CAPTCHA aşma, arbitrary URL fetch ve gizli proxy yok. Source-native alanlarda type/range/origin; metin/AI alanlarında kaynak alıntısı, şema ve doğrulanmış değer desteği. Alan başına en az 50 örnek/kaynak değerlendirmesi, precision >=0.95 kapısı; recall ayrıca raporlanır. Alıntı tek başına doğruluk ispatı değildir. Unknown = unknown; AI kesin işe uygunluk kararı vermez. Çoklu kadro koşulları birbirine karıştırılmaz.
 
-### C-003 Assistant and ALH
-Server-side AI (developer's own key, server only; provider selectable: Anthropic, OpenAI-compatible or Gemini) extracts and summarizes once per listing; an in-app Q&A assistant is phase 2. 10,000-user cost trial. Optional profession/age/education profile, announcement Q&A, matching, text then speech. Preserve the user's “ALH” term for later resolution.
+## C-005 Ekonomik AI
+AI yeni veya semantik içeriği değişmiş ilan revizyonu başına; kullanıcı/etiket/refresh başına değil. UI tarih/görüntülenme gürültüsü hash'e girmez. Başarılı sonuç kalıcı; aynı (contentHash, extractionVersion, modelRevision) yeniden çağrılmaz. Başarısız çağrı kontrollü retry yapabilir. Günlük rezervasyon/bütçe, request/input/output/attempt üst sınırı. Yarım işlem veri kaybetmez.
 
-### C-004 Revenue
-Small banners, restrained splash/fullscreen ads, seven-day/five-session protection, lifetime non-consumable Pro and restore. No ad while reading or applying.
+## C-006 Premium ve erişilebilir mobil
+Türkçe, tema token'ları, light/dark/system, skeleton, kesilebilir spring motion, geri bildirim/haptic, filtrede sonuç sayısı, okunaklı özet ve alıntılı koşul chip'leri. WCAG AA kontrast, 48dp hedef, TalkBack/VoiceOver, telefon/tablet/1.3x metinde taşma yok. İzin ilk açılışta zorlanmaz. Premium iddiası release cihaz ölçümü gerektirir. Mevcut napp_core/pro/ads ve gelir modeli korunur; Pro'ya reklam isteği yok, okuma/başvuruda fullscreen reklam yok.
 
-### C-005 Extraction integrity — official sources only
-Source-native typed fields (such as a portal's deadline or quota property) require type/range and official-origin validation. Fields derived from free text or AI candidates (such as age, education and KPSS) require schema validation, a verbatim quote found in fetched text and a recorded confidence threshold; otherwise they stay "unknown" with the original text available. Official channels are the only data sources; competitor apps, aggregators and news portals are never fetched for data. Each text extractor ships only after per-field precision/recall on labeled real samples (≥50 per source).
+## C-010 Offline ve sync güvenliği
+D1 authoritative katalog, SQLite cache+favori+profil. Cache hemen gösterilir, API açılış/manual refresh ile fark getirir. Sayfa UPSERT/explicit null/tombstone ve cursor aynı yerel transaction; yarım sync cursor ilerletmez. Server deletion favoriyi yok etmez, unavailable olarak gösterir. Eski v1 cache/arama/favori migration'ı korunur. ETag maliyet azaltır ama Worker request kotasını sıfırlamaz.
 
-### C-006 Premium experience bar
-The app must feel premium and simple: skeleton loaders (no bare spinners), spring/interruptible transitions, haptics on key actions, deadline countdowns, plain-language states, filter chips + bottom sheet with live result count, onboarding ≤4 skippable steps. Hard accessibility floor: WCAG AA contrast, 48dp targets, screen-reader labels, no clipping at 1.3x text scale, light/dark parity. Every production claim includes a release-device UX pass.
+## C-020 Secret ve trust boundary
+FCM private key/AI key/admin secret APK/Git/Brain/log içinde yok; server Cloudflare Secrets. Firebase client config yetkilendirme değildir. Bound payload/page/arama sayısı, typed whitelist, parametrik SQL, source/redirect allowlist, timeout/backoff, API schema versiyonlaması. Public cevaplarda kurulum/FCM token/kişisel kriter yok; device endpoint private/no-store. Rate-limit erişim kontrolü değildir.
 
-## Security
+## C-030 Bildirim gerçeği
+FCM/OS teslimi best effort; kapalı uygulama bildirim payload'u foreground/data-only ile aynı davranmaz. Force-stop/izin ret/OS kısıtında teslim garantisi yok. Commit önce, outbox sonra, send en son. Timeout belirsiz kabul nedeniyle tam exactly-once garanti edilmez; kalıcı eventId ve client dedupe. FCM kabul = cihaz teslimi değildir. Outbox işi retry/cap nedeniyle sessizce atılmaz. Yeni abonelik eski tüm ilanları push yapmaz.
 
-### C-020 Secrets
-Never commit real `.env`, signing/ad/AI keys. No developer API secret in a distributed binary. Validate untrusted HTML/XML/PDF and outbound URLs. Keep all existing `.gitignore` secret rules.
-
-### C-021 Privacy
-Minimize profile fields; local by default, deletable/exportable. The backend holds only an anonymous device ID, FCM token and saved-search filters, deletable from the app; store declarations and PRIVACY.md must be updated before release. Explicit user action before sending profile/announcement to AI. No hidden telemetry.
-
-## Operations
-
-### C-030 Platform truth
-Server push is best effort at the OS level; never promise guaranteed delivery. Backend fetch must respect reasonable per-source rates and never bypass login/CAPTCHA/WAF. Handle permission denial and offline mode.
-
-## Development
-
-### C-040 Repo standard
-Follow `ORTAK_UYGULAMA_STANDARDI.md`; reuse `napp_core`, `napp_pro`, `napp_ads`. Check new-package licenses. Keep one runnable check for nontrivial logic. Release/device checks precede production claim.
+## C-040 Geçiş ve doğrulama
+Eski local fetch yeni backend doğrulanmadan sökülmez; yalnız geçişte tutulur, hedef değildir. Pilot→mobil cutover→eski kod/Workmanager/Google referansı silme. Yeni bağımlılık/abstraction zorunlu değilse eklenmez. Nontrivial logic bir çalıştırılabilir kontrol bırakır. Brain gerçeği hedefmiş gibi anlatmaz; completed/superseded görevler Git'te kalır, aktif ağaçta tutulmaz. Store signing/publishing ve güvenlik erişimi insan sınırıdır.

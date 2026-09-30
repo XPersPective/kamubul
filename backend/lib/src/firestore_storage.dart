@@ -1,9 +1,10 @@
-/// Firestore (REST) depolaması: Google öncelikli yol. Yalnızca dize alanları
+/// Eski native Dart sunucunun Firestore referansı; Cloudflare hedefi değildir.
+/// Yalnızca dize alanları
 /// kullanılır (`json`), böylece değer kodlaması küçük ve sınırlar öngörülebilir
 /// kalır. Kimlik doğrulamalı bir `http.Client` enjekte edilir (Cloud Run'da
 /// metadata sunucusu, başka yerde servis hesabı anahtarı); testte sahte
-/// istemci kullanılır. Firestore güvenlik kuralları istemci erişimini kapatır
-/// (`firestore.rules`); yalnızca bu sunucu hesabı okur/yazar.
+/// istemci kullanılır. Bu adaptör dağıtılmamalıdır; PB-019 parite geçişinden
+/// sonra kaldırılır. Eski Google dağıtım konfigürasyonları kaldırılmıştır.
 library;
 
 import 'dart:convert';

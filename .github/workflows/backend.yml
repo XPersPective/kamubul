@@ -2,7 +2,7 @@ name: Çekirdek ve arka uç
 
 on:
   push:
-    branches: [main, 'claude/**']
+    branches: [master, 'codex/**']
     paths:
       - 'packages/kamubul_core/**'
       - 'backend/**'
