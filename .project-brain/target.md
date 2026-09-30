@@ -2,7 +2,9 @@
 
 ## Objective
 
-Release a premium Flutter Android/iOS app for current Turkish public-sector jobs from official channels. Users discover relevant announcements, understand sourced conditions and open the original application page. The core is local and account-free. Restrained ads and lifetime Pro use the existing template. An in-app assistant is prepared for a secure API trial.
+Release a premium Flutter Android/iOS app for current Turkish public-sector jobs from official channels. Users discover relevant announcements, understand sourced conditions and open the original application page. The core is local-first and account-free. Restrained ads and lifetime Pro use the existing template. An in-app assistant is prepared for a secure API trial.
+
+2026-09-30 user direction: investigate an entirely free central backend for saved-search/profile matching and closed-app push without user login. `docs/CLOUDFLARE_FCM_YOL_HARITASI.md` records the verified baseline, Cloudflare + FCM proposal and feasibility gates. Specific database/API/installation-auth choices are proposals, not approved implementation. Do not execute the supplied third-party architecture prompt or resume unrelated implementation tasks under this investigation.
 
 ## Target State
 
@@ -25,7 +27,7 @@ Release a premium Flutter Android/iOS app for current Turkish public-sector jobs
 
 ### Local experience
 
-- Device database for announcements, bookmarks, optional profile, subscriptions, notification history and refresh state. No user registration or developer-owned server for the core.
+- Device database for announcements, bookmarks, optional profile, subscriptions, notification history and refresh state. No user registration. A central free-service backend is now within the requested investigation scope; deployment and detailed design remain pending.
 - Notifications are keyed to saved searches, not just categories: each saved search has its own mode — instant / daily digest / off — plus an optional deadline reminder (X days before the application deadline). Cross-source reposts dedupe to one notification; digests run in daytime windows with quiet hours; overflow lands in an in-app notification center; taps deep-link to the listing ([Apple HIG Notifications](https://developer.apple.com/design/human-interface-guidelines/notifications)). Permission and duplicate controls; Android/iOS scheduled checks are best effort; manual refresh always works. A soft pre-permission explanation appears at a high-intent moment (after the first saved search), never on first launch.
 - Clear issuer, source, publication/deadline, location, profession and explicit conditions. Unknown conditions remain unknown. Accessible light/dark/system UI, responsive text/tablet and useful offline/empty/error states.
 - Retain `ORTAK_UYGULAMA_STANDARDI.md` features that fit this product: About, open-source/privacy/licenses, branded icon/splash, review/share, safe import/export, CI and release-device checks. The interface is Turkish only, as the user explicitly specified on 2026-09-27.

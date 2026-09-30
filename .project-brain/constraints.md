@@ -6,7 +6,10 @@
 Use official channels: feed/API first, otherwise public page parsing. Include İŞKUR, ilan.gov.tr, Resmî Gazete, Kariyer Kapısı, municipalities and other trustworthy institutions. Keep original application URL.
 
 ### C-002 Local-first
-No app account or developer server for core. Local listings/profile/preferences. Open/manual refresh and best-effort one or two background checks daily; user-selected category notifications. Prune expired cache without losing saved items.
+No user-facing account or login. Preserve local listings/profile/preferences and saved items. User direction on 2026-09-30 permits investigation of a central free-service backend for personalized catalogue/closed-app notifications; the earlier no-developer-server restriction no longer rules out this investigation. Implementation is not yet requested. Cloudflare + FCM is the investigation's interpretation of the service names; Firestore is a separate database, not messaging. Proposed design: `docs/CLOUDFLARE_FCM_YOL_HARITASI.md`.
+
+### C-007 Free-service notification investigation
+Use entirely free operating services; no automatic paid-plan upgrade or paid AI dependency. Notifications and personal lists must respect saved-search/profile filters without requiring registration. Quota exhaustion may delay delivery; do not promise instantaneous or guaranteed push. The 2026-09-30 request is inspection and a roadmap, not execution of the supplied third-party prompt.
 
 ### C-003 Assistant and ALH
 Prepare in-app API assistant for 10,000-user cost trial. Optional profession/age/education profile, announcement Q&A, matching, text then speech. Preserve the user's “ALH” term for later resolution.
