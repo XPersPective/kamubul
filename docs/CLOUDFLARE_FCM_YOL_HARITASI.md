@@ -500,8 +500,12 @@ veritabanı Worker'a `DB` adıyla bağlandı. Worker şimdilik yalnızca Hello W
 engellendiğinden dışarıdan yanıt kontrolü tamamlanmadı.
 
 Firebase'de mevcut `kamubul-3ae6e` projesine `com.crazypenguin.kamubul`
-Android uygulaması kaydedildi; FCM HTTP v1 **Enabled**. Android config indirme
-işlemi dosya yolu döndürmedi; dosyanın projeye kurulması doğrulanmadı.
+Android uygulaması kaydedildi; FCM HTTP v1 **Enabled**. Kullanıcının verdiği
+Downloads/`google-services.json` proje/paket/App ID doğrulamasından sonra
+`android/app/google-services.json` konumuna kopyalandı. Mevcut Dart kodunun
+beklediği dört `FIREBASE_*` ayarı `.tmp/firebase-android.defines.json` dosyasına
+hazırlandı; derlemede `--dart-define-from-file=.tmp/firebase-android.defines.json`
+kullanılır. İki dosya da Git dışında; henüz bu ayarlarla cihaz testi yapılmadı.
 Sunucu private key/API token oluşturulmadı. İlan toplama, kişisel eşleşme ve
 gerçek cihaz bildirimi henüz bu bulut kaynaklarında çalışmıyor.
 
