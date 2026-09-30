@@ -1,0 +1,128 @@
+import {validateCriteria,migrateFilters,fold} from './criteria.js';
+import {runScheduled} from './pipeline.js';
+
+export const nowISO=()=>new Date().toISOString();
+export async function sha256(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');}
+const json=(body,status=200,headers={})=>Response.json(body,{status,headers:{'X-Content-Type-Options':'nosniff','Cache-Control':'no-store',...headers}});
+const int=(raw,min,max,fallback)=>{const n=Number(raw);return Number.isSafeInteger(n)&&n>=min&&n<=max?n:fallback;};
+const stable=(a,b)=>{if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0;};
+async function bodyJSON(request){
+  if(!request.headers.get('content-type')?.startsWith('application/json'))throw new Error('content_type');
+  const reader=request.body?.getReader();if(!reader)throw new Error('registration');
+  const chunks=[];let total=0;
+  while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>32768){await reader.cancel();throw new Error('body_oversize');}chunks.push(value);}
+  const bytes=new Uint8Array(total);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+  return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+}
+export async function latestSeq(db){return (await db.prepare('SELECT COALESCE(MAX(seq),0) n FROM catalogue_changes').first()).n;}
+async function authenticate(request,db,id){
+  if(!/^[a-f\d]{32}$/.test(id))throw new Error('installation_id');
+  const secret=request.headers.get('authorization')?.replace(/^Bearer /,'')??'';
+  if(!/^[a-f\d]{64}$/.test(secret))return null;
+  const hash=await sha256(secret);const record=await db.prepare('SELECT * FROM installations WHERE id=?').bind(id).first();
+  return record&&stable(hash,record.secret_hash)?record:null;
+}
+async function registry(request,env,id){
+  if(!/^[a-f\d]{32}$/.test(id))return json({error:'invalid_id'},400);
+  const secret=request.headers.get('authorization')?.replace(/^Bearer /,'')??'';
+  if(!/^[a-f\d]{64}$/.test(secret))return json({error:'unauthorized'},401);
+  const hash=await sha256(secret);const existing=await env.DB.prepare('SELECT * FROM installations WHERE id=?').bind(id).first();
+  if(existing&&!stable(hash,existing.secret_hash))return json({error:'unauthorized'},401);
+  if(request.method==='DELETE') {
+    if(existing)await env.DB.prepare('DELETE FROM installations WHERE id=?').bind(id).run();
+    return json({deleted:true});
+  }
+  const raw=await bodyJSON(request);
+  if(!raw||typeof raw.fcmToken!=='string'||raw.fcmToken.length<20||raw.fcmToken.length>4096||!['android','ios'].includes(raw.platform)||!Array.isArray(raw.searches)||raw.searches.length>20)throw new Error('registration');
+  const quietStart=int(raw.quietStartHour,0,23,22),quietEnd=int(raw.quietEndHour,0,23,8),cap=int(raw.maxInstantPerDay,1,20,6);
+  for(const [key,min,max] of [['quietStartHour',0,23],['quietEndHour',0,23],['maxInstantPerDay',1,20]])if(raw[key]!==undefined&&(!Number.isInteger(raw[key])||raw[key]<min||raw[key]>max))throw new Error('registration');
+  const ids=new Set();const searches=raw.searches.map(s=>{
+    if(!s||!/^[-\w]{1,40}$/.test(s.id)||ids.has(s.id)||typeof s.name!=='string'||!s.name.trim()||s.name.length>80)throw new Error('search');ids.add(s.id);
+    const criteria=s.criteria?validateCriteria(s.criteria):migrateFilters(s.filters??{});
+    const mode=s.mode??s.filters?.bildirim??'instant';if(!['instant','digest','off'].includes(mode))throw new Error('mode');
+    return {id:s.id,name:s.name.trim(),criteria,mode};
+  });
+  const now=nowISO(),seq=await latestSeq(env.DB);
+  const preferences=JSON.stringify({quietStart,quietEnd,cap});
+  const previous=existing?(await env.DB.prepare('SELECT id,name,criteria,mode FROM saved_searches WHERE installation_id=? ORDER BY id').bind(id).all()).results:[];
+  const desired=searches.map(s=>({id:s.id,name:s.name,criteria:JSON.stringify(s.criteria),mode:s.mode})).sort((a,b)=>a.id.localeCompare(b.id));
+  const changed=!existing||existing.preferences!==preferences||JSON.stringify(previous)!==JSON.stringify(desired);
+  const version=existing?(existing.version+(changed?1:0)):1;
+  // Registry writes are bounded to 20 searches; existing effective baseline survives updates.
+  const statements=[env.DB.prepare(`INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES(?,?,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET token=excluded.token,platform=excluded.platform,preferences=excluded.preferences,
+    updated_at=excluded.updated_at,enabled=1,version=?`).bind(id,hash,raw.fcmToken,raw.platform,preferences,now,version)];
+  if(searches.length)statements.push(env.DB.prepare(`DELETE FROM saved_searches WHERE installation_id=? AND id NOT IN (${searches.map(()=>'?').join(',')})`).bind(id,...searches.map(s=>s.id)));
+  else statements.push(env.DB.prepare('DELETE FROM saved_searches WHERE installation_id=?').bind(id));
+  for(const s of searches)statements.push(env.DB.prepare(`INSERT INTO saved_searches(installation_id,id,name,criteria,mode,effective_after) VALUES(?,?,?,?,?,?)
+    ON CONFLICT(installation_id,id) DO UPDATE SET name=excluded.name,criteria=excluded.criteria,mode=excluded.mode`).bind(id,s.id,s.name,JSON.stringify(s.criteria),s.mode,seq));
+  if(changed)statements.push(env.DB.prepare("UPDATE notification_outbox SET state='cancelled' WHERE installation_id=? AND state IN ('pending','leased')").bind(id));
+  await env.DB.batch(statements);
+  return json({registered:true,version},existing?200:201);
+}
+export async function fetchRequest(request,env,ctx){
+  if(!env.DB)return json({error:'database_not_configured'},503);
+  const url=new URL(request.url),path=url.pathname;
+  try {
+    if(['PUT','DELETE'].includes(request.method)&&/^\/(?:api\/v2\/installations|v1\/devices)\/[a-f\d]{32}$/.test(path)) {
+      const ip=request.headers.get('CF-Connecting-IP');
+      if(ip){const key=await sha256('registration:'+ip+':'+new Date().toISOString().slice(0,13));
+        const result=await env.DB.prepare(`INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count`).bind(key,new Date(Date.now()+3600000).toISOString()).first();
+        if(result.count>60)return json({error:'rate_limited'},429,{'Retry-After':'3600'});
+      }
+      return await registry(request,env,path.split('/').pop());
+    }
+    if(request.method!=='GET')return json({error:'method_not_allowed'},405,{'Allow':'GET'});
+    if(path==='/api/v2/health'||path==='/v1/health') {
+      const seq=await latestSeq(env.DB);return json({status:seq?'ok':'awaiting_ingestion',latestSeq:seq,fcmConfigured:!!(env.FCM_PRIVATE_KEY&&env.FCM_CLIENT_EMAIL),aiConfigured:!!env.AI});
+    }
+    if(path==='/api/v2/meta') {
+      const seq=await latestSeq(env.DB);const sources=(await env.DB.prepare('SELECT id,name,state,last_attempt,last_success,note FROM sources').all()).results;
+      return conditional(request,{schemaVersion:2,taxonomyVersion:1,latestSeq:seq,oldestRetainedSeq:(await env.DB.prepare('SELECT COALESCE(MIN(seq),0) n FROM catalogue_changes').first()).n,sources},'"meta-'+seq+'-'+await sha256(JSON.stringify(sources))+'"');
+    }
+    if(path==='/api/v2/taxonomy') {
+      const occupations=(await env.DB.prepare("SELECT DISTINCT value FROM listings,json_each(payload,'$.occupations') WHERE active=1 LIMIT 200").all()).results.map(x=>x.value);
+      return json({version:1,education:['Lise','Ön lisans','Lisans','Yüksek lisans','Doktora'],kpssTypes:['P3','P93','P94'],categories:['işçi','personel','belediye'],occupations},200,{'Cache-Control':'public, max-age=300'});
+    }
+    if(path==='/api/v2/changes') {
+      const latest=await latestSeq(env.DB),after=int(url.searchParams.get('after'),0,Number.MAX_SAFE_INTEGER,0),watermark=int(url.searchParams.get('watermark'),after,latest,latest),limit=int(url.searchParams.get('limit'),1,50,30);
+      const rows=(await env.DB.prepare('SELECT * FROM catalogue_changes WHERE seq>? AND seq<=? ORDER BY seq LIMIT ?').bind(after,watermark,limit).all()).results;
+      const appliedThrough=rows.length?rows.at(-1).seq:watermark;
+      return conditional(request,{watermark,appliedThrough,hasMore:appliedThrough<watermark,changes:rows.map(r=>({seq:r.seq,operation:r.operation,id:r.listing_id,revision:r.revision,item:JSON.parse(r.payload)}))},'"changes-'+after+'-'+watermark+'-'+limit+'"');
+    }
+    if(path==='/api/v2/listings') {
+      const latest=await latestSeq(env.DB),watermark=int(url.searchParams.get('watermark'),0,latest,latest),after=url.searchParams.get('after')??'',limit=int(url.searchParams.get('limit'),1,50,30);
+      if(after.length>200)return json({error:'cursor'},400);
+      const rows=(await env.DB.prepare(`SELECT c.* FROM catalogue_changes c JOIN (SELECT listing_id,MAX(seq) seq FROM catalogue_changes WHERE seq<=? GROUP BY listing_id) last ON c.seq=last.seq
+        WHERE c.operation='upsert' AND c.listing_id>? ORDER BY c.listing_id LIMIT ?`).bind(watermark,after,limit+1).all()).results;
+      const visible=rows.slice(0,limit);return conditional(request,{watermark,items:visible.map(r=>JSON.parse(r.payload)),next:rows.length>limit?visible.at(-1).listing_id:null},'"list-'+watermark+'-'+await sha256(after)+'-'+limit+'"');
+    }
+    if(path.startsWith('/api/v2/listings/')) {
+      const id=decodeURIComponent(path.slice('/api/v2/listings/'.length));if(id.length>200)return json({error:'id'},400);
+      const row=await env.DB.prepare('SELECT * FROM listings WHERE id=?').bind(id).first();
+      if(!row)return json({error:'not_found'},404);
+      return conditional(request,{...JSON.parse(row.payload),id:row.id,revision:row.revision,active:row.active===1},'"detail-'+await sha256(id)+'-'+row.revision+'"');
+    }
+    const history=path.match(/^\/api\/v2\/installations\/([a-f\d]{32})\/notifications$/);
+    if(history){
+      const record=await authenticate(request,env.DB,history[1]);if(!record)return json({error:'unauthorized'},401);
+      const after=url.searchParams.get('after')??'',limit=int(url.searchParams.get('limit'),1,50,30);
+      const rows=(await env.DB.prepare('SELECT id,payload,state,created_at FROM notification_outbox WHERE installation_id=? AND id>? ORDER BY id LIMIT ?').bind(record.id,after,limit+1).all()).results;
+      return json({items:rows.slice(0,limit).map(r=>({eventId:r.id,...JSON.parse(r.payload),state:r.state,createdAt:r.created_at})),next:rows.length>limit?rows[limit-1].id:null});
+    }
+    if(path==='/v1/sources.json')return json({sources:(await env.DB.prepare('SELECT * FROM sources').all()).results.map(sourceV1)});
+    if(path==='/v1/listings.json') {
+      const rows=(await env.DB.prepare('SELECT * FROM listings WHERE active=1 ORDER BY id LIMIT 5000').all()).results;
+      const sources=(await env.DB.prepare('SELECT * FROM sources').all()).results;
+      const seq=await latestSeq(env.DB);return conditional(request,{schema:1,generatedAt:new Date().toISOString(),sources:sources.map(sourceV1),listings:rows.map(r=>v1Listing(JSON.parse(r.payload))),skipped:0},'"snapshot-'+seq+'"');
+    }
+    return json({error:'not_found'},404);
+  } catch(error){
+    if(error instanceof SyntaxError||['criteria','unknown_criterion','registration','search','mode','content_type','body_oversize','age','ageAsOf','kpssScore','kpssType','kpssYear','version','cities','categories','occupations','institutions','education','keyword','keywordScope','onlyKpss','last30'].includes(error.message))return json({error:'invalid_request'},400);
+    console.error('api_failure',error.name);return json({error:'service_unavailable'},503);
+  }
+}
+function conditional(request,body,etag){const headers={'ETag':etag,'Cache-Control':'public, max-age=60, s-maxage=300'};return request.headers.get('if-none-match')===etag?new Response(null,{status:304,headers}):json(body,200,headers);}
+function sourceV1(s){return {id:s.id,name:s.name,state:s.state==='pending'?'failed':s.state,lastAttemptAt:s.last_attempt,lastSuccessAt:s.last_success,note:s.note,count:0};}
+function v1Listing(p){const g=p.requirementGroups?.length===1?p.requirementGroups[0]:{};return {...p,source:p.sourceId,published:p.publishedAt,fetched:p.updatedAt??p.firstSeenAt,kpss:g.kpssType??null,education:g.education?.length===1?g.education[0]:null,maxAge:g.maxAge??null,summary:(p.summary??[]).map(s=>typeof s==='string'?s:s.text),saved:false};}
+export default {fetch:fetchRequest,async scheduled(controller,env,ctx){ctx.waitUntil(runScheduled(env));}};

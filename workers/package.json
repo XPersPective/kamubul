@@ -1,0 +1,15 @@
+{
+  "name": "kamubul-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "migrate": "wrangler d1 migrations apply DB --remote"
+  },
+  "devDependencies": {
+    "@napi-rs/keyring": "^1.3.0",
+    "wrangler": "^4.145.0"
+  }
+}

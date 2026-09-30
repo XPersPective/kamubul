@@ -4,7 +4,7 @@
 
 ## 1. Gerçek durum ve sınır
 
-**Sunucuya geçiş tamamlanmadı.** Flutter hâlâ kaynakları telefondan çekiyor. Cloudflare'daki test Worker yalnız Hello World; boş D1 bağlantısı hazır. Gerçek ilan API'si, Cron, Workers AI, eşleşme ve FCM göndericisi henüz yok. Firebase'de FCM v1 etkin olması, bildirimlerin çalıştığını kanıtlamaz.
+**Sunucuya geçiş tamamlanmadı.** Flutter hâlâ kaynakları telefondan çekiyor. Kalıcı Cloudflare Worker/D1 ve Cron artık yayında; API HTTP200 doğrulandı. Kaynakların Cloudflare çıkışından ilk okumaları başarısız, ilan sayısı0. FCM gönderici yetkisi kullanıcı onayını bekliyor. Yayındaki altyapı tüm hedefin tamamlandığı anlamına gelmez.
 
 Mobil kaynaklar: `lib/main.dart`, `lib/home_page.dart`, `lib/data/catalogue_refresh.dart`, `lib/data/remote_sync.dart`, `lib/data/listing_store.dart`, `lib/notifications/`.
 Ortak çekirdek: `packages/kamubul_core/lib/`.
@@ -31,15 +31,19 @@ Eski sunucu referansı: `backend/lib/src/`, `backend/bin/`, `backend/test/`; nat
 
 ## 4. Kaynaklar
 
-Kariyer Kapısı liste/API/RSS ve SBB WebForms/PDF adaptörleri mevcut. Resmî Gazete kapsam dışı. İŞKUR/ilan.gov.tr WAF/oturum kısıtlı; belediye kapsamı eksik. Cloudflare çıkışından erişim henüz ölçülmedi. Kaynak bazında gerçek durum `docs/SOURCE_REGISTRY.md`; kaynak engeli telefon/proxy fallback ile gizlenmeyecek.
+Kariyer Kapısı liste/API/RSS ve SBB WebForms/PDF Dart adaptörleri mevcut. Worker API/RSS ve SBB liste adaptörleri `workers/src/sources.js` içinde. İlk canlı Cron: Kariyer API HTTP522; SBB blocked. Aynı Node adaptörleri Windows çıkışından gerçek20/135 liste kaydı okudu; bu Cloudflare erişim kanıtı değildir. Worker RSS geri dönüşü eklendi, sonucu henüz doğrulanmadı. SBB PDF içerik çıkarımı Worker'a taşınmadı. Resmî Gazete kapsam dışı. İŞKUR/ilan.gov.tr WAF/oturum kısıtlı; belediye kapsamı eksik. Kaynak engeli telefon/proxy fallback ile gizlenmeyecek.
 
 ## 5. Hazır bulut kaynakları — OBSERVED konsol
+
+- VERIFIED CLI/liveHTTP: kalıcı Worker `kamubul-api`, `https://kamubul-api.devx8585.workers.dev`; Free plan. D1 `kamubul`, ID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR, `DB` binding. `workers/migrations/0001_catalogue.sql` remote uygulandı,21 SQLkomutu başarılı. Demo ilan/cihaz yaratılmadı. Cron her dakika, kaynak tarama30dk, AI günlük20iş üst sınırı; AI binding var fakat gerçek model çıkarım/CPU ölçümü yapılmadı.
+- Worker v2 API: meta/taxonomy/listings/changes/detail/installations/history; v1 geçiş uçları. D1 immutable seq/tombstone trigger, kaynak cursor/lease, hash-temelli processing, matching cursor/outbox ve FCM HTTPv1 kodu var. Runtime dependency yok. Native Node altı contract/migration/registry testi geçti; Dart v2 paritesi henüz yok. Digest gönderimi, indeksli fanout, uzun metin ve PDF işlemesi eksik; production tam hazır değildir. Koşul AI alanları eval kapısı nedeniyle kapalıdır.
+- Wrangler OAuth kullanıcı onayıyla Windows keyring'de; Worker script yönetimi/D1/AI+account/user read. Credential Git/Brain'de yok. FCM servis hesabı formu hazır, rol/anahtar/Cloudflare aktarımı onay bekliyor.
 
 - Cloudflare Workers Free ($0). Worker `kamubul-api-dev`, adres `https://kamubul-api-dev.devx8585.workers.dev`, yalnız Hello World. Dış yanıt denemesi uygulama içi tarayıcı engeline takıldı; HTTP yanıtı doğrulanmadı.
 - D1 `kamubul-dev`, ID `3fbb739f-891c-4da1-821e-417018139721`, boş, automatic Eastern Europe. Worker binding `DB`. Dashboard production/preview bağları aynı dev DB'yi gösteriyor; gerçek production ortamı yok.
 - Firebase `kamubul-3ae6e`, Spark $0/ay. FCM v1 Enabled. Android paket `com.crazypenguin.kamubul`, app ID `1:1003012781397:android:c474608bf0e36534ae2bdc`, sender ID `1003012781397`.
 - Kullanıcının Downloads/google-services.json dosyası proje/paket/AppID doğrulanarak ignored `android/app/google-services.json` konumuna kopyalandı. ignored `.tmp/firebase-android.defines.json` mevcut Dart initialize için dört FIREBASE_* değerini içeriyor. Derleme: `--dart-define-from-file=.tmp/firebase-android.defines.json`. Bu ayarlarla build/token/push testi yok.
-- Sunucu FCM private key/API token oluşturulmadı, Workers AI bağlanmadı, ücretli plana geçilmedi. Screenshot kanıtları ignored `.project-brain/.cache/` içinde; sırlar Brain'de tutulmaz.
+- Sunucu FCM private key oluşturulmadı; Workers AI binding bağlandı, model gerçek çalıştırması yok; ücretli plana geçilmedi. Screenshot kanıtları ignored `.project-brain/.cache/` içinde; sırlar Brain'de tutulmaz.
 
 ## 6. Doğrulama ve bilinmeyenler
 

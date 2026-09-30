@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kamubul-api",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-30",
+  "account_id": "5c5871cee9d16a81a908008f2a3de9af",
+  "workers_dev": true,
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 },
+  "ai": { "binding": "AI" },
+  "d1_databases": [{"binding":"DB","database_name":"kamubul","database_id":"371092dd-2cc7-487f-b971-84c2499bbc7d","migrations_dir":"migrations"}],
+  "vars": {
+    "FIREBASE_PROJECT_ID": "kamubul-3ae6e",
+    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",
+    "AI_DAILY_JOBS": "20",
+    "SOURCE_INTERVAL_MINUTES": "30"
+  },
+  "triggers": { "crons": ["* * * * *"] }
+}
