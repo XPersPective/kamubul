@@ -478,8 +478,7 @@ bildirim için sunucuya aktarılan alanları doğru yansıtır.
 
 ## 13. Uygulamaya geçmeden açık kalan kararlar
 
-- Servis isimleri: bu belge Cloudflare + FCM önerisidir; Firestore ayrıca talep
-  edilirse DB seçimi netleştirilmeli.
+- Servis isimleri netleşti: Cloudflare + FCM kullanılacak; Cloud Run kullanılmayacak.
 - Eksik koşullu ilanların ayrı gösterimi ve puan/çoklu pozisyon kapsamı.
 - Ücretsizlik için kabul edilebilir geniş eşleşme teslim süresi; pilot bunun
   rakamını verir. İlan kontrol aralığı ile tüm cihazlara teslim süresi ayrıdır.
@@ -490,3 +489,23 @@ bildirim için sunucuya aktarılan alanları doğru yansıtır.
 Bu kararların varlığı mevcut incelemeyi eksik bırakmaz; uygulamanın hangi
 ölçülebilir kapılarla ilerlemesi gerektiğini belirler. İlk sonraki teknik iş
 **ücretsiz Worker üzerinde tek kaynak + FCM gönderici fizibilite deneyi** olmalıdır.
+
+## 14. Hesap hazırlığı — 30 Eylül 2026
+
+Kullanıcının iki hesaba girişinden sonra Cloudflare Workers **Free ($0)** ve
+Firebase **Spark ($0/ay)** planları konsolda doğrulandı. Cloudflare'da
+`kamubul-api-dev` test Worker'ı ve boş `kamubul-dev` D1 veritabanı oluşturuldu;
+veritabanı Worker'a `DB` adıyla bağlandı. Worker şimdilik yalnızca Hello World
+şablonudur, ilan API'si değildir. Adresi uygulama içi tarayıcı tarafından
+engellendiğinden dışarıdan yanıt kontrolü tamamlanmadı.
+
+Firebase'de mevcut `kamubul-3ae6e` projesine `com.crazypenguin.kamubul`
+Android uygulaması kaydedildi; FCM HTTP v1 **Enabled**. Android config indirme
+işlemi dosya yolu döndürmedi; dosyanın projeye kurulması doğrulanmadı.
+Sunucu private key/API token oluşturulmadı. İlan toplama, kişisel eşleşme ve
+gerçek cihaz bildirimi henüz bu bulut kaynaklarında çalışmıyor.
+
+Sonraki adımlar: mevcut Dart API/filtre sözleşmelerini Worker'a uyarlama,
+tek resmi kaynakla ücretsiz limitlerde pilot, yalnız bildirim göndermeye yetkili
+sunucu kimliğini güvenli kurma, ardından Android cihazda izin/token/bildirim-tap
+kontrolü. Mobil `KAMUBUL_API` adresi Hello World servisine çevrilmemeli.

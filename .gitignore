@@ -52,6 +52,7 @@ ios/Flutter/AdsConfig.xcconfig
 # --- Yerel doğrulama artefaktları (ek) ---
 .tmp/
 test/failures/
+.project-brain/.cache/
 
 # --- Desteklenmeyen platform iskeletleri (ürün yalnız Android/iOS) ---
 web/

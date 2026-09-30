@@ -2,7 +2,7 @@
 
 ## Latest user direction — 2026-09-30
 
-The current request is inspection and a roadmap only. Entirely free operating services, no user login, profile/saved-search matching and closed-app notifications are required. No automatic paid-plan upgrade or paid AI dependency. Earlier Cloud Run/Blaze and paid-AI deployment targets below are historical proposals superseded for this investigation; do not execute them. Cloudflare + FCM is the service-name interpretation, subject to clarification if Firestore was intended as a separate database. Detailed proposal and verified new backend baseline: `docs/CLOUDFLARE_FCM_YOL_HARITASI.md`. Runtime/D1/API choices are not yet approved implementation.
+The user subsequently authorized initial account/setup assistance and logged into Cloudflare and Firebase. Free test Worker/D1 and Firebase Android registration are within scope; the application migration still follows the requested review/roadmap before coding. Cloudflare + FCM is confirmed, not Cloud Run or Firestore. Entirely free operating services, no user login, profile/saved-search matching and closed-app notifications are required. No automatic paid-plan upgrade or paid AI dependency. Earlier Cloud Run/Blaze targets below are historical; do not execute them. Server credentials must remain outside Git and the mobile app. Detailed proposal: `docs/CLOUDFLARE_FCM_YOL_HARITASI.md`.
 
 ## User Requirements
 

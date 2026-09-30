@@ -5,7 +5,7 @@ The 2026-09-28 sections below describe the prior mobile baseline; the Remote
 backend section supersedes their no-backend/no-AI/schema-v3/RG claims. Current
 reality: shared Dart core, SQLite v4, optional remote snapshot and opt-in FCM
 registration, native Dart backend (Firestore/files); no Cloudflare implementation
-or verified cloud deployment. Source parsers and fixtures moved into
+or deployed application backend. Source parsers and fixtures moved into
 `packages/kamubul_core`; RG was removed from active scope.
 
 2026-09-30 checks on the integrated code: 104 core tests, 37 backend tests and
@@ -15,6 +15,13 @@ this documentation review did not edit application or test source. No live sourc
 AI, deployment or release-device verification was performed in this review.
 Free Cloudflare + FCM migration is a proposal, recorded in
 `docs/CLOUDFLARE_FCM_YOL_HARITASI.md`, not present architecture.
+
+## Cloud account bootstrap — verified in consoles 2026-09-30
+
+- Cloudflare Workers Free ($0); test Worker `kamubul-api-dev` contains only the dashboard Hello World template. Worker URL: `https://kamubul-api-dev.devx8585.workers.dev`. Public response unverified: the in-app browser blocked navigation (`ERR_BLOCKED_BY_CLIENT`). No catalogue, device registry, Cron or FCM sender is deployed.
+- Empty private D1 `kamubul-dev`, ID `3fbb739f-891c-4da1-821e-417018139721`, automatic Eastern Europe region, connected to that test Worker as `DB`. Dashboard production/preview binding values both point to this development database; no real production resource exists.
+- Existing Firebase project `kamubul-3ae6e` is Spark (no-cost $0/month); FCM HTTP v1 is Enabled. Registered Android app `com.crazypenguin.kamubul`, app ID `1:1003012781397:android:c474608bf0e36534ae2bdc`, sender ID `1003012781397`.
+- Android configuration download did not return a file path; installation into the app is unverified. No server private key, API token, billing upgrade or real device push was created/performed. Console screenshots are local ignored evidence under `.project-brain/.cache/`.
 
 ## Runtime and product shell
 
