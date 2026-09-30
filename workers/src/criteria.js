@@ -1,4 +1,4 @@
-export const fold = value => String(value ?? '').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/\p{M}/gu, '').replace(/ı/g, 'i').replace(/\s+/g, ' ').trim();
+export const fold = value => String(value ?? '').toUpperCase().replaceAll('İ','I').replaceAll('Ç','C').replaceAll('Ğ','G').replaceAll('Ö','O').replaceAll('Ş','S').replaceAll('Ü','U').replaceAll('Â','A').replaceAll('Î','I').replaceAll('Û','U').toLowerCase().replace(/\s+/g,' ').trim();
 const oneOf = (wanted, actual) => !wanted?.length || wanted.some(value => actual.map(fold).includes(fold(value)));
 export function validateCriteria(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('criteria');
@@ -21,7 +21,7 @@ export function validateCriteria(raw) {
     result[key]=raw[key];
   }
   if (result.age!==undefined && !/^\d{4}-\d{2}-\d{2}$/.test(result.ageAsOf ?? '')) throw new Error('ageAsOf');
-  if(result.ageAsOf && (!Number.isFinite(Date.parse(result.ageAsOf)) || new Date(result.ageAsOf).toISOString().slice(0,10)!==result.ageAsOf))throw new Error('ageAsOf');
+  if(result.ageAsOf!==undefined && (!Number.isFinite(Date.parse(result.ageAsOf)) || new Date(result.ageAsOf).toISOString().slice(0,10)!==result.ageAsOf))throw new Error('ageAsOf');
   if(result.keywordScope && !['title','full'].includes(result.keywordScope))throw new Error('keywordScope');
   if (result.kpssType && !/^P\d{1,3}$/.test(result.kpssType)) throw new Error('kpssType');
   if (result.kpssScore!==undefined && !result.kpssType) throw new Error('kpssType');
@@ -37,7 +37,7 @@ export function migrateFilters(filters, now = new Date()) {
   if(filters.sehir) result.cities=[filters.sehir];
   if(filters.egitim) result.education=[filters.egitim];
   if(filters.kpss) result.kpssType=filters.kpss;
-  if(filters.yas) { result.age=Number(filters.yas); result.ageAsOf=filters.yasTarih || now.toISOString().slice(0,10); }
+  if(filters.yas) { result.age=Number(filters.yas); result.ageAsOf=filters.yasTarih || '1970-01-01'; }
   if(filters.kpssPuan) result.kpssScore=Number(filters.kpssPuan);
   if(filters.kategori && filters.kategori!=='0') result.categories=[['','işçi','personel','belediye'][Number(filters.kategori)]];
   if(filters.son30==='1') result.last30=true;
@@ -59,23 +59,24 @@ export function matchListing(listing, criteria, now = new Date()) {
       if(!actual?.length) {if(status!=='no_match') status='unknown';}
       else if(!oneOf(wanted,actual)) status='no_match';
     };
-    check(criteria.cities,group.cities?.length?group.cities:listing.places);
+    check(criteria.cities,group.cities?.length?group.cities:(groups.length===1?listing.places:[]));
     check(criteria.occupations,group.occupations);
     check(criteria.education,group.education);
     if(criteria.age!==undefined) {
       const ageDate=new Date(criteria.ageAsOf+'T00:00:00Z');
-      if(!Number.isFinite(+ageDate) || now-ageDate>366*86400000 || ageDate>now || !['known','no_restriction'].includes(group.ageStatus)) {if(status!=='no_match')status='unknown';}
+      if(!Number.isFinite(+ageDate) || now-ageDate>366*86400000 || ageDate>now || !['known','no_restriction'].includes(group.ageStatus) || (group.ageStatus==='known'&&group.minAge==null&&group.maxAge==null)) {if(status!=='no_match')status='unknown';}
       else if((group.maxAge!==null && group.maxAge!==undefined && criteria.age>group.maxAge) || (group.minAge!==null && group.minAge!==undefined && criteria.age<group.minAge)) status='no_match';
     }
     if(criteria.kpssType || criteria.onlyKpss) {
       if(group.kpssStatus==='not_required') {if(criteria.onlyKpss)status='no_match';}
       else if(group.kpssStatus!=='required') {if(status!=='no_match')status='unknown';}
+      else if(criteria.kpssType && !group.kpssType) {if(status!=='no_match')status='unknown';}
       else if(criteria.kpssType && group.kpssType!==criteria.kpssType) status='no_match';
       else if(criteria.kpssScore!==undefined) {
         if(group.kpssScore===null || group.kpssScore===undefined) {if(status!=='no_match')status='unknown';}
         else if(criteria.kpssScore<group.kpssScore)status='no_match';
       }
-      if(group.kpssYear && criteria.kpssYear!==group.kpssYear) {if(status!=='no_match')status='unknown';}
+      if(group.kpssYear){if(criteria.kpssYear===undefined){if(status!=='no_match')status='unknown';}else if(criteria.kpssYear!==group.kpssYear)status='no_match';}
     }
     if(status==='match')return 'match';
     if(status==='unknown')unknown=true;

@@ -71,3 +71,19 @@ Future<RemoteSyncResult> syncRemoteCatalogue({
     skipped: snapshot.skipped,
   );
 }
+
+/// V2 geçiş yolu; üretim cutover kabul kapıları geçmeden varsayılan yapılmaz.
+Future<int> syncRemoteChanges({
+  required ListingStore store,
+  required RemoteCatalogueClient client,
+}) async {
+  var after = await store.remoteCursor();
+  int? watermark;
+  while (true) {
+    final page = await client.fetchChanges(after: after, watermark: watermark);
+    watermark ??= page.watermark;
+    await store.applyDeltaPage(page, after: after);
+    after = page.appliedThrough;
+    if (!page.hasMore) return after;
+  }
+}

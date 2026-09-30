@@ -4,7 +4,7 @@ import {runScheduled} from './pipeline.js';
 export const nowISO=()=>new Date().toISOString();
 export async function sha256(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');}
 const json=(body,status=200,headers={})=>Response.json(body,{status,headers:{'X-Content-Type-Options':'nosniff','Cache-Control':'no-store',...headers}});
-const int=(raw,min,max,fallback)=>{const n=Number(raw);return Number.isSafeInteger(n)&&n>=min&&n<=max?n:fallback;};
+const int=(raw,min,max,fallback)=>{if(raw===null||raw===undefined||raw==='')return fallback;const n=Number(raw);return Number.isSafeInteger(n)&&n>=min&&n<=max?n:fallback;};
 const stable=(a,b)=>{if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0;};
 async function bodyJSON(request){
   if(!request.headers.get('content-type')?.startsWith('application/json'))throw new Error('content_type');

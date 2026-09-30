@@ -2,11 +2,14 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
-import {validateCriteria,matchListing,fold} from '../src/criteria.js';
+import {validateCriteria,matchListing,fold,migrateFilters} from '../src/criteria.js';
 import {nextAllowed,validateAiSummary} from '../src/pipeline.js';
 import {fetchRequest} from '../src/worker.js';
 
 const now=new Date('2026-09-30T12:00:00Z');
+for(const row of JSON.parse(readFileSync(new URL('../../contracts/criteria-v2.json',import.meta.url),'utf8'))){
+  test('Dart parity: '+row.name,()=>assert.equal(matchListing(row.listing,row.legacy?migrateFilters(row.legacy):validateCriteria(row.criteria),now),row.expected));
+}
 test('typed criteria rejects ambiguous and invalid dates',()=>{
   assert.throws(()=>validateCriteria({version:1}));
   assert.throws(()=>validateCriteria({age:30,ageAsOf:'2026-02-30'}));
@@ -59,5 +62,10 @@ test('registry heartbeat and token rotation preserve pending notifications',asyn
   assert.equal((await (await put({...body,searches:[]})).json()).version,2);
   assert.equal(sql.prepare("SELECT state FROM notification_outbox WHERE id='event'").get().state,'cancelled');
   assert.equal((await put({...body,searches:[{...body.searches[0],criteria:{cities:'Ankara'}}]})).status,400);
+  sql.prepare(`INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('visible','sbb','real','h','now','now','later','{"title":"Visible"}')`).run();
+  const changes=await (await fetchRequest(new Request('https://api/api/v2/changes?after=0'),{DB},{})).json();
+  assert.equal(changes.watermark,1);assert.equal(changes.changes.length,1);
+  const listingPage=await (await fetchRequest(new Request('https://api/api/v2/listings'),{DB},{})).json();
+  assert.equal(listingPage.items.length,1);
   sql.close();
 });

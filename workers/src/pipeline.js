@@ -61,8 +61,10 @@ async function processNotice(env){
   // Byte limit bounds worst-case input tokens; no silent truncation of requirements.
   if(new TextEncoder().encode(text).length>12000){await env.DB.prepare("UPDATE processing_jobs SET state='failed',error_code='text_oversize',lease_until=NULL WHERE id=?").bind(job.id).run();return;}
   const day=now.slice(0,10),cap=Number(env.AI_DAILY_JOBS)||20;
-  const budget=await env.DB.prepare('INSERT INTO daily_usage(day,ai_jobs) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET ai_jobs=ai_jobs+1 WHERE ai_jobs<? RETURNING ai_jobs').bind(day,cap).first();
-  if(!budget){await env.DB.prepare("UPDATE processing_jobs SET state='quota_wait',attempts=attempts-1,lease_until=NULL,due_at=? WHERE id=?").bind(day+'T23:59:59.999Z',job.id).run();return;}
+  if(text.length){
+    const budget=await env.DB.prepare('INSERT INTO daily_usage(day,ai_jobs) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET ai_jobs=ai_jobs+1 WHERE ai_jobs<? RETURNING ai_jobs').bind(day,cap).first();
+    if(!budget){await env.DB.prepare("UPDATE processing_jobs SET state='quota_wait',attempts=attempts-1,lease_until=NULL,due_at=? WHERE id=?").bind(new Date(Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),new Date().getUTCDate()+1)).toISOString(),job.id).run();return;}
+  }
   try {
     let summary=[],candidates=null;
     if(text.length){
@@ -86,7 +88,7 @@ async function matchEvents(env){
   const now=nowISO();const event=await env.DB.prepare("UPDATE match_events SET state='leased',lease_until=? WHERE id=(SELECT id FROM match_events WHERE state='pending' OR (state='leased' AND lease_until<?) ORDER BY created_at LIMIT 1) RETURNING *").bind(later(3),now).first();if(!event)return;
   const listing=JSON.parse(event.payload);
   const devices=(await env.DB.prepare('SELECT * FROM installations WHERE enabled=1 AND id>? ORDER BY id LIMIT 10').bind(event.cursor).all()).results;
-  const eventSeq=(await env.DB.prepare('SELECT MAX(seq) seq FROM catalogue_changes WHERE listing_id=? AND revision=?').bind(event.listing_id,event.revision).first()).seq;
+  const eventSeq=(await env.DB.prepare('SELECT MIN(seq) seq FROM catalogue_changes WHERE listing_id=?').bind(event.listing_id).first()).seq;
   for(const device of devices){
     const searches=(await env.DB.prepare("SELECT * FROM saved_searches WHERE installation_id=? AND mode!='off' AND effective_after<?").bind(device.id,eventSeq).all()).results;
     const matching=searches.filter(s=>matchListing(listing,JSON.parse(s.criteria))==='match');

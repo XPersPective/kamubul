@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:kamubul_core/data/listing_models.dart';
+import 'package:kamubul_core/remote/catalogue_delta.dart';
+import 'package:kamubul_core/remote/snapshot.dart' show listingFromJson;
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
@@ -33,7 +35,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 4;
+  static const int _schemaVersion = 5;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -72,6 +74,17 @@ class ListingStore {
         createdAt INTEGER NOT NULL
       )
     ''');
+    await _createRemoteTables(db);
+  }
+
+  static Future<void> _createRemoteTables(DatabaseExecutor db) async {
+    await db.execute(
+      'CREATE TABLE remote_catalogue (id TEXT PRIMARY KEY, revision INTEGER NOT NULL, url TEXT, active INTEGER NOT NULL, payload TEXT NOT NULL)',
+    );
+    await db.execute(
+      'CREATE TABLE remote_sync_state (id INTEGER PRIMARY KEY CHECK(id=1), cursor INTEGER NOT NULL)',
+    );
+    await db.insert('remote_sync_state', {'id': 1, 'cursor': 0});
   }
 
   /// Şema yükseltmeleri: v1→v2 şart alıntısı sütunları, v2→v3 parmak izi
@@ -97,6 +110,107 @@ class ListingStore {
         await db.execute('ALTER TABLE listings ADD COLUMN $column');
       }
     }
+    if (oldVersion < 5 && newVersion >= 5) await _createRemoteTables(db);
+  }
+
+  Future<int> remoteCursor() async {
+    final db = await database;
+    return (await db.query(
+          'remote_sync_state',
+          columns: ['cursor'],
+        )).single['cursor']
+        as int;
+  }
+
+  /// Upsert/tombstone ve cursor birlikte commit olur; kesilen sayfa tekrar okunabilir.
+  Future<void> applyDeltaPage(
+    CatalogueDeltaPage page, {
+    required int after,
+  }) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final cursor =
+          (await txn.query('remote_sync_state')).single['cursor'] as int;
+      if (cursor != after) throw const FormatException('concurrent delta sync');
+      for (final change in page.changes) {
+        final previous = await txn.query(
+          'remote_catalogue',
+          where: 'id=?',
+          whereArgs: [change.id],
+        );
+        final old = previous.isEmpty ? null : previous.single;
+        if (old != null && (old['revision'] as int) >= change.revision) {
+          continue;
+        }
+        final item = change.item;
+        final oldUrl = old?['url'] as String?;
+        final url = change.deleted
+            ? oldUrl ?? item['url'] as String?
+            : item['url'] as String? ?? oldUrl;
+        if (change.deleted) {
+          if (url != null) {
+            await txn.delete(
+              'listings',
+              where: 'url=? AND saved=0',
+              whereArgs: [url],
+            );
+          }
+        } else {
+          final summary = (item['summary'] as List? ?? const [])
+              .map((s) => s is Map ? s['text'] : s)
+              .whereType<String>()
+              .take(5)
+              .toList();
+          final record = listingFromJson({
+            ...item,
+            'source': item['sourceId'],
+            'fetched': item['updatedAt'],
+            'published': item['publishedAt'],
+            'summary': summary,
+          }, fallbackFetchedAt: DateTime.now());
+          if (record == null) {
+            throw const FormatException('invalid delta record');
+          }
+          final favorites = await txn.query(
+            'listings',
+            columns: ['saved', 'savedAt'],
+            where: 'url IN (?,?)',
+            whereArgs: [oldUrl ?? record.url, record.url],
+            orderBy: 'saved DESC, savedAt DESC',
+            limit: 1,
+          );
+          final saved = favorites.isNotEmpty && favorites.single['saved'] == 1;
+          final savedMs = favorites.isEmpty
+              ? null
+              : favorites.single['savedAt'] as int?;
+          if (oldUrl != null && oldUrl != record.url) {
+            await txn.delete('listings', where: 'url=?', whereArgs: [oldUrl]);
+          }
+          await txn.insert(
+            'listings',
+            record
+                .copyWith(
+                  saved: saved,
+                  savedAt: savedMs == null
+                      ? null
+                      : DateTime.fromMillisecondsSinceEpoch(savedMs),
+                )
+                .toRow(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await txn.insert('remote_catalogue', {
+          'id': change.id,
+          'revision': change.revision,
+          'url': url,
+          'active': change.deleted ? 0 : 1,
+          'payload': jsonEncode(item),
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      await txn.update('remote_sync_state', {
+        'cursor': page.appliedThrough,
+      }, where: 'id=1');
+    });
   }
 
   Future<void> _upgrade(Database db, int oldVersion, int newVersion) =>

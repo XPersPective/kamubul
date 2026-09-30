@@ -1,0 +1,21 @@
+[
+  {"name":"puan sınırında", "criteria":{"version":2,"kpssType":"P3","kpssScore":70},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required","kpssType":"P3","kpssScore":70}]},"expected":"match"},
+  {"name":"puan yetersiz", "criteria":{"version":2,"kpssType":"P3","kpssScore":69.99},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required","kpssType":"P3","kpssScore":70}]},"expected":"no_match"},
+  {"name":"yanlış puan türü", "criteria":{"version":2,"kpssType":"P93","kpssScore":90},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required","kpssType":"P3","kpssScore":70}]},"expected":"no_match"},
+  {"name":"koşul belirsiz", "criteria":{"version":2,"kpssType":"P3"},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"unknown"}]},"expected":"unknown"},
+  {"name":"KPSS gerekmiyor", "criteria":{"version":2,"kpssType":"P3"},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"not_required"}]},"expected":"match"},
+  {"name":"yalnız KPSS gerekli", "criteria":{"version":2,"onlyKpss":true},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"not_required"}]},"expected":"no_match"},
+  {"name":"yaş sınırında", "criteria":{"version":2,"age":35,"ageAsOf":"2026-09-30"},"listing":{"title":"Memur","requirementGroups":[{"ageStatus":"known","maxAge":35}]},"expected":"match"},
+  {"name":"yaş fazla", "criteria":{"version":2,"age":36,"ageAsOf":"2026-09-30"},"listing":{"title":"Memur","requirementGroups":[{"ageStatus":"known","maxAge":35}]},"expected":"no_match"},
+  {"name":"yaş referansı eski", "criteria":{"version":2,"age":30,"ageAsOf":"2024-09-30"},"listing":{"title":"Memur","requirementGroups":[{"ageStatus":"known","maxAge":35}]},"expected":"unknown"},
+  {"name":"iki kadro birleşmez", "criteria":{"version":2,"cities":["Ankara"],"education":["Lise"]},"listing":{"title":"Memur","requirementGroups":[{"cities":["Ankara"],"education":["Lisans"]},{"cities":["İstanbul"],"education":["Lise"]}]},"expected":"no_match"},
+  {"name":"Türkçe arama", "criteria":{"version":2,"keyword":"isci igdir","keywordScope":"title"},"listing":{"title":"İŞÇİ IĞDIR"},"expected":"match"},
+  {"name":"kurum araması", "criteria":{"version":2,"keyword":"belediye","keywordScope":"full"},"listing":{"title":"Mühendis","institution":"Ankara Belediyesi"},"expected":"match"},
+  {"name":"son tarih geçti", "criteria":{"version":2},"listing":{"title":"Memur","deadline":"2026-09-29T20:59:59Z"},"expected":"no_match"},
+  {"name":"kadrolar arası şehir taşınmaz","criteria":{"version":2,"cities":["Ankara"],"education":["Lise"]},"listing":{"title":"Memur","places":["Ankara"],"requirementGroups":[{"education":["Lise"]},{"cities":["Ankara"],"education":["Lisans"]}]},"expected":"unknown"},
+  {"name":"puan türü bilinmiyor","criteria":{"version":2,"kpssType":"P3"},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required"}]},"expected":"unknown"},
+  {"name":"yaş aralığı bilinmiyor","criteria":{"version":2,"age":30,"ageAsOf":"2026-09-30"},"listing":{"title":"Memur","requirementGroups":[{"ageStatus":"known"}]},"expected":"unknown"},
+  {"name":"sınav yılı uyuşmuyor","criteria":{"version":2,"kpssType":"P3","kpssYear":2024},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required","kpssType":"P3","kpssYear":2026}]},"expected":"no_match"},
+  {"name":"eski yaşın tarihi tahmin edilmez","legacy":{"yas":"30"},"listing":{"title":"Memur","requirementGroups":[{"ageStatus":"known","maxAge":35}]},"expected":"unknown"},
+  {"name":"eski KPSS puan göçü","legacy":{"kpss":"P3","kpssPuan":"70"},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required","kpssType":"P3","kpssScore":70}]},"expected":"match"}
+]

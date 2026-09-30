@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'snapshot.dart';
+import 'catalogue_delta.dart';
 
 class RemoteCatalogueException implements Exception {
   const RemoteCatalogueException(this.message);
@@ -58,6 +59,49 @@ class RemoteCatalogueClient {
     path:
         '${baseUrl.path.endsWith('/') ? baseUrl.path.substring(0, baseUrl.path.length - 1) : baseUrl.path}$path',
   );
+
+  Future<CatalogueDeltaPage> fetchChanges({
+    required int after,
+    int? watermark,
+  }) async {
+    if (after < 0 || (watermark != null && watermark < after)) {
+      throw ArgumentError('delta cursor');
+    }
+    final uri = _uri('/api/v2/changes').replace(
+      queryParameters: {
+        'after': '$after',
+        if (watermark != null) 'watermark': '$watermark',
+        'limit': '30',
+      },
+    );
+    try {
+      return await (() async {
+        final response = await _client.send(
+          http.Request('GET', uri)..headers['Accept'] = 'application/json',
+        );
+        if (response.statusCode != 200) {
+          await response.stream.listen(null).cancel();
+          throw RemoteCatalogueException('HTTP ${response.statusCode}');
+        }
+        final bytes = <int>[];
+        await for (final chunk in response.stream) {
+          if (bytes.length + chunk.length > 2 * 1024 * 1024) {
+            throw const RemoteCatalogueException('delta too large');
+          }
+          bytes.addAll(chunk);
+        }
+        return CatalogueDeltaPage.decode(
+          jsonDecode(utf8.decode(bytes)),
+          after: after,
+          expectedWatermark: watermark,
+        );
+      })().timeout(timeout);
+    } on RemoteCatalogueException {
+      rethrow;
+    } on Exception catch (error) {
+      throw RemoteCatalogueException('delta: $error');
+    }
+  }
 
   Future<RemoteFetchResult> fetchListings({String? etag}) async {
     final http.Response response;
