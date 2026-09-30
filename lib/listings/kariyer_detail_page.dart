@@ -18,9 +18,15 @@ class KariyerDetailPage extends StatefulWidget {
     required this.listing,
     this.onLoaded,
     this.loader,
+    this.summary = const [],
   });
 
   final PublicListing listing;
+
+  /// Sunucunun yapay zekâ ile hazırladığı kısa özet maddeleri. Her madde
+  /// ilan metnindeki doğrulanmış bir alıntıya dayanır; sayfada "Yapay zekâ
+  /// özeti" olarak etiketlenir. Boşsa bölüm gösterilmez.
+  final List<String> summary;
 
   /// Ayrıntı başarıyla okunduğunda çağrılır; katalog yapılandırılmış
   /// alanları (kontenjan, son başvuru, yerler) yerel kayda işler.
@@ -277,6 +283,44 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                               ],
                             ),
                           ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (widget.summary.isNotEmpty) ...[
+                Text(
+                  'Yapay zekâ özeti',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                _card(
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final line in widget.summary)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 3, right: 8),
+                                  child: Icon(Icons.auto_awesome, size: 16),
+                                ),
+                                Expanded(child: Text(line)),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Yapay zekâ ile hazırlandı; her madde ilan '
+                          'metnindeki bir cümleye dayanır. Kesin koşullar '
+                          'için resmî ilana bakın.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),

@@ -1,16 +1,27 @@
-import '../listings/kariyer_feed.dart';
-import '../listings/rg_feed.dart';
-import '../listings/sbb_feed.dart';
+import 'package:kamubul_core/kamubul_core.dart';
+
 import 'listing_store.dart';
-import 'turkish_cities.dart';
+import 'remote_sync.dart';
 
 const cataloguePruneAfter = Duration(days: 45);
 
+/// Sunucu anlık görüntüsü bundan eskiyse güncel sayılmaz; gömülü çekim de
+/// çalışır (tazelik garantisi).
+const remoteSnapshotMaxAge = Duration(hours: 36);
+
 class CatalogueRefreshResult {
-  const CatalogueRefreshResult(this.checkedAt, this.failedSources);
+  const CatalogueRefreshResult(
+    this.checkedAt,
+    this.failedSources, [
+    this.sourceStatuses = const [],
+  ]);
 
   final DateTime checkedAt;
   final List<String> failedSources;
+
+  /// Sunucunun bildirdiği kaynak durumları (uzak katalog kapalı ya da
+  /// okunamadıysa boş). Kaynaklar ekranı engel/erişim notlarını buradan gösterir.
+  final List<SourceStatus> sourceStatuses;
 }
 
 /// Seçilen şehri resmî Kariyer Kapısı liste süzgeciyle doğrular.
@@ -26,69 +37,62 @@ Future<int> refreshKariyerCity(ListingStore store, String city) async {
 }
 
 /// Ekran, elle denetim ve arka plan görevi aynı yenileme yolunu kullanır.
-/// Bir kaynak bozulduğunda diğerleri ve mevcut yerel kayıtlar korunur.
+///
+/// Önce sunucu kataloğu okunur (yapılandırılmışsa). Sunucu bir kaynağı
+/// sağlayamıyorsa (engel, hata, bayat anlık görüntü) YALNIZCA o kaynak eski
+/// gömülü yoldan cihazdan çekilir; sunucuya hiç ulaşılamazsa hepsi. Bir
+/// kaynak bozulduğunda diğerleri ve mevcut yerel kayıtlar korunur.
 Future<CatalogueRefreshResult> refreshCatalogue(
   ListingStore store, {
   Future<List<PublicListing>> Function()? kariyer,
   Future<List<SbbListing>> Function()? sbb,
-  Future<List<RgNotice>> Function()? gazete,
+  RemoteCatalogueClient? remote,
   DateTime? at,
 }) async {
   final now = at ?? DateTime.now();
   final incoming = <ListingRecord>[];
   final failed = <String>[];
-  try {
-    final items = await (kariyer ?? loadKariyerListings)();
-    incoming.addAll([
-      for (final item in items)
-        ListingRecord(
-          url: item.url.toString(),
-          sourceId: 'kariyerkapisi',
-          title: item.title,
-          category: item.category,
-          publishedAt: item.publishedAt,
-          deadline: item.deadline,
-          fetchedAt: now,
-        ),
-    ]);
-  } on Exception {
-    failed.add('Kariyer Kapısı');
+  var needKariyer = true;
+  var needSbb = true;
+  var statuses = const <SourceStatus>[];
+
+  final ownedClient = remote == null;
+  final client = remote ?? defaultRemoteClient();
+  if (client != null) {
+    try {
+      final sync = await syncRemoteCatalogue(
+        store: store,
+        client: client,
+        now: now,
+        pruneBefore: now.subtract(cataloguePruneAfter),
+      );
+      statuses = sync.sources;
+      if (now.difference(sync.generatedAt) <= remoteSnapshotMaxAge) {
+        needKariyer = sync.stateOf(kKariyerSourceId) != SourceState.ok;
+        needSbb = sync.stateOf(kSbbSourceId) != SourceState.ok;
+      }
+    } on Exception {
+      // Sunucu ya da ağ yok: gömülü çekim tüm kaynakları kapsar.
+    } finally {
+      if (ownedClient) client.close();
+    }
   }
-  try {
-    final items = await (sbb ?? loadSbbListings)();
-    incoming.addAll([
-      for (final item in items)
-        ListingRecord(
-          url: item.url.toString(),
-          sourceId: 'kamuilan_sbb',
-          title: '${item.institution} — ${item.title}',
-          category: item.category,
-          // SBB satırı yayın tarihi vermez; satırdaki tek tarih başvuru
-          // penceresidir, yayın tarihi gibi sunulmamalıdır.
-          publishedAt: null,
-          deadline: item.deadline,
-          quota: item.quota,
-          fetchedAt: now,
-        ),
-    ]);
-  } on Exception {
-    failed.add('Kamu İlanları (SBB)');
+
+  if (needKariyer) {
+    try {
+      final items = await (kariyer ?? loadKariyerListings)();
+      incoming.addAll([for (final item in items) kariyerRecord(item, now)]);
+    } on Exception {
+      failed.add('Kariyer Kapısı');
+    }
   }
-  try {
-    final items = await (gazete ?? loadRgPersonnelNotices)();
-    incoming.addAll([
-      for (final item in items)
-        ListingRecord(
-          url: item.url.toString(),
-          sourceId: 'resmigazete',
-          title: item.title,
-          category: 'Resmî Gazete',
-          publishedAt: item.publishedAt,
-          fetchedAt: now,
-        ),
-    ]);
-  } on Exception {
-    failed.add('Resmî Gazete');
+  if (needSbb) {
+    try {
+      final items = await (sbb ?? loadSbbListings)();
+      incoming.addAll([for (final item in items) sbbRecord(item, now)]);
+    } on Exception {
+      failed.add('Kamu İlanları (SBB)');
+    }
   }
   if (incoming.isNotEmpty) {
     try {
@@ -100,5 +104,5 @@ Future<CatalogueRefreshResult> refreshCatalogue(
       failed.add('Yerel katalog');
     }
   }
-  return CatalogueRefreshResult(now, failed);
+  return CatalogueRefreshResult(now, failed, statuses);
 }

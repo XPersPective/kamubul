@@ -10,6 +10,7 @@ import 'data/listing_store.dart';
 import 'home_page.dart';
 import 'ads_state.dart';
 import 'notifications/alert_service.dart';
+import 'notifications/push_setup.dart';
 import 'ui/onboarding_page.dart';
 
 const contactEmail = String.fromEnvironment('CONTACT_EMAIL');
@@ -70,6 +71,7 @@ Future<void> main() async {
   }
   WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
   unawaited(registerBackgroundAlerts());
+  unawaited(initPush(store));
   runApp(
     KamuBulApp(
       identity: identity,

@@ -1,6 +1,20 @@
 # Current Architecture — KamuBul
 
-Verified repository reality as of 2026-09-28. Recheck Git and live sources on resume.
+Reconciled 2026-09-30 against the other agent's `origin/master:346863e`.
+The 2026-09-28 sections below describe the prior mobile baseline; the Remote
+backend section supersedes their no-backend/no-AI/schema-v3/RG claims. Current
+reality: shared Dart core, SQLite v4, optional remote snapshot and opt-in FCM
+registration, native Dart backend (Firestore/files); no Cloudflare implementation
+or verified cloud deployment. Source parsers and fixtures moved into
+`packages/kamubul_core`; RG was removed from active scope.
+
+2026-09-30 checks on the integrated code: 104 core tests, 37 backend tests and
+83 Flutter tests passed. Core/backend analysis clean. Flutter analysis reports
+two pre-existing unnecessary imports in `test/remote_sync_test.dart:8-9`;
+this documentation review did not edit application or test source. No live source, FCM,
+AI, deployment or release-device verification was performed in this review.
+Free Cloudflare + FCM migration is a proposal, recorded in
+`docs/CLOUDFLARE_FCM_YOL_HARITASI.md`, not present architecture.
 
 ## Runtime and product shell
 
@@ -29,3 +43,10 @@ Verified repository reality as of 2026-09-28. Recheck Git and live sources on re
 ## External dependencies and constraints
 
 - `napp_core`, `napp_pro`, `napp_ads` come from tagged `napp_kit`; `napp_core` has a Git override to match the package graph. Developer-paid AI key is not embedded in the app. The configured local OpenCode Zen endpoint returned HTTP 402 for one model and 403 for another in a 2026-09-28 trial, so an in-app paid AI path is not verified. Store products, source terms and redistribution require review before release.
+
+## Remote backend (implemented in the repo 2026-09-29; not deployed)
+
+- `packages/kamubul_core` holds the pure-Dart code shared by app and server (parsers, extraction, dedupe, filter matching, snapshot schema v1, remote client, provider-agnostic AI layer, push planner). The app keeps thin bridge files under `lib/` that re-export it. The extraction gate (0.95) and its fixtures now live in the package.
+- `backend/` is the UI-less service: `bin/job.dart` (fetch → merge → detail/AI → publish snapshot → match and send FCM) and `bin/server.dart` (`/v1/listings.json`, `/v1/sources.json`, `/v1/health`, `PUT|DELETE /v1/devices/{id}`), storage behind an interface (Firestore for Google, files for any VPS), Dockerfile, Firebase Hosting/Firestore config and docker-compose.
+- The app reads the snapshot only when built with `--dart-define=KAMUBUL_API=...`; otherwise it behaves as before. Per-source fallback to the embedded fetch is implemented and tested. Server push registration is opt-in and deletable; local schema is v4 (AI summary column).
+- Verified here: package and backend tests, compiled binaries, a local API smoke test, and a subset of app tests in a scratch copy with stubbed `napp_*`. Not verified: deployment, real FCM/AI/source calls, Android/iOS builds, the `home_page.dart`/`main.dart` glue. See tasks PB-010..PB-014.

@@ -24,27 +24,32 @@ geçici servis kesintisi kabul edilerek ücretli plana otomatik geçiş yapılma
 
 ## 2. Kodla doğrulanan mevcut durum
 
-İnceleme tabanı: `master`, `f5da875`; başlangıçta çalışma ağacı temizdi.
+İnceleme tabanı: yerel `f5da875`; başlangıçta çalışma ağacı temizdi. GitHub
+kontrolünde diğer ajanın `origin/master:346863e` çalışması bulundu ve okundu.
+Son değerlendirme bu yeni kodu kapsar; eski yerel taban nihai mevcut durum değildir.
 Önce PROJECT_BRAIN.md ve Project Brain protokolü, ardından ilgili akışlar okundu.
 
 | Parça | Bugünkü gerçek durum | Sonuç |
 | --- | --- | --- |
-| Mobil | Flutter, Android/iOS; kullanıcı hesabı ve merkezi backend yok | Girişsiz deneyim korunabilir |
-| Yerel veri | `lib/data/listing_store.dart`: sqflite, şema v3; ilan URL'i anahtar | Drift/ikinci yerel DB gerekmez |
-| İlan toplama | `catalogue_refresh.dart`: telefon Kariyer Kapısı, SBB, RG adaptörlerini çağırır | Merkezi toplama yeni iş |
+| Mobil | Flutter, Android/iOS; kullanıcı hesabı yok; backend kodu var, dağıtılmış olduğu doğrulanmadı | Girişsiz deneyim korunabilir |
+| Yerel veri | `lib/data/listing_store.dart`: sqflite, şema v4; ilan URL'i anahtar, summary eklendi | Drift/ikinci yerel DB gerekmez |
+| İlan toplama | `catalogue_refresh.dart`: KAMUBUL_API verilirse uzak snapshot; kaynak bazında telefondan fallback | Merkezi veri yolu mevcut, ücretsiz platform uyarlaması yeni iş |
 | Kayıtlı arama | `SavedSearch`: ad + JSON filtreler; onboarding “Sizin için” araması oluşturur | Etiketler mevcut filtre kümeleridir |
-| Filtreler | `search_alerts.dart:matchesFilters`: başlık, kategori, son30, şehir, yaş, eğitim, KPSS türü | Liste/bildirim aynı saf eşleştiriciyi kullanıyor |
+| Filtreler | `packages/kamubul_core/lib/data/search_alerts.dart:matchesFilters`: başlık, kategori, son30, şehir, yaş, eğitim, KPSS türü | Dart app/backend aynı çekirdeği kullanıyor |
 | KPSS | P3/P93/P94 gibi tür eşleşmesi; çıkarıcı puan bulabiliyor ancak ListingRecord ve kayıtlı profil puan karşılaştırması taşımıyor | Puan desteği tamamlanmalı |
 | Profil vurgusu | `home_page.dart`: adı “Sizin için” olan aramadan türetiliyor | Yeniden adlandırmaya dayanıklı rol/kimlik gerekli |
-| Ayrıntılar | Kariyer ayrıntısı açıldığında şehir/koşullar yerel kayda işleniyor | Sunucu bildirime karar vermeden ayrıntı hazırlamalı |
-| Bildirim | `alert_service.dart`: Workmanager, yaklaşık 12 saatlik kontrol, local notifications | FCM/push bugün yok |
+| Ayrıntılar | Mobil ayrıntı ve `backend/lib/src/pipeline.dart` içinde bounded merkezi ayrıntı/kanıt hazırlama | Hazır olmayan koşullar için push sırası doğrulanmalı |
+| Bildirim | Local Workmanager yanında FirebasePush, PushRegistrar, planDevicePush ve FCM HTTP v1 gönderici var | Gerçek FCM ve cihaz teslimi henüz doğrulanmış değil |
 | Mevcut tercihler | Arama başına instant/digest/off; 22–08 sessiz saat, günde 6 anlık sınır, kuyruk/geçmiş; kaydedilen ilan için 3 gün hatırlatma | İş kuralları korunup merkezi akışa uyarlanmalı |
 | Dokunuş | Yerel ayrıntı; kayıtta yoksa resmî URL; soğuk açılış köprüsü var | jobId + URL ile genişletilebilir |
-| Çıkarım | Kaynak cümlesi/alan politikası ve etiketli değerlendirme testleri var; ağ AI yok | Kaynak kanıtı kaybedilmemeli |
-| Firebase/Cloudflare | pubspec'te Firebase SDK yok; Worker/D1 projesi yok | Var olan entegrasyon varsayılmamalı |
+| Çıkarım | Ortak Dart çekirdeğinde parser/kanıt testleri ve opsiyonel Anthropic/OpenAI/Gemini AI var; AI varsayılan kapalı | Ücretsiz sürüm deterministik çalışmalı |
+| Firebase/Cloudflare | Firebase SDK eklenmiş; Dart backend Firestore veya dosya storage ve Cloud Run/VPS deployment tarifli; Worker/D1 yok | Mevcut cloud tarifi sıfır maliyet şartıyla aynı değil |
+| Uzak sync | snapshot v1, ETag/304, boyut/timeout kontrolü, local merge ve testler var | Baştan repository yazmak yerine mevcut sözleşme genişletilmeli |
+| Kurulum kaydı | Rastgele cihaz id/secret; sunucuda SHA-256, opt-in ve offline silme/retry var | Baştan kimlik sistemi kurulmaz; secure storage ve yarışlar incelenir |
 
-Kaynak kapsamı: Kariyer Kapısı ve SBB adaptörleri mevcut. RG son kayıtlı canlı
-kontrolde sıfır personel ilanı verdi. İŞKUR ve ilan.gov.tr erişim engelleri kayıtlı;
+Kaynak kapsamı: Kariyer Kapısı ve SBB adaptörleri mevcut. Yeni ortak çekirdek
+refactor'unda Resmî Gazete kapsamdan çıkarılmış; eski sıfır-yield adaptörü artık yok.
+İŞKUR ve ilan.gov.tr erişim engelleri kayıtlı;
 belediye adaptörü yok. Önceki canlı kontroller 28 Eylül tarihli; bu inceleme canlı
 kaynak erişimini yeniden test etmedi. Kaynak defteri `docs/SOURCE_REGISTRY.md`.
 
@@ -63,10 +68,48 @@ kaynak erişimini yeniden test etmedi. Kaynak defteri `docs/SOURCE_REGISTRY.md`.
 - Bildirim görünürlüğü arama başına hesaplandığından, birden çok aramaya uyan
   ilan farklı aramalardan tekrarlanabilir. Merkezi tekilleştirme kurulum bazında olmalı.
 - Sayaçlar günün numarasını tutuyor; tam tarih ve zaman dilimiyle değiştirilmeli.
+  Yeni server instant sayacı tam tarih kullanıyor; digest hâlâ gün numarası.
   Mevcut digest davranışı sabit 18:00 gönderimi garantilemiyor.
 - iOS native arka plan/push yapılandırması ve izin akışı tamamlanmış sayılmaz;
   mevcut izin fonksiyonu Android sonucunu döndürüyor. Önceki cihaz doğrulama
   sınırlamaları PB-004'te kayıtlı; FCM gerçek cihaz testi ayrıca gerekli.
+
+### Diğer ajanın işinden alınacaklar ve gözlenen açıklar
+
+`packages/kamubul_core/` parsers, modeller, snapshot/client, eşleştirici,
+device registration ve push planner içeriyor. `backend/` API/storage/pipeline/
+FCM katmanlarını; Flutter remote_sync/push_setup bunların mobil bağlantısını içeriyor.
+Bunlar silinip yeniden yazılmamalı. PB-010..015 gerçek deploy, kaynak/FCM,
+uygulama bağlantısı ve release kontrollerinin açık olduğunu kaydediyor.
+
+Önemli uyumsuzluk: `backend/README.md` Cloud Run + Scheduler + Firestore için
+Blaze planına geçiş öneriyor. Bu yol ücretsiz kullanım kotası içerebilir ama
+ücretlendirmeye açık plan olduğu için yeni “tamamen ücretsiz” şartını karşılayan
+varsayılan deployment olarak kabul edilemez. Bu tarifi uygulamadım.
+
+Gözlenen teknik açıklar:
+
+- `_notify` bütün cihazları her çalışmada tarıyor, 25 cihazı paralel işliyor.
+  Bu, Worker'ın 6 dış bağlantı ve 50 dış istek sınırına doğrudan taşınamaz.
+- `_notifyDevice` FCM gönderiminden sonra cihaz durumunu yazıyor; gönderimden
+  sonra kesilme tekrara, cihaz hata alıp global pendingPush temizlenmesi kayba
+  yol açabilecek sınırdır. Kalıcı kurulum/olay outbox ve claim gerekir.
+- `planDevicePush` aramaların sonuçlarını topluyor; aynı URL'yi aramalar
+  arasında tekilleştirmiyor. Kuyruk 50 kayıtla sınırlı; taşanı sessiz kaybetme
+  politikası yerine açık durum/saklama kuralı gerekir.
+- Flutter'da `onMessage` ön plan işlemi ve özel inbox/history eşitlemesi yok;
+  tap ve token refresh bağlanmış. Eski local üreticiyle çift bildirim kapısı gerekli.
+- Kurulum sırrı `SettingsStore` köprüsünde; secure storage'a taşınması önerilir.
+- Snapshot full merge mevcut; sequence delta/tombstone protokolü henüz yok.
+  RemoteCatalogueClient ETag destekliyor ama mobil sync çağrısı ETag'i henüz
+  vermiyor; yeteneğin varlığı ile uçtan uca 304 kullanımını ayırmalıyız.
+
+Mevcut backend **Dart native/Docker**; Cloudflare Workers'a imaj yüklenerek
+çalıştırılamaz. Ücretsiz fizibilitenin bir kapısı dil/runtime uyarlamasıdır.
+Önce saf çekirdeğin Workers uyumlu çıktı üretme olanağı küçük deneyle ölçülür;
+dart:io ve package bağımlılıkları nedeniyle uyum varsayılmaz. Uyum yoksa sadece
+gerekli ingest/eşleştirme Worker kodu TypeScript'e taşınır, aynı fixtures ile
+parite kontrol edilir. Bu taşımanın bakım maliyeti raporlanmadan tam port yapılmaz.
 
 ## 3. Uyarlanmış veri akışı
 
@@ -115,6 +158,8 @@ FCM olay uyarısı taşır; ilan verisinin güvenilir eşitleme kanalı değildi
    planlı temizlenir. Yeniden kurulum yeni kayıt olabilir; otomatik cihazlar arası
    hesap eşitlemesi vaat edilmez. Mevcut dışa/içe aktarma korunur; kimlik sırları yedeğe girmez.
 
+Mevcut rastgele id/secret + hash modeli önerinin temelidir; sunucu üretimli
+kimliğe geçiş zorunlu değildir. Önce mevcut PUT/DELETE sözleşmesi korunur.
 Öneri Firebase Auth kullanmadan kurulum yetkilendirmesidir. Firebase anonim Auth
 alternatif olarak giriş ekranını kaldırır ama üçüncü bir Firebase servisi ve
 anonim hesap yaşam döngüsü ekler; bu sürümün zorunlu parçası değildir.
@@ -150,7 +195,8 @@ yeni-ilan push'ına girmez; favorilerde tarihsel olarak kalabilir.
 İlk geçişte bugünkü destekli filtreler korunur. KPSS puanı, alt yaş/referans tarih,
 çoklu pozisyon ve kurum/unvan/ilçe/özel kontenjan filtreleri yeterli kanıt verisi
 oldukça eklenir; ekranda olup gerçekte çalışmayan filtre sunulmaz.
-Mobil Dart ve Worker eşleştirmesi aynı sözleşme ve ortak JSON örnekleriyle
+Mobil ile mevcut Dart backend aynı çekirdeği zaten paylaşır. Worker'a dil
+taşıması gerekirse aynı sözleşme ve ortak JSON örnekleriyle
 doğrulanır. Dart işlevi TypeScript'te doğrudan kullanılamaz; iki uygulama aynı
 veri örnekleriyle aynı sonucu vermelidir. Yeni genel kural motoru gerekmez.
 
@@ -180,7 +226,8 @@ kaçırılan olayları getirir; FCM tek başına geçmişi tamamlayamaz.
 
 ## 7. En küçük sunucu veri modeli ve API
 
-Bu bir şema önerisidir; migration/SQL uygulaması henüz yapılmaz.
+Bu bir D1 şema önerisidir; migration/SQL uygulaması henüz yapılmaz. Var olan
+Storage/DeviceRegistration/Snapshot modelleri alan ve API uyumluluğu için esas alınır.
 
 | Tablo | Amaç ve temel anahtar |
 | --- | --- |
@@ -218,16 +265,23 @@ yazmaları da kota tüketir. [D1 fiyatlandırma](https://developers.cloudflare.c
 | GET /api/v1/installations/me/inbox | olay cursor'u; yetkili, private/no-store |
 | DELETE /api/v1/installations/me | kurulumun bulut verisini sil; yetkili |
 
-Özel uçlarda kimlik URL'den seçilmez; belirteç sahibi sunucuda türetilir.
+Bu endpoint listesi hedef sözleşme taslağıdır; mevcut `/v1/listings.json`,
+`/v1/sources.json`, `/v1/health`, `PUT|DELETE /v1/devices/{id}` korunarak başlanır.
+Yeni `/api/v1` adı için istemciyi sebepsiz kırmayız; sync/inbox ekleri mevcut
+versiyonda veya uyumluluk yolu ile açılır. Mevcut devices/{id} için secret/id
+eşleşmesi sunucuda kontrol edilir; başka kaydı seçmek yetki vermez.
+Yeni özel uçlarda belirteç sahibi sunucuda türetilir.
 Public filtreler allowlist; SQL parametreli; internal ingest/send public API değildir.
-Tek küçük TypeScript Worker projesi: `backend/src/` içinde API, ingest, match,
-notify; `backend/migrations/`, `backend/test/`, `wrangler.jsonc`. Mikroservis yok.
+Mevcut `backend/` Dart projesi yerinde korunur. Runtime fizibilitesi TypeScript
+gerektirirse ayrı küçük `workers/` projesi ve D1 migrations eklenir; mevcut Dart
+klasörüne TypeScript dosyaları karıştırılmaz. Mikroservis yok.
 
 ## 8. Güvenilir toplama, gönderme ve sync
 
 ### Toplama
 
-Önce yalnızca Kariyer Kapısı. Listeyi getir, source identity ile tekilleştir,
+Mevcut Dart pipeline davranışını esas alarak önce yalnızca Kariyer Kapısı.
+Listeyi getir, source identity ile tekilleştir,
 değişen içeriği hash ile belirle; ayrıntıları sınırlı iş olarak hazırla. Parser
 başarısızlığı kayıtları silmez. ETag/cursor ancak kaynak gerçekten destekliyorsa
 kullanılır; bugünkü adaptörlerde varmış gibi kabul edilmez. Yeni ilanlar önce
@@ -360,7 +414,7 @@ hazırlığını içerir. [Platform kurulumu](https://firebase.google.com/docs/c
 | Commit sonrası push, retry, secrets, log | jobId tek başına push tekilleştirmesi yetmez; kurulum/olay bazında outbox |
 | Güvenilmeyen dış içerik ve kaynak allowlist | Redirect hedefi, boyut, timeout; CAPTCHA/login aşma yok |
 | Kişisel abonelik sistemi | “Sonra yapılacak” değil ilk kişisel push sürümünde zorunlu |
-| Queue fikri | Ücretsiz işlem sayısı ve retention ile batch prototipi; R2/DO/KV gerekçe olmadan yok |
+| Queue fikri | Mevcut Dart gönderici Worker'a doğrudan taşınamaz; ücretsiz batch prototipi; R2/DO/KV gerekçe olmadan yok |
 | AI hash/maliyet fikri | AI ilk sürümde kapalı; deterministik çıkarım yeterli |
 | Ortam ayrımı | Önce local dev + ayrı test Firebase/D1 + prod; gereksiz üçüncü sürekli ortam yok |
 | Güvenlik | Her WAF/bot özelliği ücretsiz sanılmaz; endpoint sınırları ve kullanılabilir ücretsiz kurallar |
@@ -369,15 +423,15 @@ hazırlığını içerir. [Platform kurulumu](https://firebase.google.com/docs/c
 
 | Faz | Yapılacak | Tamamlanma kanıtı |
 | --- | --- | --- |
-| 0 — sözleşme | Mevcut etiket/profile alanları, KPSS puanı, bilinmeyen ve çoklu pozisyon kuralları; servis isimleri | Dart/Worker ortak örnekleri ve bu tasarımın karara bağlanması |
-| 1 — ücretsiz fizibilite | Workers Free'den Kariyer/SBB/RG erişimi, boyut/CPU/crypto; küçük FCM gönderimi; batch yük denemesi | Gerçek kaynak ve gönderici 10 ms/istek sınırında; engeller açık |
+| 0 — sözleşme | Yeni Dart backend/core/FCM temelini koruma; etiket/profile, KPSS puanı, unknown/pozisyon kuralları | Mevcut API ve testlerin haritası, bu tasarımın karara bağlanması |
+| 1 — ücretsiz fizibilite | Workers runtime/Dart uyumu veya dar port; Kariyer/SBB erişimi, CPU/crypto/FCM batch | 10 ms/istek ve runtime kanıtı; engeller açık |
 | 2 — merkezi katalog | Tek kaynak Kariyer, kaynak kimlikleri, pending ayrıntı, kanıt çıkarımı, migration, bounded Cron | Aynı tur iki kez çalışınca duplicate yok; hata eski ilanları silmiyor |
 | 3 — mobil API/sync | Public API, sqflite migration, ilk snapshot/delta, favorite koruma | Offline açılış; yarıda kesilen sync tekrarında veri/favori kaybı yok |
 | 4 — kurulum/tercih | Güvenli kurulum kaydı, token/izin, sürümlü aramalar, silme | Başka kurulum verisine erişim yok; offline edit/token yenileme doğru |
 | 5 — kişisel push | Match + outbox + bounded sender; gerekli ise Queues batch; history/tap | Aynı ilan çoklu aramada tek olay; açık/kapalı gerçek Android testi |
 | 6 — modlar | Tam tarihli günlük sınır, quiet hours/timezone, gerçek günlük digest, local deadline | Gün/ay değişimi, quiet saat, tercih iptali ve cap yarışları doğru |
 | 7 — yük ve işletim | 10.000 sentetik kurulum; geniş/dar eşleşme, retry; cache ve kota ölçümü | Kota rezervi, gecikme ve maliyet raporu; ücretli servise bağımlılık yok |
-| 8 — yayın kapısı | SBB/RG kapsamı, gizlilik/mağaza beyanı, iOS/APNs; kademeli test dağıtımı | Android release ve Apple gerçek cihaz kanıtı; kaynak şartları ve kapatma yolu |
+| 8 — yayın kapısı | SBB kapsamı, gizlilik/mağaza beyanı, iOS/APNs; kademeli test dağıtımı | Android release ve Apple gerçek cihaz kanıtı; kaynak şartları ve kapatma yolu |
 
 İlk prototipin başarı ölçütü “sunucu kurulmuş” değildir: aynı filtreli iki farklı
 cihazdan yalnızca eşleşene bildirim gitmesi, kapalı cihazın tap ile doğru ilanı
@@ -395,10 +449,16 @@ bekleyen işler; izin ret/sonradan kapatma; offline/migration/bozuk delta;
 snapshot sırasında yeni kayıt ve silinme; eski cursor full sync; bildirim
 tap'inde cache boş/ilan kaldırılmış; kayıt spam'ı ve başka kurulum yetkisi.
 
-İnceleme sırasında mevcut beş dosyalık hedefli kontrol çalıştırıldı: search_alerts,
+İlk yerel tabanda beş dosyalık hedefli kontrol çalıştırıldı: search_alerts,
 catalogue_refresh, listing_store, alert_tap ve extraction_eval; **43 test geçti**.
-Bu, mevcut yerel akışın kanıtıdır; önerilen bulut mimarisinin testi değildir.
-Yeni canlı kaynak/FCM/yük veya iOS cihaz testi bu aşamada yapılmadı.
+Bu, eski yerel tabanın kanıtıdır. Uzak commitler birleştirildikten sonra
+**104 ortak çekirdek + 37 backend + 83 Flutter = 224 test geçti**.
+Ortak çekirdek ve backend statik analizi temiz. Flutter analyze, diğer ajanın
+`test/remote_sync_test.dart:8-9` satırlarında iki unnecessary_import bildirimi
+verdi; bu incelemede uygulama/test kodu değiştirilmedi. Birleştirme sonrası
+pub get mevcut Firebase/core bağımlılıklarının eksik root lock kayıtlarını tamamladı.
+Bunlar canlı bulut mimarisini
+kanıtlamaz; yeni canlı kaynak/FCM/yük veya iOS cihaz testi bu aşamada yapılmadı.
 
 Mobilde mevcut testler genişletilir; backend için küçük runnable kontroller ve
 aynı JSON eşleşme örnekleri yeterli başlangıçtır. Mevcut test framework'ü

@@ -1,0 +1,37 @@
+# Taşınabilir kurulum (ör. Türkiye'de küçük bir VPS): Google hesabı gerekmez.
+#   cp ../.env.example .env   # ve değerleri doldurun
+#   docker compose -f backend/deploy/docker-compose.yml up -d --build
+# Bağlam depo köküdür. Önüne TLS için Caddy/nginx koyun (bkz. Caddyfile).
+# Push için FCM yine Google/Apple altyapısından geçer: PUSH=fcm + servis hesabı
+# anahtarı (GOOGLE_APPLICATION_CREDENTIALS) gerekir; PUSH=log ile yalnızca deneme.
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    command: ["/app/server"]
+    env_file: ../.env
+    environment:
+      STORAGE: file
+      DATA_DIR: /data
+      PORT: "8080"
+    volumes:
+      - kamubul-data:/data
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+  worker:
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    command: ["/app/job"]
+    env_file: ../.env
+    environment:
+      STORAGE: file
+      DATA_DIR: /data
+      SCHEDULE_TIMES: "08:00,13:00,18:00"
+    volumes:
+      - kamubul-data:/data
+    restart: unless-stopped
+volumes:
+  kamubul-data:

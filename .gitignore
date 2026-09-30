@@ -56,3 +56,8 @@ test/failures/
 # --- Desteklenmeyen platform iskeletleri (ürün yalnız Android/iOS) ---
 web/
 windows/
+
+# Arka uç yerel veri ve ortam dosyaları
+backend/data/
+backend/.env
+backend/.firebaserc

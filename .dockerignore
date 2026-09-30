@@ -1,0 +1,8 @@
+# Arka uç imajı yalnızca backend/ ve packages/kamubul_core/ ister.
+*
+!backend
+!packages/kamubul_core
+**/.dart_tool
+**/build
+backend/data
+backend/.env*
