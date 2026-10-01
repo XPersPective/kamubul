@@ -224,5 +224,27 @@ void main() {
       );
       expect(search.filters['sehir'], 'ANKARA');
     });
+    // Canonical koşul bulunmayan eski kayıt kesin eşleşme sayılmaz.
+    await tester.tap(
+      find.descendant(of: sheet, matching: find.text(updatedName)),
+    );
+    await pumpRoute(tester);
+    expect(
+      find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
+      findsNothing,
+    );
+    final uncertain = find.widgetWithText(FilterChip, 'Şartları kontrol et');
+    await tester.ensureVisible(uncertain);
+    await tester.tap(uncertain);
+    await pumpRoute(tester);
+    expect(
+      find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Şartları kontrol et • bazı kriterler doğrulanamadı.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 }

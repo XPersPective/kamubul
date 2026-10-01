@@ -306,8 +306,62 @@ class ListingStore {
 
   Future<List<ListingRecord>> allListings() async {
     final db = await database;
-    final rows = await db.query('listings', orderBy: 'publishedAt DESC, url');
-    return rows.map(ListingRecord.fromRow).toList();
+    return db.transaction((txn) async {
+      final rows = await txn.query(
+        'listings',
+        orderBy: 'publishedAt DESC, url',
+      );
+      final byUrl = <String, Map<String, Object?>>{};
+      final ambiguous = <String>{};
+      var after = '';
+      // Android's system SQLite does not always have JSON1. Decode bounded pages.
+      // ponytail: O(cached catalogue); add visible-ID projection if retention leaves a large archive.
+      while (true) {
+        final remote = await txn.query(
+          'remote_catalogue',
+          columns: ['id', 'url', 'active', 'payload'],
+          where: 'id > ?',
+          whereArgs: [after],
+          orderBy: 'id',
+          limit: 50,
+        );
+        if (remote.isEmpty) break;
+        for (final row in remote) {
+          final url = row['url'] as String?;
+          if (url == null) continue;
+          if (byUrl.containsKey(url)) {
+            ambiguous.add(url);
+            continue;
+          }
+          final payload = jsonDecode(row['payload'] as String) as Map;
+          byUrl[url] = {
+            'active': row['active'] == 1 && payload['active'] != false,
+            for (final key in [
+              'title',
+              'category',
+              'institution',
+              'publishedAt',
+              'deadline',
+              'places',
+              'occupations',
+              'requirementGroups',
+            ])
+              key: payload[key],
+          };
+        }
+        after = remote.last['id'] as String;
+      }
+      return [
+        for (final row in rows)
+          ListingRecord.fromRow(row).copyWith(
+            criteriaListing: ambiguous.contains(row['url'])
+                ? {
+                    'requirementGroups': [null],
+                  }
+                : byUrl[row['url']],
+          ),
+      ];
+    });
   }
 
   /// Resmî şehir sorgusunun döndürdüğü mevcut ilanlara doğrulanmış yeri ekler.

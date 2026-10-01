@@ -1,8 +1,9 @@
 import '../notifications/alert_history.dart';
 import 'listing_models.dart';
+import 'search_criteria.dart';
 
-/// Kayıtlı arama süzgeçlerini ilan kaydına uygulayan saf eşleştirici.
-/// Hem ana ekran listesi hem arka plan bildirim eşleştirmesi bunu kullanır.
+/// Kaydedilmemiş hızlı süzgeçlerin legacy eşleştiricisi.
+/// Kayıtlı arama ve bildirimler SavedSearch.matchListing kullanır.
 bool matchesFilters(
   ListingRecord record,
   Map<String, String> filters, {
@@ -143,7 +144,8 @@ NotificationDecision decideAlerts({
   final mode = alertModeOf(search.filters);
   final matches = listings
       .where(
-        (record) => matchesFilters(record, search.filters, now: config.now),
+        (record) =>
+            search.matchListing(record, now: config.now) == CriteriaMatch.match,
       )
       .toList();
   final seen = <String>{...previouslySeen};

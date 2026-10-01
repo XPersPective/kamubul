@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul_core/kamubul_core.dart';
@@ -20,6 +23,7 @@ void main() {
     );
   });
   tearDown(() => store.close());
+
   const url = 'https://kariyerkapisi.gov.tr/IlanDetay?i=7';
   Map<String, Object?> item(int revision, {String title = 'Memur'}) => {
     'id': 'stable',
@@ -49,6 +53,155 @@ void main() {
       },
     ],
   }, after: after ?? seq - 1);
+
+  test(
+    'Worker ortak corpus SQLite projeksiyonundan da aynı 19 sonucu verir',
+    () async {
+      final corpus = jsonDecode(
+        File('contracts/criteria-v2.json').readAsStringSync(),
+      ) as List;
+      var seq = 0;
+      for (final raw in corpus) {
+        final row = raw as Map;
+        final id = 'corpus-${++seq}';
+        final data = <String, Object?>{
+          ...item(1),
+          ...Map<String, Object?>.from(row['listing'] as Map),
+          'id': id,
+          'url': 'https://kariyerkapisi.gov.tr/IlanDetay?i=$seq',
+        };
+        await store.applyDeltaPage(
+          CatalogueDeltaPage(seq, seq, false, [
+            CatalogueChange(seq, id, 1, false, data),
+          ]),
+          after: seq - 1,
+        );
+        final record = (await store.allListings()).firstWhere(
+          (r) => r.url == data['url'],
+        );
+        final criteria = row['legacy'] != null
+            ? SearchCriteria.fromLegacy(
+                Map<String, String>.from(row['legacy'] as Map),
+              )
+            : SearchCriteria.parse(
+                Map<String, Object?>.from(row['criteria'] as Map),
+              );
+        final search = SavedSearch(
+          id: 1,
+          name: 'Corpus',
+          filters: const {},
+          criteria: criteria,
+          createdAt: DateTime(2026),
+        );
+        final outcome = search.matchListing(
+          record,
+          now: DateTime.utc(2026, 9, 30, 12),
+        );
+        expect(
+          outcome == CriteriaMatch.noMatch ? 'no_match' : outcome.name,
+          row['expected'],
+          reason: '${row['name']}',
+        );
+      }
+    },
+  );
+  test('canonical kadrolar cache okumasında ayrıdır; UI ve bildirim aynı puan sınırını kullanır', () async {
+    final data = {
+      ...item(1),
+      'active': true,
+      'publishedAt': '2026-09-29T12:00:00Z',
+      'requirementGroups': [
+        {
+          'cities': ['Ankara'],
+          'occupations': ['Mühendis'],
+          'education': ['Lisans'],
+          'kpssStatus': 'required',
+          'kpssType': 'P3',
+          'kpssScore': 70,
+          'kpssYear': 2024,
+          'ageStatus': 'known',
+          'maxAge': 35,
+        },
+        {
+          'cities': ['İzmir'],
+          'occupations': ['Mimar'],
+          'education': ['Lisans'],
+          'kpssStatus': 'required',
+          'kpssType': 'P3',
+          'kpssScore': 80,
+          'ageStatus': 'known',
+          'maxAge': 30,
+        },
+      ],
+      'documentText': 'large source document',
+    };
+    await store.applyDeltaPage(
+      CatalogueDeltaPage(1, 1, false, [
+        CatalogueChange(1, 'stable', 1, false, data),
+      ]),
+      after: 0,
+    );
+    final record = (await store.allListings()).single;
+    expect(
+      record.criteriaListing!['requirementGroups'],
+      data['requirementGroups'],
+    );
+    expect(record.criteriaListing!.containsKey('documentText'), isFalse);
+    SavedSearch candidate(num score, String city) => SavedSearch(
+      id: 1,
+      name: 'Kişisel',
+      filters: const {},
+      createdAt: DateTime(2026),
+      criteria: SearchCriteria.parse({
+        'version': 2,
+        'cities': [city],
+        'occupations': ['Mühendis'],
+        'age': 34,
+        'ageAsOf': '2026-09-29',
+        'kpssType': 'P3',
+        'kpssScore': score,
+        'kpssYear': 2024,
+      }),
+    );
+    final now = DateTime.utc(2026, 9, 30, 12);
+    expect(
+      candidate(70, 'Ankara').matchListing(record, now: now),
+      CriteriaMatch.match,
+    );
+    expect(
+      candidate(69.99, 'Ankara').matchListing(record, now: now),
+      CriteriaMatch.noMatch,
+    );
+    expect(
+      candidate(90, 'İzmir').matchListing(record, now: now),
+      CriteriaMatch.noMatch,
+      reason: 'Farklı kadroların şartları birleştirilmez',
+    );
+    expect(
+      decideAlerts(
+        search: candidate(69.99, 'Ankara'),
+        listings: [record],
+        previouslySeen: {},
+        config: AlertConfig(
+          now: now,
+          quietStartHour: 22,
+          quietEndHour: 8,
+          maxInstantPerDay: 6,
+          instantSentToday: 0,
+          digestSentDay: null,
+        ),
+      ).notifications,
+      isEmpty,
+    );
+    await store.setSaved(record.url, true);
+    await store.applyDeltaPage(page(2, 2, deleted: true), after: 1);
+    final removed = (await store.allListings()).single;
+    expect(removed.saved, isTrue);
+    expect(
+      candidate(90, 'Ankara').matchListing(removed, now: now),
+      CriteriaMatch.noMatch,
+    );
+  });
   test(
     'delta updates preserve favorite; tombstone keeps saved record and cursor',
     () async {

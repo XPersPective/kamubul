@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kamubul_core/kamubul_core.dart'
-    show SourceStatus, SearchCriteria;
+    show SourceStatus, SearchCriteria, CriteriaMatch;
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -77,7 +77,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
   int? _ageFilter;
   String? _educationFilter;
   String? _kpssFilter;
-  String? _activeSearchName;
+  int? _activeSearchId;
+  bool _includeUnknown = false;
+
+  SavedSearch? get _activeSearch =>
+      _searches.where((s) => s.id == _activeSearchId).firstOrNull;
   bool _loading = false;
   bool _cityLoading = false;
   String? _cityError;
@@ -374,9 +378,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   List<ListingRecord> get _visibleRecords {
     final filters = _currentFilters;
+    final active = _activeSearch;
     if (_tab == 1) filters['kategori'] = '0';
     return _records.where((record) {
       if (_tab == 1 && !record.saved) return false;
+      if (active != null) {
+        final match = active.matchListing(record, now: DateTime.now());
+        return match == CriteriaMatch.match ||
+            (_includeUnknown && match == CriteriaMatch.unknown);
+      }
       return matchesFilters(record, filters, forSaved: _tab == 1);
     }).toList();
   }
@@ -406,7 +416,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _kpssFilter = (search.filters['kpss'] ?? '').isEmpty
           ? null
           : search.filters['kpss'];
-      _activeSearchName = search.name;
+      _activeSearchId = search.id;
+      _includeUnknown = false;
     });
     if (city != null && city.isNotEmpty) _refreshCity(city);
   }
@@ -506,7 +517,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
     if (!mounted || chosen == null) return;
     setState(() {
       _place = chosen;
-      _activeSearchName = null;
+      _activeSearchId = null;
+      _includeUnknown = false;
     });
     await _refreshCity(chosen);
   }
@@ -521,7 +533,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _ageFilter = null;
       _educationFilter = null;
       _kpssFilter = null;
-      _activeSearchName = null;
+      _activeSearchId = null;
+      _includeUnknown = false;
       _cityError = null;
       _cityLoading = false;
     });
@@ -547,7 +560,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   Future<void> _saveCurrentSearch() async {
     SavedSearch? existing;
     for (final search in _searches) {
-      if (search.name == _activeSearchName) existing = search;
+      if (search.id == _activeSearchId) existing = search;
     }
     final seed =
         existing ??
@@ -557,15 +570,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
           filters: _currentFilters,
           createdAt: DateTime.now(),
         );
-    final saved = await _promptEditSearch(seed, creating: existing == null);
+    var saved = await _promptEditSearch(seed, creating: existing == null);
     if (saved == null) return;
     if (existing != null) {
       await _store.updateSavedSearch(saved);
     } else {
-      await _store.addSavedSearch(saved);
+      saved = await _store.addSavedSearch(saved);
     }
     await _loadLocal();
-    if (mounted) setState(() => _activeSearchName = saved.name);
+    if (mounted) setState(() => _activeSearchId = saved!.id);
     if (existing == null) await _maybeAskNotificationPermission();
   }
 
@@ -617,9 +630,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       await _store.updateSavedSearch(
                         search.copyWith(name: trimmed),
                       );
-                      if (_activeSearchName == search.name) {
-                        _activeSearchName = trimmed;
-                      }
                       if (sheetContext.mounted) {
                         Navigator.pop(sheetContext, true);
                       }
@@ -630,8 +640,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       if (ok != true) return;
                       final id = search.id;
                       if (id != null) await _store.deleteSavedSearch(id);
-                      if (_activeSearchName == search.name) {
-                        _activeSearchName = null;
+                      if (_activeSearchId == search.id) {
+                        _activeSearchId = null;
+                        _includeUnknown = false;
                       }
                       if (sheetContext.mounted) {
                         Navigator.pop(sheetContext, true);
@@ -642,9 +653,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       final updated = await _promptEditSearch(search);
                       if (updated == null) return;
                       await _store.updateSavedSearch(updated);
-                      if (_activeSearchName == search.name) {
-                        _activeSearchName = updated.name;
-                      }
                       if (sheetContext.mounted) {
                         Navigator.pop(sheetContext, true);
                       }
@@ -693,9 +701,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
       ),
     );
     await _loadLocal();
-    if (changed == true && _activeSearchName != null && mounted) {
-      final stillExists = _searches.any((s) => s.name == _activeSearchName);
-      if (!stillExists) setState(() => _activeSearchName = null);
+    if (changed == true && _activeSearchId != null && mounted) {
+      final stillExists = _searches.any((s) => s.id == _activeSearchId);
+      if (!stillExists) {
+        setState(() {
+          _activeSearchId = null;
+          _includeUnknown = false;
+        });
+      }
     }
   }
 
@@ -1188,7 +1201,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ),
           onChanged: (value) => setState(() {
             _search = value;
-            _activeSearchName = null;
+            _activeSearchId = null;
+            _includeUnknown = false;
           }),
         ),
         const SizedBox(height: 8),
@@ -1203,7 +1217,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     label: Text(_place!),
                     onDeleted: () => setState(() {
                       _place = null;
-                      _activeSearchName = null;
+                      _activeSearchId = null;
+                      _includeUnknown = false;
                     }),
                   ),
                 )
@@ -1216,6 +1231,16 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     onPressed: _chooseCity,
                   ),
                 ),
+              if (_activeSearch != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: const Text('Şartları kontrol et'),
+                    selected: _includeUnknown,
+                    onSelected: (value) =>
+                        setState(() => _includeUnknown = value),
+                  ),
+                ),
               for (final (index, label) in _kategoriAdlari.indexed)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -1226,7 +1251,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       HapticFeedback.selectionClick();
                       setState(() {
                         _category = index;
-                        _activeSearchName = null;
+                        _activeSearchId = null;
+                        _includeUnknown = false;
                       });
                     },
                   ),
@@ -1240,7 +1266,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     HapticFeedback.selectionClick();
                     setState(() {
                       _last30 = value;
-                      _activeSearchName = null;
+                      _activeSearchId = null;
+                      _includeUnknown = false;
                     });
                   },
                 ),
@@ -1252,7 +1279,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     label: Text('Yaş uyarı: $_ageFilter'),
                     onDeleted: () => setState(() {
                       _ageFilter = null;
-                      _activeSearchName = null;
+                      _activeSearchId = null;
+                      _includeUnknown = false;
                     }),
                   ),
                 ),
@@ -1263,7 +1291,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     label: Text(_educationFilter!),
                     onDeleted: () => setState(() {
                       _educationFilter = null;
-                      _activeSearchName = null;
+                      _activeSearchId = null;
+                      _includeUnknown = false;
                     }),
                   ),
                 ),
@@ -1274,7 +1303,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     label: Text('KPSS $_kpssFilter'),
                     onDeleted: () => setState(() {
                       _kpssFilter = null;
-                      _activeSearchName = null;
+                      _activeSearchId = null;
+                      _includeUnknown = false;
                     }),
                   ),
                 ),
@@ -1330,7 +1360,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
                 label: Text(search.name),
-                selected: _activeSearchName == search.name,
+                selected: _activeSearchId == search.id,
                 onSelected: (_) => _applySearch(search),
               ),
             ),
@@ -1340,18 +1370,26 @@ class _KamuHomePageState extends State<KamuHomePage> {
   }
 
   Widget _listingCard(ListingRecord record) {
+    final unresolved =
+        _activeSearch?.matchListing(record, now: DateTime.now()) ==
+        CriteriaMatch.unknown;
     final expired = record.expired;
     final profileMatch = _searches.any(
       (search) =>
           !search.hasInvalidCriteria &&
           search.name == 'Sizin için' &&
-          [
-            'sehir',
-            'yas',
-            'egitim',
-            'kpss',
-          ].any((key) => (search.filters[key] ?? '').isNotEmpty) &&
-          matchesFilters(record, search.filters),
+          ((search.criteria?.values.keys.any(
+                    (key) => !['version', 'keywordScope'].contains(key),
+                  ) ??
+                  false) ||
+              [
+                'sehir',
+                'yas',
+                'egitim',
+                'kpss',
+              ].any((key) => (search.filters[key] ?? '').isNotEmpty)) &&
+          search.matchListing(record, now: DateTime.now()) ==
+              CriteriaMatch.match,
     );
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
@@ -1369,6 +1407,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (unresolved)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Şartları kontrol et • bazı kriterler doğrulanamadı.',
+                  ),
+                ),
               Row(
                 children: [
                   Icon(

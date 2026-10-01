@@ -35,6 +35,7 @@ class ListingRecord {
     this.fingerprint,
     this.saved = false,
     this.savedAt,
+    this.criteriaListing,
   });
 
   final String url;
@@ -62,6 +63,19 @@ class ListingRecord {
   final bool saved;
   final DateTime? savedAt;
 
+  /// V2 cache projeksiyonu; düz legacy şartlardan kadro koşulu türetilmez.
+  final Map<String, Object?>? criteriaListing;
+
+  Map<String, Object?> get matchingData =>
+      criteriaListing ??
+      {
+        'title': title,
+        'category': category,
+        'places': places,
+        'publishedAt': publishedAt?.toIso8601String(),
+        'deadline': deadline?.toIso8601String(),
+      };
+
   ListingRecord copyWith({
     DateTime? fetchedAt,
     int? quota,
@@ -80,6 +94,7 @@ class ListingRecord {
     String? fingerprint,
     bool? saved,
     DateTime? savedAt,
+    Map<String, Object?>? criteriaListing,
   }) => ListingRecord(
     url: url,
     sourceId: sourceId,
@@ -102,6 +117,7 @@ class ListingRecord {
     fingerprint: fingerprint ?? this.fingerprint,
     saved: saved ?? this.saved,
     savedAt: savedAt ?? this.savedAt,
+    criteriaListing: criteriaListing ?? this.criteriaListing,
   );
 
   bool get expired => deadline != null && deadline!.isBefore(DateTime.now());
@@ -217,6 +233,14 @@ class SavedSearch {
       throw const FormatException('saved_search_criteria');
     }
     return criteria ?? SearchCriteria.fromLegacy(filters);
+  }
+
+  CriteriaMatch matchListing(ListingRecord record, {required DateTime now}) {
+    try {
+      return effectiveCriteria.match(record.matchingData, now: now);
+    } on FormatException {
+      return CriteriaMatch.unknown;
+    }
   }
 
   SavedSearch copyWith({
