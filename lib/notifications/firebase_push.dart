@@ -29,7 +29,7 @@ bool get firebaseConfigured =>
 
 String? _httpsUrl(RemoteMessage message) {
   final url = message.data['url'];
-  if (url is! String) return null;
+  if (url is! String || url.length > 2048) return null;
   final uri = Uri.tryParse(url);
   return uri != null &&
           uri.scheme == 'https' &&
@@ -42,13 +42,24 @@ String? _httpsUrl(RemoteMessage message) {
 PendingNotification? foregroundNotification(RemoteMessage message) {
   final url = _httpsUrl(message);
   final title = message.notification?.title?.trim();
-  if (url == null || title == null || title.isEmpty) return null;
+  final eventId = message.data['eventId'];
+  final body = message.notification?.body ?? '';
+  if (url == null ||
+      title == null ||
+      title.isEmpty ||
+      title.length > 300 ||
+      body.length > 2000 ||
+      eventId is! String ||
+      !RegExp(r'^[a-f\d]{64}$').hasMatch(eventId)) {
+    return null;
+  }
   return PendingNotification(
     searchName: '',
     title: title,
-    body: message.notification?.body ?? '',
+    body: body,
     listingUrl: url,
     digest: message.data['kind'] == 'digest',
+    eventId: eventId,
   );
 }
 

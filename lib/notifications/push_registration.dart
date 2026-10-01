@@ -86,6 +86,7 @@ const String _kSecret = 'kamubul.push.secret';
 const String _kLastPayload = 'kamubul.push.lastPayload';
 const String _kLastSync = 'kamubul.push.lastSyncMs';
 const String _kPendingDelete = 'kamubul.push.pendingDelete';
+const String _kHistory = 'kamubul.push.history';
 const kPushStateKeys = [
   _kEnabled,
   _kId,
@@ -93,6 +94,7 @@ const kPushStateKeys = [
   _kLastPayload,
   _kLastSync,
   _kPendingDelete,
+  _kHistory,
 ];
 
 /// Sunucuya gidecek kayıt: yalnızca izinli süzgeç anahtarları, sınırlı
@@ -188,6 +190,8 @@ class PushRegistrar {
 
   List<SavedSearch> _lastSearches = const [];
   Future<void> _operations = Future.value();
+  final _historyChanges = StreamController<void>.broadcast();
+  Stream<void> get onHistoryChanged => _historyChanges.stream;
 
   // ponytail: per-installation FIFO; debounce edits before this queue if traffic grows.
   Future<T> _enqueue<T>(Future<T> Function() operation) {
@@ -221,6 +225,7 @@ class PushRegistrar {
       _kId: fresh.id,
       _kSecret: fresh.secret,
       _kLastPayload: null,
+      _kHistory: null,
     });
     return fresh;
   }
@@ -253,7 +258,11 @@ class PushRegistrar {
         _kLastPayload: null,
         _kLastSync: null,
         _kPendingDelete: '1',
+        _kHistory: null,
       });
+      if (!_historyChanges.isClosed) {
+        _historyChanges.add(null);
+      }
       if (id == null || secret == null) {
         await store.write({_kId: null, _kSecret: null, _kPendingDelete: null});
         return true;
@@ -334,10 +343,13 @@ class PushRegistrar {
       final credentials = await _credentials();
       final status = await _put(credentials, body);
       if (status == 200 || status == 201) {
-        await store.write({
-          _kLastPayload: body,
-          _kLastSync: '${_clock().millisecondsSinceEpoch}',
-        });
+        await _saveHistory(
+          _historyState(),
+          updates: {
+            _kLastPayload: body,
+            _kLastSync: '${_clock().millisecondsSinceEpoch}',
+          },
+        );
         return PushSyncOutcome.registered;
       }
       return PushSyncOutcome.failed;
@@ -375,5 +387,202 @@ class PushRegistrar {
     }
   }
 
-  void close() => _client.close();
+  Map<String, dynamic> _historyState() {
+    try {
+      final raw = jsonDecode(store.read(_kHistory) ?? 'null');
+      if (raw is Map<String, dynamic> &&
+          raw['owner'] == store.read(_kId) &&
+          raw['origin'] == baseUrl.toString() &&
+          raw['after'] is int &&
+          raw['after'] >= 0 &&
+          raw['after'] <= 9007199254740991 &&
+          (raw['watermark'] == null ||
+              (raw['watermark'] is int &&
+                  raw['watermark'] >= raw['after'] &&
+                  raw['watermark'] <= 9007199254740991)) &&
+          raw['records'] is List &&
+          raw['records'].length <= 100 &&
+          raw['seen'] is List &&
+          raw['seen'].length <= 200 &&
+          raw['seen'].every(
+            (id) => id is String && RegExp(r'^[a-f\d]{64}$').hasMatch(id),
+          )) {
+        return raw;
+      }
+    } on FormatException {
+      /* Reconcile a corrupt cache from the authenticated feed. */
+    }
+    return {
+      'owner': store.read(_kId),
+      'origin': baseUrl.toString(),
+      'after': 0,
+      'watermark': null,
+      'records': <dynamic>[],
+      'seen': <dynamic>[],
+    };
+  }
+
+  List<AlertRecord> get notificationHistory =>
+      (_historyState()['records'] as List)
+          .map(AlertRecord.fromJson)
+          .whereType<AlertRecord>()
+          .toList();
+
+  Future<void> _saveHistory(
+    Map<String, dynamic> state, {
+    Map<String, String> updates = const {},
+  }) async {
+    final records = state['records'] as List, seen = state['seen'] as List;
+    if (records.length > 100) records.removeRange(100, records.length);
+    if (seen.length > 200) seen.removeRange(200, seen.length);
+    final values = {
+      for (final key in kPushStateKeys)
+        if (key != _kHistory && store.read(key) != null) key: store.read(key)!,
+    };
+    values.addAll(updates);
+    String encoded;
+    // ponytail: 100 history / 200 received IDs, trimmed to the native 128KB state budget; SQLite is the upgrade path for longer retention.
+    for (;;) {
+      encoded = jsonEncode(state);
+      values[_kHistory] = encoded;
+      if (utf8.encode(jsonEncode(values)).length <= 120000) break;
+      if (records.isEmpty) {
+        throw const FormatException('notification history budget');
+      }
+      records.removeLast();
+    }
+    await store.write({...updates, _kHistory: encoded});
+    if (!_historyChanges.isClosed) {
+      _historyChanges.add(null);
+    }
+  }
+
+  /// Clears visible cached records; cursor and received IDs prevent resurrection.
+  Future<void> clearNotificationHistory() => _enqueue(() async {
+    final state = _historyState();
+    state['records'] = <dynamic>[];
+    await _saveHistory(state);
+  });
+
+  /// Commit receipt before presentation; concurrent/restarted foreground retries dedupe.
+  Future<bool> recordForeground(PendingNotification notification) =>
+      _enqueue(() async {
+        final id = notification.eventId;
+        if (!enabled || id == null || !RegExp(r'^[a-f\d]{64}$').hasMatch(id)) {
+          return false;
+        }
+        final state = _historyState(), seen = state['seen'] as List;
+        if (seen.contains(id)) return false;
+        final record = AlertRecord(
+          id: id,
+          kind: notification.digest ? AlertKind.digest : AlertKind.instant,
+          searchName: '',
+          title: notification.title,
+          body: notification.body,
+          listingUrl: notification.listingUrl,
+          createdAt: _clock(),
+          delivery: AlertDelivery.received,
+        );
+        state['records'] = [
+          record.toJson(),
+          ...(state['records'] as List).where((r) => r is Map && r['id'] != id),
+        ];
+        seen.insert(0, id);
+        await _saveHistory(state);
+        return true;
+      });
+
+  /// No permission prompt, token request or new identity for a history read.
+  Future<bool> syncHistory() => _enqueue(() async {
+    final id = store.read(_kId), secret = store.read(_kSecret);
+    if (!enabled ||
+        id == null ||
+        secret == null ||
+        !isValidDeviceId(id) ||
+        !isValidDeviceSecret(secret)) {
+      return false;
+    }
+    try {
+      var state = _historyState();
+      var reset = false;
+      // ponytail: five pages per opening; pinned cursor persists across a larger backlog.
+      for (var i = 0; i < 5; i++) {
+        final after = state['after'] as int,
+            watermark = state['watermark'] as int?;
+        final request =
+            http.Request(
+                'GET',
+                _device(id).replace(
+                  path: '${_device(id).path}/notifications',
+                  queryParameters: {
+                    'after': '$after',
+                    'limit': '30',
+                    if (watermark != null) 'watermark': '$watermark',
+                  },
+                ),
+              )
+              ..followRedirects = false
+              ..headers.addAll({
+                'Accept': 'application/json',
+                'Authorization': 'Bearer $secret',
+                'Cache-Control': 'no-store',
+              });
+        final page = await (() async {
+          final response = await _client.send(request);
+          if (response.statusCode != 200) {
+            await response.stream.listen(null).cancel();
+            if (response.statusCode == 409 && !reset) return null;
+            throw const FormatException('notification history request');
+          }
+          final bytes = <int>[];
+          await for (final chunk in response.stream) {
+            if (bytes.length + chunk.length > 262144) {
+              throw const FormatException('notification history size');
+            }
+            bytes.addAll(chunk);
+          }
+          return NotificationHistoryPage.decode(
+            jsonDecode(utf8.decode(bytes)),
+            after: after,
+            expectedWatermark: watermark,
+          );
+        })().timeout(timeout);
+        if (page == null) {
+          reset = true;
+          state['after'] = 0;
+          state['watermark'] = null;
+          await _saveHistory(state);
+          continue;
+        }
+        final existing = {
+          for (final record
+              in (state['records'] as List)
+                  .map(AlertRecord.fromJson)
+                  .whereType<AlertRecord>())
+            record.id: record,
+        };
+        for (final record in page.records) {
+          if (existing[record.id]?.delivery == AlertDelivery.received) {
+            record.delivery = AlertDelivery.received;
+          }
+          existing[record.id] = record;
+        }
+        final records = existing.values.toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        state['records'] = records.map((r) => r.toJson()).toList();
+        state['after'] = page.appliedThrough;
+        state['watermark'] = page.hasMore ? page.watermark : null;
+        await _saveHistory(state);
+        if (!page.hasMore) return true;
+      }
+    } on Exception {
+      return false;
+    }
+    return false;
+  });
+
+  void close() {
+    _historyChanges.close();
+    _client.close();
+  }
 }

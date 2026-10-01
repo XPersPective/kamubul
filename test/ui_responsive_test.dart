@@ -10,10 +10,100 @@ import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/notifications/alert_history.dart';
 import 'package:kamubul/notifications/notification_center_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:kamubul/notifications/firebase_push.dart';
+import 'package:kamubul/notifications/push_registration.dart';
+import 'package:kamubul/notifications/push_setup.dart';
+import 'package:kamubul_core/kamubul_core.dart' show PendingNotification;
+
+class _PushStore implements PushStateStore {
+  final values = <String, String>{
+    'kamubul.push.enabled': '1',
+    'kamubul.push.id': 'a' * 32,
+    'kamubul.push.secret': 'b' * 64,
+  };
+  @override
+  String? read(String key) => values[key];
+  @override
+  Future<void> write(Map<String, String?> updates) async {
+    for (final entry in updates.entries) {
+      if (entry.value == null) {
+        values.remove(entry.key);
+      } else {
+        values[entry.key] = entry.value!;
+      }
+    }
+  }
+}
 
 /// PB-008: 1.3x metin ölçeği ve tablet genişliğinde taşma olmadan düzen;
 /// büyük başlık çökmesi ve yapışkan CTA davranışı.
 void main() {
+  testWidgets(
+    'sunucu geçmişi erişilemezken alınan kayıt ve uyarı 1.3x dar ekranda korunur',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final registrar = PushRegistrar(
+        baseUrl: Uri.parse('https://kamubul.example'),
+        platform: FirebasePush(),
+        store: _PushStore(),
+        client: MockClient((_) async => http.Response('unavailable', 500)),
+      );
+      await registrar.recordForeground(
+        PendingNotification(
+          searchName: '',
+          title: 'Memur ilanı',
+          body: 'Yeni ilan',
+          listingUrl: 'https://example.gov.tr',
+          eventId: 'c' * 64,
+        ),
+      );
+      pushRegistrar = registrar;
+      addTearDown(() {
+        pushRegistrar = null;
+        registrar.close();
+      });
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(320, 844);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(1.3)),
+            child: child!,
+          ),
+          home: const NotificationCenterPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(() => registrar.syncHistory());
+      await tester.pumpAndSettle();
+      expect(find.text('Memur ilanı'), findsOneWidget);
+      expect(find.text('Alındı'), findsOneWidget);
+      expect(
+        find.text('Sunucu geçmişi yenilenemedi. Yerel kayıtlar gösteriliyor.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.runAsync(
+        () => registrar.recordForeground(
+          PendingNotification(
+            searchName: '',
+            title: 'Yeni alınan ilan',
+            body: 'İlan',
+            listingUrl: 'https://example.gov.tr/new',
+            eventId: 'd' * 64,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Yeni alınan ilan'), findsOneWidget);
+      expect(find.text('Alındı'), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('SBB ilanı uygulama içinde özetlenir', (tester) async {
     final record = ListingRecord(
       url: 'https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod=1',

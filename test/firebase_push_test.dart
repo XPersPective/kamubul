@@ -7,13 +7,19 @@ void main() {
     final notification = foregroundNotification(
       const RemoteMessage(
         notification: RemoteNotification(title: ' Yeni ilan ', body: 'Kurum'),
-        data: {'url': 'https://kariyerkapisi.gov.tr/ilan', 'kind': 'digest'},
+        data: {
+          'url': 'https://kariyerkapisi.gov.tr/ilan',
+          'kind': 'digest',
+          'eventId': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        },
       ),
     );
     expect(notification?.title, 'Yeni ilan');
     expect(notification?.body, 'Kurum');
     expect(notification?.listingUrl, 'https://kariyerkapisi.gov.tr/ilan');
     expect(notification?.digest, isTrue);
+    expect(notification?.eventId, 'a' * 64);
+    expect(notification?.presentationId, 0x2aaaaaaa);
   });
   test('sessiz veri mesajı ve geçersiz bağlantı bildirim üretmez', () {
     expect(
@@ -33,7 +39,7 @@ void main() {
         foregroundNotification(
           RemoteMessage(
             notification: const RemoteNotification(title: 'İlan'),
-            data: {'url': url},
+            data: {'url': url, 'eventId': 'a' * 64},
           ),
         ),
         isNull,

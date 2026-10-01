@@ -1,15 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../ui/premium.dart';
 import 'alert_history.dart';
 import 'alert_service.dart';
+import 'push_setup.dart';
 
 /// Bildirim geçmişi: gönderilen, bekleyen ve gönderilmeyen tüm uyarılar.
 ///
-/// Veriler yalnızca bu cihazda tutulur (C-021); kullanıcı istediği an tek
-/// dokunuşla silebilir. Ertelenmiş bildirimler "Beklemede" rozetiyle görünür
-/// ve sessiz saat sonrası kuyruktan gönderilir.
+/// Yerel uyarılar ve anonim aboneliğin sunucu geçmişi cache'ten gösterilir.
+/// Sunucu kabulü cihaz teslimi olarak etiketlenmez; temizleme yerel görünümü siler.
 class NotificationCenterPage extends StatefulWidget {
   const NotificationCenterPage({super.key});
 
@@ -20,20 +22,49 @@ class NotificationCenterPage extends StatefulWidget {
 class _NotificationCenterPageState extends State<NotificationCenterPage> {
   List<AlertRecord> _history = [];
   bool _loading = true;
+  bool _historyFailed = false;
+  List<AlertRecord> _localHistory = [];
+  StreamSubscription<void>? _historyChanges;
 
   @override
   void initState() {
     super.initState();
+    _historyChanges = pushRegistrar?.onHistoryChanged.listen((_) {
+      if (mounted && !_loading) {
+        setState(() => _history = _cachedHistory());
+      }
+    });
     _load();
+  }
+
+  List<AlertRecord> _cachedHistory() =>
+      [..._localHistory, ...?pushRegistrar?.notificationHistory]
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  @override
+  void dispose() {
+    _historyChanges?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
     final settings = await AlertSettings.load();
     if (!mounted) return;
     setState(() {
-      _history = settings.history();
+      _localHistory = settings.history();
+      _history = _cachedHistory();
       _loading = false;
     });
+    final registrar = pushRegistrar;
+    if (registrar != null && registrar.enabled) {
+      final success = await registrar.syncHistory();
+      if (mounted) {
+        setState(() {
+          _historyFailed = !success;
+          _history = _cachedHistory();
+        });
+      }
+    }
   }
 
   Future<void> _clear() async {
@@ -60,6 +91,8 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
     if (confirmed != true) return;
     final settings = await AlertSettings.load();
     await settings.clearHistory();
+    _localHistory = [];
+    await pushRegistrar?.clearNotificationHistory();
     if (!mounted) return;
     setState(() => _history = const []);
     ScaffoldMessenger.of(
@@ -79,6 +112,19 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bildirimler'),
+        bottom: _historyFailed
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(64),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Sunucu geçmişi yenilenemedi. Yerel kayıtlar gösteriliyor.',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+            : null,
         actions: [
           if (_history.isNotEmpty)
             IconButton(
@@ -205,6 +251,11 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final (label, color) = switch (record.delivery) {
+      AlertDelivery.accepted => (
+        'Servise iletildi',
+        PremiumStatus.held(brightness),
+      ),
+      AlertDelivery.received => ('Alındı', PremiumStatus.delivered(brightness)),
       AlertDelivery.delivered => (
         'Gönderildi',
         PremiumStatus.delivered(brightness),
@@ -223,10 +274,8 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -250,10 +299,7 @@ class _EmptyHistory extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 16),
-            Text(
-              'Henüz bildirim yok',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('Henüz bildirim yok', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
               'Kayıtlı aramalarınıza uyan yeni ilanlar ve son başvuru '

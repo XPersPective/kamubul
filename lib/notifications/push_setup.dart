@@ -7,6 +7,7 @@ library;
 import 'dart:async';
 
 import 'package:napp_core/napp_core.dart';
+import 'package:flutter/widgets.dart';
 
 import '../data/remote_sync.dart';
 import 'alert_service.dart';
@@ -17,6 +18,7 @@ import 'secure_push_store.dart';
 PushRegistrar? pushRegistrar;
 
 bool _listening = false;
+AppLifecycleListener? _pushLifecycle;
 
 /// Açılışta bir kez çağrılır. Kullanıcı sunucu bildirimini açmadıysa Firebase'e
 /// hiç dokunulmaz.
@@ -43,6 +45,9 @@ Future<void> initPush(SettingsStore store) async {
     return;
   }
   pushRegistrar = registrar;
+  _pushLifecycle ??= AppLifecycleListener(
+    onResume: () => unawaited(registrar.syncHistory()),
+  );
   if (registrar.enabled) {
     unawaited(attachPushListeners().catchError((Object _) {}));
   }
@@ -52,13 +57,19 @@ Future<void> initPush(SettingsStore store) async {
 Future<void> attachPushListeners() async {
   final registrar = pushRegistrar;
   if (registrar == null || _listening) return;
+  unawaited(registrar.syncHistory());
   if (!await registrar.platform.initialize()) return;
   _listening = true;
   registrar.platform.onNotificationOpened.listen(openAlertUrl);
   registrar.platform.onForegroundNotification.listen((notification) {
     if (!registrar.enabled) return;
     unawaited(
-      showPendingNotification(notification).catchError((Object error) {
+      (() async {
+        if (await registrar.recordForeground(notification) &&
+            registrar.enabled) {
+          await showPendingNotification(notification);
+        }
+      })().catchError((Object error) {
         // Sunum hatası uygulamayı kapatmaz; jeton/ilan içeriği loglanmaz.
       }),
     );

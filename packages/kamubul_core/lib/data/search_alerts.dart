@@ -83,6 +83,7 @@ class PendingNotification {
     required this.body,
     required this.listingUrl,
     this.digest = false,
+    this.eventId,
   });
 
   final String searchName;
@@ -92,6 +93,15 @@ class PendingNotification {
 
   /// Günlük özet bildirimi mi (anlık günlük tavana sayılmaz).
   final bool digest;
+  final String? eventId;
+
+  /// Hex server IDs give the same OS notification identity after process restart.
+  int get presentationId {
+    final event = eventId;
+    return event != null && RegExp(r'^[a-f\d]{64}$').hasMatch(event)
+        ? int.parse(event.substring(0, 8), radix: 16) & 0x7fffffff
+        : listingUrl.hashCode & 0x7fffffff;
+  }
 }
 
 class NotificationDecision {

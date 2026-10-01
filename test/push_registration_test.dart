@@ -86,6 +86,265 @@ void main() {
     now = DateTime(2026, 9, 29, 12);
   });
 
+  Map<String, Object?> historyPage(
+    int after, {
+    bool more = false,
+    int watermark = 2,
+  }) => {
+    'schemaVersion': 2,
+    'watermark': watermark,
+    'appliedThrough': more ? 1 : watermark,
+    'hasMore': more,
+    'next': more ? '1' : null,
+    'items': [
+      if (after < watermark)
+        {
+          'seq': more ? 1 : watermark,
+          'eventId': (more ? 'a' : 'b') * 64,
+          'deliveryId': (more ? 'a' : 'b') * 64,
+          'state': 'accepted',
+          'title': 'Memur',
+          'url': 'https://kariyerkapisi.gov.tr/ilan',
+          'acceptedAt': '2026-10-01T15:00:00Z',
+          'mode': 'instant',
+          'digestCount': 1,
+        },
+    ],
+  };
+  void identity() => store.map.addAll({
+    'kamubul.push.enabled': '1',
+    'kamubul.push.id': 'c' * 32,
+    'kamubul.push.secret': 'd' * 64,
+  });
+
+  test('history decoder rejects malformed order, identity, transport URL and pinned watermark', () {
+    final good = historyPage(0);
+    expect(
+      NotificationHistoryPage.decode(good, after: 0).records.single.delivery,
+      AlertDelivery.accepted,
+    );
+    for (final change in [
+      {'seq': 0},
+      {'eventId': 'invalid'},
+      {'url': 'https://user:pass@example.com'},
+      {'url': 'http://example.com'},
+      {'acceptedAt': 'tomorrow'},
+      {'mode': 'digest', 'digestCount': 11},
+      {'state': 'delivered'},
+    ]) {
+      final row = {...(good['items'] as List).single as Map, ...change};
+      expect(
+        () => NotificationHistoryPage.decode({
+          ...good,
+          'items': [row],
+        }, after: 0),
+        throwsFormatException,
+      );
+    }
+    expect(
+      () =>
+          NotificationHistoryPage.decode(good, after: 0, expectedWatermark: 3),
+      throwsFormatException,
+    );
+    expect(
+      () => NotificationHistoryPage.decode({
+        ...good,
+        'items': [],
+        'hasMore': true,
+        'appliedThrough': 1,
+        'next': '1',
+      }, after: 0),
+      throwsFormatException,
+    );
+  });
+
+  test('history pages persist cursor and cache together; restart resumes frozen failed page', () async {
+    identity();
+    var fail = true;
+    PushRegistrar make() => PushRegistrar(
+      baseUrl: Uri.parse('https://kamubul.example'),
+      platform: platform,
+      store: store,
+      client: MockClient((request) async {
+        requests.add(request);
+        expect(request.followRedirects, isFalse);
+        expect(request.headers['Authorization'], 'Bearer ${'d' * 64}');
+        expect(request.method, 'GET');
+        final after = int.parse(request.url.queryParameters['after']!);
+        if (after == 1) {
+          expect(request.url.queryParameters['watermark'], '2');
+          if (fail) return http.Response('failure', 500);
+        }
+        return http.Response(
+          jsonEncode(historyPage(after, more: after == 0)),
+          200,
+        );
+      }),
+    );
+    final first = make();
+    expect(await first.syncHistory(), isFalse);
+    expect(first.notificationHistory.map((x) => x.id), ['a' * 64]);
+    final durable = jsonDecode(store.read('kamubul.push.history')!) as Map;
+    expect(durable['after'], 1);
+    expect(durable['watermark'], 2);
+    fail = false;
+    final restarted = make();
+    expect(await restarted.syncHistory(), isTrue);
+    expect(restarted.notificationHistory.map((x) => x.id).toSet(), {
+      'a' * 64,
+      'b' * 64,
+    });
+    expect(platform.tokenRequests, 0);
+    expect(await restarted.syncHistory(), isTrue);
+    expect(requests.last.url.queryParameters['after'], '2');
+    expect(restarted.notificationHistory, hasLength(2));
+    first.close();
+    restarted.close();
+  });
+
+  test('foreground receipt dedupes concurrently and after restart, clear keeps receipt IDs', () async {
+    identity();
+    final first = registrar();
+    final message = PendingNotification(
+      searchName: '',
+      title: 'Memur',
+      body: 'İlan',
+      listingUrl: 'https://example.gov.tr',
+      eventId: 'a' * 64,
+    );
+    expect(
+      await Future.wait([
+        first.recordForeground(message),
+        first.recordForeground(message),
+      ]),
+      [true, false],
+    );
+    expect(first.notificationHistory.single.delivery, AlertDelivery.received);
+    final restarted = registrar();
+    expect(await restarted.recordForeground(message), isFalse);
+    await restarted.clearNotificationHistory();
+    expect(restarted.notificationHistory, isEmpty);
+    expect(await restarted.recordForeground(message), isFalse);
+    expect(await restarted.disable(), isTrue);
+    expect(store.read('kamubul.push.history'), isNull);
+    expect(await restarted.recordForeground(message), isFalse);
+    first.close();
+    restarted.close();
+  });
+
+  test(
+    'failed durable receipt never acknowledges presentation or loses identity',
+    () async {
+      identity();
+      final reg = registrar();
+      final message = PendingNotification(
+        searchName: '',
+        title: 'Memur',
+        body: 'İlan',
+        listingUrl: 'https://example.gov.tr',
+        eventId: 'a' * 64,
+      );
+      store.beforeWrite = (_) async => throw Exception('disk');
+      await expectLater(reg.recordForeground(message), throwsException);
+      expect(reg.notificationHistory, isEmpty);
+      expect(store.read('kamubul.push.id'), 'c' * 32);
+      store.beforeWrite = null;
+      expect(await reg.recordForeground(message), isTrue);
+      reg.close();
+    },
+  );
+
+  test('history authorization, redirect and size errors do not rotate identity or advance cursor', () async {
+    identity();
+    for (final status in [401, 302, 200]) {
+      final reg = PushRegistrar(
+        baseUrl: Uri.parse('https://kamubul.example'),
+        platform: platform,
+        store: store,
+        client: MockClient((request) async {
+          expect(request.followRedirects, isFalse);
+          return http.Response(status == 200 ? 'x' * 262145 : 'denied', status);
+        }),
+      );
+      expect(await reg.syncHistory(), isFalse);
+      expect(reg.notificationHistory, isEmpty);
+      expect(store.read('kamubul.push.id'), 'c' * 32);
+      expect(store.read('kamubul.push.history'), isNull);
+      reg.close();
+    }
+    final disabled = registrar();
+    store.map.remove('kamubul.push.enabled');
+    expect(await disabled.syncHistory(), isFalse);
+    expect(requests, isEmpty);
+    disabled.close();
+  });
+
+  test('UTF8 history remains inside native state budget without discarding receipt IDs', () async {
+    identity();
+    store.map['kamubul.push.lastPayload'] = '{}';
+    final reg = registrar();
+    for (var n = 1; n <= 80; n++) {
+      expect(
+        await reg.recordForeground(
+          PendingNotification(
+            searchName: '',
+            title: 'ğ' * 300,
+            body: 'ğ' * 2000,
+            listingUrl: 'https://example.gov.tr',
+            eventId: n.toRadixString(16).padLeft(64, '0'),
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        utf8.encode(jsonEncode(store.map)).length,
+        lessThanOrEqualTo(120000),
+      );
+    }
+    final cache = jsonDecode(store.read('kamubul.push.history')!) as Map;
+    expect(cache['seen'], hasLength(80));
+    expect(reg.notificationHistory.length, lessThan(80));
+    final criteria = SearchCriteria.parse({
+      'version': 2,
+      'cities': [for (var n = 0; n < 10; n++) '${'x' * 90}$n'],
+    });
+    expect(
+      await reg.enable([
+        for (var n = 0; n < 20; n++)
+          _search(n, 'Etiket', {}).copyWith(criteria: criteria),
+      ]),
+      PushSyncOutcome.registered,
+    );
+    expect(
+      utf8.encode(jsonEncode(store.map)).length,
+      lessThanOrEqualTo(120000),
+    );
+    expect(
+      (jsonDecode(store.read('kamubul.push.history')!) as Map)['seen'],
+      hasLength(80),
+    );
+    expect(
+      await reg.recordForeground(
+        PendingNotification(
+          searchName: '',
+          title: 'Memur',
+          body: '',
+          listingUrl: 'https://example.gov.tr',
+          eventId: '1'.padLeft(64, '0'),
+        ),
+      ),
+      isFalse,
+    );
+    final changed = PushRegistrar(
+      baseUrl: Uri.parse('https://other.example'),
+      platform: platform,
+      store: store,
+    );
+    expect(changed.notificationHistory, isEmpty);
+    changed.close();
+    reg.close();
+  });
+
   test('kimlik ve gizli anahtar sunucunun beklediği biçimde üretilir', () {
     final credentials = generateCredentials(Random(1));
     expect(isValidDeviceId(credentials.id), isTrue);

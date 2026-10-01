@@ -118,7 +118,7 @@ Future<bool> requestAlertPermission(BuildContext context) async {
 Future<void> showPendingNotification(PendingNotification notification) async {
   await _ensureInitialized();
   await _plugin.show(
-    id: notification.listingUrl.hashCode & 0x7fffffff,
+    id: notification.presentationId,
     title: notification.title,
     body: notification.body,
     notificationDetails: NotificationDetails(
@@ -128,6 +128,7 @@ Future<void> showPendingNotification(PendingNotification notification) async {
         channelDescription: 'Kayıtlı aramalarınıza uyan yeni kamu ilanları',
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
+        tag: notification.eventId,
       ),
       iOS: const DarwinNotificationDetails(),
     ),

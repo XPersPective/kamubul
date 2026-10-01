@@ -109,4 +109,5 @@ Hash cursor artık kabul edilmez (400); ilerideki cursor409 cursor_ahead.
 Seq global sayaçtan atanır fakat endpoint yalnız kurulumun kendi kayıtlarını
 gösterir. Yanıt ilan title/url/revision/searchIds/mode/count ve event/delivery
 kimliğini taşır; kaynak belgesi/özel tercih taşınmaz. accepted, cihaz teslimi
-değildir. Retention ve mobil cache/feed/dedupe henüz uygulanmadı.
+değildir. Mobil decoder/secure bounded cache/feed/receipt dedupe Flutter'da
+uygulandı; native/gerçek FCM delivery testi açık. Server retention tamamlanmadı.

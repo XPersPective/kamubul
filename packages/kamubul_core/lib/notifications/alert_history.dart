@@ -22,6 +22,12 @@ enum AlertKind {
 
 /// Bildirimin kullanıcıya ulaşma durumu; dürüst geri bildirim için ayrılır.
 enum AlertDelivery {
+  /// FCM sunucusu kabul etti; cihaz teslimi bilinmiyor.
+  accepted,
+
+  /// Uygulama FCM mesajını aldı; sistem sunumu ayrıca en iyi çabadır.
+  received,
+
   /// Sistem bildirimi olarak gönderildi.
   delivered,
 
@@ -32,6 +38,8 @@ enum AlertDelivery {
   dropped;
 
   static AlertDelivery parse(String? raw) => switch (raw) {
+    'accepted' => AlertDelivery.accepted,
+    'received' => AlertDelivery.received,
     'delivered' => AlertDelivery.delivered,
     'dropped' => AlertDelivery.dropped,
     _ => AlertDelivery.held,
