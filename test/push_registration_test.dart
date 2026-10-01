@@ -12,9 +12,14 @@ class _Store implements PushStateStore {
   final map = <String, String>{};
   @override
   String? read(String key) => map[key];
+  Future<void> Function(Map<String, String?>)? beforeWrite;
   @override
-  void write(String key, String? value) =>
-      value == null ? map.remove(key) : map[key] = value;
+  Future<void> write(Map<String, String?> values) async {
+    await beforeWrite?.call(values);
+    for (final entry in values.entries) {
+      entry.value == null ? map.remove(entry.key) : map[entry.key] = entry.value!;
+    }
+  }
 }
 
 class _Platform implements PushPlatform {
@@ -78,6 +83,13 @@ void main() {
     expect(isValidDeviceId(credentials.id), isTrue);
     expect(isValidDeviceSecret(credentials.secret), isTrue);
     expect(generateCredentials().id, isNot(credentials.id));
+  });
+
+  test('gizli anahtar güvenli olmayan sunucu adresine gönderilemez', () {
+    for (final url in ['http://example.com', 'https://user:password@example.com', 'https://example.com?private=1', 'https://example.com#secret']) {
+      expect(() => PushRegistrar(baseUrl: Uri.parse(url), platform: platform, store: store), throwsArgumentError);
+    }
+    expect(requests, isEmpty);
   });
 
   test('kullanıcı açmadıkça sunucuya hiçbir şey gitmez', () async {
@@ -198,6 +210,62 @@ void main() {
     expect(await r.enable([_search(1, 'Ankara', {'sehir': 'ANKARA'})]), PushSyncOutcome.registered);
     expect(requests, hasLength(2));
     expect(requests[0].url.path, isNot(requests[1].url.path));
+  });
+
+  test('kimlik kalıcı yazılmadan HTTP kaydı gönderilmez', () async {
+    final gate = Completer<void>();
+    store.beforeWrite = (values) async {
+      if (values.containsKey('kamubul.push.secret')) {
+        expect(values.containsKey('kamubul.push.id'), isTrue);
+        await gate.future;
+      }
+    };
+    final enabling = registrar().enable(const []);
+    await Future<void>.delayed(Duration.zero);
+    expect(requests, isEmpty);
+    gate.complete();
+    expect(await enabling, PushSyncOutcome.registered);
+    expect(requests, hasLength(1));
+  });
+
+  test('kalıcı kimlik yazılamazsa sunucuya kayıt gönderilmez', () async {
+    store.beforeWrite = (values) async {
+      if (values.containsKey('kamubul.push.secret')) throw const FormatException('storage_locked');
+    };
+    expect(await registrar().enable(const []), PushSyncOutcome.failed);
+    expect(requests, isEmpty);
+    expect(store.read('kamubul.push.secret'), isNull);
+  });
+
+  test('eşzamanlı kayıt ve token yenileme tek kalıcı kimliği kullanır', () async {
+    final gate = Completer<void>();
+    var identities = 0;
+    store.beforeWrite = (values) async {
+      if (values.containsKey('kamubul.push.secret')) { identities++; await gate.future; }
+    };
+    final r = registrar(), enabling = r.enable(const []);
+    await Future<void>.delayed(Duration.zero);
+    final refreshing = r.onTokenRefreshed('refreshed-token-fcm-token');
+    await Future<void>.delayed(Duration.zero);
+    expect(identities, 1);expect(requests, isEmpty);
+    gate.complete();await enabling;await refreshing;
+    expect(requests.map((request) => request.url.path).toSet(), hasLength(1));
+    expect(requests.map((request) => request.headers['Authorization']).toSet(), hasLength(1));
+  });
+
+  test('kapatma tamamlandıktan sonra bekleyen token yenileme yeniden kayıt açmaz', () async {
+    final gate = Completer<void>();
+    store.beforeWrite = (values) async {
+      if (values.containsKey('kamubul.push.secret')) await gate.future;
+    };
+    final r = registrar(), enabling = r.enable(const []);
+    await Future<void>.delayed(Duration.zero);
+    final disabling = r.disable(), refreshing = r.onTokenRefreshed('refreshed-token-fcm-token');
+    gate.complete();await enabling;
+    expect(await disabling, isTrue);
+    expect(await refreshing, PushSyncOutcome.disabled);
+    expect(requests.map((request) => request.method), ['PUT', 'DELETE']);
+    expect(r.enabled, isFalse);
   });
 
   test('aşırı uzun süzgeç değeri ve 20\'den fazla etiket sunucu sınırlarına uyar', () {

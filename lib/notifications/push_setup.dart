@@ -12,26 +12,11 @@ import '../data/remote_sync.dart';
 import 'alert_service.dart';
 import 'firebase_push.dart';
 import 'push_registration.dart';
+import 'secure_push_store.dart';
 
 PushRegistrar? pushRegistrar;
 
 bool _listening = false;
-
-class _SettingsPushStore implements PushStateStore {
-  _SettingsPushStore(this._store);
-
-  final SettingsStore _store;
-
-  @override
-  String? read(String key) {
-    final value = _store.getString(key);
-    return value == null || value.isEmpty ? null : value;
-  }
-
-  // SettingsStore silme sunmaz; boş metin "yok" demektir.
-  @override
-  void write(String key, String? value) => _store.setString(key, value ?? '');
-}
 
 /// Açılışta bir kez çağrılır. Kullanıcı sunucu bildirimini açmadıysa Firebase'e
 /// hiç dokunulmaz.
@@ -43,13 +28,24 @@ Future<void> initPush(SettingsStore store) async {
   } on FormatException {
     return;
   }
-  final registrar = PushRegistrar(
-    baseUrl: base,
-    platform: FirebasePush(),
-    store: _SettingsPushStore(store),
-  );
+  final PushRegistrar registrar;
+  try {
+    final secure = await SecurePushStore.load(store);
+    registrar = PushRegistrar(
+      baseUrl: base,
+      platform: FirebasePush(),
+      store: secure,
+    );
+  } on Exception {
+    // No plaintext fallback or new server identity when secure storage fails.
+    return;
+  } on ArgumentError {
+    return;
+  }
   pushRegistrar = registrar;
-  if (registrar.enabled) await attachPushListeners();
+  if (registrar.enabled) {
+    unawaited(attachPushListeners().catchError((Object _) {}));
+  }
 }
 
 /// Bildirim dokunuşu ve jeton yenileme olaylarını bağlar (tek seferlik).

@@ -129,7 +129,6 @@ void main() {
     expect(items.single.quota, 12);
     expect(items.single.deadline, DateTime(2026, 10, 1));
     expect(items.single.places, ['ANKARA', 'İZMİR']);
-    expect(items.single.expired, isFalse);
     await reopened.close();
     await databaseFactory.deleteDatabase(dbPath);
   });

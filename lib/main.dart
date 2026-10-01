@@ -71,7 +71,7 @@ Future<void> main() async {
   }
   WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
   unawaited(registerBackgroundAlerts());
-  unawaited(initPush(store));
+  await initPush(store);
   runApp(
     KamuBulApp(
       identity: identity,

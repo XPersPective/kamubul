@@ -216,6 +216,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
       final deleted = await registrar.disable();
       message = deleted
           ? 'Sunucu bildirimleri kapatıldı; kaydınız silindi.'
+          : registrar.enabled
+          ? 'Kapatma işlemi kaydedilemedi; yeniden deneyin.'
           : 'Kapatıldı; kaydınız bağlantı gelince silinecek.';
     }
     if (!mounted) return;

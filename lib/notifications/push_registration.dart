@@ -41,10 +41,10 @@ abstract class PushPlatform {
   Future<String?> takeInitialNotificationUrl();
 }
 
-/// Küçük kalıcı anahtar-değer deposu (uygulamada `SettingsStore`).
+/// Bellekten okur; değişiklikler atomik ve kalıcı yazılmadan tamamlanmaz.
 abstract class PushStateStore {
   String? read(String key);
-  void write(String key, String? value);
+  Future<void> write(Map<String, String?> values);
 }
 
 class DeviceCredentials {
@@ -54,7 +54,8 @@ class DeviceCredentials {
 }
 
 String _hex(Random random, int bytes) => [
-  for (var i = 0; i < bytes; i++) random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  for (var i = 0; i < bytes; i++)
+    random.nextInt(256).toRadixString(16).padLeft(2, '0'),
 ].join();
 
 DeviceCredentials generateCredentials([Random? random]) {
@@ -85,6 +86,14 @@ const String _kSecret = 'kamubul.push.secret';
 const String _kLastPayload = 'kamubul.push.lastPayload';
 const String _kLastSync = 'kamubul.push.lastSyncMs';
 const String _kPendingDelete = 'kamubul.push.pendingDelete';
+const kPushStateKeys = [
+  _kEnabled,
+  _kId,
+  _kSecret,
+  _kLastPayload,
+  _kLastSync,
+  _kPendingDelete,
+];
 
 /// Sunucuya gidecek kayıt: yalnızca izinli süzgeç anahtarları, sınırlı
 /// uzunlukta, bildirimi kapalı aramalar hariç.
@@ -140,7 +149,19 @@ class PushRegistrar {
     this.timeout = const Duration(seconds: 20),
   }) : _client = client ?? http.Client(),
        _clock = clock ?? DateTime.now,
-       _utcOffset = utcOffset ?? (() => DateTime.now().timeZoneOffset);
+       _utcOffset = utcOffset ?? (() => DateTime.now().timeZoneOffset) {
+    if (baseUrl.scheme != 'https' ||
+        baseUrl.host.isEmpty ||
+        baseUrl.userInfo.isNotEmpty ||
+        baseUrl.hasQuery ||
+        baseUrl.hasFragment) {
+      throw ArgumentError.value(
+        baseUrl,
+        'baseUrl',
+        'Güvenli sunucu adresi gerekir',
+      );
+    }
+  }
 
   final Uri baseUrl;
   final PushPlatform platform;
@@ -152,78 +173,112 @@ class PushRegistrar {
   final Duration Function() _utcOffset;
 
   List<SavedSearch> _lastSearches = const [];
+  Future<void> _operations = Future.value();
+
+  // ponytail: per-installation FIFO; debounce edits before this queue if traffic grows.
+  Future<T> _enqueue<T>(Future<T> Function() operation) {
+    final result = _operations.then((_) => operation());
+    _operations = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
+  }
 
   /// Kullanıcı sunucu bildirimlerini açtı mı.
   bool get enabled => store.read(_kEnabled) == '1';
 
   Uri _device(String id) => baseUrl.replace(
-    path: '${baseUrl.path.endsWith('/') ? baseUrl.path.substring(0, baseUrl.path.length - 1) : baseUrl.path}/v1/devices/$id',
+    path:
+        '${baseUrl.path.endsWith('/') ? baseUrl.path.substring(0, baseUrl.path.length - 1) : baseUrl.path}/v1/devices/$id',
   );
 
-  DeviceCredentials _credentials({bool renew = false}) {
+  Future<DeviceCredentials> _credentials({bool renew = false}) async {
     final id = store.read(_kId);
     final secret = store.read(_kSecret);
-    if (!renew && id != null && secret != null && isValidDeviceId(id) && isValidDeviceSecret(secret)) {
+    if (!renew &&
+        id != null &&
+        secret != null &&
+        isValidDeviceId(id) &&
+        isValidDeviceSecret(secret)) {
       return DeviceCredentials(id, secret);
     }
     final fresh = generateCredentials(_random);
-    store
-      ..write(_kId, fresh.id)
-      ..write(_kSecret, fresh.secret)
-      ..write(_kLastPayload, null);
+    await store.write({
+      _kId: fresh.id,
+      _kSecret: fresh.secret,
+      _kLastPayload: null,
+    });
     return fresh;
   }
 
   /// Kullanıcı eylemi: izin ister, jetonu alır, kaydı gönderir.
-  Future<PushSyncOutcome> enable(List<SavedSearch> searches) async {
+  Future<PushSyncOutcome> enable(List<SavedSearch> searches) =>
+      _enqueue(() => _enable(searches));
+  Future<PushSyncOutcome> _enable(List<SavedSearch> searches) async {
     if (!await platform.initialize()) return PushSyncOutcome.unavailable;
     final token = await platform.requestToken();
     if (token == null) return PushSyncOutcome.permissionDenied;
-    store.write(_kEnabled, '1');
+    try {
+      await store.write({_kEnabled: '1'});
+    } on Exception {
+      return PushSyncOutcome.failed;
+    }
     _lastSearches = searches;
     // Başarısız olursa açık kalır; bir sonraki eşitleme yeniden dener.
     return _register(token, searches, force: true);
   }
 
   /// Sunucudaki kaydı siler ve yerel kimliği temizler ("bildirim verilerimi sil").
-  Future<bool> disable() async {
-    final id = store.read(_kId);
-    final secret = store.read(_kSecret);
-    store.write(_kEnabled, null);
-    store.write(_kLastPayload, null);
-    store.write(_kLastSync, null);
-    if (id == null || secret == null) {
-      store
-        ..write(_kId, null)
-        ..write(_kSecret, null)
-        ..write(_kPendingDelete, null);
-      return true;
+  Future<bool> disable() => _enqueue(_disable);
+  Future<bool> _disable() async {
+    try {
+      final id = store.read(_kId);
+      final secret = store.read(_kSecret);
+      await store.write({
+        _kEnabled: null,
+        _kLastPayload: null,
+        _kLastSync: null,
+        _kPendingDelete: '1',
+      });
+      if (id == null || secret == null) {
+        await store.write({_kId: null, _kSecret: null, _kPendingDelete: null});
+        return true;
+      }
+      final deleted = await _delete(id, secret);
+      if (deleted) {
+        await store.write({_kId: null, _kSecret: null, _kPendingDelete: null});
+      }
+      return deleted;
+    } on Exception {
+      return false;
     }
-    final deleted = await _delete(id, secret);
-    if (deleted) {
-      store
-        ..write(_kId, null)
-        ..write(_kSecret, null)
-        ..write(_kPendingDelete, null);
-    } else {
-      // Ağ yok: silme bir sonraki eşitlemede yeniden denenir.
-      store.write(_kPendingDelete, '1');
-    }
-    return deleted;
   }
 
   /// Etiketler değiştiğinde ya da uygulama açılınca çağrılır; yalnızca
   /// açıksa ve içerik değiştiyse (ya da 24 saati geçtiyse) ağa çıkar.
-  Future<PushSyncOutcome> sync(List<SavedSearch> searches, {bool force = false}) async {
+  Future<PushSyncOutcome> sync(
+    List<SavedSearch> searches, {
+    bool force = false,
+  }) => _enqueue(() => _sync(searches, force: force));
+  Future<PushSyncOutcome> _sync(
+    List<SavedSearch> searches, {
+    required bool force,
+  }) async {
     _lastSearches = searches;
     if (store.read(_kPendingDelete) == '1') {
       final id = store.read(_kId);
       final secret = store.read(_kSecret);
       if (id != null && secret != null && await _delete(id, secret)) {
-        store
-          ..write(_kId, null)
-          ..write(_kSecret, null)
-          ..write(_kPendingDelete, null);
+        try {
+          await store.write({
+            _kId: null,
+            _kSecret: null,
+            _kPendingDelete: null,
+          });
+        } on Exception {
+          return PushSyncOutcome.failed;
+        }
       }
     }
     if (!enabled) return PushSyncOutcome.disabled;
@@ -234,7 +289,9 @@ class PushRegistrar {
   }
 
   /// Jeton yenilenince son bilinen etiketlerle kaydı tazeler.
-  Future<PushSyncOutcome> onTokenRefreshed(String token) async {
+  Future<PushSyncOutcome> onTokenRefreshed(String token) =>
+      _enqueue(() => _refreshToken(token));
+  Future<PushSyncOutcome> _refreshToken(String token) async {
     if (!enabled) return PushSyncOutcome.disabled;
     return _register(token, _lastSearches, force: true);
   }
@@ -244,34 +301,40 @@ class PushRegistrar {
     List<SavedSearch> searches, {
     required bool force,
   }) async {
-    final registration = buildRegistration(
-      token: token,
-      platform: platform.platformName,
-      searches: searches,
-      utcOffset: _utcOffset(),
-    );
-    final body = jsonEncode(registration.toJson());
-    final lastMs = int.tryParse(store.read(_kLastSync) ?? '');
-    final recent =
-        lastMs != null &&
-        _clock().difference(DateTime.fromMillisecondsSinceEpoch(lastMs)) < const Duration(hours: 24);
-    if (!force && recent && store.read(_kLastPayload) == body) {
-      return PushSyncOutcome.unchanged;
+    try {
+      final registration = buildRegistration(
+        token: token,
+        platform: platform.platformName,
+        searches: searches,
+        utcOffset: _utcOffset(),
+      );
+      final body = jsonEncode(registration.toJson());
+      final lastMs = int.tryParse(store.read(_kLastSync) ?? '');
+      final recent =
+          lastMs != null &&
+          _clock().difference(DateTime.fromMillisecondsSinceEpoch(lastMs)) <
+              const Duration(hours: 24);
+      if (!force && recent && store.read(_kLastPayload) == body) {
+        return PushSyncOutcome.unchanged;
+      }
+      var credentials = await _credentials();
+      var status = await _put(credentials, body);
+      if (status == 403) {
+        // Kimlik başkasına aitse (pratikte olmaz) yeni kimlikle bir kez dene.
+        credentials = await _credentials(renew: true);
+        status = await _put(credentials, body);
+      }
+      if (status == 200 || status == 201) {
+        await store.write({
+          _kLastPayload: body,
+          _kLastSync: '${_clock().millisecondsSinceEpoch}',
+        });
+        return PushSyncOutcome.registered;
+      }
+      return PushSyncOutcome.failed;
+    } on Exception {
+      return PushSyncOutcome.failed;
     }
-    var credentials = _credentials();
-    var status = await _put(credentials, body);
-    if (status == 403) {
-      // Kimlik başkasına aitse (pratikte olmaz) yeni kimlikle bir kez dene.
-      credentials = _credentials(renew: true);
-      status = await _put(credentials, body);
-    }
-    if (status == 200 || status == 201) {
-      store
-        ..write(_kLastPayload, body)
-        ..write(_kLastSync, '${_clock().millisecondsSinceEpoch}');
-      return PushSyncOutcome.registered;
-    }
-    return PushSyncOutcome.failed;
   }
 
   Future<int> _put(DeviceCredentials credentials, String body) async {
