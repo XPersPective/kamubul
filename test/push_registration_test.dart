@@ -37,6 +37,8 @@ class _Platform implements PushPlatform {
   @override
   Stream<String> get onNotificationOpened => const Stream.empty();
   @override
+  Stream<PendingNotification> get onForegroundNotification => const Stream.empty();
+  @override
   Future<String?> takeInitialNotificationUrl() async => null;
 }
 

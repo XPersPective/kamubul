@@ -12,6 +12,7 @@ import 'dart:io' show Platform;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:kamubul_core/kamubul_core.dart';
 
 import 'push_registration.dart';
 
@@ -30,7 +31,25 @@ String? _httpsUrl(RemoteMessage message) {
   final url = message.data['url'];
   if (url is! String) return null;
   final uri = Uri.tryParse(url);
-  return uri != null && uri.scheme == 'https' ? uri.toString() : null;
+  return uri != null &&
+          uri.scheme == 'https' &&
+          uri.host.isNotEmpty &&
+          uri.userInfo.isEmpty
+      ? uri.toString()
+      : null;
+}
+
+PendingNotification? foregroundNotification(RemoteMessage message) {
+  final url = _httpsUrl(message);
+  final title = message.notification?.title?.trim();
+  if (url == null || title == null || title.isEmpty) return null;
+  return PendingNotification(
+    searchName: '',
+    title: title,
+    body: message.notification?.body ?? '',
+    listingUrl: url,
+    digest: message.data['kind'] == 'digest',
+  );
 }
 
 class FirebasePush implements PushPlatform {
@@ -55,6 +74,13 @@ class FirebasePush implements PushPlatform {
           ),
         );
       }
+      // Her iki platformda foreground sunumu mevcut yerel kanaldan yapılır.
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
+            alert: false,
+            badge: false,
+            sound: false,
+          );
       return _ready = true;
     } on Object {
       return _ready = false;
@@ -78,8 +104,9 @@ class FirebasePush implements PushPlatform {
   }
 
   @override
-  Stream<String> get onTokenRefresh =>
-      _ready == true ? FirebaseMessaging.instance.onTokenRefresh : const Stream.empty();
+  Stream<String> get onTokenRefresh => _ready == true
+      ? FirebaseMessaging.instance.onTokenRefresh
+      : const Stream.empty();
 
   @override
   Stream<String> get onNotificationOpened => _ready == true
@@ -87,6 +114,14 @@ class FirebasePush implements PushPlatform {
             .map(_httpsUrl)
             .where((url) => url != null)
             .cast<String>()
+      : const Stream.empty();
+
+  @override
+  Stream<PendingNotification> get onForegroundNotification => _ready == true
+      ? FirebaseMessaging.onMessage
+            .map(foregroundNotification)
+            .where((notification) => notification != null)
+            .cast<PendingNotification>()
       : const Stream.empty();
 
   @override

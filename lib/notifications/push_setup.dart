@@ -59,6 +59,14 @@ Future<void> attachPushListeners() async {
   if (!await registrar.platform.initialize()) return;
   _listening = true;
   registrar.platform.onNotificationOpened.listen(openAlertUrl);
+  registrar.platform.onForegroundNotification.listen((notification) {
+    if (!registrar.enabled) return;
+    unawaited(
+      showPendingNotification(notification).catchError((Object error) {
+        // Sunum hatası uygulamayı kapatmaz; jeton/ilan içeriği loglanmaz.
+      }),
+    );
+  });
   registrar.platform.onTokenRefresh.listen(
     (token) => unawaited(registrar.onTokenRefreshed(token)),
   );

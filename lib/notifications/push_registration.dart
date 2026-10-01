@@ -34,6 +34,9 @@ abstract class PushPlatform {
   /// Bildirime dokunulduğunda ilan bağlantısı.
   Stream<String> get onNotificationOpened;
 
+  /// Uygulama açıkken gösterilecek sunucu bildirimi.
+  Stream<PendingNotification> get onForegroundNotification;
+
   /// Uygulama bildirime dokunularak açıldıysa bağlantı (tek seferlik).
   Future<String?> takeInitialNotificationUrl();
 }

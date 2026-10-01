@@ -38,7 +38,11 @@ Future<void> _ensureInitialized() async {
   await _plugin.initialize(
     settings: const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(),
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
     ),
     onDidReceiveNotificationResponse: (response) =>
         _setAlertTap(response.payload),
