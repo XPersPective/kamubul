@@ -56,3 +56,5 @@ Yeni kontroller: core124 full + analyze clean, Flutter86 full (ardından v4→v5
 1 Ekim Worker kontrolü: source URL HTTPS/credential/port/host ve strict UUID doğrulaması; bozuk sayısal HTML entity Unicode replacement ile korunur, RangeError üretmez. Worker26 test geçti; kalıcı Worker deploy başarılı, canlı health latestSeq40/FCMfalse/AIbindingtrue. Kaynak erişim engelini bu korumalar çözmez.
 
 1 Ekim mobil kontrolü: foreground mapping, abonelik ve notification tap için16 hedefli Flutter test geçti; notifications + ilgili testler analyze temiz. Gerçek Android foreground/kapalı/tap ve iOS APNs doğrulaması yerine sayılmaz.
+
+Kullanıcı FCM JSON dosyasının inmediğini doğruladı. Google'da oluşturulan anahtar aktif fakat özel dosya elde yok; kullanılamaz. Silme dialog'u hazırlandı, silme yapılmadı. Yeni credential/download için kullanıcı Chrome/Edge handoff'u ve mevcut key iptali gerekli; Worker Secrets halen boş.
