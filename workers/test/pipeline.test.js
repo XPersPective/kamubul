@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {searchAnchorKeys,installationAnchorKeys,listingAnchorKeys,matchListing,validateCriteria,migrateFilters} from '../src/criteria.js';
 import {fcmMessage} from '../src/fcm.js';
 import {fetchRequest,sha256} from '../src/worker.js';
-import {splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled} from '../src/pipeline.js';
+import {splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled,maintainRegistry} from '../src/pipeline.js';
 
 function database(){
   const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
@@ -14,6 +14,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0004_match_facets.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0005_notification_sequence.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0006_listing_first_seq.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0007_maintenance.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -44,6 +45,58 @@ test('scheduled timestamp separates source, matching and delivery into three slo
     assert.ok(!queries.some(q=>q.includes('UPDATE notification_outbox'))||minute%3===2);
     sql.close();
   }
+});
+
+test('maintenance bounds stale-owner deletion, protects send leases and reactivated owners',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  const now=new Date('2026-10-01T12:00:00Z'),cutoff=new Date(+now-120*86400000).toISOString();
+  for(const [id,date,lease] of [['stale',cutoff,null],['active',now.toISOString(),null],['sending',cutoff,'2026-10-01T12:01:00Z']]) {
+    sql.prepare("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at,send_lease_until) VALUES(?,'hash','token','android','{}',?,?)").run(id,date,lease);
+    sql.prepare("INSERT INTO saved_searches VALUES(?,'s','Mine','{}','instant',0)").run(id);
+  }
+  for(let i=0;i<25;i++)sql.prepare("INSERT INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES(?,'stale',?,'{}','now','now')").run('event'+i,'listing'+i);
+  for(let i=0;i<55;i++)sql.prepare("INSERT INTO installation_facets VALUES(?,'stale')").run('facet'+i);
+  await maintainRegistry({DB},now);
+  assert.equal(sql.prepare("SELECT enabled FROM installations WHERE id='stale'").get().enabled,0);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM notification_outbox').get().n,5);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM installation_facets').get().n,5);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,3);
+  sql.prepare("UPDATE installations SET enabled=1,updated_at=? WHERE id='stale'").run(now.toISOString());
+  await maintainRegistry({DB},now);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM installations').get().n,3);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM notification_outbox').get().n,5);
+  sql.prepare("UPDATE installations SET updated_at=? WHERE id='stale'").run(cutoff);
+  await maintainRegistry({DB},now);
+  assert.deepEqual(sql.prepare('SELECT id FROM installations ORDER BY id').all().map(x=>x.id),['active','sending']);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,2);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM notification_outbox').get().n,0);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM installation_facets').get().n,0);
+});
+
+test('hourly maintenance expires bounded counters while preserving current budget and pipeline slots',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  for(let i=0;i<101;i++)sql.prepare("INSERT INTO rate_limits VALUES(?,1,'2000-01-01')").run('expired'+i);
+  sql.exec("INSERT INTO rate_limits VALUES('active',2,'2999-01-01'); INSERT INTO daily_usage VALUES('2000-01-01',20),('2999-01-01',20)");
+  const prepare=DB.prepare,queries=[];DB.prepare=query=>{queries.push(query);return prepare(query);};
+  await runScheduled({DB},59*60000);
+  assert.equal(queries.length,3);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM rate_limits').get().n,2);
+  assert.deepEqual(sql.prepare('SELECT day,ai_jobs FROM daily_usage').all().map(x=>({...x})),[{day:'2999-01-01',ai_jobs:20}]);
+  const plan=sql.prepare('EXPLAIN QUERY PLAN SELECT key FROM rate_limits WHERE expires_at<=? ORDER BY expires_at,key LIMIT 100').all('now');
+  assert.ok(plan.some(x=>x.detail.includes('rate_limit_expiry')));
+});
+
+test('heartbeat between stale selection and deletion protects every child record',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  const now=new Date('2026-10-01T12:00:00Z');
+  sql.exec("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES('owner','hash','token','android','{}','2000-01-01'); INSERT INTO saved_searches VALUES('owner','s','Mine','{}','instant',0); INSERT INTO installation_facets VALUES('*','owner'); INSERT INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES('event','owner','listing','{}','now','now')");
+  const batch=DB.batch;let refreshed=false;DB.batch=async statements=>{
+    if(!refreshed){refreshed=true;sql.prepare("UPDATE installations SET updated_at=? WHERE id='owner'").run(now.toISOString());}
+    return batch(statements);
+  };
+  await maintainRegistry({DB},now);
+  for(const table of ['installations','saved_searches','installation_facets','notification_outbox'])assert.equal(sql.prepare('SELECT COUNT(*) n FROM '+table).get().n,1);
+  assert.equal(sql.prepare('SELECT enabled FROM installations').get().enabled,1);
 });
 
 test('long Turkish/emoji document is split losslessly on UTF8 boundaries',()=>{

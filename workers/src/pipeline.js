@@ -247,8 +247,28 @@ export async function flushOutbox(env,{send=sendFcm,now=new Date()}={}) {
     await env.DB.prepare('UPDATE installations SET send_lease_until=NULL WHERE id=? AND send_lease_until=?').bind(job.installation_id,lease).run();
   }
 }
+export async function maintainRegistry(env,now=new Date()){
+  const timestamp=now.toISOString(),cutoff=new Date(+now-120*86400000).toISOString();
+  const device=await env.DB.prepare('SELECT id FROM installations WHERE updated_at<=? AND (send_lease_until IS NULL OR send_lease_until<=?) ORDER BY updated_at,id LIMIT 1').bind(cutoff,timestamp).first();
+  if(device){
+    // ponytail: one stale owner/hour, 20 outbox/50 facets per pass; measured backlog may require more maintenance slots.
+    const stale='SELECT 1 FROM installations WHERE id=? AND updated_at<=? AND (send_lease_until IS NULL OR send_lease_until<=?)';
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE installations SET enabled=0 WHERE id=? AND updated_at<=? AND (send_lease_until IS NULL OR send_lease_until<=?)`).bind(device.id,cutoff,timestamp),
+      env.DB.prepare(`DELETE FROM notification_outbox WHERE id IN (SELECT id FROM notification_outbox WHERE installation_id=? ORDER BY id LIMIT 20) AND EXISTS(${stale})`).bind(device.id,device.id,cutoff,timestamp),
+      env.DB.prepare(`DELETE FROM installation_facets WHERE installation_id=? AND key IN (SELECT key FROM installation_facets WHERE installation_id=? ORDER BY key LIMIT 50) AND EXISTS(${stale})`).bind(device.id,device.id,device.id,cutoff,timestamp),
+      env.DB.prepare(`DELETE FROM installations WHERE id=? AND updated_at<=? AND (send_lease_until IS NULL OR send_lease_until<=?) AND NOT EXISTS(SELECT 1 FROM notification_outbox WHERE installation_id=?) AND NOT EXISTS(SELECT 1 FROM installation_facets WHERE installation_id=?)`).bind(device.id,cutoff,timestamp,device.id,device.id)
+    ]);
+  }
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM rate_limits WHERE key IN (SELECT key FROM rate_limits WHERE expires_at<=? ORDER BY expires_at,key LIMIT 100)').bind(timestamp),
+    env.DB.prepare('DELETE FROM daily_usage WHERE day IN (SELECT day FROM daily_usage WHERE day<? ORDER BY day LIMIT 30)').bind(new Date(+now-30*86400000).toISOString().slice(0,10))
+  ]);
+}
 export async function runScheduled(env,scheduledTime=Date.now()){
   if(!env.DB)throw new Error('database_not_configured');
+  // The hourly :59 slot is dedicated to bounded maintenance, never added to fanout/query budgets.
+  if(Math.floor(scheduledTime/60000)%60===59){await maintainRegistry(env);return;}
   // ponytail: three-minute stage cycle keeps each invocation below Free's 50 queries/subrequests; measured CPU/fanout sets the capacity ceiling.
   const stages=[[expireListings,readSource,processNotice],[matchEvents],[flushOutbox]];
   // Each durable stage is recoverable; failures do not clear another stage's backlog.

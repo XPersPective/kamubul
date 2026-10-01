@@ -117,4 +117,15 @@ doldurur; yeni ilan ilk katalog commit'inde trigger ile aynı transaction'da
 atanır. Sonraki revizyonlar/değişiklik günlüğü temizliği bu değeri değiştirmez.
 Eşleştirme aboneliğin effective_after değerini bu kalıcı ilk sırayla karşılaştırır;
 yeni arama eski ilan revizyonu için push almaz. Eksik ilk sıra fail-closed'dur.
-Temizlik henüz devrede değildir; pinned katalog snapshot sınırı ayrıca korunmalıdır.
+Katalog temizliği henüz devrede değildir; pinned snapshot sınırı ayrıca korunmalıdır.
+
+Saatlik `:59` Cron slotu yalnız registry bakımına ayrılır; o saatte gönderim
+slotları arasındaki aralık bir kez 6dk olur. 120 gün heartbeat almayan kurulumun
+aktif send lease'i varsa dokunulmaz. Diğer stale kurulumlar önce disabled olur;
+tek owner/pass için 20 outbox ve 50 facet silinir, child'lar bitince kurulum ve
+en çok 20 saved search cascade ile kaldırılır. Bütün transaction adımları stale
+tarihini tekrar kontrol eder; arada başarılı heartbeat varsa kayıtlar korunur.
+Rate-limit expiry indeksiyle/pass 100 süresi dolmuş sayaç, 30 günden eski günlük
+AI bütçesinden/pass 30 satır temizlenir; bugünkü bütçe korunur. Büyük backlog'un
+temizlenme süresi ve CPU/row-write kapasitesi ölçüm bekler. Aktif kurulumların
+bildirim geçmişi ve katalog log'u henüz budanmaz; pinned cursor politikası açık.
