@@ -54,6 +54,41 @@ void main() {
     ],
   }, after: after ?? seq - 1);
 
+  test('v5→v6 metadata göçü cursor, favori ve aramaları korur', () async {
+    await store.applyDeltaPage(page(1, 1), after: 0);
+    await store.setSaved(url, true);
+    await store.addSavedSearch(
+      SavedSearch(
+        id: null,
+        name: 'Kişisel',
+        filters: const {'kpss': 'P3'},
+        createdAt: DateTime(2026),
+      ),
+    );
+    final db = await store.database;
+    // Exact pre-v6 sync table; remaining tables keep their real cached rows.
+    await db.execute('DROP TABLE remote_sync_state');
+    await db.execute(
+      'CREATE TABLE remote_sync_state (id INTEGER PRIMARY KEY CHECK(id=1), cursor INTEGER NOT NULL)',
+    );
+    await db.insert('remote_sync_state', {'id': 1, 'cursor': 1});
+    await ListingStore.upgradeSchema(db, 5, 6);
+    expect(await store.remoteCursor(), 1);
+    expect((await store.allListings()).single.saved, isTrue);
+    expect((await store.savedSearches()).single.name, 'Kişisel');
+    expect((await store.remoteMetadata()).metadata, isNull);
+    final now = DateTime(2026, 10, 1);
+    await store.saveRemoteMetadata('{"schemaVersion":2}', '"etag"', now);
+    final reopened = ListingStore(database: db);
+    expect((await reopened.remoteMetadata()).etag, '"etag"');
+    expect((await reopened.remoteMetadata()).lastSuccess, now);
+    await expectLater(
+      store.saveRemoteMetadata('new', '"wrong"', now, expectedCursor: 2),
+      throwsFormatException,
+    );
+    expect((await reopened.remoteMetadata()).etag, '"etag"');
+  });
+
   test(
     'Worker ortak corpus SQLite projeksiyonundan da aynı 19 sonucu verir',
     () async {

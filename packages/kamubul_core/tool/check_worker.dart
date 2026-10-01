@@ -8,8 +8,11 @@ Future<void> main(List<String> args) async {
     ),
   );
   try {
+    final meta = await client.fetchMetadata();
+    if (meta.metadata == null) throw StateError('initial metadata missing');
+    final conditional = await client.fetchMetadata(etag: meta.etag);
     var after = 0, count = 0;
-    int? watermark;
+    int? watermark = meta.metadata!.latestSeq;
     do {
       final page = await client.fetchChanges(
         after: after,
@@ -22,7 +25,7 @@ Future<void> main(List<String> args) async {
       if (count > 10000) throw StateError('bounded verification limit');
     } while (true);
     print(
-      'Verified live Worker: watermark=$watermark, appliedThrough=$after, changes=$count',
+      'Verified live Worker: watermark=$watermark, appliedThrough=$after, changes=$count, metadataConditional=${conditional.metadata == null ? 304 : 200}, sources=${meta.metadata!.sources.map((s) => '${s.id}:${s.state.name}').join(',')}',
     );
   } finally {
     client.close();

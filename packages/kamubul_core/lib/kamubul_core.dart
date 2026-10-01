@@ -19,6 +19,7 @@ export 'notifications/alert_history.dart';
 export 'notifications/push_planner.dart';
 export 'remote/catalogue_client.dart';
 export 'remote/catalogue_delta.dart';
+export 'remote/catalogue_metadata.dart';
 export 'remote/catalogue_merge.dart';
 export 'remote/device_registration.dart';
 export 'remote/snapshot.dart';

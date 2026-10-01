@@ -1,10 +1,11 @@
 /// Sunucu kataloğunu yerel veritabanına işler.
 ///
-/// Sunucu anlık görüntüsü (`/v1/listings.json`) resmî kaynaklardan derlenmiş,
-/// şart alanları alıntılı doğrulanmış ilanları taşır. Yerel kayıtlar
-/// korunur: kaydedilen ilanlar sıfırlanmaz, sunucudan boş gelen alan var olan
-/// ayrıntıyı silmez (bkz. `ListingStore.mergeFeed`).
+/// V2 metadata ve immutable değişiklik sayfaları kalıcı SQLite cursor'a işlenir.
+/// Sayfa kesilirse kayıt/cursor birlikte korunur; tüm senkronizasyon bitmeden
+/// son başarı zamanı ilerlemez. Gömülü kaynakların geçiş sahibi refreshCatalogue'dır.
 library;
+
+import 'dart:convert';
 
 import 'package:kamubul_core/kamubul_core.dart';
 
@@ -24,66 +25,63 @@ RemoteCatalogueClient? defaultRemoteClient() {
   }
 }
 
-class RemoteSyncResult {
-  const RemoteSyncResult({
-    required this.generatedAt,
-    required this.sources,
-    required this.listingCount,
-    required this.skipped,
-  });
-
-  /// Sunucunun anlık görüntüyü ürettiği zaman (Türkiye duvar saati).
-  final DateTime generatedAt;
-  final List<SourceStatus> sources;
-  final int listingCount;
-  final int skipped;
-
-  SourceState? stateOf(String sourceId) {
-    for (final source in sources) {
-      if (source.id == sourceId) return source.state;
-    }
-    return null;
-  }
-}
-
-/// Anlık görüntüyü çeker ve yerel kataloğa birleştirir. Ağ ya da biçim hatası
-/// istisna fırlatır; yerel kayıtlar dokunulmaz kalır.
-Future<RemoteSyncResult> syncRemoteCatalogue({
+/// Metadata/ETag kalıcıdır; başarılı tüm sayfalar sonrasında tazelik kaydedilir.
+Future<CatalogueMetadata> syncRemoteV2Catalogue({
   required ListingStore store,
   required RemoteCatalogueClient client,
   required DateTime now,
-  required DateTime pruneBefore,
 }) async {
-  final result = await client.fetchListings();
-  final snapshot = result.snapshot;
-  if (snapshot == null) {
-    throw const RemoteCatalogueException('boş yanıt');
+  final cached = await store.remoteMetadata();
+  CatalogueMetadata? previous;
+  try {
+    if (cached.metadata != null) {
+      previous = CatalogueMetadata.decode(jsonDecode(cached.metadata!));
+    }
+  } on FormatException {
+    /* Bozuk metadata için koşulsuz GET; katalog/cursor korunur. */
   }
-  if (snapshot.listings.isNotEmpty) {
-    await store.mergeFeed([
-      for (final record in snapshot.listings) record.copyWith(fetchedAt: now),
-    ], pruneBefore: pruneBefore);
-  }
-  return RemoteSyncResult(
-    generatedAt: snapshot.generatedAt,
-    sources: snapshot.sources,
-    listingCount: snapshot.listings.length,
-    skipped: snapshot.skipped,
+  final fetched = await client.fetchMetadata(
+    etag: previous == null ? null : cached.etag,
   );
+  final metadata = fetched.metadata ?? previous;
+  if (metadata == null) {
+    throw const RemoteCatalogueException('metadata missing after 304');
+  }
+  final cursor = await store.remoteCursor();
+  if (cursor > metadata.latestSeq ||
+      (cursor + 1 < metadata.oldestRetainedSeq)) {
+    throw const RemoteCatalogueException('catalogue bootstrap required');
+  }
+  await syncRemoteChanges(
+    store: store,
+    client: client,
+    through: metadata.latestSeq,
+  );
+  await store.saveRemoteMetadata(
+    jsonEncode(metadata.json),
+    fetched.etag,
+    now,
+    expectedCursor: metadata.latestSeq,
+  );
+  return metadata;
 }
 
-/// V2 geçiş yolu; üretim cutover kabul kapıları geçmeden varsayılan yapılmaz.
+/// Sayfa cache+cursor atomik; network failure bir sonraki açılışta devam eder.
 Future<int> syncRemoteChanges({
   required ListingStore store,
   required RemoteCatalogueClient client,
+  int? through,
 }) async {
   var after = await store.remoteCursor();
-  int? watermark;
-  while (true) {
+  int? watermark = through;
+  // ponytail: 20 pages per refresh; persisted cursor resumes a larger backlog next time.
+  for (var i = 0; i < 20; i++) {
+    if (after == watermark) return after;
     final page = await client.fetchChanges(after: after, watermark: watermark);
     watermark ??= page.watermark;
     await store.applyDeltaPage(page, after: after);
     after = page.appliedThrough;
     if (!page.hasMore) return after;
   }
+  throw const RemoteCatalogueException('delta backlog; resume next refresh');
 }

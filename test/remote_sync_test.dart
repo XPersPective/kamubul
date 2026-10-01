@@ -5,8 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:kamubul/data/catalogue_refresh.dart';
 import 'package:kamubul/data/listing_store.dart';
-import 'package:kamubul/listings/kariyer_feed.dart';
-import 'package:kamubul/listings/sbb_feed.dart';
+import 'package:kamubul/data/remote_sync.dart';
 import 'package:kamubul_core/kamubul_core.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -29,45 +28,78 @@ void main() {
 
   final now = DateTime(2026, 9, 29, 13);
 
-  String snapshotBody({
+  String metadataBody({
     DateTime? generatedAt,
     SourceState kariyer = SourceState.ok,
     SourceState sbb = SourceState.ok,
-  }) => CatalogueSnapshot(
-    generatedAt: generatedAt ?? DateTime(2026, 9, 29, 8),
-    sources: [
-      SourceStatus(id: kKariyerSourceId, name: 'Kariyer Kapısı', state: kariyer),
-      SourceStatus(id: kSbbSourceId, name: 'Kamu İlanları (SBB)', state: sbb),
-      const SourceStatus(
-        id: 'iskur',
-        name: 'İŞKUR',
-        state: SourceState.blocked,
-        note: 'WAF',
-      ),
+  }) => jsonEncode({
+    'schemaVersion': 2,
+    'taxonomyVersion': 1,
+    'latestSeq': 1,
+    'oldestRetainedSeq': 1,
+    'sources': [
+      for (final entry in [
+        (kKariyerSourceId, 'Kariyer Kapısı', kariyer),
+        (kSbbSourceId, 'Kamu İlanları (SBB)', sbb),
+        ('iskur', 'İŞKUR', SourceState.blocked),
+      ])
+        {
+          'id': entry.$1,
+          'name': entry.$2,
+          'state': entry.$3.name,
+          'last_success': (generatedAt ?? DateTime(2026, 9, 29, 8))
+              .toUtc()
+              .toIso8601String(),
+        },
     ],
-    listings: [
-      ListingRecord(
-        url: _url,
-        sourceId: kKariyerSourceId,
-        title: 'TEST KURUMU - Memur Alımı',
-        category: 'Personel',
-        publishedAt: DateTime(2026, 9, 28),
-        fetchedAt: DateTime(2026, 9, 29, 8),
-        deadline: DateTime(2026, 10, 12, 23, 59),
-        places: const ['ANKARA'],
-        maxAge: 35,
-        maxAgeQuote: '35 yaşını doldurmamış olmak',
-        summary: const ['Yaş sınırı 35'],
-      ),
-    ],
-  ).encode();
+  });
 
   RemoteCatalogueClient client(String body, {int status = 200}) =>
       RemoteCatalogueClient(
         baseUrl: Uri.parse('https://kamubul.example'),
-        client: MockClient(
-          (_) async => http.Response.bytes(utf8.encode(body), status),
-        ),
+        client: MockClient((request) async {
+          if (request.url.path == '/api/v2/meta') {
+            return http.Response.bytes(
+              utf8.encode(body),
+              status,
+              headers: {'etag': '"meta1"'},
+            );
+          }
+          expect(request.url.path, '/api/v2/changes');
+          expect(request.url.queryParameters['watermark'], '1');
+          return http.Response(
+            jsonEncode({
+              'watermark': 1,
+              'appliedThrough': 1,
+              'hasMore': false,
+              'changes': [
+                {
+                  'seq': 1,
+                  'id': 'stable',
+                  'revision': 1,
+                  'operation': 'upsert',
+                  'item': {
+                    'id': 'stable',
+                    'revision': 1,
+                    'url': _url,
+                    'sourceId': kKariyerSourceId,
+                    'title': 'TEST KURUMU - Memur Alımı',
+                    'category': 'Personel',
+                    'publishedAt': '2026-09-28T08:00:00Z',
+                    'updatedAt': '2026-09-29T08:00:00Z',
+                    'deadline': '2026-10-12T20:59:00Z',
+                    'places': ['ANKARA'],
+                    'maxAge': 35,
+                    'maxAgeQuote': '35 yaşını doldurmamış olmak',
+                    'summary': ['Yaş sınırı 35'],
+                  },
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
       );
 
   var kariyerCalls = 0;
@@ -94,11 +126,145 @@ void main() {
     sbbCalls = 0;
   });
 
+  test(
+    'tutulmayan eski cursor katalog silinmeden bootstrap gerektirir',
+    () async {
+      final store = await freshStore();
+      await syncRemoteV2Catalogue(
+        store: store,
+        client: client(metadataBody()),
+        now: now,
+      );
+      final metadata = jsonDecode(metadataBody()) as Map;
+      metadata['latestSeq'] = 3;
+      metadata['oldestRetainedSeq'] = 3;
+      final requests = <http.Request>[];
+      final retained = RemoteCatalogueClient(
+        baseUrl: Uri.parse('https://kamubul.example'),
+        client: MockClient((request) async {
+          requests.add(request);
+          return http.Response(
+            jsonEncode(metadata),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
+      );
+      await expectLater(
+        syncRemoteV2Catalogue(store: store, client: retained, now: now),
+        throwsA(isA<RemoteCatalogueException>()),
+      );
+      expect(requests.single.url.path, '/api/v2/meta');
+      expect(await store.remoteCursor(), 1);
+      expect((await store.allListings()).single.url, _url);
+      expect((await store.remoteMetadata()).etag, '"meta1"');
+    },
+  );
+
+  test('kalıcı metadata ETag ile 304 okur; değişiklik yoksa katalog tekrar indirilmez', () async {
+    final store = await freshStore();
+    final requests = <http.Request>[];
+    final initial = client(metadataBody());
+    await refreshCatalogue(store, remote: initial, at: now);
+    final previous = await store.remoteMetadata();
+    expect(previous.etag, '"meta1"');
+    expect(previous.lastSuccess, now);
+    final unchanged = RemoteCatalogueClient(
+      baseUrl: Uri.parse('https://kamubul.example'),
+      client: MockClient((request) async {
+        requests.add(request);
+        expect(request.url.path, '/api/v2/meta');
+        expect(request.headers['If-None-Match'], '"meta1"');
+        return http.Response('', 304);
+      }),
+    );
+    await refreshCatalogue(
+      store,
+      remote: unchanged,
+      at: now.add(const Duration(hours: 1)),
+    );
+    expect(requests, hasLength(1));
+    expect(await store.remoteCursor(), 1);
+    expect(
+      (await store.allListings()).single.deadline!.toUtc(),
+      DateTime.utc(2026, 10, 12, 20, 59),
+    );
+    expect(
+      (await store.remoteMetadata()).lastSuccess,
+      now.add(const Duration(hours: 1)),
+    );
+  });
+
+  test(
+    'yarım delta son başarılı noktadan sürer; tam başarı zamanı erken yazılmaz',
+    () async {
+      final store = await freshStore();
+      var fail = true;
+      final cursors = <String>[];
+      final remote = RemoteCatalogueClient(
+        baseUrl: Uri.parse('https://kamubul.example'),
+        client: MockClient((request) async {
+          if (request.url.path == '/api/v2/meta') {
+            final meta = jsonDecode(metadataBody()) as Map;
+            meta['latestSeq'] = 2;
+            return http.Response(
+              jsonEncode(meta),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }
+          final after = request.url.queryParameters['after']!;
+          cursors.add(after);
+          expect(request.url.queryParameters['watermark'], '2');
+          if (after == '1' && fail) return http.Response('', 503);
+          final seq = int.parse(after) + 1;
+          return http.Response(
+            jsonEncode({
+              'watermark': 2,
+              'appliedThrough': seq,
+              'hasMore': seq < 2,
+              'changes': [
+                {
+                  'seq': seq,
+                  'id': 'stable',
+                  'revision': seq,
+                  'operation': 'upsert',
+                  'item': {
+                    'id': 'stable',
+                    'revision': seq,
+                    'url': _url,
+                    'sourceId': kKariyerSourceId,
+                    'title': 'Memur $seq',
+                    'category': 'Personel',
+                    'updatedAt': '2026-09-29T08:00:00Z',
+                  },
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      await expectLater(
+        syncRemoteV2Catalogue(store: store, client: remote, now: now),
+        throwsA(isA<RemoteCatalogueException>()),
+      );
+      expect(await store.remoteCursor(), 1);
+      expect((await store.remoteMetadata()).lastSuccess, isNull);
+      fail = false;
+      await syncRemoteV2Catalogue(store: store, client: remote, now: now);
+      expect(cursors.last, '1');
+      expect(await store.remoteCursor(), 2);
+      expect((await store.allListings()).single.title, 'Memur 2');
+      expect((await store.remoteMetadata()).lastSuccess, now);
+    },
+  );
+
   test('sunucu kaynakları sağlıklıysa gömülü çekim çalışmaz; alanlar ve özet yerele işlenir', () async {
     final store = await freshStore();
     final result = await refreshCatalogue(
       store,
-      remote: client(snapshotBody()),
+      remote: client(metadataBody()),
       kariyer: kariyerLoader,
       sbb: sbbLoader,
       at: now,
@@ -106,10 +272,11 @@ void main() {
     expect(kariyerCalls, 0);
     expect(sbbCalls, 0);
     expect(result.failedSources, isEmpty);
-    expect(
-      result.sourceStatuses.map((s) => s.state),
-      [SourceState.ok, SourceState.ok, SourceState.blocked],
-    );
+    expect(result.sourceStatuses.map((s) => s.state), [
+      SourceState.ok,
+      SourceState.ok,
+      SourceState.blocked,
+    ]);
     final stored = (await store.allListings()).single;
     expect(stored.places, ['ANKARA']);
     expect(stored.maxAge, 35);
@@ -121,7 +288,7 @@ void main() {
     final store = await freshStore();
     await refreshCatalogue(
       store,
-      remote: client(snapshotBody(sbb: SourceState.blocked)),
+      remote: client(metadataBody(sbb: SourceState.blocked)),
       kariyer: kariyerLoader,
       sbb: sbbLoader,
       at: now,
@@ -130,42 +297,48 @@ void main() {
     expect(sbbCalls, 1);
   });
 
-  test('sunucuya ulaşılamazsa tüm kaynaklar cihazdan çekilir, yerel kayıt korunur', () async {
-    final store = await freshStore();
-    await refreshCatalogue(
-      store,
-      remote: client(snapshotBody()),
-      kariyer: kariyerLoader,
-      sbb: sbbLoader,
-      at: now,
-    );
-    final result = await refreshCatalogue(
-      store,
-      remote: client('hata', status: 503),
-      kariyer: kariyerLoader,
-      sbb: sbbLoader,
-      at: now.add(const Duration(hours: 6)),
-    );
-    expect(kariyerCalls, 1);
-    expect(sbbCalls, 1);
-    expect(result.failedSources, isEmpty);
-    expect(result.sourceStatuses, isEmpty);
-    final urls = (await store.allListings()).map((r) => r.url).toSet();
-    expect(urls, {_url, 'https://kariyerkapisi.gov.tr/IlanDetay?i=99'});
-  });
+  test(
+    'sunucuya ulaşılamazsa tüm kaynaklar cihazdan çekilir, yerel kayıt korunur',
+    () async {
+      final store = await freshStore();
+      await refreshCatalogue(
+        store,
+        remote: client(metadataBody()),
+        kariyer: kariyerLoader,
+        sbb: sbbLoader,
+        at: now,
+      );
+      final result = await refreshCatalogue(
+        store,
+        remote: client('hata', status: 503),
+        kariyer: kariyerLoader,
+        sbb: sbbLoader,
+        at: now.add(const Duration(hours: 6)),
+      );
+      expect(kariyerCalls, 1);
+      expect(sbbCalls, 1);
+      expect(result.failedSources, isEmpty);
+      expect(result.sourceStatuses, isEmpty);
+      final urls = (await store.allListings()).map((r) => r.url).toSet();
+      expect(urls, {_url, 'https://kariyerkapisi.gov.tr/IlanDetay?i=99'});
+    },
+  );
 
-  test('bayat sunucu anlık görüntüsü (36 saatten eski) yedek çekimi tetikler', () async {
-    final store = await freshStore();
-    await refreshCatalogue(
-      store,
-      remote: client(snapshotBody(generatedAt: DateTime(2026, 9, 27, 8))),
-      kariyer: kariyerLoader,
-      sbb: sbbLoader,
-      at: now,
-    );
-    expect(kariyerCalls, 1);
-    expect(sbbCalls, 1);
-  });
+  test(
+    'kaynağın son başarısı 36 saatten eskiyse geçişteki yedek yol çalışır',
+    () async {
+      final store = await freshStore();
+      await refreshCatalogue(
+        store,
+        remote: client(metadataBody(generatedAt: DateTime(2026, 9, 27, 8))),
+        kariyer: kariyerLoader,
+        sbb: sbbLoader,
+        at: now,
+      );
+      expect(kariyerCalls, 1);
+      expect(sbbCalls, 1);
+    },
+  );
 
   test('uzak katalog yapılandırılmamışsa davranış eskisi gibidir', () async {
     final store = await freshStore();
@@ -182,15 +355,14 @@ void main() {
 
   test('sunucudan gelen kayıt kaydedilmiş ilanı sıfırlamaz', () async {
     final store = await freshStore();
-    await refreshCatalogue(store, remote: client(snapshotBody()), at: now);
+    await refreshCatalogue(store, remote: client(metadataBody()), at: now);
     await store.setSaved(_url, true);
     await refreshCatalogue(
       store,
-      remote: client(snapshotBody()),
+      remote: client(metadataBody()),
       at: now.add(const Duration(hours: 6)),
     );
     final stored = (await store.allListings()).single;
     expect(stored.saved, isTrue);
   });
 }
-

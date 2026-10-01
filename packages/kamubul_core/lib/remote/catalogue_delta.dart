@@ -77,13 +77,17 @@ class CatalogueDeltaPage {
       }
       final deleted = r['operation'] == 'tombstone';
       if (!deleted &&
-          listingFromJson({
-                ...item,
-                'source': item['sourceId'],
-                'fetched': item['updatedAt'],
-                'published': item['publishedAt'],
-                'summary': <String>[],
-              }, fallbackFetchedAt: DateTime.utc(1970)) ==
+          listingFromJson(
+                {
+                  ...item,
+                  'source': item['sourceId'],
+                  'fetched': item['updatedAt'],
+                  'published': item['publishedAt'],
+                  'summary': <String>[],
+                },
+                fallbackFetchedAt: DateTime.utc(1970),
+                utcDates: true,
+              ) ==
               null) {
         throw const SnapshotFormatException('delta listing');
       }

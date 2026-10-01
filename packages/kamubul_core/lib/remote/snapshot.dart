@@ -185,6 +185,7 @@ Map<String, Object?> listingToJson(ListingRecord r) => {
 ListingRecord? listingFromJson(
   Object? raw, {
   required DateTime fallbackFetchedAt,
+  bool utcDates = false,
 }) {
   if (raw is! Map) return null;
   final url = raw['url'];
@@ -196,14 +197,19 @@ ListingRecord? listingFromJson(
   if (source == null || title == null) return null;
   final quota = raw['quota'];
   final maxAge = raw['maxAge'];
+  DateTime? date(Object? value) => utcDates
+      ? (value is String && value.length <= 40
+            ? DateTime.tryParse(value)
+            : null)
+      : parseWallIso(value);
   return ListingRecord(
     url: url,
     sourceId: source,
     title: title,
     category: _text(raw['category'], 120) ?? '',
-    publishedAt: parseWallIso(raw['published']),
-    fetchedAt: parseWallIso(raw['fetched']) ?? fallbackFetchedAt,
-    deadline: parseWallIso(raw['deadline']),
+    publishedAt: date(raw['published']),
+    fetchedAt: date(raw['fetched']) ?? fallbackFetchedAt,
+    deadline: date(raw['deadline']),
     quota: quota is int && quota >= 0 && quota <= 1000000 ? quota : null,
     places: _list(raw['places'], 50, 100),
     kpss: _text(raw['kpss'], 60),

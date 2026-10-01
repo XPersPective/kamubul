@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 
 import 'snapshot.dart';
 import 'catalogue_delta.dart';
+import 'catalogue_metadata.dart';
 
 class RemoteCatalogueException implements Exception {
   const RemoteCatalogueException(this.message);
@@ -44,6 +45,9 @@ class RemoteCatalogueClient {
         baseUrl.host == '127.0.0.1' ||
         baseUrl.host == '10.0.2.2';
     if (baseUrl.host.isEmpty ||
+        baseUrl.userInfo.isNotEmpty ||
+        baseUrl.hasQuery ||
+        baseUrl.hasFragment ||
         !(scheme == 'https' || (scheme == 'http' && loopback))) {
       throw ArgumentError.value(baseUrl, 'baseUrl', 'https gerekir');
     }
@@ -59,6 +63,42 @@ class RemoteCatalogueClient {
     path:
         '${baseUrl.path.endsWith('/') ? baseUrl.path.substring(0, baseUrl.path.length - 1) : baseUrl.path}$path',
   );
+
+  Future<({CatalogueMetadata? metadata, String? etag})> fetchMetadata({
+    String? etag,
+  }) async {
+    try {
+      return await (() async {
+        final request = http.Request('GET', _uri('/api/v2/meta'));
+        request.headers['Accept'] = 'application/json';
+        if (etag != null) request.headers['If-None-Match'] = etag;
+        final response = await _client.send(request);
+        if (response.statusCode == 304) {
+          await response.stream.listen(null).cancel();
+          return (metadata: null, etag: etag);
+        }
+        if (response.statusCode != 200) {
+          await response.stream.listen(null).cancel();
+          throw RemoteCatalogueException('HTTP ${response.statusCode}');
+        }
+        final bytes = <int>[];
+        await for (final chunk in response.stream) {
+          if (bytes.length + chunk.length > 65536) {
+            throw const RemoteCatalogueException('metadata too large');
+          }
+          bytes.addAll(chunk);
+        }
+        return (
+          metadata: CatalogueMetadata.decode(jsonDecode(utf8.decode(bytes))),
+          etag: response.headers['etag'],
+        );
+      })().timeout(timeout);
+    } on RemoteCatalogueException {
+      rethrow;
+    } on Exception catch (error) {
+      throw RemoteCatalogueException('metadata: $error');
+    }
+  }
 
   Future<CatalogueDeltaPage> fetchChanges({
     required int after,

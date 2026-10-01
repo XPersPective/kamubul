@@ -35,7 +35,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 5;
+  static const int _schemaVersion = 6;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -75,6 +75,7 @@ class ListingStore {
       )
     ''');
     await _createRemoteTables(db);
+    await _addRemoteMetadata(db);
   }
 
   static Future<void> _createRemoteTables(DatabaseExecutor db) async {
@@ -111,6 +112,48 @@ class ListingStore {
       }
     }
     if (oldVersion < 5 && newVersion >= 5) await _createRemoteTables(db);
+    if (oldVersion < 6 && newVersion >= 6) await _addRemoteMetadata(db);
+  }
+
+  static Future<void> _addRemoteMetadata(Database db) async {
+    for (final column in [
+      'metadata TEXT',
+      'metadata_etag TEXT',
+      'last_success INTEGER',
+    ]) {
+      await db.execute('ALTER TABLE remote_sync_state ADD COLUMN $column');
+    }
+  }
+
+  Future<({String? metadata, String? etag, DateTime? lastSuccess})>
+  remoteMetadata() async {
+    final row = (await (await database).query('remote_sync_state')).single;
+    return (
+      metadata: row['metadata'] as String?,
+      etag: row['metadata_etag'] as String?,
+      lastSuccess: row['last_success'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(row['last_success'] as int)
+          : null,
+    );
+  }
+
+  Future<void> saveRemoteMetadata(
+    String metadata,
+    String? etag,
+    DateTime succeededAt, {
+    int? expectedCursor,
+  }) async {
+    final changed = await (await database).update(
+      'remote_sync_state',
+      {
+        'metadata': metadata,
+        'metadata_etag': etag,
+        'last_success': succeededAt.millisecondsSinceEpoch,
+      },
+      where: expectedCursor == null ? 'id=1' : 'id=1 AND cursor=?',
+      whereArgs: expectedCursor == null ? null : [expectedCursor],
+    );
+    if (changed != 1) throw const FormatException('concurrent metadata sync');
   }
 
   Future<int> remoteCursor() async {
@@ -161,13 +204,17 @@ class ListingStore {
               .whereType<String>()
               .take(5)
               .toList();
-          final record = listingFromJson({
-            ...item,
-            'source': item['sourceId'],
-            'fetched': item['updatedAt'],
-            'published': item['publishedAt'],
-            'summary': summary,
-          }, fallbackFetchedAt: DateTime.now());
+          final record = listingFromJson(
+            {
+              ...item,
+              'source': item['sourceId'],
+              'fetched': item['updatedAt'],
+              'published': item['publishedAt'],
+              'summary': summary,
+            },
+            fallbackFetchedAt: DateTime.now(),
+            utcDates: true,
+          );
           if (record == null) {
             throw const FormatException('invalid delta record');
           }

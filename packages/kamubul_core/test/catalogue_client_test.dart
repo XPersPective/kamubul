@@ -23,6 +23,78 @@ String _body() => CatalogueSnapshot(
 void main() {
   final base = Uri.parse('https://kamubul.example');
 
+  test(
+    'v2 metadata UTC source timestamps and conditional ETag are read',
+    () async {
+      final body = jsonEncode({
+        'schemaVersion': 2,
+        'taxonomyVersion': 1,
+        'latestSeq': 40,
+        'oldestRetainedSeq': 1,
+        'sources': [
+          {
+            'id': 'kariyerkapisi',
+            'name': 'Kariyer',
+            'state': 'ok',
+            'last_success': '2026-10-01T08:00:00Z',
+          },
+        ],
+      });
+      final client = RemoteCatalogueClient(
+        baseUrl: base,
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v2/meta');
+          expect(request.headers['If-None-Match'], '"old"');
+          return http.Response(body, 200, headers: {'etag': '"new"'});
+        }),
+      );
+      final result = await client.fetchMetadata(etag: '"old"');
+      expect(result.etag, '"new"');
+      expect(result.metadata!.latestSeq, 40);
+      expect(
+        result.metadata!.sources.single.lastSuccessAt,
+        DateTime.utc(2026, 10, 1, 8),
+      );
+      final unchanged = RemoteCatalogueClient(
+        baseUrl: base,
+        client: MockClient((_) async => http.Response('', 304)),
+      );
+      final cached = await unchanged.fetchMetadata(etag: '"new"');
+      expect(cached.metadata, isNull);
+      expect(cached.etag, '"new"');
+    },
+  );
+
+  test('v2 metadata invalid schema/source/date and oversized response are rejected', () async {
+    final good = {
+      'schemaVersion': 2,
+      'taxonomyVersion': 1,
+      'latestSeq': 40,
+      'oldestRetainedSeq': 1,
+      'sources': [],
+    };
+    for (final body in [
+      jsonEncode({...good, 'schemaVersion': 3}),
+      jsonEncode({...good, 'oldestRetainedSeq': 41}),
+      jsonEncode({
+        ...good,
+        'sources': [
+          {'id': 'x', 'name': 'X', 'state': 'ok', 'last_success': 'bad date'},
+        ],
+      }),
+      'x' * 65537,
+    ]) {
+      final client = RemoteCatalogueClient(
+        baseUrl: base,
+        client: MockClient((_) async => http.Response(body, 200)),
+      );
+      await expectLater(
+        client.fetchMetadata(),
+        throwsA(isA<RemoteCatalogueException>()),
+      );
+    }
+  });
+
   test('200 yanıt okunur ve ETag döner; If-None-Match gönderilir', () async {
     String? sentEtag;
     final client = RemoteCatalogueClient(

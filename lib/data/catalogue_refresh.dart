@@ -5,8 +5,7 @@ import 'remote_sync.dart';
 
 const cataloguePruneAfter = Duration(days: 45);
 
-/// Sunucu anlık görüntüsü bundan eskiyse güncel sayılmaz; gömülü çekim de
-/// çalışır (tazelik garantisi).
+/// Geçişte kaynak son başarısı bu eşiği geçtiyse eski yol devrede kalır.
 const remoteSnapshotMaxAge = Duration(hours: 36);
 
 class CatalogueRefreshResult {
@@ -38,7 +37,7 @@ Future<int> refreshKariyerCity(ListingStore store, String city) async {
 
 /// Ekran, elle denetim ve arka plan görevi aynı yenileme yolunu kullanır.
 ///
-/// Önce sunucu kataloğu okunur (yapılandırılmışsa). Sunucu bir kaynağı
+/// Önce v2 metadata ve kalıcı cursor sonrası fark okunur (yapılandırılmışsa). Sunucu bir kaynağı
 /// sağlayamıyorsa (engel, hata, bayat anlık görüntü) YALNIZCA o kaynak eski
 /// gömülü yoldan cihazdan çekilir; sunucuya hiç ulaşılamazsa hepsi. Bir
 /// kaynak bozulduğunda diğerleri ve mevcut yerel kayıtlar korunur.
@@ -60,17 +59,23 @@ Future<CatalogueRefreshResult> refreshCatalogue(
   final client = remote ?? defaultRemoteClient();
   if (client != null) {
     try {
-      final sync = await syncRemoteCatalogue(
+      final metadata = await syncRemoteV2Catalogue(
         store: store,
         client: client,
         now: now,
-        pruneBefore: now.subtract(cataloguePruneAfter),
       );
-      statuses = sync.sources;
-      if (now.difference(sync.generatedAt) <= remoteSnapshotMaxAge) {
-        needKariyer = sync.stateOf(kKariyerSourceId) != SourceState.ok;
-        needSbb = sync.stateOf(kSbbSourceId) != SourceState.ok;
+      statuses = metadata.sources;
+      bool available(String id) {
+        final source = statuses.where((s) => s.id == id).firstOrNull;
+        final success = source?.lastSuccessAt;
+        return source?.state == SourceState.ok &&
+            success != null &&
+            !success.isAfter(now) &&
+            now.difference(success) <= remoteSnapshotMaxAge;
       }
+
+      needKariyer = !available(kKariyerSourceId);
+      needSbb = !available(kSbbSourceId);
     } on Exception {
       // Sunucu ya da ağ yok: gömülü çekim tüm kaynakları kapsar.
     } finally {
