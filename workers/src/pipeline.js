@@ -1,5 +1,5 @@
 import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,plain} from './sources.js';
-import {matchListing} from './criteria.js';
+import {matchListing,listingAnchorKeys} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
 
@@ -129,7 +129,7 @@ export async function processNotice(env){
 }
 export async function expireListings(env) {
   const now=nowISO();
-  // ponytail: 10 expirations per minute; immutable tombstones preserve sync/favorites.
+  // ponytail: 10 expirations per source slot; immutable tombstones preserve sync/favorites.
   await env.DB.prepare('UPDATE listings SET active=0,revision=revision+1,updated_at=? WHERE id IN (SELECT id FROM listings WHERE active=1 AND deadline IS NOT NULL AND deadline<=? ORDER BY deadline,id LIMIT 10)').bind(now,now).run();
 }
 export async function matchEvents(env){
@@ -137,17 +137,28 @@ export async function matchEvents(env){
   const listing=JSON.parse(event.payload);
   const current=await env.DB.prepare('SELECT active,deadline FROM listings WHERE id=?').bind(event.listing_id).first();
   if(!current?.active||(current.deadline&&Date.parse(current.deadline)<=Date.now())){await env.DB.prepare("UPDATE match_events SET state='expired',lease_until=NULL WHERE id=?").bind(event.id).run();return;}
-  const devices=(await env.DB.prepare('SELECT * FROM installations WHERE enabled=1 AND id>? ORDER BY id LIMIT 10').bind(event.cursor).all()).results;
+  const keys=listingAnchorKeys(listing);
+  let facet=event.facet_index,cursor=event.cursor;
   const eventSeq=(await env.DB.prepare('SELECT MIN(seq) seq FROM catalogue_changes WHERE listing_id=?').bind(event.listing_id).first()).seq;
-  for(const device of devices){
-    const searches=(await env.DB.prepare("SELECT * FROM saved_searches WHERE installation_id=? AND mode!='off' AND effective_after<?").bind(device.id,eventSeq).all()).results;
-    const matching=searches.filter(s=>matchListing(listing,JSON.parse(s.criteria))==='match');
-    if(!matching.length)continue;
-    const payload={...listing,eventId:event.id,searchIds:matching.map(s=>s.id),mode:matching.some(s=>s.mode==='instant')?'instant':'digest',preferencesVersion:device.version};
-    await env.DB.prepare('INSERT OR IGNORE INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES(?,?,?,?,?,?)')
-      .bind(await sha256(device.id+':'+listing.id),device.id,listing.id,JSON.stringify(payload),payload.mode==='digest'?digestDue(new Date(now)):now,now).run();
+  // ponytail: ten indexed recipients / up to four empty facets per Cron; wide matches still need measured Free fanout capacity.
+  for(let step=0;step<4&&facet<keys.length;step++) {
+    const candidates=(await env.DB.prepare('SELECT installation_id FROM installation_facets WHERE key=? AND installation_id>? ORDER BY installation_id LIMIT 10').bind(keys[facet],cursor).all()).results;
+    for(const candidate of candidates) {
+      const device=await env.DB.prepare('SELECT * FROM installations WHERE id=? AND enabled=1').bind(candidate.installation_id).first();
+      if(!device)continue;
+      const searches=(await env.DB.prepare("SELECT * FROM saved_searches WHERE installation_id=? AND mode!='off' AND effective_after<?").bind(device.id,eventSeq).all()).results;
+      const matching=searches.filter(s=>matchListing(listing,JSON.parse(s.criteria))==='match');
+      if(!matching.length)continue;
+      const payload={...listing,eventId:event.id,searchIds:matching.map(s=>s.id),mode:matching.some(s=>s.mode==='instant')?'instant':'digest',preferencesVersion:device.version};
+      await env.DB.prepare('INSERT OR IGNORE INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES(?,?,?,?,?,?)')
+        .bind(await sha256(device.id+':'+listing.id),device.id,listing.id,JSON.stringify(payload),payload.mode==='digest'?digestDue(new Date(now)):now,now).run();
+    }
+    if(candidates.length===10){cursor=candidates.at(-1).installation_id;break;}
+    facet++;cursor='';
+    if(candidates.length)break;
   }
-  await env.DB.prepare('UPDATE match_events SET state=?,cursor=?,lease_until=NULL WHERE id=?').bind(devices.length===10?'pending':'completed',devices.at(-1)?.id??event.cursor,event.id).run();
+  await env.DB.prepare('UPDATE match_events SET state=?,facet_index=?,cursor=?,lease_until=NULL WHERE id=? AND lease_until=?')
+    .bind(facet>=keys.length?'completed':'pending',facet,cursor,event.id,event.lease_until).run();
 }
 function localParts(now=new Date()){return new Date(+now+3*3600000);}
 export function nextAllowed(preferences,now=new Date()){
@@ -222,7 +233,7 @@ export async function flushOutbox(env,{send=sendFcm,now=new Date()}={}) {
     if(deadlines.length)message.deadline=new Date(Math.min(...deadlines)).toISOString();
     try {
       const sent=await send(env,device.token,message);
-      if(sent.state==='invalid_token'){await env.DB.batch([env.DB.prepare('UPDATE installations SET enabled=0 WHERE id=? AND token=?').bind(device.id,device.token),env.DB.prepare("UPDATE notification_outbox SET state='cancelled',error_code='invalid_token',lease_until=NULL WHERE installation_id=? AND state IN ('pending','leased') AND EXISTS(SELECT 1 FROM installations WHERE id=? AND enabled=0 AND token=?)").bind(device.id,device.id,device.token)]);return;}
+      if(sent.state==='invalid_token'){await env.DB.batch([env.DB.prepare('UPDATE installations SET enabled=0 WHERE id=? AND token=?').bind(device.id,device.token),env.DB.prepare("UPDATE notification_outbox SET state='cancelled',error_code='invalid_token',lease_until=NULL WHERE installation_id=? AND state IN ('pending','leased') AND EXISTS(SELECT 1 FROM installations WHERE id=? AND enabled=0 AND token=?)").bind(device.id,device.id,device.token),env.DB.prepare('DELETE FROM installation_facets WHERE installation_id=? AND EXISTS(SELECT 1 FROM installations WHERE id=? AND enabled=0 AND token=?)').bind(device.id,device.id,device.token)]);return;}
       await env.DB.batch([
         ...valid.map(row=>env.DB.prepare("UPDATE notification_outbox SET state='accepted',payload=?,fcm_id=?,lease_until=NULL,attempts=attempts+1,error_code=NULL WHERE id=? AND state IN ('pending','leased')").bind(JSON.stringify({...row,eventId:row.outboxId,deliveryId:job.id,mode:event.mode,digestCount:valid.length,preferencesVersion:event.preferencesVersion}),sent.id,row.outboxId)),
         ...invalid.map(([id,state])=>env.DB.prepare("UPDATE notification_outbox SET state=?,lease_until=NULL,error_code='listing_no_longer_eligible' WHERE id=? AND state IN ('pending','leased')").bind(state,id)),
@@ -235,10 +246,12 @@ export async function flushOutbox(env,{send=sendFcm,now=new Date()}={}) {
     await env.DB.prepare('UPDATE installations SET send_lease_until=NULL WHERE id=? AND send_lease_until=?').bind(job.installation_id,lease).run();
   }
 }
-export async function runScheduled(env){
+export async function runScheduled(env,scheduledTime=Date.now()){
   if(!env.DB)throw new Error('database_not_configured');
+  // ponytail: three-minute stage cycle keeps each invocation below Free's 50 queries/subrequests; measured CPU/fanout sets the capacity ceiling.
+  const stages=[[expireListings,readSource,processNotice],[matchEvents],[flushOutbox]];
   // Each durable stage is recoverable; failures do not clear another stage's backlog.
-  for(const step of [expireListings,readSource,processNotice,matchEvents,flushOutbox]) {
+  for(const step of stages[Math.floor(scheduledTime/60000)%stages.length]) {
     try {await step(env);}catch(e){console.error('scheduled_stage_failed',step.name,safeError(e));}
   }
 }

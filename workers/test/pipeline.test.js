@@ -2,14 +2,16 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
+import {searchAnchorKeys,installationAnchorKeys,listingAnchorKeys,matchListing,validateCriteria,migrateFilters} from '../src/criteria.js';
 import {fcmMessage} from '../src/fcm.js';
 import {fetchRequest,sha256} from '../src/worker.js';
-import {splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents} from '../src/pipeline.js';
+import {splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled} from '../src/pipeline.js';
 
 function database(){
   const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0002_digest_delivery.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0003_daily_digest.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0004_match_facets.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -24,6 +26,23 @@ function model(calls){return {async run(model,request,options){
   const quote=text.startsWith('[{')?JSON.parse(text)[0].quote:text.slice(0,80);
   return {response:JSON.stringify({summary:[{text:'Resmî başvuru koşulları.',quote}],conditions:[]})};
 }};}
+
+test('scheduled timestamp separates source, matching and delivery into three slots',async()=>{
+  for(let minute=0;minute<6;minute++){
+    const {sql,DB}=database(),queries=[];
+    // No source is due: this check exercises real stages without network or model calls.
+    sql.exec("UPDATE sources SET next_due='2999-01-01'");
+    const original=DB.prepare;DB.prepare=query=>{queries.push(query);return original(query);};
+    await runScheduled({DB,AI:{},FCM_PRIVATE_KEY:'fixture',FCM_CLIENT_EMAIL:'fixture'},minute*60000);
+    const first=queries[0];
+    if(minute%3===0){assert.match(first,/UPDATE listings SET active=0/);assert.ok(queries.some(q=>q.includes('UPDATE processing_jobs')));}
+    if(minute%3===1)assert.match(first,/UPDATE match_events/);
+    if(minute%3===2)assert.match(first,/UPDATE notification_outbox/);
+    assert.ok(!queries.some(q=>q.includes('UPDATE match_events'))||minute%3===1);
+    assert.ok(!queries.some(q=>q.includes('UPDATE notification_outbox'))||minute%3===2);
+    sql.close();
+  }
+});
 
 test('long Turkish/emoji document is split losslessly on UTF8 boundaries',()=>{
   for(const text of ['','ğ'.repeat(16000),'😀'.repeat(17000),('Başvuru bilgileri\n').repeat(4000)]){
@@ -281,4 +300,102 @@ test('one daily digest does not consume instant cap, remaining jobs stay queued'
   assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE state='pending'").get().n,2);
   await flushOutbox(env,{send,now:new Date('2026-10-02T15:00:00Z')});
   assert.equal(calls.length,2);assert.equal(calls[1].event.digestCount,2);
+});
+
+test('candidate anchors retain every exact match in shared Dart corpus and group variants',()=>{
+  const now=new Date('2026-09-30T12:00:00Z');
+  const corpus=JSON.parse(readFileSync(new URL('../../contracts/criteria-v2.json',import.meta.url),'utf8'));
+  for(const row of corpus) {
+    const criteria=row.legacy?migrateFilters(row.legacy):validateCriteria(row.criteria);
+    if(matchListing(row.listing,criteria,now)==='match')assert.ok(searchAnchorKeys(criteria).some(key=>listingAnchorKeys(row.listing).includes(key)),row.name);
+  }
+  for(const groups of [undefined,[{cities:[],education:['Lisans'],occupations:['Mühendis']}],[{cities:['Ankara'],education:['Lisans']},{cities:['İstanbul'],education:['Lise']}]] ) {
+    const listing={title:'Memur',institution:'Kurum',places:['Ankara'],occupations:['Mühendis'],requirementGroups:groups};
+    for(const cities of [[],['Ankara'],['İstanbul','Ankara']])for(const education of [[],['Lisans'],['Lise']])for(const occupations of [[],['Mühendis']])for(const institutions of [[],['Kurum']]) {
+      const criteria={cities,education,occupations,institutions};
+      if(matchListing(listing,criteria,now)==='match')assert.ok(searchAnchorKeys(criteria).some(key=>listingAnchorKeys(listing).includes(key)));
+    }
+  }
+  assert.deepEqual(installationAnchorKeys([{mode:'instant',criteria:{cities:['Ankara']}},{mode:'digest',criteria:{keyword:'Memur'}}]),['*']);
+  assert.deepEqual(installationAnchorKeys([{mode:'off',criteria:{cities:['Ankara']}}]),[]);
+});
+
+test('indexed matching skips unrelated installations, resumes pages and dedupes multiple facets',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  const payload={id:'job',title:'Memur',places:['Ankara'],requirementGroups:[{cities:['Ankara'],education:['Lisans'],kpssStatus:'unknown'}]};
+  const add=(id,searches,baseline=0)=>{
+    sql.prepare("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES(?,'hash','token','android','{}','now')").run(id);
+    for(const s of searches)sql.prepare('INSERT INTO saved_searches VALUES(?,?,?,?,?,?)').run(id,s.id,s.id,JSON.stringify(s.criteria),s.mode,baseline);
+    for(const key of installationAnchorKeys(searches))sql.prepare('INSERT INTO installation_facets VALUES(?,?)').run(key,id);
+  };
+  const city={id:'city',mode:'instant',criteria:{version:2,cities:['Ankara']}};
+  for(let n=0;n<15;n++)add('matching'+String(n).padStart(2,'0'),[city]);
+  for(let n=0;n<30;n++)add('unrelated'+String(n).padStart(2,'0'),[{...city,criteria:{version:2,cities:['İstanbul']}}]);
+  add('double',[city,{id:'education',mode:'digest',criteria:{version:2,education:['Lisans']}}]);
+  add('broad',[{id:'broad',mode:'digest',criteria:{version:2,keyword:'Memur'}}]);
+  add('unknown',[{...city,criteria:{version:2,cities:['Ankara'],kpssType:'P3'}}]);
+  add('new',[city],1);
+  sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('job','sbb','job','hash','first','now','later',?)").run(JSON.stringify(payload));
+  sql.exec("UPDATE listings SET processed_hash='hash' WHERE id='job'");
+  const prepare=DB.prepare,seen=[];let queries=0;
+  DB.prepare=query=>{
+    queries++;
+    if(query==='SELECT * FROM installations WHERE id=? AND enabled=1') {
+      const statement=prepare(query),bind=statement.bind;
+      statement.bind=function(id){seen.push(id);return bind.call(this,id);};return statement;
+    }
+    assert.ok(!query.includes('FROM installations WHERE enabled=1 AND id>'));
+    return prepare(query);
+  };
+  for(let n=0;n<10;n++) {
+    queries=0;
+    await matchEvents({DB});
+    assert.ok(queries<=38,`matching query budget: ${queries}`);
+    if(sql.prepare('SELECT state FROM match_events').get().state==='completed')break;
+  }
+  assert.equal(sql.prepare('SELECT state FROM match_events').get().state,'completed');
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM notification_outbox').get().n,17);
+  assert.ok(!seen.some(id=>id.startsWith('unrelated')));
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE installation_id IN ('unknown','new')").get().n,0);
+  const double=JSON.parse(sql.prepare("SELECT payload FROM notification_outbox WHERE installation_id='double'").get().payload);
+  assert.deepEqual(double.searchIds.sort(),['city','education']);assert.equal(double.mode,'instant');
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE installation_id='double'").get().n,1);
+  const plan=sql.prepare('EXPLAIN QUERY PLAN SELECT installation_id FROM installation_facets WHERE key=? AND installation_id>? ORDER BY installation_id LIMIT 10').all('cities:ankara','');
+  assert.ok(plan.some(row=>row.detail.includes('key=? AND installation_id>?')));
+});
+
+test('registry replaces facets atomically and preserves them on token-only heartbeat',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());const id='a'.repeat(32),secret='b'.repeat(64);
+  const put=async(searches,token='token'.repeat(8))=>fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret},body:JSON.stringify({fcmToken:token,platform:'android',searches})}),{DB},{});
+  const search={id:'city',name:'Şehrim',mode:'instant',criteria:{version:2,cities:['Ankara']}};
+  assert.equal((await put([search])).status,201);
+  const keys=()=>sql.prepare('SELECT key FROM installation_facets WHERE installation_id=? ORDER BY key').all(id).map(x=>x.key);
+  assert.deepEqual(keys(),['cities:ankara']);
+  const version=sql.prepare('SELECT version FROM installations').get().version;
+  await put([search],'rotated'.repeat(8));assert.deepEqual(keys(),['cities:ankara']);assert.equal(sql.prepare('SELECT version FROM installations').get().version,version);
+  await put([{...search,criteria:{version:2,education:['Lisans']}}]);assert.deepEqual(keys(),['education:lisans']);
+  await put([{...search,mode:'off'}]);assert.deepEqual(keys(),[]);
+  await put([search]);
+  const response=await fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+secret}}),{DB},{});
+  assert.equal(response.status,200);assert.deepEqual(keys(),[]);
+});
+
+test('facet migration preserves existing subscriptions and restarts old partial match cursor',async t=>{
+  const sql=new DatabaseSync(':memory:');t.after(()=>sql.close());sql.exec('PRAGMA foreign_keys=ON');
+  sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
+  sql.exec("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES('existing','hash','token','android','{}','now'),('off','hash','token','android','{}','now'); INSERT INTO saved_searches VALUES('existing','s','My city','{}','instant',0),('off','s','Off','{}','off',0); INSERT INTO match_events(id,listing_id,revision,payload,created_at,cursor,state,lease_until) VALUES('old','listing',1,'{}','now','last-old-device','leased','future')");
+  sql.exec(readFileSync(new URL('../migrations/0004_match_facets.sql',import.meta.url),'utf8'));
+  assert.deepEqual(sql.prepare('SELECT key,installation_id FROM installation_facets').all().map(row=>({...row})),[{key:'*',installation_id:'existing'}]);
+  const event=sql.prepare('SELECT cursor,state,lease_until,facet_index FROM match_events').get();
+  assert.deepEqual({...event},{cursor:'',state:'pending',lease_until:null,facet_index:0});
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,2);
+});
+
+test('invalid token removes candidate facets but preserves saved preferences',async t=>{
+  const {sql,env}=notifications(t,1,{mode:'instant'});
+  sql.exec("INSERT INTO installation_facets VALUES('*','device')");
+  await flushOutbox(env,{now:new Date('2026-10-01T15:00:00Z'),send:async()=>({state:'invalid_token'})});
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM installation_facets').get().n,0);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,1);
+  assert.equal(sql.prepare('SELECT enabled FROM installations').get().enabled,0);
 });

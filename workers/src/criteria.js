@@ -83,3 +83,26 @@ export function matchListing(listing, criteria, now = new Date()) {
   }
   return unknown?'unknown':'no_match';
 }
+
+// Candidate anchors only prune push recipients; matchListing remains authoritative.
+export function searchAnchorKeys(criteria) {
+  const fields=['cities','occupations','education','institutions'];
+  const field=fields.filter(k=>criteria[k]?.length).sort((a,b)=>criteria[a].length-criteria[b].length)[0];
+  return field?[...new Set(criteria[field].map(value=>field+':'+fold(value)))].sort():['*'];
+}
+export function installationAnchorKeys(searches) {
+  const keys=new Set(searches.filter(s=>s.mode!=='off').flatMap(s=>searchAnchorKeys(s.criteria)));
+  return keys.has('*')?['*']:[...keys].sort();
+}
+export function listingAnchorKeys(listing) {
+  const keys=new Set(['*']);
+  if(listing.institution)keys.add('institutions:'+fold(listing.institution));
+  const groups=listing.requirementGroups?.length?listing.requirementGroups:[{cities:listing.places??[],occupations:listing.occupations??[]}];
+  for(const group of groups) {
+    for(const field of ['cities','occupations','education']) {
+      const values=field==='cities'?(group.cities?.length?group.cities:(groups.length===1?listing.places??[]:[])):group[field]??[];
+      for(const value of values)keys.add(field+':'+fold(value));
+    }
+  }
+  return [...keys].sort();
+}

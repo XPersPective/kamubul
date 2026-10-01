@@ -60,7 +60,7 @@ test('real migration enforces identity, committed changes and deletion cascade',
   assert.equal(db.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,0);db.close();
 });
 test('registry heartbeat and token rotation preserve pending notifications',async()=>{
-  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
+  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0004_match_facets.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   const id='a'.repeat(32),secret='b'.repeat(64),body={fcmToken:'token'.repeat(10),platform:'android',searches:[{id:'s1',name:'Ankara',criteria:{version:2,cities:['Ankara']},mode:'instant'}]};
   const put=async value=>fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret},body:JSON.stringify(value)}),{DB},{});

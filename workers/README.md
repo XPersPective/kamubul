@@ -60,7 +60,7 @@ Her isteğin serialized girdisi24KB, çıktısı1024 token ile sınırlıdır.
 kapasite doluyken kuyruğa kabulü engeller.45 saniyelik uygulama timeout'u
 sağlayıcı inference işleminin iptal edildiğini garanti etmez; retry de kotaya sayılır.
 Gerçek model kalitesi/neurons/Free CPU ölçümü, PDF/OCR ve120KB üzeri belgeler,
-indeksli fanout henüz tamamlanmadı.
+geniş kitle fanout kapasitesi henüz doğrulanmadı.
 Kaynak erişim hataları kaynak sağlığında açıkça görünür; mobil/proxy ile gizlenmez.
 
 Günlük özet İstanbul saat18:00 slotunda (sessiz saat bitişine ötelenebilir),
@@ -74,8 +74,25 @@ sabit kalır. FCM timeout sonrası tekrar olabilir, exactly-once vaat edilmez.
 Gönderimden önce güncel ilan/strict criteria/off/token tekrar kontrol edilir;
 accepted ile cihaz teslimi aynı şey değildir. Android TTL ve APNs expiry
 son tarihe/en çok24 saate sınırlanır ([FCM lifespan](https://firebase.google.com/docs/cloud-messaging/customize-messages/setting-message-lifespan)).
-Cron dakikada en çok10 süresi geçmiş ilanı tombstone yapar; eski AI işi
+Cron her dakika tetiklenir; scheduledTime dakika mod3 ile kaynak/AI/expiry,
+eşleştirme ve gönderim ayrı slotlarda çalışır. Her aşama üç dakikada bir
+ilerler; kaynak polling aralığı30dk kalır. Bu ayrım Free50 D1 sorgu/subrequest
+sınırında tüm aşamaların aynı çağrıda birleşmesini önler; gerçek CPU10ms
+yük ölçümü yerine geçmez. Kaynak slotunda en çok10 eski ilan tombstone olur; eski AI işi
 model çağırmadan superseded, eski match event fanout yapmadan expired olur.
 Migration0002–0003 bu kalıcı delivery/lease/digest alanlarını ve indeksleri
 kurar. Native SQL/FCM fixture kontrolleri gerçek cihaz teslimi veya Free10ms
 CPU kanıtı değildir; prod'a test cihazı/ilan/bildirim yazılmaz.
+
+Migration0004 kurulum adaylarını `(key,installation_id)` covering indeksiyle
+tutar. Her arama şehir/meslek/eğitim/kurum alanlarından en kısa dolu listeyi
+aday anahtarı seçer; keyword/score-only veya sınırsız arama `*` kullanır.
+Kurulum tüm açık aramalarının anahtarlarını birleştirir. İlanın kadro alanları
+adayları bulur, sonra ortak strict predicate tüm kriterleri doğrular; unknown
+push üretmez. Birden çok facet/arama aynı kurulum+ilan outbox satırını çoğaltmaz.
+Registry aynı transaction'da farkları günceller; değişmeyen heartbeat facet
+satırı yazmaz. Mevcut abonelik migration'da geçici `*` ile korunur.
+Her eşleştirme slotunda en çok10 aday veya4 boş facet; facet_index+ID cursor
+kalıcıdır. En kötü sorgu üst sınırı38; çalışan SQL fixture sayımı ve canlı
+EXPLAIN indeks kullanımı kontrol edildi. Geniş `*` kitleleri için gecikme,
+günlük row-read/write ve CPU kapasitesi ölçülmeden10k desteği vaat edilmez.

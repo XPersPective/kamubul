@@ -1,4 +1,4 @@
-import {validateCriteria,migrateFilters,fold} from './criteria.js';
+import {validateCriteria,migrateFilters,fold,installationAnchorKeys} from './criteria.js';
 import {runScheduled} from './pipeline.js';
 
 export const nowISO=()=>new Date().toISOString();
@@ -70,6 +70,10 @@ async function registry(request,env,id){
   else statements.push(env.DB.prepare('DELETE FROM saved_searches WHERE installation_id=?').bind(id));
   for(const s of searches)statements.push(env.DB.prepare(`INSERT INTO saved_searches(installation_id,id,name,criteria,mode,effective_after) VALUES(?,?,?,?,?,?)
     ON CONFLICT(installation_id,id) DO UPDATE SET name=excluded.name,criteria=excluded.criteria,mode=excluded.mode`).bind(id,s.id,s.name,JSON.stringify(s.criteria),s.mode,seq));
+  const facets=JSON.stringify(installationAnchorKeys(searches));
+  // Diff in the same transaction as searches: concurrent PUTs cannot leave stale anchors.
+  statements.push(env.DB.prepare('DELETE FROM installation_facets WHERE installation_id=? AND key NOT IN (SELECT value FROM json_each(?))').bind(id,facets));
+  statements.push(env.DB.prepare('INSERT OR IGNORE INTO installation_facets(installation_id,key) SELECT ?,value FROM json_each(?)').bind(id,facets));
   if(changed)statements.push(env.DB.prepare("UPDATE notification_outbox SET state='cancelled' WHERE installation_id=? AND state IN ('pending','leased')").bind(id));
   await env.DB.batch(statements);
   return json({registered:true,version},existing?200:201);
@@ -164,4 +168,4 @@ export async function cachedFetch(request,env,ctx){
   const unchanged=response.status===200&&etag&&request.headers.get('if-none-match')?.split(',').some(value=>value.trim()==='*'||value.trim().replace(/^W\//,'')===etag);
   return new Response(unchanged?null:response.body,{status:unchanged?304:response.status,headers});
 }
-export default {fetch:cachedFetch,async scheduled(controller,env,ctx){ctx.waitUntil(runScheduled(env));}};
+export default {fetch:cachedFetch,async scheduled(controller,env,ctx){ctx.waitUntil(runScheduled(env,controller.scheduledTime));}};
