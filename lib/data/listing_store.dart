@@ -35,7 +35,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 7;
+  static const int _schemaVersion = 8;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -77,6 +77,7 @@ class ListingStore {
     await _createRemoteTables(db);
     await _addRemoteMetadata(db);
     await _addRemoteBootstrap(db);
+    await _addRemoteOrigin(db);
   }
 
   static Future<void> _createRemoteTables(DatabaseExecutor db) async {
@@ -115,6 +116,44 @@ class ListingStore {
     if (oldVersion < 5 && newVersion >= 5) await _createRemoteTables(db);
     if (oldVersion < 6 && newVersion >= 6) await _addRemoteMetadata(db);
     if (oldVersion < 7 && newVersion >= 7) await _addRemoteBootstrap(db);
+    if (oldVersion < 8 && newVersion >= 8) await _addRemoteOrigin(db);
+  }
+
+  static Future<void> _addRemoteOrigin(Database db) async {
+    await db.execute('ALTER TABLE remote_sync_state ADD COLUMN origin TEXT');
+    await db.execute(
+      'ALTER TABLE remote_sync_state ADD COLUMN generation INTEGER NOT NULL DEFAULT 0',
+    );
+  }
+
+  /// Bind before network; a new server resets transport state, never visible bookmarks.
+  Future<int> bindRemoteOrigin(String origin) async =>
+      (await database).transaction((txn) async {
+        final row = (await txn.query('remote_sync_state')).single;
+        final generation = row['generation'] as int;
+        if (row['origin'] == origin) return generation;
+        await txn.delete('remote_bootstrap');
+        await txn.update('remote_sync_state', {
+          'origin': origin,
+          'generation': generation + 1,
+          'cursor': 0,
+          'metadata': null,
+          'metadata_etag': null,
+          'last_success': null,
+          'bootstrap_watermark': null,
+          'bootstrap_after': null,
+          'bootstrap_base_cursor': null,
+        }, where: 'id=1');
+        return generation + 1;
+      });
+
+  static void _checkRemoteGeneration(
+    Map<String, Object?> state,
+    int? expected,
+  ) {
+    if (expected != null && state['generation'] != expected) {
+      throw const FormatException('remote origin changed');
+    }
   }
 
   static Future<void> _addRemoteMetadata(Database db) async {
@@ -135,8 +174,9 @@ class ListingStore {
       bool pendingBootstrap,
     })
   >
-  remoteMetadata() async {
+  remoteMetadata({int? expectedGeneration}) async {
     final row = (await (await database).query('remote_sync_state')).single;
+    _checkRemoteGeneration(row, expectedGeneration);
     return (
       pendingBootstrap: row['bootstrap_watermark'] != null,
       metadata: row['metadata'] as String?,
@@ -152,6 +192,7 @@ class ListingStore {
     String? etag,
     DateTime succeededAt, {
     int? expectedCursor,
+    int? expectedGeneration,
   }) async {
     final changed = await (await database).update(
       'remote_sync_state',
@@ -160,8 +201,9 @@ class ListingStore {
         'metadata_etag': etag,
         'last_success': succeededAt.millisecondsSinceEpoch,
       },
-      where: expectedCursor == null ? 'id=1' : 'id=1 AND cursor=?',
-      whereArgs: expectedCursor == null ? null : [expectedCursor],
+      where:
+          'id=1${expectedCursor == null ? '' : ' AND cursor=?'}${expectedGeneration == null ? '' : ' AND generation=?'}',
+      whereArgs: [?expectedCursor, ?expectedGeneration],
     );
     if (changed != 1) throw const FormatException('concurrent metadata sync');
   }
@@ -184,9 +226,11 @@ class ListingStore {
   Future<({int watermark, String after})> beginBootstrap({
     required int latest,
     required int oldest,
+    int? expectedGeneration,
   }) async {
     return (await database).transaction((txn) async {
       final state = (await txn.query('remote_sync_state')).single;
+      _checkRemoteGeneration(state, expectedGeneration);
       final watermark = state['bootstrap_watermark'] as int?;
       if (watermark != null &&
           watermark <= latest &&
@@ -211,9 +255,11 @@ class ListingStore {
   Future<void> stageCataloguePage(
     CataloguePage page, {
     required String after,
+    int? expectedGeneration,
   }) async {
     await (await database).transaction((txn) async {
       final state = (await txn.query('remote_sync_state')).single;
+      _checkRemoteGeneration(state, expectedGeneration);
       if (state['bootstrap_watermark'] != page.watermark ||
           state['bootstrap_after'] != after ||
           state['cursor'] != state['bootstrap_base_cursor']) {
@@ -279,24 +325,24 @@ class ListingStore {
     });
   }
 
-  Future<int> remoteCursor() async {
+  Future<int> remoteCursor({int? expectedGeneration}) async {
     final db = await database;
-    return (await db.query(
-          'remote_sync_state',
-          columns: ['cursor'],
-        )).single['cursor']
-        as int;
+    final state = (await db.query('remote_sync_state')).single;
+    _checkRemoteGeneration(state, expectedGeneration);
+    return state['cursor'] as int;
   }
 
   /// Upsert/tombstone ve cursor birlikte commit olur; kesilen sayfa tekrar okunabilir.
   Future<void> applyDeltaPage(
     CatalogueDeltaPage page, {
     required int after,
+    int? expectedGeneration,
   }) async {
     final db = await database;
     await db.transaction((txn) async {
-      final cursor =
-          (await txn.query('remote_sync_state')).single['cursor'] as int;
+      final state = (await txn.query('remote_sync_state')).single;
+      _checkRemoteGeneration(state, expectedGeneration);
+      final cursor = state['cursor'] as int;
       if (cursor != after) throw const FormatException('concurrent delta sync');
       await _applyRemoteChanges(txn, page.changes);
       await txn.update('remote_sync_state', {

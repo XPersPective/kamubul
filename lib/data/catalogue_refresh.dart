@@ -67,7 +67,8 @@ Future<CatalogueRefreshResult> refreshCatalogue(
   final client = remote ?? defaultRemoteClient();
   if (client != null) {
     try {
-      final cached = await store.remoteMetadata();
+      final generation = await store.bindRemoteOrigin(catalogueOrigin(client));
+      final cached = await store.remoteMetadata(expectedGeneration: generation);
       remoteLastSuccess = cached.lastSuccess;
       if (cached.metadata != null) {
         try {

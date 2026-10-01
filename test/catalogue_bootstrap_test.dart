@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +38,7 @@ void main() {
   tearDown(() => store.close());
   final now = DateTime.utc(2026, 10, 1);
   Future<void> seed() async {
+    await store.bindRemoteOrigin('https://kamubul.example');
     await store.applyDeltaPage(
       CatalogueDeltaPage(2, 2, false, [
         CatalogueChange(1, 'old', 9, false, item('old', revision: 9)),
@@ -49,6 +51,211 @@ void main() {
       SavedSearch(id: null, name: 'Aramam', filters: const {}, createdAt: now),
     );
   }
+
+  test('in-flight bootstrap HTTP response cannot publish after a server generation change', () async {
+    await seed();
+    final started = Completer<void>(), release = Completer<void>();
+    final remote = RemoteCatalogueClient(
+      baseUrl: Uri.parse('https://kamubul.example'),
+      client: MockClient((request) async {
+        if (request.url.path.endsWith('/meta')) {
+          return http.Response(
+            jsonEncode({
+              'schemaVersion': 2,
+              'taxonomyVersion': 1,
+              'latestSeq': 4,
+              'oldestRetainedSeq': 4,
+              'sources': [],
+            }),
+            200,
+          );
+        }
+        started.complete();
+        await release.future;
+        return http.Response.bytes(
+          utf8.encode(
+            jsonEncode({
+              'watermark': 4,
+              'next': null,
+              'items': [item('delayed')],
+            }),
+          ),
+          200,
+        );
+      }),
+    );
+    final running = syncRemoteV2Catalogue(
+      store: store,
+      client: remote,
+      now: now,
+    );
+    final rejected = expectLater(running, throwsFormatException);
+    await started.future;
+    await store.bindRemoteOrigin('https://other.example');
+    await store.bindRemoteOrigin('https://kamubul.example');
+    await store.beginBootstrap(latest: 4, oldest: 3);
+    release.complete();
+    await rejected;
+    expect(await store.remoteCursor(), 0);
+    expect(await (await store.database).query('remote_bootstrap'), isEmpty);
+    expect((await store.allListings()).where((r) => r.saved), hasLength(1));
+    expect((await store.remoteMetadata()).lastSuccess, isNull);
+    remote.close();
+  });
+  test('server origin change ignores matching old ETag/cursor, preserves favorites and accepts lower revision', () async {
+    await seed();
+    final meta = {
+      'schemaVersion': 2,
+      'taxonomyVersion': 1,
+      'latestSeq': 2,
+      'oldestRetainedSeq': 1,
+      'sources': [],
+    };
+    await store.saveRemoteMetadata(jsonEncode(meta), '"same"', now);
+    final requests = <http.Request>[];
+    final remote = RemoteCatalogueClient(
+      baseUrl: Uri.parse('https://other.example/path/'),
+      client: MockClient((request) async {
+        requests.add(request);
+        if (request.url.path.endsWith('/meta')) {
+          expect(request.headers['If-None-Match'], isNull);
+          expect(await store.remoteCursor(), 0);
+          expect((await store.remoteMetadata()).lastSuccess, isNull);
+          expect(
+            (await store.allListings()).where((x) => x.saved).single.url,
+            'https://example.gov.tr/saved',
+          );
+          return http.Response(
+            jsonEncode(meta),
+            200,
+            headers: {'etag': '"same"'},
+          );
+        }
+        expect(request.url.path, '/path/api/v2/listings');
+        return http.Response(
+          jsonEncode({
+            'watermark': 2,
+            'next': null,
+            'items': [item('new'), item('saved')],
+          }),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    );
+    await syncRemoteV2Catalogue(store: store, client: remote, now: now);
+    expect(requests.map((r) => r.url.path), [
+      '/path/api/v2/meta',
+      '/path/api/v2/listings',
+    ]);
+    expect(await store.remoteCursor(), 2);
+    expect((await store.allListings()).map((r) => r.url).toSet(), {
+      'https://example.gov.tr/saved',
+      'https://example.gov.tr/new',
+    });
+    expect((await store.allListings()).where((r) => r.saved), hasLength(1));
+    expect((await store.savedSearches()).single.name, 'Aramam');
+    expect(
+      (await (await store.database).query(
+        'remote_catalogue',
+        where: 'id=?',
+        whereArgs: ['saved'],
+      )).single['revision'],
+      1,
+    );
+    final generation = await store.bindRemoteOrigin(catalogueOrigin(remote));
+    expect(
+      await store.bindRemoteOrigin('https://other.example/path'),
+      generation,
+    );
+    expect((await store.remoteMetadata()).etag, '"same"');
+    remote.close();
+  });
+
+  test('origin generation rejects stale writes even when A-B-A cursor and watermark match', () async {
+    await seed();
+    final old = await store.bindRemoteOrigin('https://kamubul.example');
+    await store.saveRemoteMetadata('{}', '"old"', now, expectedGeneration: old);
+    await store.beginBootstrap(latest: 4, oldest: 3, expectedGeneration: old);
+    await store.stageCataloguePage(
+      CataloguePage(4, [item('000')], '000'),
+      after: '',
+      expectedGeneration: old,
+    );
+    await store.bindRemoteOrigin('https://other.example');
+    expect(await store.remoteCursor(), 0);
+    expect((await store.remoteMetadata()).metadata, isNull);
+    expect((await store.remoteMetadata()).pendingBootstrap, isFalse);
+    expect(await (await store.database).query('remote_bootstrap'), isEmpty);
+    expect((await store.allListings()).where((r) => r.saved), hasLength(1));
+    final current = await store.bindRemoteOrigin('https://kamubul.example');
+    expect(current, greaterThan(old));
+    await store.beginBootstrap(
+      latest: 4,
+      oldest: 3,
+      expectedGeneration: current,
+    );
+    await expectLater(
+      store.stageCataloguePage(
+        CataloguePage(4, [item('stale')], null),
+        after: '',
+        expectedGeneration: old,
+      ),
+      throwsFormatException,
+    );
+    await expectLater(
+      store.applyDeltaPage(
+        CatalogueDeltaPage(1, 1, false, [
+          CatalogueChange(1, 'stale', 1, false, item('stale')),
+        ]),
+        after: 0,
+        expectedGeneration: old,
+      ),
+      throwsFormatException,
+    );
+    await expectLater(
+      store.saveRemoteMetadata(
+        '{}',
+        '"stale"',
+        now,
+        expectedCursor: 0,
+        expectedGeneration: old,
+      ),
+      throwsFormatException,
+    );
+    await expectLater(
+      store.remoteCursor(expectedGeneration: old),
+      throwsFormatException,
+    );
+    await expectLater(
+      store.remoteMetadata(expectedGeneration: old),
+      throwsFormatException,
+    );
+    expect(await store.remoteCursor(expectedGeneration: current), 0);
+    expect(await (await store.database).query('remote_bootstrap'), isEmpty);
+    expect((await store.savedSearches()).single.name, 'Aramam');
+  });
+
+  test('schema7 to8 preserves personal data and old cache until an unknown origin is rebound', () async {
+    await seed();
+    await store.saveRemoteMetadata('{}', '"old"', now);
+    final db = await store.database;
+    await db.execute('ALTER TABLE remote_sync_state DROP COLUMN origin');
+    await db.execute('ALTER TABLE remote_sync_state DROP COLUMN generation');
+    await ListingStore.upgradeSchema(db, 7, 8);
+    final row = (await db.query('remote_sync_state')).single;
+    expect(row['origin'], isNull);
+    expect(row['generation'], 0);
+    expect(row['cursor'], 2);
+    expect((await store.remoteMetadata()).etag, '"old"');
+    expect((await store.allListings()).where((r) => r.saved), hasLength(1));
+    expect((await store.savedSearches()).single.name, 'Aramam');
+    final generation = await store.bindRemoteOrigin('https://kamubul.example');
+    expect(generation, 1);
+    expect(await store.remoteCursor(), 0);
+    expect((await store.remoteMetadata()).etag, isNull);
+    expect(await store.allListings(), hasLength(2));
+  });
 
   test(
     'staging resumes and publishes atomically; missing favorite stays inactive',
