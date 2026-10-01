@@ -2,7 +2,8 @@ const api = 'https://api.kariyerkapisi.gov.tr/api/';
 const hosts = new Set(['api.kariyerkapisi.gov.tr','kariyerkapisi.gov.tr','kamuilan.sbb.gov.tr']);
 export class SourceError extends Error { constructor(code) {super(code);this.code=code;} }
 export async function sourceFetch(url, options={}) {
-  if (!hosts.has(new URL(url).hostname)) throw new SourceError('host_rejected');
+  const uri=new URL(url);
+  if (uri.protocol!=='https:'||uri.username||uri.password||uri.port||!hosts.has(uri.hostname)) throw new SourceError('host_rejected');
   const response=await fetch(url,{...options,redirect:'manual',signal:AbortSignal.timeout(25000)});
   if(response.status!==200) throw new SourceError([401,403,429].includes(response.status)?'blocked':'source_http_'+response.status);
   if(Number(response.headers.get('content-length')??0)>3*1024*1024) throw new SourceError('source_oversize');
@@ -13,11 +14,12 @@ export async function sourceFetch(url, options={}) {
   return new TextDecoder('utf-8',{fatal:true}).decode(bytes);
 }
 const post = async(route,body)=>JSON.parse(await sourceFetch(api+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));
-export const plain = value => String(value??'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<[^>]*>/g,' ').replace(/\[(?:\/?[a-z]+)(?:=[^\]]*)?\]/gi,'').replace(/&nbsp;|\u00a0/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#(\d+);/g,(_,v)=>String.fromCodePoint(Number(v))).replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+export const plain = value => String(value??'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<[^>]*>/g,' ').replace(/\[(?:\/?[a-z]+)(?:=[^\]]*)?\]/gi,'').replace(/&nbsp;|\u00a0/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#(\d+);/g,(_,v)=>{const n=Number(v);return n>0&&n<=0x10ffff&&!(n>=0xd800&&n<=0xdfff)?String.fromCodePoint(n):'\ufffd';}).replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+const uuid=/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 const iso=value=>{if(typeof value!=='string')return null;const d=new Date(value);return Number.isFinite(+d)?d.toISOString():null;};
 export function parseKariyerIndex(raw) {
   if(!Array.isArray(raw?.searchIlan))throw new SourceError('layout_changed');
-  return raw.searchIlan.slice(0,200).filter(x=>/^[a-f\d-]{36}$/i.test(x.guid??'')&&typeof x.ilanBaslik==='string'&&x.ilanTuru!=='Yurt Dışı Eğitim İlanları'&&iso(x.bitTarih)).map(x=>({
+  return raw.searchIlan.slice(0,200).filter(x=>x&&typeof x.guid==='string'&&uuid.test(x.guid)&&typeof x.ilanBaslik==='string'&&x.ilanTuru!=='Yurt Dışı Eğitim İlanları'&&iso(x.bitTarih)).map(x=>({
     id:'kariyerkapisi:'+x.guid.toLowerCase(),externalId:x.guid.toLowerCase(),sourceId:'kariyerkapisi',
     url:'https://kariyerkapisi.gov.tr/IlanDetay?i='+x.guid.toLowerCase(),title:plain(x.ilanBaslik).slice(0,300),category:plain(x.ilanTuru),deadline:iso(x.bitTarih),publishedAt:null,places:[],requirementGroups:[],summary:[],active:true,
   }));
@@ -27,7 +29,7 @@ export function parseKariyerRss(xml){
   const value=(body,key)=>plain((body.match(new RegExp('<'+key+'(?:\\s[^>]*)?>([\\s\\S]*?)</'+key+'>','i'))?.[1]??'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1'));
   return [...xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)].slice(0,200).flatMap(m=>{
     const url=value(m[1],'link');let uri;try{uri=new URL(url);}catch{return [];}
-    const guid=uri.searchParams.get('i');if(uri.hostname!=='kariyerkapisi.gov.tr'||uri.protocol!=='https:'||!/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(guid??''))return [];
+    const guid=uri.searchParams.get('i');if(uri.hostname!=='kariyerkapisi.gov.tr'||uri.protocol!=='https:'||uri.username||uri.password||uri.port||!uuid.test(guid??''))return [];
     const category=value(m[1],'category');if(category==='Yurt Dışı Eğitim İlanları')return [];
     return [{id:'kariyerkapisi:'+guid.toLowerCase(),externalId:guid.toLowerCase(),sourceId:'kariyerkapisi',url,title:value(m[1],'title').slice(0,300),category,deadline:null,publishedAt:iso(value(m[1],'pubDate')),places:[],requirementGroups:[],summary:[],active:true}];
   });

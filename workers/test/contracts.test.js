@@ -5,6 +5,15 @@ import {DatabaseSync} from 'node:sqlite';
 import {validateCriteria,matchListing,fold,migrateFilters} from '../src/criteria.js';
 import {nextAllowed,validateAiSummary} from '../src/pipeline.js';
 import {fetchRequest} from '../src/worker.js';
+import {plain,parseKariyerIndex,parseKariyerRss,sourceFetch} from '../src/sources.js';
+
+test('source normalization survives malformed entities and rejects unsafe identities',async()=>{
+  assert.equal(plain('&#304; &#128512; &#99999999999999999999; &#55296; &#0;'),'İ 😀 � � �');
+  const item={guid:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',ilanBaslik:'İlan',bitTarih:'2026-12-01'};
+  assert.equal(parseKariyerIndex({searchIlan:[null,{...item,guid:'-'.repeat(36)},item]}).length,1);
+  for(const url of ['http://kariyerkapisi.gov.tr/RSS','https://user:pass@kariyerkapisi.gov.tr/RSS','https://kariyerkapisi.gov.tr:8443/RSS','https://example.com/'])await assert.rejects(sourceFetch(url),/host_rejected/);
+  assert.equal(parseKariyerRss('<rss><item><link>https://user:pass@kariyerkapisi.gov.tr/IlanDetay?i='+item.guid+'</link><title>İlan</title></item></rss>').length,0);
+});
 
 const now=new Date('2026-09-30T12:00:00Z');
 for(const row of JSON.parse(readFileSync(new URL('../../contracts/criteria-v2.json',import.meta.url),'utf8'))){
