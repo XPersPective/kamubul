@@ -13,6 +13,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0003_daily_digest.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0004_match_facets.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0005_notification_sequence.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0006_listing_first_seq.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -357,6 +358,34 @@ test('candidate anchors retain every exact match in shared Dart corpus and group
   }
   assert.deepEqual(installationAnchorKeys([{mode:'instant',criteria:{cities:['Ankara']}},{mode:'digest',criteria:{keyword:'Memur'}}]),['*']);
   assert.deepEqual(installationAnchorKeys([{mode:'off',criteria:{cities:['Ankara']}}]),[]);
+});
+
+test('pruning catalogue history never turns an old listing into a new subscription push',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  insertNotice(sql,'Original notice');
+  for(const [id,baseline] of [['old',0],['new',1]]) {
+    sql.prepare("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES(?,'hash','token','android','{}','now')").run(id);
+    sql.prepare("INSERT INTO saved_searches VALUES(?,'s','All','{\"version\":2}','instant',?)").run(id,baseline);
+    sql.prepare("INSERT INTO installation_facets VALUES('*',?)").run(id);
+  }
+  sql.exec("UPDATE listings SET payload=json_set(payload,'$.title','Updated notice'),revision=2; DELETE FROM catalogue_changes WHERE seq=1; UPDATE listings SET processed_hash='hash'");
+  assert.equal(sql.prepare('SELECT MIN(seq) seq FROM catalogue_changes').get().seq,2);
+  assert.equal(sql.prepare('SELECT first_seq FROM listings').get().first_seq,1);
+  await matchEvents({DB});
+  assert.deepEqual(sql.prepare('SELECT installation_id FROM notification_outbox').all().map(x=>x.installation_id),['old']);
+});
+
+test('first sequence migration backfills earliest publication and future changes preserve it',t=>{
+  const sql=new DatabaseSync(':memory:');t.after(()=>sql.close());
+  sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
+  insertNotice(sql,'Existing notice');
+  sql.exec("UPDATE listings SET payload=json_set(payload,'$.title','Updated'),revision=2");
+  sql.exec(readFileSync(new URL('../migrations/0006_listing_first_seq.sql',import.meta.url),'utf8'));
+  assert.equal(sql.prepare('SELECT first_seq FROM listings').get().first_seq,1);
+  sql.exec("DELETE FROM catalogue_changes; UPDATE listings SET payload=json_set(payload,'$.title','Third'),revision=3");
+  assert.equal(sql.prepare('SELECT first_seq FROM listings').get().first_seq,1);
+  sql.exec("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('new','sbb','new','h','first','now','later','{}')");
+  assert.equal(sql.prepare("SELECT first_seq FROM listings WHERE id='new'").get().first_seq,4);
 });
 
 test('indexed matching skips unrelated installations, resumes pages and dedupes multiple facets',async t=>{

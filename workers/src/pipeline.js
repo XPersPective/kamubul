@@ -135,11 +135,12 @@ export async function expireListings(env) {
 export async function matchEvents(env){
   const now=nowISO();const event=await env.DB.prepare("UPDATE match_events SET state='leased',lease_until=? WHERE id=(SELECT id FROM match_events WHERE state='pending' OR (state='leased' AND lease_until<?) ORDER BY created_at LIMIT 1) RETURNING *").bind(later(3),now).first();if(!event)return;
   const listing=JSON.parse(event.payload);
-  const current=await env.DB.prepare('SELECT active,deadline FROM listings WHERE id=?').bind(event.listing_id).first();
+  const current=await env.DB.prepare('SELECT active,deadline,first_seq FROM listings WHERE id=?').bind(event.listing_id).first();
   if(!current?.active||(current.deadline&&Date.parse(current.deadline)<=Date.now())){await env.DB.prepare("UPDATE match_events SET state='expired',lease_until=NULL WHERE id=?").bind(event.id).run();return;}
   const keys=listingAnchorKeys(listing);
   let facet=event.facet_index,cursor=event.cursor;
-  const eventSeq=(await env.DB.prepare('SELECT MIN(seq) seq FROM catalogue_changes WHERE listing_id=?').bind(event.listing_id).first()).seq;
+  const eventSeq=current.first_seq;
+  if(!Number.isSafeInteger(eventSeq)||eventSeq<1)throw new Error('missing_listing_sequence');
   // ponytail: ten indexed recipients / up to four empty facets per Cron; wide matches still need measured Free fanout capacity.
   for(let step=0;step<4&&facet<keys.length;step++) {
     const candidates=(await env.DB.prepare('SELECT installation_id FROM installation_facets WHERE key=? AND installation_id>? ORDER BY installation_id LIMIT 10').bind(keys[facet],cursor).all()).results;

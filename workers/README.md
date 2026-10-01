@@ -111,3 +111,10 @@ gösterir. Yanıt ilan title/url/revision/searchIds/mode/count ve event/delivery
 kimliğini taşır; kaynak belgesi/özel tercih taşınmaz. accepted, cihaz teslimi
 değildir. Mobil decoder/secure bounded cache/feed/receipt dedupe Flutter'da
 uygulandı; native/gerçek FCM delivery testi açık. Server retention tamamlanmadı.
+
+Migration0006 `listings.first_seq` alanını mevcut en erken katalog sırasından
+doldurur; yeni ilan ilk katalog commit'inde trigger ile aynı transaction'da
+atanır. Sonraki revizyonlar/değişiklik günlüğü temizliği bu değeri değiştirmez.
+Eşleştirme aboneliğin effective_after değerini bu kalıcı ilk sırayla karşılaştırır;
+yeni arama eski ilan revizyonu için push almaz. Eksik ilk sıra fail-closed'dur.
+Temizlik henüz devrede değildir; pinned katalog snapshot sınırı ayrıca korunmalıdır.
