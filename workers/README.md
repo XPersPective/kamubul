@@ -60,5 +60,22 @@ Her isteğin serialized girdisi24KB, çıktısı1024 token ile sınırlıdır.
 kapasite doluyken kuyruğa kabulü engeller.45 saniyelik uygulama timeout'u
 sağlayıcı inference işleminin iptal edildiğini garanti etmez; retry de kotaya sayılır.
 Gerçek model kalitesi/neurons/Free CPU ölçümü, PDF/OCR ve120KB üzeri belgeler,
-digest ve indeksli fanout henüz tamamlanmadı.
+indeksli fanout henüz tamamlanmadı.
 Kaynak erişim hataları kaynak sağlığında açıkça görünür; mobil/proxy ile gizlenmez.
+
+Günlük özet İstanbul saat18:00 slotunda (sessiz saat bitişine ötelenebilir),
+kurulum başına günde bir FCM mesajıdır. Bir özet en çok10 ilan taşır; kalanlar
+sonraki günün özetine dayanıklı kuyrukta kalır, deadline geçmişse expired
+olarak kaydedilir. Bu pilot tavanının büyük backlog gecikmesi ölçülecek;
+kapasiteyi artırmak ölçülen CPU/D1 bütçesine bağlıdır. Özet, anlık bildirim
+kotası sent_count'tan ayrı digest_day ile sayılır. Kurulum send lease'i paralel
+Cron'un günlük sınırı aşmasını engeller; digest delivery_id üyeliği retry'da
+sabit kalır. FCM timeout sonrası tekrar olabilir, exactly-once vaat edilmez.
+Gönderimden önce güncel ilan/strict criteria/off/token tekrar kontrol edilir;
+accepted ile cihaz teslimi aynı şey değildir. Android TTL ve APNs expiry
+son tarihe/en çok24 saate sınırlanır ([FCM lifespan](https://firebase.google.com/docs/cloud-messaging/customize-messages/setting-message-lifespan)).
+Cron dakikada en çok10 süresi geçmiş ilanı tombstone yapar; eski AI işi
+model çağırmadan superseded, eski match event fanout yapmadan expired olur.
+Migration0002–0003 bu kalıcı delivery/lease/digest alanlarını ve indeksleri
+kurar. Native SQL/FCM fixture kontrolleri gerçek cihaz teslimi veya Free10ms
+CPU kanıtı değildir; prod'a test cihazı/ilan/bildirim yazılmaz.

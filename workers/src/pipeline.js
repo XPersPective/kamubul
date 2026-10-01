@@ -86,8 +86,8 @@ export async function processNotice(env){
   if(!env.AI)return;
   const now=nowISO();const job=await env.DB.prepare("UPDATE processing_jobs SET state='leased',lease_until=?,attempts=attempts+1 WHERE id=(SELECT id FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5 ORDER BY due_at LIMIT 1) RETURNING *").bind(later(4),now,now).first();
   if(!job)return;
-  const current=await env.DB.prepare('SELECT content_hash,processed_hash,first_seen FROM listings WHERE id=?').bind(job.listing_id).first();
-  if(current?.content_hash!==job.input_hash||current.processed_hash===job.input_hash){await env.DB.prepare("UPDATE processing_jobs SET state='superseded',lease_until=NULL WHERE id=?").bind(job.id).run();return;}
+  const current=await env.DB.prepare('SELECT content_hash,processed_hash,first_seen,active,deadline FROM listings WHERE id=?').bind(job.listing_id).first();
+  if(!current?.active||(current.deadline&&Date.parse(current.deadline)<=Date.now())||current.content_hash!==job.input_hash||current.processed_hash===job.input_hash){await env.DB.prepare("UPDATE processing_jobs SET state='superseded',lease_until=NULL WHERE id=?").bind(job.id).run();return;}
   const {aiProgress,...notice}=JSON.parse(job.input),text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');
   let chunks;try{chunks=splitAiText(text);}catch(e){await env.DB.prepare("UPDATE processing_jobs SET state='failed',error_code=?,lease_until=NULL WHERE id=?").bind(safeError(e),job.id).run();return;}
   const progress=aiProgress??{index:0,summaries:[],conditions:[]};
@@ -127,9 +127,16 @@ export async function processNotice(env){
     ]);
   }catch(e){await env.DB.prepare("UPDATE processing_jobs SET state=?,due_at=?,lease_until=NULL,error_code=? WHERE id=?").bind(job.attempts>=5?'failed':'pending',later(Math.min(360,2**job.attempts*5)),safeError(e),job.id).run();}
 }
-async function matchEvents(env){
+export async function expireListings(env) {
+  const now=nowISO();
+  // ponytail: 10 expirations per minute; immutable tombstones preserve sync/favorites.
+  await env.DB.prepare('UPDATE listings SET active=0,revision=revision+1,updated_at=? WHERE id IN (SELECT id FROM listings WHERE active=1 AND deadline IS NOT NULL AND deadline<=? ORDER BY deadline,id LIMIT 10)').bind(now,now).run();
+}
+export async function matchEvents(env){
   const now=nowISO();const event=await env.DB.prepare("UPDATE match_events SET state='leased',lease_until=? WHERE id=(SELECT id FROM match_events WHERE state='pending' OR (state='leased' AND lease_until<?) ORDER BY created_at LIMIT 1) RETURNING *").bind(later(3),now).first();if(!event)return;
   const listing=JSON.parse(event.payload);
+  const current=await env.DB.prepare('SELECT active,deadline FROM listings WHERE id=?').bind(event.listing_id).first();
+  if(!current?.active||(current.deadline&&Date.parse(current.deadline)<=Date.now())){await env.DB.prepare("UPDATE match_events SET state='expired',lease_until=NULL WHERE id=?").bind(event.id).run();return;}
   const devices=(await env.DB.prepare('SELECT * FROM installations WHERE enabled=1 AND id>? ORDER BY id LIMIT 10').bind(event.cursor).all()).results;
   const eventSeq=(await env.DB.prepare('SELECT MIN(seq) seq FROM catalogue_changes WHERE listing_id=?').bind(event.listing_id).first()).seq;
   for(const device of devices){
@@ -138,7 +145,7 @@ async function matchEvents(env){
     if(!matching.length)continue;
     const payload={...listing,eventId:event.id,searchIds:matching.map(s=>s.id),mode:matching.some(s=>s.mode==='instant')?'instant':'digest',preferencesVersion:device.version};
     await env.DB.prepare('INSERT OR IGNORE INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES(?,?,?,?,?,?)')
-      .bind(await sha256(device.id+':'+listing.id),device.id,listing.id,JSON.stringify(payload),now,now).run();
+      .bind(await sha256(device.id+':'+listing.id),device.id,listing.id,JSON.stringify(payload),payload.mode==='digest'?digestDue(new Date(now)):now,now).run();
   }
   await env.DB.prepare('UPDATE match_events SET state=?,cursor=?,lease_until=NULL WHERE id=?').bind(devices.length===10?'pending':'completed',devices.at(-1)?.id??event.cursor,event.id).run();
 }
@@ -149,31 +156,89 @@ export function nextAllowed(preferences,now=new Date()){
   if(!quiet)return now.toISOString();
   const target=new Date(local);target.setUTCHours(end,0,0,0);if(target<=local)target.setUTCDate(target.getUTCDate()+1);return new Date(+target-3*3600000).toISOString();
 }
-async function flushOutbox(env){
+// Istanbul pilot: a daily digest at 18:00, shifted by the user's quiet hours.
+export function digestDue(now=new Date()) {
+  const local=localParts(now),target=new Date(local);target.setUTCHours(18,0,0,0);
+  if(target<local)target.setUTCDate(target.getUTCDate()+1);
+  return new Date(+target-3*3600000).toISOString();
+}
+function nextDayAllowed(preferences,now) {
+  const local=localParts(now);local.setUTCDate(local.getUTCDate()+1);local.setUTCHours(0,0,0,0);
+  return nextAllowed(preferences,new Date(+local-3*3600000));
+}
+function nextDigestDay(now) {
+  const local=localParts(now);local.setUTCDate(local.getUTCDate()+1);local.setUTCHours(18,0,0,0);
+  return new Date(+local-3*3600000).toISOString();
+}
+export async function flushOutbox(env,{send=sendFcm,now=new Date()}={}) {
   if(!env.FCM_PRIVATE_KEY||!env.FCM_CLIENT_EMAIL)return;
-  const now=nowISO();const job=await env.DB.prepare("UPDATE notification_outbox SET state='leased',lease_until=? WHERE id=(SELECT id FROM notification_outbox WHERE (state='pending' OR (state='leased' AND lease_until<?)) AND due_at<=? ORDER BY due_at LIMIT 1) RETURNING *").bind(later(3),now,now).first();if(!job)return;
-  const device=await env.DB.prepare('SELECT * FROM installations WHERE id=? AND enabled=1').bind(job.installation_id).first();
+  const timestamp=now.toISOString(),lease=new Date(+now+180000).toISOString();
+  const job=await env.DB.prepare("UPDATE notification_outbox SET state='leased',lease_until=? WHERE id=(SELECT id FROM notification_outbox WHERE (state='pending' OR (state='leased' AND lease_until<?)) AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) ORDER BY due_at,id LIMIT 1) RETURNING *").bind(lease,timestamp,timestamp).first();if(!job)return;
   const event=JSON.parse(job.payload);
-  if(!device||device.version!==event.preferencesVersion||(event.deadline&&new Date(event.deadline)<new Date())){await env.DB.prepare("UPDATE notification_outbox SET state='cancelled',lease_until=NULL WHERE id=?").bind(job.id).run();return;}
-  const preferences=JSON.parse(device.preferences),day=localParts().toISOString().slice(0,10),due=nextAllowed(preferences);
-  if(due>now||(device.sent_day===day&&device.sent_count>=preferences.cap)) {
-    await env.DB.prepare("UPDATE notification_outbox SET state='pending',due_at=?,lease_until=NULL WHERE id=?").bind(due>now?due:later(60),job.id).run();return;
-  }
-  // Digest delivery is deferred rather than silently sent as an instant notification.
-  if(event.mode==='digest'){await env.DB.prepare("UPDATE notification_outbox SET state='pending',due_at=?,lease_until=NULL,error_code='digest_pending' WHERE id=?").bind(later(60),job.id).run();return;}
+  const group=job.delivery_id??job.id;
+  const updateGroup=async(state,due,error=null)=>env.DB.batch([
+    env.DB.prepare("UPDATE notification_outbox SET state=?,due_at=?,lease_until=NULL,error_code=? WHERE id=? AND state='leased' AND lease_until=?").bind(state,due,error,job.id,lease),
+    env.DB.prepare("UPDATE notification_outbox SET state=?,due_at=?,lease_until=NULL,error_code=? WHERE delivery_id=? AND id!=? AND state IN ('pending','leased') AND EXISTS(SELECT 1 FROM notification_outbox WHERE id=? AND state=? AND due_at=? AND lease_until IS NULL)").bind(state,due,error,group,job.id,job.id,state,due)
+  ]);
+  let device=await env.DB.prepare('SELECT * FROM installations WHERE id=? AND enabled=1').bind(job.installation_id).first();
+  if(!device||device.version!==event.preferencesVersion){await updateGroup('cancelled',timestamp,'preferences_changed');return;}
+  const owner=await env.DB.prepare('UPDATE installations SET send_lease_until=? WHERE id=? AND enabled=1 AND (send_lease_until IS NULL OR send_lease_until<?) RETURNING *').bind(lease,device.id,timestamp).first();
+  if(!owner){await updateGroup('pending',device.send_lease_until??new Date(+now+60000).toISOString(),'delivery_busy');return;}
+  device=owner;
   try {
-    const sent=await sendFcm(env,device.token,{...event,eventId:job.id});
-    if(sent.state==='invalid_token'){await env.DB.batch([env.DB.prepare('UPDATE installations SET enabled=0 WHERE id=?').bind(device.id),env.DB.prepare("UPDATE notification_outbox SET state='cancelled',error_code='invalid_token',lease_until=NULL WHERE installation_id=? AND state IN ('pending','leased')").bind(device.id)]);return;}
-    await env.DB.batch([
-      env.DB.prepare("UPDATE notification_outbox SET state='accepted',fcm_id=?,lease_until=NULL,attempts=attempts+1 WHERE id=?").bind(sent.id,job.id),
-      env.DB.prepare('UPDATE installations SET sent_count=CASE WHEN sent_day=? THEN sent_count+1 ELSE 1 END,sent_day=? WHERE id=?').bind(day,day,device.id)
-    ]);
-  }catch(e){await env.DB.prepare("UPDATE notification_outbox SET state=?,attempts=attempts+1,due_at=?,lease_until=NULL,error_code=? WHERE id=?").bind(job.attempts>=7?'failed':'pending',later(Math.min(720,2**job.attempts*5)),safeError(e),job.id).run();}
+    if(device.version!==event.preferencesVersion){await updateGroup('cancelled',timestamp,'preferences_changed');return;}
+    const preferences=JSON.parse(device.preferences),day=localParts(now).toISOString().slice(0,10);
+    let due=nextAllowed(preferences,now);
+    if(event.mode==='digest'&&!job.delivery_id)due=[due,digestDue(new Date(job.created_at))].sort().at(-1);
+    if(event.mode==='digest'?device.digest_day===day:device.sent_day===day&&device.sent_count>=preferences.cap)due=event.mode==='digest'?nextAllowed(preferences,new Date(nextDigestDay(now))):nextDayAllowed(preferences,now);
+    if(due>timestamp){await updateGroup('pending',due);return;}
+    if(event.mode==='digest'&&!job.delivery_id) {
+      // ponytail: at most 10 notices per digest; larger backlogs are delivered in bounded later groups.
+      const candidates=(await env.DB.prepare("SELECT id FROM notification_outbox WHERE installation_id=? AND state='pending' AND delivery_id IS NULL AND due_at<=? AND json_extract(payload,'$.mode')='digest' AND json_extract(payload,'$.preferencesVersion')=? ORDER BY due_at,id LIMIT 9").bind(device.id,timestamp,device.version).all()).results;
+      const statements=[env.DB.prepare("UPDATE notification_outbox SET delivery_id=id WHERE id=? AND state='leased' AND lease_until=?").bind(job.id,lease)];
+      if(candidates.length)statements.push(env.DB.prepare(`UPDATE notification_outbox SET delivery_id=?,state='leased',lease_until=? WHERE id IN (${candidates.map(()=>'?').join(',')}) AND state='pending' AND delivery_id IS NULL AND EXISTS(SELECT 1 FROM notification_outbox WHERE id=? AND state='leased' AND lease_until=?)`).bind(job.id,lease,...candidates.map(x=>x.id),job.id,lease));
+      await env.DB.batch(statements);
+    }
+    const rows=(await env.DB.prepare("SELECT o.id,o.payload,l.active,l.id current_id,l.revision current_revision,l.payload current_payload FROM notification_outbox o LEFT JOIN listings l ON l.id=o.listing_id WHERE (o.id=? OR o.delivery_id=?) AND o.state IN ('pending','leased') ORDER BY o.id LIMIT 10").bind(job.id,group).all()).results;
+    const searches=(await env.DB.prepare("SELECT id,criteria,mode FROM saved_searches WHERE installation_id=? AND mode!='off'").bind(device.id).all()).results;
+    const valid=[],invalid=[];
+    for(const row of rows) {
+      const current=row.current_payload?JSON.parse(row.current_payload):null,original=JSON.parse(row.payload);
+      const deadline=current?.deadline?Date.parse(current.deadline):null;
+      if(!current||!row.active||(deadline!==null&&(!Number.isFinite(deadline)||deadline<=+now))) {
+        invalid.push([row.id,'expired']);continue;
+      }
+      const matches=searches.filter(s=>original.searchIds?.includes(s.id)&&matchListing(current,JSON.parse(s.criteria),now)==='match');
+      if(!matches.length){invalid.push([row.id,'cancelled']);continue;}
+      valid.push({...current,id:row.current_id,revision:row.current_revision,eventId:job.id,outboxId:row.id,searchIds:matches.map(s=>s.id)});
+    }
+    if(!valid.length){if(invalid.length)await env.DB.batch(invalid.map(([id,state])=>env.DB.prepare("UPDATE notification_outbox SET state=?,lease_until=NULL,error_code='listing_no_longer_eligible' WHERE id=? AND state IN ('pending','leased')").bind(state,id)));return;}
+    // Re-read opt-out/token/version immediately before contacting FCM.
+    device=await env.DB.prepare('SELECT * FROM installations WHERE id=? AND enabled=1').bind(job.installation_id).first();
+    if(!device||device.version!==event.preferencesVersion){await updateGroup('cancelled',timestamp,'preferences_changed');return;}
+    if(device.send_lease_until!==lease)return;
+    const message={...valid[0],eventId:job.id,mode:event.mode,digestCount:valid.length};
+    const deadlines=valid.map(row=>Date.parse(row.deadline)).filter(Number.isFinite);
+    if(deadlines.length)message.deadline=new Date(Math.min(...deadlines)).toISOString();
+    try {
+      const sent=await send(env,device.token,message);
+      if(sent.state==='invalid_token'){await env.DB.batch([env.DB.prepare('UPDATE installations SET enabled=0 WHERE id=? AND token=?').bind(device.id,device.token),env.DB.prepare("UPDATE notification_outbox SET state='cancelled',error_code='invalid_token',lease_until=NULL WHERE installation_id=? AND state IN ('pending','leased') AND EXISTS(SELECT 1 FROM installations WHERE id=? AND enabled=0 AND token=?)").bind(device.id,device.id,device.token)]);return;}
+      await env.DB.batch([
+        ...valid.map(row=>env.DB.prepare("UPDATE notification_outbox SET state='accepted',payload=?,fcm_id=?,lease_until=NULL,attempts=attempts+1,error_code=NULL WHERE id=? AND state IN ('pending','leased')").bind(JSON.stringify({...row,eventId:row.outboxId,deliveryId:job.id,mode:event.mode,digestCount:valid.length,preferencesVersion:event.preferencesVersion}),sent.id,row.outboxId)),
+        ...invalid.map(([id,state])=>env.DB.prepare("UPDATE notification_outbox SET state=?,lease_until=NULL,error_code='listing_no_longer_eligible' WHERE id=? AND state IN ('pending','leased')").bind(state,id)),
+        env.DB.prepare("UPDATE installations SET sent_count=CASE WHEN ?='digest' THEN sent_count WHEN sent_day=? THEN sent_count+1 ELSE 1 END,sent_day=CASE WHEN ?='digest' THEN sent_day ELSE ? END,digest_day=CASE WHEN ?='digest' THEN ? ELSE digest_day END WHERE id=?").bind(event.mode,day,event.mode,day,event.mode,day,device.id)
+      ]);
+    }catch(e){
+      await env.DB.prepare("UPDATE notification_outbox SET state=?,attempts=attempts+1,due_at=?,lease_until=NULL,error_code=? WHERE (id=? OR delivery_id=?) AND state IN ('pending','leased')").bind(job.attempts>=7?'failed':'pending',new Date(+now+Math.min(720,2**job.attempts*5)*60000).toISOString(),safeError(e),job.id,group).run();
+    }
+  } finally {
+    await env.DB.prepare('UPDATE installations SET send_lease_until=NULL WHERE id=? AND send_lease_until=?').bind(job.installation_id,lease).run();
+  }
 }
 export async function runScheduled(env){
   if(!env.DB)throw new Error('database_not_configured');
   // Each durable stage is recoverable; failures do not clear another stage's backlog.
-  for(const step of [readSource,processNotice,matchEvents,flushOutbox]) {
+  for(const step of [expireListings,readSource,processNotice,matchEvents,flushOutbox]) {
     try {await step(env);}catch(e){console.error('scheduled_stage_failed',step.name,safeError(e));}
   }
 }

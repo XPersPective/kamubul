@@ -91,7 +91,7 @@ export async function fetchRequest(request,env,ctx){
       const seq=await latestSeq(env.DB);return json({status:seq?'ok':'awaiting_ingestion',latestSeq:seq,fcmConfigured:!!(env.FCM_PRIVATE_KEY&&env.FCM_CLIENT_EMAIL),aiConfigured:!!env.AI});
     }
     if(path==='/api/v2/meta') {
-      const seq=await latestSeq(env.DB);const sources=(await env.DB.prepare('SELECT id,name,state,last_attempt,last_success,note FROM sources').all()).results;
+      const seq=await latestSeq(env.DB);const sources=(await env.DB.prepare("SELECT id,name,CASE WHEN state IN ('ok','failed','blocked','disabled') THEN state WHEN state='processing' AND last_success IS NOT NULL THEN 'ok' ELSE 'failed' END state,last_attempt,last_success,note FROM sources").all()).results;
       return conditional(request,{schemaVersion:2,taxonomyVersion:1,latestSeq:seq,oldestRetainedSeq:(await env.DB.prepare('SELECT COALESCE(MIN(seq),0) n FROM catalogue_changes').first()).n,sources},'"meta-'+seq+'-'+await sha256(JSON.stringify(sources))+'"');
     }
     if(path==='/api/v2/taxonomy') {
@@ -121,8 +121,8 @@ export async function fetchRequest(request,env,ctx){
     if(history){
       const record=await authenticate(request,env.DB,history[1]);if(!record)return json({error:'unauthorized'},401);
       const after=url.searchParams.get('after')??'',limit=int(url.searchParams.get('limit'),1,50,30);
-      const rows=(await env.DB.prepare('SELECT id,payload,state,created_at FROM notification_outbox WHERE installation_id=? AND id>? ORDER BY id LIMIT ?').bind(record.id,after,limit+1).all()).results;
-      return json({items:rows.slice(0,limit).map(r=>({eventId:r.id,...JSON.parse(r.payload),state:r.state,createdAt:r.created_at})),next:rows.length>limit?rows[limit-1].id:null});
+      const rows=(await env.DB.prepare('SELECT id,payload,state,created_at,delivery_id FROM notification_outbox WHERE installation_id=? AND id>? ORDER BY id LIMIT ?').bind(record.id,after,limit+1).all()).results;
+      return json({items:rows.slice(0,limit).map(r=>({...JSON.parse(r.payload),eventId:r.id,deliveryId:r.delivery_id??r.id,state:r.state,createdAt:r.created_at})),next:rows.length>limit?rows[limit-1].id:null});
     }
     if(path==='/v1/sources.json')return json({sources:(await env.DB.prepare('SELECT * FROM sources').all()).results.map(sourceV1)});
     if(path==='/v1/listings.json') {
