@@ -65,34 +65,27 @@ void main() {
               headers: {'etag': '"meta1"'},
             );
           }
-          expect(request.url.path, '/api/v2/changes');
+          expect(request.url.path, '/api/v2/listings');
           expect(request.url.queryParameters['watermark'], '1');
           return http.Response(
             jsonEncode({
               'watermark': 1,
-              'appliedThrough': 1,
-              'hasMore': false,
-              'changes': [
+              'next': null,
+              'items': [
                 {
-                  'seq': 1,
                   'id': 'stable',
                   'revision': 1,
-                  'operation': 'upsert',
-                  'item': {
-                    'id': 'stable',
-                    'revision': 1,
-                    'url': _url,
-                    'sourceId': kKariyerSourceId,
-                    'title': 'TEST KURUMU - Memur Alımı',
-                    'category': 'Personel',
-                    'publishedAt': '2026-09-28T08:00:00Z',
-                    'updatedAt': '2026-09-29T08:00:00Z',
-                    'deadline': '2026-10-12T20:59:00Z',
-                    'places': ['ANKARA'],
-                    'maxAge': 35,
-                    'maxAgeQuote': '35 yaşını doldurmamış olmak',
-                    'summary': ['Yaş sınırı 35'],
-                  },
+                  'url': _url,
+                  'sourceId': kKariyerSourceId,
+                  'title': 'TEST KURUMU - Memur Alımı',
+                  'category': 'Personel',
+                  'publishedAt': '2026-09-28T08:00:00Z',
+                  'updatedAt': '2026-09-29T08:00:00Z',
+                  'deadline': '2026-10-12T20:59:00Z',
+                  'places': ['ANKARA'],
+                  'maxAge': 35,
+                  'maxAgeQuote': '35 yaşını doldurmamış olmak',
+                  'summary': ['Yaş sınırı 35'],
                 },
               ],
             }),
@@ -154,7 +147,10 @@ void main() {
         syncRemoteV2Catalogue(store: store, client: retained, now: now),
         throwsA(isA<RemoteCatalogueException>()),
       );
-      expect(requests.single.url.path, '/api/v2/meta');
+      expect(requests.map((r) => r.url.path), [
+        '/api/v2/meta',
+        '/api/v2/listings',
+      ]);
       expect(await store.remoteCursor(), 1);
       expect((await store.allListings()).single.url, _url);
       expect((await store.remoteMetadata()).etag, '"meta1"');
@@ -199,6 +195,12 @@ void main() {
     'yarım delta son başarılı noktadan sürer; tam başarı zamanı erken yazılmaz',
     () async {
       final store = await freshStore();
+      await syncRemoteV2Catalogue(
+        store: store,
+        client: client(metadataBody()),
+        now: now,
+      );
+      final later = now.add(const Duration(hours: 1));
       var fail = true;
       final cursors = <String>[];
       final remote = RemoteCatalogueClient(
@@ -206,7 +208,7 @@ void main() {
         client: MockClient((request) async {
           if (request.url.path == '/api/v2/meta') {
             final meta = jsonDecode(metadataBody()) as Map;
-            meta['latestSeq'] = 2;
+            meta['latestSeq'] = 3;
             return http.Response(
               jsonEncode(meta),
               200,
@@ -215,14 +217,14 @@ void main() {
           }
           final after = request.url.queryParameters['after']!;
           cursors.add(after);
-          expect(request.url.queryParameters['watermark'], '2');
-          if (after == '1' && fail) return http.Response('', 503);
+          expect(request.url.queryParameters['watermark'], '3');
+          if (after == '2' && fail) return http.Response('', 503);
           final seq = int.parse(after) + 1;
           return http.Response(
             jsonEncode({
-              'watermark': 2,
+              'watermark': 3,
               'appliedThrough': seq,
-              'hasMore': seq < 2,
+              'hasMore': seq < 3,
               'changes': [
                 {
                   'seq': seq,
@@ -246,17 +248,17 @@ void main() {
         }),
       );
       await expectLater(
-        syncRemoteV2Catalogue(store: store, client: remote, now: now),
+        syncRemoteV2Catalogue(store: store, client: remote, now: later),
         throwsA(isA<RemoteCatalogueException>()),
       );
-      expect(await store.remoteCursor(), 1);
-      expect((await store.remoteMetadata()).lastSuccess, isNull);
-      fail = false;
-      await syncRemoteV2Catalogue(store: store, client: remote, now: now);
-      expect(cursors.last, '1');
       expect(await store.remoteCursor(), 2);
-      expect((await store.allListings()).single.title, 'Memur 2');
       expect((await store.remoteMetadata()).lastSuccess, now);
+      fail = false;
+      await syncRemoteV2Catalogue(store: store, client: remote, now: later);
+      expect(cursors.last, '2');
+      expect(await store.remoteCursor(), 3);
+      expect((await store.allListings()).single.title, 'Memur 3');
+      expect((await store.remoteMetadata()).lastSuccess, later);
     },
   );
 

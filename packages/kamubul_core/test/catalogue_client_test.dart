@@ -24,6 +24,43 @@ void main() {
   final base = Uri.parse('https://kamubul.example');
 
   test(
+    'frozen catalogue HTTP page validates watermark and bounds body',
+    () async {
+      for (final body in [
+        jsonEncode({'watermark': 2, 'items': [], 'next': null}),
+        'x' * (2 * 1024 * 1024 + 1),
+      ]) {
+        final client = RemoteCatalogueClient(
+          baseUrl: base,
+          client: MockClient((request) async {
+            expect(request.url.path, '/api/v2/listings');
+            expect(request.url.queryParameters, {
+              'watermark': '1',
+              'after': 'a',
+              'limit': '30',
+            });
+            return http.Response(body, 200);
+          }),
+        );
+        await expectLater(
+          client.fetchCataloguePage(watermark: 1, after: 'a'),
+          throwsA(isA<RemoteCatalogueException>()),
+        );
+      }
+      final client = RemoteCatalogueClient(
+        baseUrl: base,
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({'watermark': 1, 'items': [], 'next': null}),
+            200,
+          ),
+        ),
+      );
+      expect((await client.fetchCataloguePage(watermark: 1)).items, isEmpty);
+    },
+  );
+
+  test(
     'v2 metadata UTC source timestamps and conditional ETag are read',
     () async {
       final body = jsonEncode({

@@ -143,6 +143,49 @@ class RemoteCatalogueClient {
     }
   }
 
+  Future<CataloguePage> fetchCataloguePage({
+    required int watermark,
+    String after = '',
+  }) async {
+    if (watermark < 0 || watermark > 9007199254740991 || after.length > 200) {
+      throw ArgumentError('catalogue cursor');
+    }
+    final uri = _uri('/api/v2/listings').replace(
+      queryParameters: {
+        'watermark': '$watermark',
+        'after': after,
+        'limit': '30',
+      },
+    );
+    try {
+      return await (() async {
+        final response = await _client.send(
+          http.Request('GET', uri)..headers['Accept'] = 'application/json',
+        );
+        if (response.statusCode != 200) {
+          await response.stream.listen(null).cancel();
+          throw RemoteCatalogueException('HTTP ${response.statusCode}');
+        }
+        final bytes = <int>[];
+        await for (final chunk in response.stream) {
+          if (bytes.length + chunk.length > 2 * 1024 * 1024) {
+            throw const RemoteCatalogueException('catalogue page too large');
+          }
+          bytes.addAll(chunk);
+        }
+        return CataloguePage.decode(
+          jsonDecode(utf8.decode(bytes)),
+          watermark: watermark,
+          after: after,
+        );
+      })().timeout(timeout);
+    } on RemoteCatalogueException {
+      rethrow;
+    } on Exception catch (error) {
+      throw RemoteCatalogueException('catalogue page: $error');
+    }
+  }
+
   Future<RemoteFetchResult> fetchListings({String? etag}) async {
     final http.Response response;
     try {

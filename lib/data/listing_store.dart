@@ -35,7 +35,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 6;
+  static const int _schemaVersion = 7;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -76,6 +76,7 @@ class ListingStore {
     ''');
     await _createRemoteTables(db);
     await _addRemoteMetadata(db);
+    await _addRemoteBootstrap(db);
   }
 
   static Future<void> _createRemoteTables(DatabaseExecutor db) async {
@@ -113,6 +114,7 @@ class ListingStore {
     }
     if (oldVersion < 5 && newVersion >= 5) await _createRemoteTables(db);
     if (oldVersion < 6 && newVersion >= 6) await _addRemoteMetadata(db);
+    if (oldVersion < 7 && newVersion >= 7) await _addRemoteBootstrap(db);
   }
 
   static Future<void> _addRemoteMetadata(Database db) async {
@@ -125,10 +127,18 @@ class ListingStore {
     }
   }
 
-  Future<({String? metadata, String? etag, DateTime? lastSuccess})>
+  Future<
+    ({
+      String? metadata,
+      String? etag,
+      DateTime? lastSuccess,
+      bool pendingBootstrap,
+    })
+  >
   remoteMetadata() async {
     final row = (await (await database).query('remote_sync_state')).single;
     return (
+      pendingBootstrap: row['bootstrap_watermark'] != null,
       metadata: row['metadata'] as String?,
       etag: row['metadata_etag'] as String?,
       lastSuccess: row['last_success'] is int
@@ -156,6 +166,119 @@ class ListingStore {
     if (changed != 1) throw const FormatException('concurrent metadata sync');
   }
 
+  static Future<void> _addRemoteBootstrap(Database db) async {
+    await db.execute(
+      'CREATE TABLE remote_bootstrap (id TEXT PRIMARY KEY, url TEXT NOT NULL, payload TEXT NOT NULL)',
+    );
+    await db.execute(
+      'ALTER TABLE remote_sync_state ADD COLUMN bootstrap_watermark INTEGER',
+    );
+    await db.execute(
+      'ALTER TABLE remote_sync_state ADD COLUMN bootstrap_after TEXT',
+    );
+    await db.execute(
+      'ALTER TABLE remote_sync_state ADD COLUMN bootstrap_base_cursor INTEGER',
+    );
+  }
+
+  Future<({int watermark, String after})> beginBootstrap({
+    required int latest,
+    required int oldest,
+  }) async {
+    return (await database).transaction((txn) async {
+      final state = (await txn.query('remote_sync_state')).single;
+      final watermark = state['bootstrap_watermark'] as int?;
+      if (watermark != null &&
+          watermark <= latest &&
+          watermark >= oldest &&
+          state['bootstrap_base_cursor'] == state['cursor']) {
+        return (
+          watermark: watermark,
+          after: state['bootstrap_after'] as String,
+        );
+      }
+      await txn.delete('remote_bootstrap');
+      await txn.update('remote_sync_state', {
+        'bootstrap_watermark': latest,
+        'bootstrap_after': '',
+        'bootstrap_base_cursor': state['cursor'],
+      }, where: 'id=1');
+      return (watermark: latest, after: '');
+    });
+  }
+
+  /// Staging pages survive interruption. Only a complete snapshot replaces cache.
+  Future<void> stageCataloguePage(
+    CataloguePage page, {
+    required String after,
+  }) async {
+    await (await database).transaction((txn) async {
+      final state = (await txn.query('remote_sync_state')).single;
+      if (state['bootstrap_watermark'] != page.watermark ||
+          state['bootstrap_after'] != after ||
+          state['cursor'] != state['bootstrap_base_cursor']) {
+        throw const FormatException('concurrent catalogue bootstrap');
+      }
+      for (final item in page.items) {
+        await txn.insert('remote_bootstrap', {
+          'id': item['id'],
+          'url': item['url'],
+          'payload': jsonEncode(item),
+        });
+      }
+      if (page.next != null) {
+        await txn.update('remote_sync_state', {
+          'bootstrap_after': page.next,
+        }, where: 'id=1');
+        return;
+      }
+      // Saved rows remain available as inactive bookmarks; local-only rows are untouched.
+      await txn.delete(
+        'listings',
+        where: '''
+        saved=0 AND url IN (SELECT url FROM remote_catalogue)
+        AND url NOT IN (SELECT url FROM remote_bootstrap)
+      ''',
+      );
+      await txn.rawUpdate('UPDATE remote_catalogue SET active=0, revision=0');
+      var id = '';
+      while (true) {
+        final rows = await txn.query(
+          'remote_bootstrap',
+          where: 'id>?',
+          whereArgs: [id],
+          orderBy: 'id',
+          limit: 50,
+        );
+        if (rows.isEmpty) break;
+        final changes = <CatalogueChange>[];
+        for (final row in rows) {
+          final item = Map<String, Object?>.from(
+            jsonDecode(row['payload'] as String) as Map,
+          );
+          changes.add(
+            CatalogueChange(
+              0,
+              row['id'] as String,
+              item['revision'] as int,
+              false,
+              item,
+            ),
+          );
+        }
+        await _applyRemoteChanges(txn, changes, replace: true);
+        id = rows.last['id'] as String;
+      }
+      await txn.update('remote_sync_state', {
+        'cursor': page.watermark,
+        'bootstrap_watermark': null,
+        'bootstrap_after': null,
+        'bootstrap_base_cursor': null,
+      }, where: 'id=1');
+      await txn.delete('remote_bootstrap');
+    });
+  }
+
   Future<int> remoteCursor() async {
     final db = await database;
     return (await db.query(
@@ -175,89 +298,99 @@ class ListingStore {
       final cursor =
           (await txn.query('remote_sync_state')).single['cursor'] as int;
       if (cursor != after) throw const FormatException('concurrent delta sync');
-      for (final change in page.changes) {
-        final previous = await txn.query(
-          'remote_catalogue',
-          where: 'id=?',
-          whereArgs: [change.id],
-        );
-        final old = previous.isEmpty ? null : previous.single;
-        if (old != null && (old['revision'] as int) >= change.revision) {
-          continue;
-        }
-        final item = change.item;
-        final oldUrl = old?['url'] as String?;
-        final url = change.deleted
-            ? oldUrl ?? item['url'] as String?
-            : item['url'] as String? ?? oldUrl;
-        if (change.deleted) {
-          if (url != null) {
-            await txn.delete(
-              'listings',
-              where: 'url=? AND saved=0',
-              whereArgs: [url],
-            );
-          }
-        } else {
-          final summary = (item['summary'] as List? ?? const [])
-              .map((s) => s is Map ? s['text'] : s)
-              .whereType<String>()
-              .take(5)
-              .toList();
-          final record = listingFromJson(
-            {
-              ...item,
-              'source': item['sourceId'],
-              'fetched': item['updatedAt'],
-              'published': item['publishedAt'],
-              'summary': summary,
-            },
-            fallbackFetchedAt: DateTime.now(),
-            utcDates: true,
-          );
-          if (record == null) {
-            throw const FormatException('invalid delta record');
-          }
-          final favorites = await txn.query(
-            'listings',
-            columns: ['saved', 'savedAt'],
-            where: 'url IN (?,?)',
-            whereArgs: [oldUrl ?? record.url, record.url],
-            orderBy: 'saved DESC, savedAt DESC',
-            limit: 1,
-          );
-          final saved = favorites.isNotEmpty && favorites.single['saved'] == 1;
-          final savedMs = favorites.isEmpty
-              ? null
-              : favorites.single['savedAt'] as int?;
-          if (oldUrl != null && oldUrl != record.url) {
-            await txn.delete('listings', where: 'url=?', whereArgs: [oldUrl]);
-          }
-          await txn.insert(
-            'listings',
-            record
-                .copyWith(
-                  saved: saved,
-                  savedAt: savedMs == null
-                      ? null
-                      : DateTime.fromMillisecondsSinceEpoch(savedMs),
-                )
-                .toRow(),
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
-        }
-        await txn.insert('remote_catalogue', {
-          'id': change.id,
-          'revision': change.revision,
-          'url': url,
-          'active': change.deleted ? 0 : 1,
-          'payload': jsonEncode(item),
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
-      }
+      await _applyRemoteChanges(txn, page.changes);
       await txn.update('remote_sync_state', {
         'cursor': page.appliedThrough,
       }, where: 'id=1');
     });
+  }
+
+  Future<void> _applyRemoteChanges(
+    DatabaseExecutor txn,
+    List<CatalogueChange> changes, {
+    bool replace = false,
+  }) async {
+    for (final change in changes) {
+      final previous = await txn.query(
+        'remote_catalogue',
+        where: 'id=?',
+        whereArgs: [change.id],
+      );
+      final old = previous.isEmpty ? null : previous.single;
+      if (!replace &&
+          old != null &&
+          (old['revision'] as int) >= change.revision) {
+        continue;
+      }
+      final item = change.item;
+      final oldUrl = old?['url'] as String?;
+      final url = change.deleted
+          ? oldUrl ?? item['url'] as String?
+          : item['url'] as String? ?? oldUrl;
+      if (change.deleted) {
+        if (url != null) {
+          await txn.delete(
+            'listings',
+            where: 'url=? AND saved=0',
+            whereArgs: [url],
+          );
+        }
+      } else {
+        final summary = (item['summary'] as List? ?? const [])
+            .map((s) => s is Map ? s['text'] : s)
+            .whereType<String>()
+            .take(5)
+            .toList();
+        final record = listingFromJson(
+          {
+            ...item,
+            'source': item['sourceId'],
+            'fetched': item['updatedAt'],
+            'published': item['publishedAt'],
+            'summary': summary,
+          },
+          fallbackFetchedAt: DateTime.now(),
+          utcDates: true,
+        );
+        if (record == null) {
+          throw const FormatException('invalid delta record');
+        }
+        final favorites = await txn.query(
+          'listings',
+          columns: ['saved', 'savedAt'],
+          where: 'url IN (?,?)',
+          whereArgs: [oldUrl ?? record.url, record.url],
+          orderBy: 'saved DESC, savedAt DESC',
+          limit: 1,
+        );
+        final saved = favorites.isNotEmpty && favorites.single['saved'] == 1;
+        final savedMs = favorites.isEmpty
+            ? null
+            : favorites.single['savedAt'] as int?;
+        if (oldUrl != null && oldUrl != record.url) {
+          await txn.delete('listings', where: 'url=?', whereArgs: [oldUrl]);
+        }
+        await txn.insert(
+          'listings',
+          record
+              .copyWith(
+                saved: saved,
+                savedAt: savedMs == null
+                    ? null
+                    : DateTime.fromMillisecondsSinceEpoch(savedMs),
+              )
+              .toRow(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await txn.insert('remote_catalogue', {
+        'id': change.id,
+        'revision': change.revision,
+        'url': url,
+        'active': change.deleted ? 0 : 1,
+        'payload': jsonEncode(item),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
   }
 
   Future<void> _upgrade(Database db, int oldVersion, int newVersion) =>

@@ -107,3 +107,58 @@ class CatalogueDeltaPage {
     );
   }
 }
+
+/// Frozen full catalogue page; item IDs are strictly ordered across pages.
+class CataloguePage {
+  const CataloguePage(this.watermark, this.items, this.next);
+  final int watermark;
+  final List<Map<String, Object?>> items;
+  final String? next;
+
+  static CataloguePage decode(
+    Object? raw, {
+    required int watermark,
+    String after = '',
+  }) {
+    if (raw is! Map ||
+        raw['watermark'] is! int ||
+        raw['watermark'] != watermark ||
+        raw['items'] is! List ||
+        (raw['items'] as List).length > 50 ||
+        (raw['next'] != null && raw['next'] is! String)) {
+      throw const SnapshotFormatException('catalogue page');
+    }
+    var previous = after;
+    final items = <Map<String, Object?>>[];
+    for (final item in raw['items'] as List) {
+      if (item is! Map ||
+          item['id'] is! String ||
+          item['revision'] is! int ||
+          (item['revision'] as int) < 1 ||
+          (item['revision'] as int) > 9007199254740991 ||
+          (item['id'] as String).length > 200 ||
+          (item['id'] as String).compareTo(previous) <= 0 ||
+          listingFromJson(
+                {
+                  ...item,
+                  'source': item['sourceId'],
+                  'fetched': item['updatedAt'],
+                  'published': item['publishedAt'],
+                  'summary': <String>[],
+                },
+                fallbackFetchedAt: DateTime.utc(1970),
+                utcDates: true,
+              ) ==
+              null) {
+        throw const SnapshotFormatException('catalogue item');
+      }
+      previous = item['id'] as String;
+      items.add(Map.unmodifiable(Map<String, Object?>.from(item)));
+    }
+    final next = raw['next'] as String?;
+    if (next != null && (items.isEmpty || next != previous)) {
+      throw const SnapshotFormatException('catalogue progress');
+    }
+    return CataloguePage(watermark, List.unmodifiable(items), next);
+  }
+}

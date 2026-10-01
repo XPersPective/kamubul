@@ -48,9 +48,11 @@ Future<CatalogueMetadata> syncRemoteV2Catalogue({
     throw const RemoteCatalogueException('metadata missing after 304');
   }
   final cursor = await store.remoteCursor();
-  if (cursor > metadata.latestSeq ||
-      (cursor + 1 < metadata.oldestRetainedSeq)) {
-    throw const RemoteCatalogueException('catalogue bootstrap required');
+  if ((cursor == 0 && cached.metadata == null) ||
+      cursor > metadata.latestSeq ||
+      cursor + 1 < metadata.oldestRetainedSeq ||
+      cached.pendingBootstrap) {
+    await syncRemoteBootstrap(store: store, client: client, metadata: metadata);
   }
   await syncRemoteChanges(
     store: store,
@@ -84,4 +86,29 @@ Future<int> syncRemoteChanges({
     if (!page.hasMore) return after;
   }
   throw const RemoteCatalogueException('delta backlog; resume next refresh');
+}
+
+Future<void> syncRemoteBootstrap({
+  required ListingStore store,
+  required RemoteCatalogueClient client,
+  required CatalogueMetadata metadata,
+}) async {
+  final state = await store.beginBootstrap(
+    latest: metadata.latestSeq,
+    oldest: metadata.oldestRetainedSeq,
+  );
+  var after = state.after;
+  // ponytail: 20 pages per refresh; persistent staging resumes without discarding visible cache.
+  for (var i = 0; i < 20; i++) {
+    final page = await client.fetchCataloguePage(
+      watermark: state.watermark,
+      after: after,
+    );
+    await store.stageCataloguePage(page, after: after);
+    if (page.next == null) return;
+    after = page.next!;
+  }
+  throw const RemoteCatalogueException(
+    'bootstrap backlog; resume next refresh',
+  );
 }
