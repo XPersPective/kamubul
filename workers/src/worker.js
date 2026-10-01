@@ -124,9 +124,20 @@ export async function fetchRequest(request,env,ctx){
     const history=path.match(/^\/api\/v2\/installations\/([a-f\d]{32})\/notifications$/);
     if(history){
       const record=await authenticate(request,env.DB,history[1]);if(!record)return json({error:'unauthorized'},401);
-      const after=url.searchParams.get('after')??'',limit=int(url.searchParams.get('limit'),1,50,30);
-      const rows=(await env.DB.prepare('SELECT id,payload,state,created_at,delivery_id FROM notification_outbox WHERE installation_id=? AND id>? ORDER BY id LIMIT ?').bind(record.id,after,limit+1).all()).results;
-      return json({items:rows.slice(0,limit).map(r=>({...JSON.parse(r.payload),eventId:r.id,deliveryId:r.delivery_id??r.id,state:r.state,createdAt:r.created_at})),next:rows.length>limit?rows[limit-1].id:null});
+      const rawAfter=url.searchParams.get('after')??'0',after=Number(rawAfter),limit=int(url.searchParams.get('limit'),1,50,30);
+      if(!/^\d{1,16}$/.test(rawAfter)||!Number.isSafeInteger(after))return json({error:'cursor'},400);
+      const latest=(await env.DB.prepare('SELECT COALESCE(MAX(history_seq),0) seq FROM notification_outbox WHERE installation_id=?').bind(record.id).first()).seq;
+      const rawWatermark=url.searchParams.get('watermark'),watermark=rawWatermark===null?latest:Number(rawWatermark);
+      if(rawWatermark!==null&&(!/^\d{1,16}$/.test(rawWatermark)||!Number.isSafeInteger(watermark)||watermark<after||watermark>latest))return json({error:'watermark'},400);
+      if(after>latest)return json({error:'cursor_ahead'},409);
+      // History carries bounded presentation fields, not source documents/private preferences.
+      const rows=(await env.DB.prepare(`SELECT id,listing_id,history_seq,accepted_at,created_at,delivery_id,
+        json_object('title',substr(json_extract(payload,'$.title'),1,300),'url',substr(json_extract(payload,'$.url'),1,2048),
+          'revision',json_extract(payload,'$.revision'),'searchIds',json_extract(payload,'$.searchIds'),
+          'mode',json_extract(payload,'$.mode'),'digestCount',json_extract(payload,'$.digestCount')) payload
+        FROM notification_outbox WHERE installation_id=? AND history_seq>? AND history_seq<=? ORDER BY history_seq LIMIT ?`).bind(record.id,after,watermark,limit+1).all()).results;
+      const visible=rows.slice(0,limit),hasMore=rows.length>limit,appliedThrough=hasMore?visible.at(-1).history_seq:watermark;
+      return json({schemaVersion:2,watermark,appliedThrough,hasMore,items:visible.map(r=>({...JSON.parse(r.payload),id:r.listing_id,eventId:r.id,deliveryId:r.delivery_id??r.id,state:'accepted',seq:r.history_seq,createdAt:r.created_at,acceptedAt:r.accepted_at})),next:hasMore?String(appliedThrough):null});
     }
     if(path==='/v1/sources.json')return json({sources:(await env.DB.prepare('SELECT * FROM sources').all()).results.map(sourceV1)});
     if(path==='/v1/listings.json') {

@@ -12,6 +12,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0002_digest_delivery.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0003_daily_digest.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0004_match_facets.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0005_notification_sequence.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -273,9 +274,47 @@ test('notification history keeps per-row ID and digest delivery ID separate',asy
   const {sql,DB}=database();t.after(()=>sql.close());const id='a'.repeat(32),secret='b'.repeat(64);
   sql.prepare("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES(?,?,'token','android','{}','now')").run(id,await sha256(secret));
   sql.prepare("INSERT INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at,delivery_id) VALUES('event',?,'listing',?,'now','now','group')").run(id,JSON.stringify({eventId:'must-not-override',title:'Memur',mode:'digest'}));
+  sql.exec("UPDATE notification_outbox SET state='accepted' WHERE id='event'");
   const response=await fetchRequest(new Request('https://api/api/v2/installations/'+id+'/notifications',{headers:{Authorization:'Bearer '+secret}}),{DB},{});
   assert.equal(response.status,200);const body=await response.json();
   assert.equal(body.items[0].eventId,'event');assert.equal(body.items[0].deliveryId,'group');
+});
+
+test('accepted history follows acceptance order, pins pages and bounds source payloads',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());const id='a'.repeat(32),secret='b'.repeat(64),other='c'.repeat(32);
+  for(const owner of [id,other])sql.prepare("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES(?,?,'token','android','{}','now')").run(owner,await sha256(owner===id?secret:'d'.repeat(64)));
+  const add=(key,owner=id)=>sql.prepare("INSERT INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES(?,?,?,?,'now','2000-01-01')").run(key,owner,key,JSON.stringify({title:'Memur',url:'https://example.gov.tr',text:'x'.repeat(2000000),preferencesVersion:10,searchIds:['search'],mode:'instant'}));
+  const get=async(query='',bearer=secret)=>fetchRequest(new Request('https://api/api/v2/installations/'+id+'/notifications'+query,{headers:{Authorization:'Bearer '+bearer}}),{DB},{});
+  for(const key of ['z','y','a','pending'])add(key);add('private',other);
+  sql.exec("UPDATE notification_outbox SET state='accepted' WHERE id='z'; UPDATE notification_outbox SET state='accepted' WHERE id='y'; UPDATE notification_outbox SET state='accepted' WHERE id='private'");
+  const firstResponse=await get('?limit=1'),firstText=await firstResponse.text(),first=JSON.parse(firstText);
+  assert.equal(firstResponse.headers.get('cache-control'),'no-store');assert.ok(firstText.length<5000);
+  assert.equal(first.items[0].eventId,'z');assert.equal(first.items[0].text,undefined);assert.equal(first.items[0].preferencesVersion,undefined);
+  assert.deepEqual(first.items[0].searchIds,['search']);assert.equal(first.next,'1');assert.equal(first.watermark,2);
+  sql.exec("UPDATE notification_outbox SET state='accepted' WHERE id='a'");
+  const second=await(await get('?after='+first.next+'&watermark='+first.watermark+'&limit=1')).json();
+  assert.deepEqual(second.items.map(x=>x.eventId),['y']);assert.equal(second.appliedThrough,2);assert.equal(second.hasMore,false);
+  const newer=await(await get('?after='+second.appliedThrough)).json();
+  assert.deepEqual(newer.items.map(x=>x.eventId),['a']);assert.equal(newer.items[0].seq,4);
+  const sequence=sql.prepare('SELECT seq FROM notification_sequence').get().seq;
+  sql.exec("UPDATE notification_outbox SET state='accepted' WHERE id='a'");
+  assert.equal(sql.prepare('SELECT seq FROM notification_sequence').get().seq,sequence);
+  assert.equal((await get('', 'e'.repeat(64))).status,401);
+  for(const query of ['?after=z','?after=-1','?after=9007199254740992','?watermark=999','?watermark=-1'])assert.equal((await get(query)).status,400);
+  assert.equal((await get('?after=999')).status,409);
+  const plan=sql.prepare('EXPLAIN QUERY PLAN SELECT id FROM notification_outbox WHERE installation_id=? AND history_seq>? AND history_seq<=? ORDER BY history_seq LIMIT 10').all(id,0,4);
+  assert.ok(plan.some(x=>x.detail.includes('installation_history_seq')));
+  sql.prepare('DELETE FROM installations WHERE id=?').run(id);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM notification_outbox WHERE installation_id=?').get(id).n,0);
+});
+
+test('history migration preserves accepted rows and skips pending rows',t=>{
+  const sql=new DatabaseSync(':memory:');t.after(()=>sql.close());sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
+  sql.exec("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES('owner','hash','token','android','{}','now'); INSERT INTO notification_outbox(id,installation_id,listing_id,payload,state,due_at,created_at) VALUES('z','owner','z','{}','accepted','now','2000-01-01'),('a','owner','a','{}','accepted','now','2001-01-01'),('pending','owner','pending','{}','pending','now','1999-01-01')");
+  sql.exec(readFileSync(new URL('../migrations/0005_notification_sequence.sql',import.meta.url),'utf8'));
+  assert.deepEqual(sql.prepare('SELECT id,history_seq FROM notification_outbox ORDER BY id').all().map(x=>({...x})),[{id:'a',history_seq:2},{id:'pending',history_seq:null},{id:'z',history_seq:1}]);
+  sql.exec("UPDATE notification_outbox SET state='accepted' WHERE id='pending'");
+  assert.equal(sql.prepare("SELECT history_seq FROM notification_outbox WHERE id='pending'").get().history_seq,3);
 });
 
 test('fresh send lease rechecks cap after an earlier stale installation read',async t=>{

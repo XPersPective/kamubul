@@ -96,3 +96,17 @@ Her eşleştirme slotunda en çok10 aday veya4 boş facet; facet_index+ID cursor
 kalıcıdır. En kötü sorgu üst sınırı38; çalışan SQL fixture sayımı ve canlı
 EXPLAIN indeks kullanımı kontrol edildi. Geniş `*` kitleleri için gecikme,
 günlük row-read/write ve CPU kapasitesi ölçülmeden10k desteği vaat edilmez.
+
+Migration0005 `history_seq` ve `accepted_at` ekler. FCM accepted state commit'i
+aynı transaction'daki trigger ile kalıcı tek-satır sayacı artırır; her accepted
+olayda sayaç+outbox güncellemesi iki ek row mutation'dır (indeksler ayrıca).
+Eski accepted kayıtlar migration'da korunur, pending/cancelled geçmişe girmez.
+`GET /api/v2/installations/{id}/notifications?after=0&limit=30` own-record
+secret gerektirir, no-store'dur. `watermark`, `appliedThrough`, `hasMore`,
+numerik string `next` döner; sonraki sayfaya aynı watermark gönderilir.
+Son sayfanın appliedThrough değeri bir sonraki açılışın after imlecidir.
+Hash cursor artık kabul edilmez (400); ilerideki cursor409 cursor_ahead.
+Seq global sayaçtan atanır fakat endpoint yalnız kurulumun kendi kayıtlarını
+gösterir. Yanıt ilan title/url/revision/searchIds/mode/count ve event/delivery
+kimliğini taşır; kaynak belgesi/özel tercih taşınmaz. accepted, cihaz teslimi
+değildir. Retention ve mobil cache/feed/dedupe henüz uygulanmadı.
