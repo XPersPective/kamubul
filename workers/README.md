@@ -36,5 +36,14 @@ Canlı API: https://kamubul-api.devx8585.workers.dev/api/v2/health
 Bu runtime geçiş halindedir. Tüm ürünün tamamlandığı varsayılmaz:
 `.project-brain/current.md` doğrulanmış durumu, PB-016–021 kalan işi içerir.
 Model koşul alanları gerçek extraction değerlendirmesi geçmeden açılmaz.
-Digest, indeksli fanout ve PDF/uzun belge işleme henüz tamamlanmadı.
+Uzun kaynak metni 120KB UTF-8 sınırında, en çok12KB parçalarla işlenir.
+Her tamamlanan parçanın sonucu kalıcı processing job'da tutulur; son özet
+birleştirilmeden yayımlanmaz. `AI_DAILY_JOBS=20` ilan sayısını değil, parça,
+birleştirme ve başarısız denemeler dahil günlük model isteklerini sınırlar.
+Her isteğin serialized girdisi24KB, çıktısı1024 token ile sınırlıdır.
+[rejectIfBusy](https://developers.cloudflare.com/workers-ai/features/reject-if-busy/)
+kapasite doluyken kuyruğa kabulü engeller.45 saniyelik uygulama timeout'u
+sağlayıcı inference işleminin iptal edildiğini garanti etmez; retry de kotaya sayılır.
+Gerçek model kalitesi/neurons/Free CPU ölçümü, PDF/OCR ve120KB üzeri belgeler,
+digest ve indeksli fanout henüz tamamlanmadı.
 Kaynak erişim hataları kaynak sağlığında açıkça görünür; mobil/proxy ile gizlenmez.
