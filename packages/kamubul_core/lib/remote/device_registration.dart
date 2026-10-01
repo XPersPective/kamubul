@@ -7,6 +7,8 @@
 /// gider. Sunucu her alanı doğrular; bilinmeyen süzgeç anahtarları atılır.
 library;
 
+import '../data/search_criteria.dart';
+
 final RegExp _deviceIdPattern = RegExp(r'^[0-9a-f]{32}$');
 final RegExp _secretPattern = RegExp(r'^[0-9a-f]{64}$');
 final RegExp _searchIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,40}$');
@@ -21,8 +23,10 @@ const Set<String> kSubscribableFilterKeys = {
   'son30',
   'sehir',
   'yas',
+  'yasTarih',
   'egitim',
   'kpss',
+  'kpssPuan',
   'bildirim',
 };
 
@@ -40,13 +44,21 @@ class SubscribedSearch {
     required this.id,
     required this.name,
     required this.filters,
+    this.criteria,
   });
 
   final String id;
   final String name;
   final Map<String, String> filters;
+  final SearchCriteria? criteria;
 
   Map<String, Object?> toJson() => {'id': id, 'name': name, 'filters': filters};
+  Map<String, Object?> toV2Json() => {
+    'id': id,
+    'name': name,
+    'criteria': (criteria ?? SearchCriteria.fromLegacy(filters)).values,
+    'mode': filters['bildirim'] ?? 'instant',
+  };
 }
 
 class DeviceRegistration {
@@ -76,6 +88,14 @@ class DeviceRegistration {
     'quietEndHour': quietEndHour,
     'maxInstantPerDay': maxInstantPerDay,
     'searches': [for (final search in searches) search.toJson()],
+  };
+  Map<String, Object?> toV2Json() => {
+    'fcmToken': fcmToken,
+    'platform': platform,
+    'quietStartHour': quietStartHour,
+    'quietEndHour': quietEndHour,
+    'maxInstantPerDay': maxInstantPerDay,
+    'searches': [for (final search in searches) search.toV2Json()],
   };
 
   /// Güvenilmeyen JSON'u doğrular; geçersizse [RegistrationFormatException].

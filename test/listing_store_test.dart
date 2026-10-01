@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
+import 'package:kamubul_core/kamubul_core.dart' show SearchCriteria;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -354,55 +355,52 @@ void main() {
     await databaseFactory.deleteDatabase(dbPath);
   });
 
-  test(
-    'sunucudan gelen şart alanları ve özet mevcut kayda işlenir, boş değer silmez',
-    () async {
-      final store = await freshStore();
-      final at = DateTime(2026, 9, 29);
-      await store.mergeFeed([
-        ListingRecord(
-          url: 'https://x/1',
-          sourceId: 'kariyerkapisi',
-          title: 'KURUM - İlan',
-          category: 'Personel',
-          publishedAt: DateTime(2026, 9, 28),
-          fetchedAt: at,
-        ),
-      ], pruneBefore: DateTime(2026, 1, 1));
-      await store.mergeFeed([
-        ListingRecord(
-          url: 'https://x/1',
-          sourceId: 'kariyerkapisi',
-          title: 'KURUM - İlan',
-          category: 'Personel',
-          publishedAt: DateTime(2026, 9, 28),
-          fetchedAt: at,
-          maxAge: 35,
-          maxAgeQuote: '35 yaşını doldurmamış olmak',
-          summary: const ['Yaş sınırı 35', 'KPSS şartı yok'],
-        ),
-      ], pruneBefore: DateTime(2026, 1, 1));
-      var stored = (await store.allListings()).single;
-      expect(stored.maxAge, 35);
-      expect(stored.maxAgeQuote, '35 yaşını doldurmamış olmak');
-      expect(stored.summary, ['Yaş sınırı 35', 'KPSS şartı yok']);
+  test('sunucudan gelen şart alanları ve özet mevcut kayda işlenir, boş değer silmez', () async {
+    final store = await freshStore();
+    final at = DateTime(2026, 9, 29);
+    await store.mergeFeed([
+      ListingRecord(
+        url: 'https://x/1',
+        sourceId: 'kariyerkapisi',
+        title: 'KURUM - İlan',
+        category: 'Personel',
+        publishedAt: DateTime(2026, 9, 28),
+        fetchedAt: at,
+      ),
+    ], pruneBefore: DateTime(2026, 1, 1));
+    await store.mergeFeed([
+      ListingRecord(
+        url: 'https://x/1',
+        sourceId: 'kariyerkapisi',
+        title: 'KURUM - İlan',
+        category: 'Personel',
+        publishedAt: DateTime(2026, 9, 28),
+        fetchedAt: at,
+        maxAge: 35,
+        maxAgeQuote: '35 yaşını doldurmamış olmak',
+        summary: const ['Yaş sınırı 35', 'KPSS şartı yok'],
+      ),
+    ], pruneBefore: DateTime(2026, 1, 1));
+    var stored = (await store.allListings()).single;
+    expect(stored.maxAge, 35);
+    expect(stored.maxAgeQuote, '35 yaşını doldurmamış olmak');
+    expect(stored.summary, ['Yaş sınırı 35', 'KPSS şartı yok']);
 
-      // Alansız yeni akış (ör. yedek gömülü çekim) bilinen değeri silmez.
-      await store.mergeFeed([
-        ListingRecord(
-          url: 'https://x/1',
-          sourceId: 'kariyerkapisi',
-          title: 'KURUM - İlan',
-          category: 'Personel',
-          publishedAt: DateTime(2026, 9, 28),
-          fetchedAt: at.add(const Duration(hours: 6)),
-        ),
-      ], pruneBefore: DateTime(2026, 1, 1));
-      stored = (await store.allListings()).single;
-      expect(stored.maxAge, 35);
-      expect(stored.summary, hasLength(2));
-    },
-  );
+    // Alansız yeni akış (ör. yedek gömülü çekim) bilinen değeri silmez.
+    await store.mergeFeed([
+      ListingRecord(
+        url: 'https://x/1',
+        sourceId: 'kariyerkapisi',
+        title: 'KURUM - İlan',
+        category: 'Personel',
+        publishedAt: DateTime(2026, 9, 28),
+        fetchedAt: at.add(const Duration(hours: 6)),
+      ),
+    ], pruneBefore: DateTime(2026, 1, 1));
+    stored = (await store.allListings()).single;
+    expect(stored.maxAge, 35);
+    expect(stored.summary, hasLength(2));
+  });
 
   test('bozuk kayıtlı arama süzgeci boş okunur', () async {
     final search = SavedSearch.fromRow({
@@ -413,6 +411,9 @@ void main() {
     });
     expect(search.filters, isEmpty);
     expect(search.name, 'x');
+    expect(search.hasInvalidCriteria, isTrue);
+    expect(() => search.effectiveCriteria, throwsFormatException);
+    expect(() => search.toRow(), throwsFormatException);
     // Doğrudan kurulumda id null verilebilir (yeni kayıt).
     final pending = SavedSearch(
       id: null,
@@ -421,6 +422,49 @@ void main() {
       createdAt: DateTime(2026, 9, 27),
     );
     expect(pending.id, isNull);
+  });
+
+  test('typed arama mevcut SQLite alanında kalıcıdır; ad/mod değişimi kriteri korur', () async {
+    final store = await freshStore();
+    final criteria = SearchCriteria.parse({
+      'version': 2,
+      'cities': ['Ankara', 'İzmir'],
+      'age': 30,
+      'ageAsOf': '2026-09-29',
+      'kpssType': 'P3',
+      'kpssScore': 69.99,
+      'kpssYear': 2024,
+    });
+    final saved = await store.addSavedSearch(
+      SavedSearch(
+        id: null,
+        name: 'Kişisel',
+        filters: const {'bildirim': 'instant'},
+        criteria: criteria,
+        createdAt: DateTime(2026, 9, 29),
+      ),
+    );
+    final renamed = saved.copyWith(
+      name: 'Yeni ad',
+      filters: {'bildirim': 'digest'},
+    );
+    await store.updateSavedSearch(renamed);
+    final restored = (await store.savedSearches()).single;
+    expect(restored.name, 'Yeni ad');
+    expect(restored.filters['bildirim'], 'digest');
+    expect(restored.effectiveCriteria.values, criteria.values);
+    expect(restored.hasInvalidCriteria, isFalse);
+    final unknown = SavedSearch.fromRow({
+      ...renamed.toRow(),
+      'filters': '{"criteriaVersion":3,"filters":{},"criteria":{}}',
+    });
+    expect(() => unknown.effectiveCriteria, throwsFormatException);
+    final legacy = SavedSearch.fromRow({
+      ...renamed.toRow(),
+      'filters': '{"yas":"30","q":"bekçi"}',
+    });
+    expect(legacy.effectiveCriteria.values['ageAsOf'], '1970-01-01');
+    expect(legacy.effectiveCriteria.values['keyword'], 'bekçi');
   });
 
   test(
@@ -441,39 +485,44 @@ void main() {
     },
   );
 
-  test('bir mağaza kapatılınca ortak veritabanı kullanılmaya devam eder', () async {
-    // sqflite aynı yol için tek örnek döndürür; bir mağazanın kapatması
-    // diğerinin yazmalarını database_closed ile bozuyordu (kayıtlı arama
-    // yeniden adlandırma/silme). Ayrıca örnek dışarıdan kapatılsa bile
-    // okuma/yazma yeniden açılarak sürmeli.
-    final originalPath = await databaseFactory.getDatabasesPath();
-    final tmp = Directory.systemTemp.createTempSync('kamubul_store_lifecycle');
-    await databaseFactory.setDatabasesPath(tmp.path);
-    final first = ListingStore();
-    final second = ListingStore();
-    try {
-      final saved = await first.addSavedSearch(
-        SavedSearch(
-          id: null,
-          name: 'eski ad',
-          filters: const {},
-          createdAt: DateTime(2026, 9, 28),
-        ),
+  test(
+    'bir mağaza kapatılınca ortak veritabanı kullanılmaya devam eder',
+    () async {
+      // sqflite aynı yol için tek örnek döndürür; bir mağazanın kapatması
+      // diğerinin yazmalarını database_closed ile bozuyordu (kayıtlı arama
+      // yeniden adlandırma/silme). Ayrıca örnek dışarıdan kapatılsa bile
+      // okuma/yazma yeniden açılarak sürmeli.
+      final originalPath = await databaseFactory.getDatabasesPath();
+      final tmp = Directory.systemTemp.createTempSync(
+        'kamubul_store_lifecycle',
       );
-      final shared = await first.database;
-      await second.database;
-      await second.close();
-      expect(shared.isOpen, isTrue);
-      await first.updateSavedSearch(saved.copyWith(name: 'yeni ad'));
-      await (await second.database).close();
-      final searches = await first.savedSearches();
-      expect(searches.singleWhere((s) => s.id == saved.id).name, 'yeni ad');
-    } finally {
-      await (await first.database).close();
-      await first.close();
-      await second.close();
-      await databaseFactory.setDatabasesPath(originalPath);
-      tmp.deleteSync(recursive: true);
-    }
-  });
+      await databaseFactory.setDatabasesPath(tmp.path);
+      final first = ListingStore();
+      final second = ListingStore();
+      try {
+        final saved = await first.addSavedSearch(
+          SavedSearch(
+            id: null,
+            name: 'eski ad',
+            filters: const {},
+            createdAt: DateTime(2026, 9, 28),
+          ),
+        );
+        final shared = await first.database;
+        await second.database;
+        await second.close();
+        expect(shared.isOpen, isTrue);
+        await first.updateSavedSearch(saved.copyWith(name: 'yeni ad'));
+        await (await second.database).close();
+        final searches = await first.savedSearches();
+        expect(searches.singleWhere((s) => s.id == saved.id).name, 'yeni ad');
+      } finally {
+        await (await first.database).close();
+        await first.close();
+        await second.close();
+        await databaseFactory.setDatabasesPath(originalPath);
+        tmp.deleteSync(recursive: true);
+      }
+    },
+  );
 }

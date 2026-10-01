@@ -13,6 +13,7 @@
 library;
 
 import 'package:napp_core/napp_core.dart';
+import 'package:kamubul_core/kamubul_core.dart' show SearchCriteria;
 
 import 'listing_store.dart';
 
@@ -21,7 +22,7 @@ import 'listing_store.dart';
 const String kUserDataPackageName = 'com.crazypenguin.kamubul';
 
 /// Uygulama veri bölümünün şema sürümü (zarf sürümünden bağımsız).
-const int kUserDataSchemaVersion = 1;
+const int kUserDataSchemaVersion = 2;
 
 /// İçe aktarmada kabul edilen resmî kaynak kimlikleri.
 const Set<String> kUserDataSourceIds = {
@@ -49,41 +50,49 @@ String exportUserDataJson({
   required List<SavedSearch> searches,
   required List<ListingRecord> bookmarks,
   DateTime? exportedAt,
-}) => _codec().export({
-  'schema': kUserDataSchemaVersion,
-  'exportedAt': (exportedAt ?? DateTime.now()).toIso8601String(),
-  'searches': [
-    for (final search in searches)
-      {
-        'name': search.name,
-        'filters': search.filters,
-        'createdAt': search.createdAt.toIso8601String(),
-      },
-  ],
-  'bookmarks': [
-    for (final record in bookmarks)
-      {
-        'url': record.url,
-        'sourceId': record.sourceId,
-        'title': record.title,
-        'category': record.category,
-        'publishedAt': record.publishedAt?.toIso8601String(),
-        'fetchedAt': record.fetchedAt.toIso8601String(),
-        'deadline': record.deadline?.toIso8601String(),
-        'quota': record.quota,
-        'places': record.places,
-        'kpss': record.kpss,
-        'kpssQuote': record.kpssQuote,
-        'education': record.education,
-        'educationQuote': record.educationQuote,
-        'maxAge': record.maxAge,
-        'maxAgeQuote': record.maxAgeQuote,
-        'quotaType': record.quotaType,
-        'quotaTypeQuote': record.quotaTypeQuote,
-        'savedAt': record.savedAt?.toIso8601String(),
-      },
-  ],
-});
+}) {
+  for (final search in searches) {
+    if (search.hasInvalidCriteria) {
+      throw const FormatException('Kriterleri okunamayan arama yedeklenemez.');
+    }
+  }
+  return _codec().export({
+    'schema': kUserDataSchemaVersion,
+    'exportedAt': (exportedAt ?? DateTime.now()).toIso8601String(),
+    'searches': [
+      for (final search in searches)
+        {
+          'name': search.name,
+          'filters': search.filters,
+          if (search.criteria != null) 'criteria': search.criteria!.values,
+          'createdAt': search.createdAt.toIso8601String(),
+        },
+    ],
+    'bookmarks': [
+      for (final record in bookmarks)
+        {
+          'url': record.url,
+          'sourceId': record.sourceId,
+          'title': record.title,
+          'category': record.category,
+          'publishedAt': record.publishedAt?.toIso8601String(),
+          'fetchedAt': record.fetchedAt.toIso8601String(),
+          'deadline': record.deadline?.toIso8601String(),
+          'quota': record.quota,
+          'places': record.places,
+          'kpss': record.kpss,
+          'kpssQuote': record.kpssQuote,
+          'education': record.education,
+          'educationQuote': record.educationQuote,
+          'maxAge': record.maxAge,
+          'maxAgeQuote': record.maxAgeQuote,
+          'quotaType': record.quotaType,
+          'quotaTypeQuote': record.quotaTypeQuote,
+          'savedAt': record.savedAt?.toIso8601String(),
+        },
+    ],
+  });
+}
 
 /// Doğrulanmış içe aktarma sonucu; kimlikler sıfırdan verilir.
 class UserDataImport {
@@ -105,7 +114,7 @@ UserDataImport parseUserDataJson(String source) {
     throw const FormatException('Yedek dosyası okunamadı.');
   }
   final schema = decoded['schema'];
-  if (schema != kUserDataSchemaVersion) {
+  if (schema != 1 && schema != kUserDataSchemaVersion) {
     throw FormatException('Desteklenmeyen veri sürümü: $schema');
   }
 
@@ -121,12 +130,12 @@ UserDataImport parseUserDataJson(String source) {
   }
 
   return UserDataImport(
-    searches: [for (final row in rawSearches) _readSearch(row)],
+    searches: [for (final row in rawSearches) _readSearch(row, schema as int)],
     bookmarks: [for (final row in rawBookmarks) _readBookmark(row)],
   );
 }
 
-SavedSearch _readSearch(Object? row) {
+SavedSearch _readSearch(Object? row, int schema) {
   final map = _asMap(row, 'arama');
   final name = _asString(map, 'name', 'arama');
   if (name.isEmpty) {
@@ -143,10 +152,19 @@ SavedSearch _readSearch(Object? row) {
     }
     filters[key] = value;
   });
+  SearchCriteria? criteria;
+  if (map.containsKey('criteria')) {
+    final raw = map['criteria'];
+    if (schema != 2 || raw is! Map<String, dynamic>) {
+      throw const FormatException('Arama kriterleri geçersiz.');
+    }
+    criteria = SearchCriteria.parse(raw);
+  }
   return SavedSearch(
     id: null,
     name: name,
     filters: filters,
+    criteria: criteria,
     createdAt: _asDateTime(map, 'createdAt', 'arama'),
   );
 }
@@ -156,7 +174,9 @@ ListingRecord _readBookmark(Object? row) {
   final url = _asString(map, 'url', 'yer imi');
   final uri = Uri.tryParse(url);
   if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
-    throw FormatException('Yalnızca https bağlantıları içe aktarılabilir: $url');
+    throw FormatException(
+      'Yalnızca https bağlantıları içe aktarılabilir: $url',
+    );
   }
   final sourceId = _asString(map, 'sourceId', 'yer imi');
   if (!kUserDataSourceIds.contains(sourceId)) {
@@ -246,11 +266,7 @@ DateTime _asDateTime(Map<String, dynamic> map, String key, String kind) {
   return value;
 }
 
-DateTime? _asDateTimeOrNull(
-  Map<String, dynamic> map,
-  String key,
-  String kind,
-) {
+DateTime? _asDateTimeOrNull(Map<String, dynamic> map, String key, String kind) {
   final value = map[key];
   if (value == null) return null;
   if (value is! String) {

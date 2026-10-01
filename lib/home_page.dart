@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:kamubul_core/kamubul_core.dart' show SourceStatus;
+import 'package:kamubul_core/kamubul_core.dart'
+    show SourceStatus, SearchCriteria;
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -321,13 +322,18 @@ class _KamuHomePageState extends State<KamuHomePage> {
     try {
       final json = exportUserDataJson(
         searches: _searches,
-        bookmarks: [for (final record in _records) if (record.saved) record],
+        bookmarks: [
+          for (final record in _records)
+            if (record.saved) record,
+        ],
       );
       await SharePlus.instance.share(ShareParams(text: json));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Yedek oluşturulamadı ya da paylaşılamadı.')),
+        const SnackBar(
+          content: Text('Yedek oluşturulamadı ya da paylaşılamadı.'),
+        ),
       );
     }
   }
@@ -343,9 +349,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
       imported = parseUserDataJson(raw);
     } on FormatException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
       return;
     }
     for (final search in imported.searches) {
@@ -377,6 +382,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
   }
 
   void _applySearch(SavedSearch search) {
+    if (search.hasInvalidCriteria) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bu aramanın kriterlerini önce Düzenle ile onarın.'),
+        ),
+      );
+      return;
+    }
     _searchController.text = search.filters['q'] ?? '';
     final city = search.filters['sehir'];
     setState(() {
@@ -532,39 +545,28 @@ class _KamuHomePageState extends State<KamuHomePage> {
   }
 
   Future<void> _saveCurrentSearch() async {
-    final saved = await _promptSearchFilters();
-    if (saved == null) return;
-    final (name, yas, egitim, kpss) = saved;
-    if (name.trim().isEmpty) return;
-    final filters = <String, String>{..._currentFilters};
-    if (yas != null) filters['yas'] = '$yas';
-    if (egitim != null) filters['egitim'] = egitim;
-    if (kpss != null) filters['kpss'] = kpss;
-    if (_activeSearchName != null) {
-      SavedSearch? existing;
-      for (final search in _searches) {
-        if (search.name == _activeSearchName) existing = search;
-      }
-      if (existing != null) {
-        await _store.updateSavedSearch(
-          existing.copyWith(name: name.trim(), filters: filters),
-        );
-        await _loadLocal();
-        if (mounted) setState(() => _activeSearchName = name.trim());
-        return;
-      }
+    SavedSearch? existing;
+    for (final search in _searches) {
+      if (search.name == _activeSearchName) existing = search;
     }
-    final created = await _store.addSavedSearch(
-      SavedSearch(
-        id: null,
-        name: name.trim(),
-        filters: filters,
-        createdAt: DateTime.now(),
-      ),
-    );
+    final seed =
+        existing ??
+        SavedSearch(
+          id: null,
+          name: '',
+          filters: _currentFilters,
+          createdAt: DateTime.now(),
+        );
+    final saved = await _promptEditSearch(seed, creating: existing == null);
+    if (saved == null) return;
+    if (existing != null) {
+      await _store.updateSavedSearch(saved);
+    } else {
+      await _store.addSavedSearch(saved);
+    }
     await _loadLocal();
-    if (mounted) setState(() => _activeSearchName = created.name);
-    await _maybeAskNotificationPermission();
+    if (mounted) setState(() => _activeSearchName = saved.name);
+    if (existing == null) await _maybeAskNotificationPermission();
   }
 
   /// İlk kayıtlı aramadan sonra yumuşak izin açıklaması gösterilir;
@@ -574,86 +576,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
     widget.store.setInt('kamubul.alerts.asked', 1);
     if (_searches.length > 1 || !mounted) return;
     await requestAlertPermission(context);
-  }
-
-  /// Kayıtlı arama formu: ad + profil eşleşmesi için yaş/eğitim/KPSS.
-  Future<(String, int?, String?, String?)?> _promptSearchFilters() {
-    final nameController = TextEditingController(text: _activeSearchName);
-    final ageController = TextEditingController(
-      text: _ageFilter?.toString() ?? '',
-    );
-    final kpssController = TextEditingController(text: _kpssFilter ?? '');
-    var education = _educationFilter;
-    return showDialog<(String, int?, String?, String?)>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Aramayı kaydet'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: 'Arama adı'),
-                ),
-                TextField(
-                  controller: ageController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Yaşınız (uyum için, isteğe bağlı)',
-                  ),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: education,
-                  decoration: const InputDecoration(
-                    labelText: 'Eğitim düzeyi (isteğe bağlı)',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'Lise', child: Text('Lise')),
-                    DropdownMenuItem(
-                      value: 'Ön lisans',
-                      child: Text('Ön lisans'),
-                    ),
-                    DropdownMenuItem(value: 'Lisans', child: Text('Lisans')),
-                    DropdownMenuItem(
-                      value: 'Yüksek lisans',
-                      child: Text('Yüksek lisans'),
-                    ),
-                    DropdownMenuItem(value: 'Doktora', child: Text('Doktora')),
-                  ],
-                  onChanged: (value) => setDialogState(() => education = value),
-                ),
-                TextField(
-                  controller: kpssController,
-                  decoration: const InputDecoration(
-                    labelText: 'KPSS puan türü (örn. P3, P93)',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Vazgeç'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, (
-                nameController.text,
-                int.tryParse(ageController.text.trim()),
-                education,
-                kpssController.text.trim().isEmpty
-                    ? null
-                    : kpssController.text.trim().toUpperCase(),
-              )),
-              child: const Text('Kaydet'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _manageSearches() async {
@@ -735,17 +657,27 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     );
                     await _loadLocal();
                   },
-                  itemBuilder: (menuContext) => const [
+                  itemBuilder: (menuContext) => [
                     PopupMenuItem(
                       value: 'instant',
+                      enabled: !search.hasInvalidCriteria,
                       child: Text('Anlık bildirim'),
                     ),
-                    PopupMenuItem(value: 'digest', child: Text('Günlük özet')),
-                    PopupMenuItem(value: 'off', child: Text('Kapalı')),
+                    PopupMenuItem(
+                      value: 'digest',
+                      enabled: !search.hasInvalidCriteria,
+                      child: const Text('Günlük özet'),
+                    ),
+                    PopupMenuItem(
+                      value: 'off',
+                      enabled: !search.hasInvalidCriteria,
+                      child: const Text('Kapalı'),
+                    ),
                     PopupMenuDivider(),
                     PopupMenuItem(value: 'edit', child: Text('Düzenle')),
                     PopupMenuItem(
                       value: 'rename',
+                      enabled: !search.hasInvalidCriteria,
                       child: Text('Yeniden adlandır'),
                     ),
                     PopupMenuItem(value: 'delete', child: Text('Sil')),
@@ -767,104 +699,231 @@ class _KamuHomePageState extends State<KamuHomePage> {
     }
   }
 
-  /// Kayıtlı aramanın adını ve profil alanlarını (yaş/eğitim/KPSS) düzenler;
-  /// vazgeçilirse null döner. Süzgeçlerin diğer alanları korunur.
-  Future<SavedSearch?> _promptEditSearch(SavedSearch search) {
-    final nameController = TextEditingController(text: search.name);
-    final ageController = TextEditingController(
-      text: search.filters['yas'] ?? '',
+  /// Tek form yeni/düzenlenen aramanın profilini doğrular; ileri kriterleri korur.
+  Future<SavedSearch?> _promptEditSearch(
+    SavedSearch search, {
+    bool creating = false,
+  }) async {
+    var values = <String, Object?>{};
+    try {
+      values = {...search.effectiveCriteria.values};
+    } on FormatException {
+      /* Kullanıcı aşağıdaki uyarıyla onarabilir. */
+    }
+    final name = TextEditingController(text: search.name);
+    final age = TextEditingController(
+      text: '${values['age'] ?? search.filters['yas'] ?? ''}',
     );
-    final kpssController = TextEditingController(
-      text: search.filters['kpss'] ?? '',
+    final type = TextEditingController(
+      text: '${values['kpssType'] ?? search.filters['kpss'] ?? ''}',
     );
-    var education = search.filters['egitim'];
-    return showDialog<SavedSearch>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Aramayı düzenle'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Arama adı'),
-                ),
-                TextField(
-                  controller: ageController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Yaşınız (uyum için, isteğe bağlı)',
-                  ),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: education,
-                  decoration: const InputDecoration(
-                    labelText: 'Eğitim düzeyi (isteğe bağlı)',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'Lise', child: Text('Lise')),
-                    DropdownMenuItem(
-                      value: 'Ön lisans',
-                      child: Text('Ön lisans'),
+    final score = TextEditingController(text: '${values['kpssScore'] ?? ''}');
+    final year = TextEditingController(text: '${values['kpssYear'] ?? ''}');
+    final ageDate = TextEditingController(
+      text:
+          '${values['ageAsOf'] ?? DateTime.now().toIso8601String().substring(0, 10)}',
+    );
+    final educationValues =
+        (values['education'] as List?)?.cast<String>() ?? <String>[];
+    var education = educationValues.length == 1 ? educationValues.single : null;
+    var educationChanged = false;
+    String? error;
+    try {
+      return await showDialog<SavedSearch>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, update) => AlertDialog(
+            title: Text(creating ? 'Aramayı kaydet' : 'Aramayı düzenle'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (search.hasInvalidCriteria)
+                    const Text(
+                      'Bu aramanın kriterleri okunamadı. Kaydetmeden önce tüm kriterleri yeniden kontrol edin.',
                     ),
-                    DropdownMenuItem(value: 'Lisans', child: Text('Lisans')),
-                    DropdownMenuItem(
-                      value: 'Yüksek lisans',
-                      child: Text('Yüksek lisans'),
-                    ),
-                    DropdownMenuItem(value: 'Doktora', child: Text('Doktora')),
-                  ],
-                  onChanged: (value) => setDialogState(() => education = value),
-                ),
-                TextField(
-                  controller: kpssController,
-                  decoration: const InputDecoration(
-                    labelText: 'KPSS puan türü (örn. P3, P93)',
+                  TextField(
+                    controller: name,
+                    maxLength: 80,
+                    decoration: const InputDecoration(labelText: 'Arama adı'),
                   ),
-                ),
-              ],
+                  TextField(
+                    controller: age,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Yaşınız (uyum için, isteğe bağlı)',
+                      helperText:
+                          '16–80; boş bırakırsanız yaş filtresi uygulanmaz.',
+                    ),
+                  ),
+                  TextField(
+                    controller: ageDate,
+                    keyboardType: TextInputType.datetime,
+                    decoration: const InputDecoration(
+                      labelText: 'Yaş bilgisi tarihi (YYYY-AA-GG)',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => ageDate.text = DateTime.now()
+                        .toIso8601String()
+                        .substring(0, 10),
+                    child: const Text('Yaşımı bugün doğrula'),
+                  ),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    initialValue: education,
+                    decoration: const InputDecoration(
+                      labelText: 'Eğitim düzeyi (isteğe bağlı)',
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: null,
+                        child: Text('Eğitim filtresi yok'),
+                      ),
+                      for (final value in {
+                        'Lise',
+                        'Ön lisans',
+                        'Lisans',
+                        'Yüksek lisans',
+                        'Doktora',
+                        ...educationValues,
+                      })
+                        DropdownMenuItem(value: value, child: Text(value)),
+                    ],
+                    onChanged: (value) => update(() {
+                      education = value;
+                      educationChanged = true;
+                    }),
+                  ),
+                  if (educationValues.length > 1)
+                    Text(
+                      'Kayıtlı eğitimler: ${educationValues.join(', ')}. Yeni seçim yapmazsanız hepsi korunur.',
+                    ),
+                  TextField(
+                    controller: type,
+                    maxLength: 4,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      labelText: 'KPSS puan türü (örn. P3, P93)',
+                    ),
+                  ),
+                  TextField(
+                    controller: score,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'KPSS puanınız (0–100)',
+                      helperText: 'İlanın taban puanıyla karşılaştırılır.',
+                    ),
+                  ),
+                  TextField(
+                    controller: year,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'KPSS sınav yılı (isteğe bağlı)',
+                    ),
+                  ),
+                  if (error != null)
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(dialogContext).colorScheme.error,
+                      ),
+                    ),
+                ],
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Vazgeç'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  try {
+                    if (name.text.trim().isEmpty ||
+                        name.text.trim().length > 80) {
+                      throw const FormatException(
+                        'Arama adı 1–80 karakter olmalı.',
+                      );
+                    }
+                    final criteria = <String, Object?>{...values};
+                    criteria.remove('age');
+                    criteria.remove('ageAsOf');
+                    criteria.remove('kpssType');
+                    criteria.remove('kpssScore');
+                    criteria.remove('kpssYear');
+                    if (age.text.trim().isNotEmpty) {
+                      criteria['age'] = int.parse(age.text.trim());
+                      criteria['ageAsOf'] = ageDate.text.trim();
+                    }
+                    if (type.text.trim().isNotEmpty) {
+                      criteria['kpssType'] = type.text.trim().toUpperCase();
+                    }
+                    if (score.text.trim().isNotEmpty) {
+                      criteria['kpssScore'] = double.parse(
+                        score.text.trim().replaceAll(',', '.'),
+                      );
+                    }
+                    if (year.text.trim().isNotEmpty) {
+                      criteria['kpssYear'] = int.parse(year.text.trim());
+                    }
+                    if (educationChanged) {
+                      criteria.remove('education');
+                      if (education != null) {
+                        criteria['education'] = [education!];
+                      }
+                    }
+                    final validated = SearchCriteria.parse(criteria);
+                    final filters = <String, String>{...search.filters};
+                    for (final key in [
+                      'yas',
+                      'yasTarih',
+                      'egitim',
+                      'kpss',
+                      'kpssPuan',
+                    ]) {
+                      filters.remove(key);
+                    }
+                    if (validated.values['age'] != null) {
+                      filters['yas'] = '${validated.values['age']}';
+                      filters['yasTarih'] = ageDate.text.trim();
+                    }
+                    if (education != null) filters['egitim'] = education!;
+                    if (validated.values['kpssType'] != null) {
+                      filters['kpss'] = '${validated.values['kpssType']}';
+                    }
+                    if (validated.values['kpssScore'] != null) {
+                      filters['kpssPuan'] = '${validated.values['kpssScore']}';
+                    }
+                    Navigator.pop(
+                      dialogContext,
+                      search.copyWith(
+                        name: name.text.trim(),
+                        filters: filters,
+                        criteria: validated,
+                      ),
+                    );
+                  } on FormatException {
+                    update(
+                      () => error = 'Kriterleri kontrol edin: yaş 16–80, tarih YYYY-AA-GG, KPSS türü P3/P93/P94 gibi, puan 0–100 ve yıl 2000–2100 olmalı. Puan için tür seçin.',
+                    );
+                  }
+                },
+                child: const Text('Kaydet'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Vazgeç'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                final filters = <String, String>{...search.filters};
-                final yas = ageController.text.trim();
-                final kpss = kpssController.text.trim();
-                if (yas.isEmpty) {
-                  filters.remove('yas');
-                } else {
-                  filters['yas'] = yas;
-                }
-                if (education == null) {
-                  filters.remove('egitim');
-                } else {
-                  filters['egitim'] = education!;
-                }
-                if (kpss.isEmpty) {
-                  filters.remove('kpss');
-                } else {
-                  filters['kpss'] = kpss;
-                }
-                Navigator.pop(
-                  dialogContext,
-                  search.copyWith(name: name, filters: filters),
-                );
-              },
-              child: const Text('Kaydet'),
-            ),
-          ],
         ),
-      ),
-    );
+      );
+    } finally {
+      // Dialog route çıkış animasyonu bitmeden TextField controller'ını dispose etme.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      for (final controller in [name, age, ageDate, type, score, year]) {
+        controller.dispose();
+      }
+    }
   }
 
   /// Kayıtlı aramayı yeniden adlandırır; vazgeçilirse null döner.
@@ -922,6 +981,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
   };
 
   String _filterSummary(SavedSearch search) {
+    if (search.hasInvalidCriteria) {
+      return 'Kriterler okunamadı • Düzenle ile onarın';
+    }
     final parts = <String>[];
     final q = search.filters['q'];
     if (q != null && q.isNotEmpty) parts.add('"$q"');
@@ -938,6 +1000,10 @@ class _KamuHomePageState extends State<KamuHomePage> {
     if (egitim != null && egitim.isNotEmpty) parts.add(egitim);
     final kpss = search.filters['kpss'];
     if (kpss != null && kpss.isNotEmpty) parts.add('KPSS $kpss');
+    final score = search.criteria?.values['kpssScore'];
+    final year = search.criteria?.values['kpssYear'];
+    if (score != null) parts.add('$score puan');
+    if (year != null) parts.add('$year sınavı');
     return parts.isEmpty ? 'Süzgeç yok' : parts.join(' • ');
   }
 
@@ -1277,6 +1343,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
     final expired = record.expired;
     final profileMatch = _searches.any(
       (search) =>
+          !search.hasInvalidCriteria &&
           search.name == 'Sizin için' &&
           [
             'sehir',
@@ -1628,7 +1695,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
       ),
       const ListTile(
         title: Text('Veriler ve geri bildirim'),
-        subtitle: Text('Yedek dosyası yalnızca sizin paylaştığınız yere gider.'),
+        subtitle: Text(
+          'Yedek dosyası yalnızca sizin paylaştığınız yere gider.',
+        ),
       ),
       ListTile(
         leading: const Icon(Icons.ios_share),
@@ -1643,7 +1712,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
       ListTile(
         leading: const Icon(Icons.file_upload_outlined),
         title: const Text('Verileri dışa aktar'),
-        subtitle: const Text('Kayıtlı aramalar ve yer imleri JSON yedeği olur.'),
+        subtitle: const Text(
+          'Kayıtlı aramalar ve yer imleri JSON yedeği olur.',
+        ),
         onTap: _exportData,
       ),
       ListTile(
@@ -1655,9 +1726,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
       ListTile(
         leading: const Icon(Icons.info_outline),
         title: const Text('Hakkında ve lisanslar'),
-        onTap: () => Navigator.of(context).push(
-          sharedAxisRoute<void>(AboutPage(identity: widget.identity)),
-        ),
+        onTap: () => Navigator.of(context)
+            .push(sharedAxisRoute<void>(AboutPage(identity: widget.identity))),
       ),
     ],
   );

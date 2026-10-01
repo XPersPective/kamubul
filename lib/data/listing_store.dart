@@ -406,6 +406,7 @@ class ListingStore {
       name: search.name,
       filters: search.filters,
       createdAt: search.createdAt,
+      criteria: search.criteria,
     );
   }
 

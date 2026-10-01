@@ -110,6 +110,19 @@ DeviceRegistration buildRegistration({
     if (alertModeOf(search.filters) == SearchAlertMode.off) continue;
     final name = search.name.trim();
     if (name.isEmpty) continue;
+    if (search.filters.entries.any(
+      (entry) =>
+          kSubscribableFilterKeys.contains(entry.key) &&
+          entry.value.length > 100,
+    )) {
+      continue;
+    }
+    SearchCriteria criteria;
+    try {
+      criteria = search.effectiveCriteria;
+    } on FormatException {
+      continue;
+    }
     final filters = <String, String>{
       for (final entry in search.filters.entries)
         if (kSubscribableFilterKeys.contains(entry.key) &&
@@ -122,6 +135,7 @@ DeviceRegistration buildRegistration({
         id: 's$id',
         name: name.length > 80 ? name.substring(0, 80) : name,
         filters: filters,
+        criteria: criteria,
       ),
     );
     if (subscribed.length >= kMaxSubscribedSearches) break;
@@ -190,14 +204,13 @@ class PushRegistrar {
 
   Uri _device(String id) => baseUrl.replace(
     path:
-        '${baseUrl.path.endsWith('/') ? baseUrl.path.substring(0, baseUrl.path.length - 1) : baseUrl.path}/v1/devices/$id',
+        '${baseUrl.path.endsWith('/') ? baseUrl.path.substring(0, baseUrl.path.length - 1) : baseUrl.path}/api/v2/installations/$id',
   );
 
-  Future<DeviceCredentials> _credentials({bool renew = false}) async {
+  Future<DeviceCredentials> _credentials() async {
     final id = store.read(_kId);
     final secret = store.read(_kSecret);
-    if (!renew &&
-        id != null &&
+    if (id != null &&
         secret != null &&
         isValidDeviceId(id) &&
         isValidDeviceSecret(secret)) {
@@ -308,7 +321,8 @@ class PushRegistrar {
         searches: searches,
         utcOffset: _utcOffset(),
       );
-      final body = jsonEncode(registration.toJson());
+      final body = jsonEncode(registration.toV2Json());
+      if (utf8.encode(body).length > 32768) return PushSyncOutcome.failed;
       final lastMs = int.tryParse(store.read(_kLastSync) ?? '');
       final recent =
           lastMs != null &&
@@ -317,13 +331,8 @@ class PushRegistrar {
       if (!force && recent && store.read(_kLastPayload) == body) {
         return PushSyncOutcome.unchanged;
       }
-      var credentials = await _credentials();
-      var status = await _put(credentials, body);
-      if (status == 403) {
-        // Kimlik başkasına aitse (pratikte olmaz) yeni kimlikle bir kez dene.
-        credentials = await _credentials(renew: true);
-        status = await _put(credentials, body);
-      }
+      final credentials = await _credentials();
+      final status = await _put(credentials, body);
       if (status == 200 || status == 201) {
         await store.write({
           _kLastPayload: body,

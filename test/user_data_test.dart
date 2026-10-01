@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/data/user_data.dart';
+import 'package:kamubul_core/kamubul_core.dart' show SearchCriteria;
 
 /// Elle doldurulmuş tek bir arama + yer imi; tur sonrası alan alan eşitlenir.
 SavedSearch _search() => SavedSearch(
@@ -110,10 +111,11 @@ void main() {
   });
 
   test('başka uygulamanın yedeği reddedilir', () {
-    final json = _envelope(
-      {'schema': 1, 'searches': [], 'bookmarks': []},
-      packageName: 'com.example.baska',
-    );
+    final json = _envelope({
+      'schema': 1,
+      'searches': [],
+      'bookmarks': [],
+    }, packageName: 'com.example.baska');
     expect(() => parseUserDataJson(json), throwsFormatException);
   });
 
@@ -142,9 +144,70 @@ void main() {
   });
 
   test('şema sürümü uyuşmazsa reddedilir', () {
-    final json = _envelope({'schema': 2, 'searches': [], 'bookmarks': []});
+    final json = _envelope({'schema': 99, 'searches': [], 'bookmarks': []});
     expect(() => parseUserDataJson(json), throwsFormatException);
   });
+
+  test('typed arama yedeği puanı, tarih ve alternatifleri korur; eski yedek okunur', () {
+    final criteria = SearchCriteria.parse({
+      'version': 2,
+      'cities': ['Ankara', 'İzmir'],
+      'age': 30,
+      'ageAsOf': '2026-09-29',
+      'kpssType': 'P3',
+      'kpssScore': 69.99,
+      'kpssYear': 2024,
+    });
+    final search = _search().copyWith(criteria: criteria);
+    final json = exportUserDataJson(searches: [search], bookmarks: []);
+    final restored = parseUserDataJson(json).searches.single;
+    expect(restored.criteria!.values, criteria.values);
+    expect(restored.id, isNull);
+    final legacy = parseUserDataJson(
+      _envelope({
+        'schema': 1,
+        'searches': [
+          {
+            'name': 'Eski',
+            'filters': {'yas': '30'},
+            'createdAt': '2026-09-01T00:00:00.000',
+          },
+        ],
+      }),
+    ).searches.single;
+    expect(legacy.effectiveCriteria.values['ageAsOf'], '1970-01-01');
+  });
+
+  test(
+    'bozuk typed kriter içe aktarmayı ve kayıplı dışa aktarmayı engeller',
+    () {
+      final row = {
+        'name': 'Bozuk',
+        'filters': {},
+        'createdAt': '2026-09-01T00:00:00.000',
+        'criteria': {'version': 2, 'kpssScore': 70},
+      };
+      expect(
+        () => parseUserDataJson(
+          _envelope({
+            'schema': 2,
+            'searches': [row],
+          }),
+        ),
+        throwsFormatException,
+      );
+      final broken = SavedSearch.fromRow({
+        'id': 1,
+        'name': 'Bozuk',
+        'filters': '{bad',
+        'createdAt': 0,
+      });
+      expect(
+        () => exportUserDataJson(searches: [broken], bookmarks: []),
+        throwsFormatException,
+      );
+    },
+  );
 
   test('http bağlantı reddedilir', () {
     final json = _envelope({

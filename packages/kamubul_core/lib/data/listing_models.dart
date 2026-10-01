@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'search_criteria.dart';
+
 import 'turkish_cities.dart' show foldTurkish;
 
 bool placeMatchesCity(String place, String city) {
@@ -199,47 +201,93 @@ class SavedSearch {
     required this.name,
     required this.filters,
     required this.createdAt,
+    this.criteria,
+    this.hasInvalidCriteria = false,
   });
 
   final int? id;
   final String name;
   final Map<String, String> filters;
   final DateTime createdAt;
+  final SearchCriteria? criteria;
+  final bool hasInvalidCriteria;
 
-  SavedSearch copyWith({String? name, Map<String, String>? filters}) =>
-      SavedSearch(
-        id: id,
-        name: name ?? this.name,
-        filters: filters ?? this.filters,
-        createdAt: createdAt,
-      );
+  SearchCriteria get effectiveCriteria {
+    if (hasInvalidCriteria) {
+      throw const FormatException('saved_search_criteria');
+    }
+    return criteria ?? SearchCriteria.fromLegacy(filters);
+  }
 
-  Map<String, Object?> toRow() => {
-    if (id != null) 'id': id,
-    'name': name,
-    'filters': jsonEncode(filters),
-    'createdAt': createdAt.millisecondsSinceEpoch,
-  };
-
-  static SavedSearch fromRow(Map<String, Object?> row) => SavedSearch(
-    id: row['id'] as int?,
-    name: row['name'] as String? ?? '',
-    filters: _decodeFilters(row['filters']),
-    createdAt: DateTime.fromMillisecondsSinceEpoch(
-      row['createdAt'] as int? ?? 0,
-    ),
+  SavedSearch copyWith({
+    String? name,
+    Map<String, String>? filters,
+    SearchCriteria? criteria,
+  }) => SavedSearch(
+    id: id,
+    name: name ?? this.name,
+    filters: filters ?? this.filters,
+    createdAt: createdAt,
+    criteria: criteria ?? this.criteria,
+    hasInvalidCriteria: criteria == null && hasInvalidCriteria,
   );
 
-  static Map<String, String> _decodeFilters(Object? raw) {
-    if (raw is! String || raw.isEmpty) return const {};
+  Map<String, Object?> toRow() {
+    if (hasInvalidCriteria) {
+      throw const FormatException('saved_search_criteria');
+    }
+    return {
+      if (id != null) 'id': id,
+      'name': name,
+      'filters': jsonEncode(
+        criteria == null
+            ? filters
+            : {
+                'criteriaVersion': 2,
+                'filters': filters,
+                'criteria': criteria!.values,
+              },
+      ),
+      'createdAt': createdAt.millisecondsSinceEpoch,
+    };
+  }
+
+  static SavedSearch fromRow(Map<String, Object?> row) {
+    var filters = <String, String>{};
+    SearchCriteria? criteria;
+    var invalid = false;
     try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map) {
-        return decoded.map((k, v) => MapEntry(k.toString(), v.toString()));
+      final raw = jsonDecode(row['filters'] as String);
+      if (raw is! Map) throw const FormatException('search_filters');
+      final version = raw['criteriaVersion'];
+      final legacy = version == null ? raw : raw['filters'];
+      if (legacy is! Map ||
+          legacy.entries.any((e) => e.key is! String || e.value is! String)) {
+        throw const FormatException('search_filters');
+      }
+      filters = Map<String, String>.from(legacy);
+      if (version != null) {
+        if (version != 2 || raw['criteria'] is! Map) {
+          throw const FormatException('criteria_version');
+        }
+        criteria = SearchCriteria.parse(
+          Map<String, Object?>.from(raw['criteria'] as Map),
+        );
       }
     } on FormatException {
-      // Bozuk kayıt boş süzgeç olarak okunur; uygulama çökmez.
+      invalid = true;
+    } on TypeError {
+      invalid = true;
     }
-    return const {};
+    return SavedSearch(
+      id: row['id'] as int?,
+      name: row['name'] as String? ?? '',
+      filters: filters,
+      criteria: criteria,
+      hasInvalidCriteria: invalid,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        row['createdAt'] as int? ?? 0,
+      ),
+    );
   }
 }

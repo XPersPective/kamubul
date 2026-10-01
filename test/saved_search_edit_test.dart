@@ -78,22 +78,19 @@ void main() {
     final stamp = now.microsecondsSinceEpoch;
     searchName = 'DÜZENLE $stamp';
     updatedName = 'GÜNCEL $stamp';
-    age = '4${stamp % 100000}';
-    kpss = 'P${stamp % 9000 + 100}';
-    await store.mergeFeed(
-      [
-        ListingRecord(
-          url: 'https://kariyerkapisi.gov.tr/ilan/1',
-          sourceId: 'kariyerkapisi',
-          title: 'TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)',
-          category: 'Sözleşmeli Personel',
-          publishedAt: now.subtract(const Duration(days: 1)),
-          fetchedAt: now,
-          deadline: now.add(const Duration(days: 3)),
-        ),
-      ],
-      pruneBefore: DateTime(2000),
-    );
+    age = '42';
+    kpss = 'P3';
+    await store.mergeFeed([
+      ListingRecord(
+        url: 'https://kariyerkapisi.gov.tr/ilan/1',
+        sourceId: 'kariyerkapisi',
+        title: 'TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)',
+        category: 'Sözleşmeli Personel',
+        publishedAt: now.subtract(const Duration(days: 1)),
+        fetchedAt: now,
+        deadline: now.add(const Duration(days: 3)),
+      ),
+    ], pruneBefore: DateTime(2000));
     await store.addSavedSearch(
       SavedSearch(
         id: null,
@@ -182,11 +179,20 @@ void main() {
       matching: find.byType(TextField),
     );
     await tester.enterText(fields.at(0), updatedName);
-    await tester.enterText(fields.at(1), age);
-    await tester.enterText(fields.at(2), kpss);
+    await tester.enterText(fields.at(1), '999');
     await tester.tap(
       find.descendant(of: dialog, matching: find.text('Kaydet')),
     );
+    await tester.pump();
+    expect(find.textContaining('Kriterleri kontrol edin'), findsOneWidget);
+    await tester.enterText(fields.at(1), age);
+    await tester.enterText(fields.at(3), kpss);
+    await tester.enterText(fields.at(4), '78,25');
+    await tester.enterText(fields.at(5), '2024');
+    await tester.tap(
+      find.descendant(of: dialog, matching: find.text('Kaydet')),
+    );
+    await pumpRoute(tester);
     await pumpRoute(tester);
 
     // Düzenleme sonrası liste kapanır; yeniden açıldığında yeni değer görünür.
@@ -199,19 +205,24 @@ void main() {
     );
     expect(find.text(searchName), findsNothing);
     expect(
-      find.descendant(
-        of: sheet,
-        matching: find.textContaining('KPSS $kpss'),
-      ),
+      find.descendant(of: sheet, matching: find.textContaining('KPSS $kpss')),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: sheet,
-        matching: find.textContaining('yaş $age'),
-      ),
+      find.descendant(of: sheet, matching: find.textContaining('yaş $age')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+    await tester.runAsync(() async {
+      final search = (await ListingStore().savedSearches()).single;
+      expect(search.effectiveCriteria.values['kpssScore'], 78.25);
+      expect(search.effectiveCriteria.values['kpssYear'], 2024);
+      expect(
+        search.effectiveCriteria.values['ageAsOf'],
+        '1970-01-01',
+        reason: 'Eski yaş otomatik güncel varsayılmaz',
+      );
+      expect(search.filters['sehir'], 'ANKARA');
+    });
   });
 }
