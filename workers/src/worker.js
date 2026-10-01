@@ -15,6 +15,20 @@ async function bodyJSON(request){
   return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
 }
 export async function latestSeq(db){return (await db.prepare('SELECT COALESCE(MAX(seq),0) n FROM catalogue_changes').first()).n;}
+async function boundedCataloguePage(db,statement){
+  const metadata=(await statement.all()).results,selected=[];
+  let bytes=1024;
+  for(const row of metadata){
+    // Reserve JSON envelope/escaped identity overhead before loading full payloads.
+    const cost=row.payload_bytes+512+new TextEncoder().encode(row.listing_id).length*6;
+    if(bytes+cost>1800000){if(!selected.length)throw new Error('record_oversize');break;}
+    bytes+=cost;selected.push(row);
+  }
+  if(!selected.length)return {rows:[],hasMore:false};
+  const rows=(await db.prepare(`SELECT * FROM catalogue_changes WHERE seq IN (${selected.map(()=>'?').join(',')})`).bind(...selected.map(r=>r.seq)).all()).results;
+  const bySeq=new Map(rows.map(r=>[r.seq,r]));
+  return {rows:selected.map(r=>bySeq.get(r.seq)),hasMore:selected.length<metadata.length};
+}
 async function authenticate(request,db,id){
   if(!/^[a-f\d]{32}$/.test(id))throw new Error('installation_id');
   const secret=request.headers.get('authorization')?.replace(/^Bearer /,'')??'';
@@ -86,16 +100,16 @@ export async function fetchRequest(request,env,ctx){
     }
     if(path==='/api/v2/changes') {
       const latest=await latestSeq(env.DB),after=int(url.searchParams.get('after'),0,Number.MAX_SAFE_INTEGER,0),watermark=int(url.searchParams.get('watermark'),after,latest,latest),limit=int(url.searchParams.get('limit'),1,50,30);
-      const rows=(await env.DB.prepare('SELECT * FROM catalogue_changes WHERE seq>? AND seq<=? ORDER BY seq LIMIT ?').bind(after,watermark,limit).all()).results;
+      const {rows}=await boundedCataloguePage(env.DB,env.DB.prepare('SELECT seq,listing_id,length(CAST(payload AS BLOB)) payload_bytes FROM catalogue_changes WHERE seq>? AND seq<=? ORDER BY seq LIMIT ?').bind(after,watermark,limit));
       const appliedThrough=rows.length?rows.at(-1).seq:watermark;
       return conditional(request,{watermark,appliedThrough,hasMore:appliedThrough<watermark,changes:rows.map(r=>({seq:r.seq,operation:r.operation,id:r.listing_id,revision:r.revision,item:JSON.parse(r.payload)}))},'"changes-'+after+'-'+watermark+'-'+limit+'"');
     }
     if(path==='/api/v2/listings') {
       const latest=await latestSeq(env.DB),watermark=int(url.searchParams.get('watermark'),0,latest,latest),after=url.searchParams.get('after')??'',limit=int(url.searchParams.get('limit'),1,50,30);
       if(after.length>200)return json({error:'cursor'},400);
-      const rows=(await env.DB.prepare(`SELECT c.* FROM catalogue_changes c JOIN (SELECT listing_id,MAX(seq) seq FROM catalogue_changes WHERE seq<=? GROUP BY listing_id) last ON c.seq=last.seq
-        WHERE c.operation='upsert' AND c.listing_id>? ORDER BY c.listing_id LIMIT ?`).bind(watermark,after,limit+1).all()).results;
-      const visible=rows.slice(0,limit);return conditional(request,{watermark,items:visible.map(r=>JSON.parse(r.payload)),next:rows.length>limit?visible.at(-1).listing_id:null},'"list-'+watermark+'-'+await sha256(after)+'-'+limit+'"');
+      const {rows,hasMore}=await boundedCataloguePage(env.DB,env.DB.prepare(`SELECT c.seq,c.listing_id,length(CAST(c.payload AS BLOB)) payload_bytes FROM catalogue_changes c JOIN (SELECT listing_id,MAX(seq) seq FROM catalogue_changes WHERE seq<=? GROUP BY listing_id) last ON c.seq=last.seq
+        WHERE c.operation='upsert' AND c.listing_id>? ORDER BY c.listing_id LIMIT ?`).bind(watermark,after,limit+1));
+      const visible=rows.slice(0,limit);return conditional(request,{watermark,items:visible.map(r=>JSON.parse(r.payload)),next:hasMore||rows.length>limit?visible.at(-1).listing_id:null},'"list-'+watermark+'-'+await sha256(after)+'-'+limit+'"');
     }
     if(path.startsWith('/api/v2/listings/')) {
       const id=decodeURIComponent(path.slice('/api/v2/listings/'.length));if(id.length>200)return json({error:'id'},400);
@@ -118,6 +132,7 @@ export async function fetchRequest(request,env,ctx){
     }
     return json({error:'not_found'},404);
   } catch(error){
+    if(error.message==='record_oversize')return json({error:'record_oversize'},413);
     if(error instanceof SyntaxError||['criteria','unknown_criterion','registration','search','mode','content_type','body_oversize','age','ageAsOf','kpssScore','kpssType','kpssYear','version','cities','categories','occupations','institutions','education','keyword','keywordScope','onlyKpss','last30'].includes(error.message))return json({error:'invalid_request'},400);
     console.error('api_failure',error.name);return json({error:'service_unavailable'},503);
   }

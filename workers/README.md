@@ -40,6 +40,14 @@ no-store istekleri bypass; no-cache yeniden okur. Önbellek hatası API'yi kesme
 `X-KamuBul-Cache` HIT/MISS canlı doğrulama içindir. Cache HIT D1 okumasını
 azaltır, Worker request kotasını kaldırmaz; Cache API veri merkezine yereldir.
 
+V2 listings/changes sayfaları önce en çok50 kayıt boyutunu okur, yalnız1.8MB
+yanıt bütçesine sığan kesintisiz kısmın immutable payload'larını yükler.
+Cursor/next yalnız gönderilen kayıtları kapsar; frozen watermark korunur.
+Tek kayıt sınırı aşarsa413 record_oversize döner, cursor ilerletilmez ve kaynak
+verisi silinmez. Bu durum ayrı belge okuyucu/compact catalogue işi gerektirir;
+aynı sayfayı sonsuz retry yapmak çözüm değildir. Büyük sayfanın Free CPU
+ölçümü henüz yapılmadı; native test başarısı cloud CPU kanıtı değildir.
+
 Bu runtime geçiş halindedir. Tüm ürünün tamamlandığı varsayılmaz:
 `.project-brain/current.md` doğrulanmış durumu, PB-016–021 kalan işi içerir.
 Model koşul alanları gerçek extraction değerlendirmesi geçmeden açılmaz.
