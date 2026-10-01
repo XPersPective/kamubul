@@ -122,7 +122,31 @@ export async function fetchRequest(request,env,ctx){
     console.error('api_failure',error.name);return json({error:'service_unavailable'},503);
   }
 }
-function conditional(request,body,etag){const headers={'ETag':etag,'Cache-Control':'public, max-age=60, s-maxage=300'};return request.headers.get('if-none-match')===etag?new Response(null,{status:304,headers}):json(body,200,headers);}
+function conditional(request,body,etag){const headers={'ETag':etag,'Cache-Control':'public, max-age=60, s-maxage=60'};return request.headers.get('if-none-match')===etag?new Response(null,{status:304,headers}):json(body,200,headers);}
 function sourceV1(s){return {id:s.id,name:s.name,state:s.state==='pending'?'failed':s.state,lastAttemptAt:s.last_attempt,lastSuccessAt:s.last_success,note:s.note,count:0};}
 function v1Listing(p){const g=p.requirementGroups?.length===1?p.requirementGroups[0]:{};return {...p,source:p.sourceId,published:p.publishedAt,fetched:p.updatedAt??p.firstSeenAt,kpss:g.kpssType??null,education:g.education?.length===1?g.education[0]:null,maxAge:g.maxAge??null,summary:(p.summary??[]).map(s=>typeof s==='string'?s:s.text),saved:false};}
-export default {fetch:fetchRequest,async scheduled(controller,env,ctx){ctx.waitUntil(runScheduled(env));}};
+export async function cachedFetch(request,env,ctx){
+  const url=new URL(request.url),path=url.pathname;
+  const parameters=path==='/api/v2/listings'?['watermark','after','limit']:path==='/api/v2/changes'?['watermark','after','limit']:['/api/v2/meta','/api/v2/taxonomy'].includes(path)||/^\/api\/v2\/listings\/[^/]+$/.test(path)?[]:null;
+  const cache=globalThis.caches?.default;
+  // Only explicitly public reads share cache entries; credentials and private routes bypass it.
+  if(!cache||!ctx?.waitUntil||request.method!=='GET'||parameters===null||request.headers.has('authorization')||request.headers.has('cookie')||url.href.length>1024||/no-store/i.test(request.headers.get('cache-control')??'')||[...url.searchParams.keys()].some(k=>!parameters.includes(k)||url.searchParams.getAll(k).length!==1))return fetchRequest(request,env,ctx);
+  url.searchParams.sort();url.pathname='/_cache/public-v1'+path;
+  const key=new Request(url.href),fresh=/no-cache|max-age=0/i.test(request.headers.get('cache-control')??'');
+  let response;
+  try{if(!fresh)response=await cache.match(key);}catch{console.error('public_cache_read_failed');}
+  const hit=!!response;
+  if(!response){
+    const headers=new Headers(request.headers);headers.delete('if-none-match');
+    response=await fetchRequest(new Request(request,{headers}),env,ctx);
+    if(response.status===200&&response.headers.get('cache-control')?.startsWith('public')){
+      const stored=new Response(response.clone().body,response);stored.headers.set('Cache-Control',path==='/api/v2/taxonomy'?'public, max-age=300':'public, max-age=60');
+      ctx.waitUntil(cache.put(key,stored).catch(()=>console.error('public_cache_write_failed')));
+    }
+  }
+  const headers=new Headers(response.headers);headers.set('X-KamuBul-Cache',hit?'HIT':'MISS');
+  const etag=response.headers.get('etag');
+  const unchanged=response.status===200&&etag&&request.headers.get('if-none-match')?.split(',').some(value=>value.trim()==='*'||value.trim().replace(/^W\//,'')===etag);
+  return new Response(unchanged?null:response.body,{status:unchanged?304:response.status,headers});
+}
+export default {fetch:cachedFetch,async scheduled(controller,env,ctx){ctx.waitUntil(runScheduled(env));}};

@@ -33,6 +33,13 @@ Wrangler oturumu Windows keyring'de saklanır; token repoya kopyalanmaz.
 
 Canlı API: https://kamubul-api.devx8585.workers.dev/api/v2/health
 
+V2 meta/taxonomy/listings/detail/changes GET uçları açık allowlist ile
+Cloudflare Cache API kullanır. Dynamic TTL60s, taxonomy300s; sıralanmış query
+anahtarında watermark/cursor korunur. Authorization/Cookie/private history ve
+no-store istekleri bypass; no-cache yeniden okur. Önbellek hatası API'yi kesmez.
+`X-KamuBul-Cache` HIT/MISS canlı doğrulama içindir. Cache HIT D1 okumasını
+azaltır, Worker request kotasını kaldırmaz; Cache API veri merkezine yereldir.
+
 Bu runtime geçiş halindedir. Tüm ürünün tamamlandığı varsayılmaz:
 `.project-brain/current.md` doğrulanmış durumu, PB-016–021 kalan işi içerir.
 Model koşul alanları gerçek extraction değerlendirmesi geçmeden açılmaz.
