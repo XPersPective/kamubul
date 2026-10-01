@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:kamubul_core/kamubul_core.dart';
 
 import 'listing_store.dart';
@@ -11,16 +13,20 @@ const remoteSnapshotMaxAge = Duration(hours: 36);
 class CatalogueRefreshResult {
   const CatalogueRefreshResult(
     this.checkedAt,
-    this.failedSources, [
+    this.failedSources, {
     this.sourceStatuses = const [],
-  ]);
+    this.remoteLastSuccess,
+    this.remoteFailed = false,
+  });
 
   final DateTime checkedAt;
   final List<String> failedSources;
 
   /// Sunucunun bildirdiği kaynak durumları (uzak katalog kapalı ya da
-  /// okunamadıysa boş). Kaynaklar ekranı engel/erişim notlarını buradan gösterir.
+  /// daha önce hiç okunamadıysa boş; hata halinde son başarılı kayıttan). Kaynaklar ekranı engel/erişim notlarını buradan gösterir.
   final List<SourceStatus> sourceStatuses;
+  final DateTime? remoteLastSuccess;
+  final bool remoteFailed;
 }
 
 /// Seçilen şehri resmî Kariyer Kapısı liste süzgeciyle doğrular.
@@ -54,17 +60,30 @@ Future<CatalogueRefreshResult> refreshCatalogue(
   var needKariyer = true;
   var needSbb = true;
   var statuses = const <SourceStatus>[];
+  DateTime? remoteLastSuccess;
+  var remoteFailed = false;
 
   final ownedClient = remote == null;
   final client = remote ?? defaultRemoteClient();
   if (client != null) {
     try {
+      final cached = await store.remoteMetadata();
+      remoteLastSuccess = cached.lastSuccess;
+      if (cached.metadata != null) {
+        try {
+          statuses = CatalogueMetadata.decode(jsonDecode(cached.metadata!))
+              .sources;
+        } on FormatException {
+          /* Keep listings even if cached metadata is corrupt. */
+        }
+      }
       final metadata = await syncRemoteV2Catalogue(
         store: store,
         client: client,
         now: now,
       );
       statuses = metadata.sources;
+      remoteLastSuccess = now;
       bool available(String id) {
         final source = statuses.where((s) => s.id == id).firstOrNull;
         final success = source?.lastSuccessAt;
@@ -77,6 +96,7 @@ Future<CatalogueRefreshResult> refreshCatalogue(
       needKariyer = !available(kKariyerSourceId);
       needSbb = !available(kSbbSourceId);
     } on Exception {
+      remoteFailed = true;
       // Sunucu ya da ağ yok: gömülü çekim tüm kaynakları kapsar.
     } finally {
       if (ownedClient) client.close();
@@ -109,5 +129,11 @@ Future<CatalogueRefreshResult> refreshCatalogue(
       failed.add('Yerel katalog');
     }
   }
-  return CatalogueRefreshResult(now, failed, statuses);
+  return CatalogueRefreshResult(
+    now,
+    failed,
+    sourceStatuses: statuses,
+    remoteLastSuccess: remoteLastSuccess,
+    remoteFailed: remoteFailed,
+  );
 }

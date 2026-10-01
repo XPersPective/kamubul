@@ -274,6 +274,8 @@ void main() {
     expect(kariyerCalls, 0);
     expect(sbbCalls, 0);
     expect(result.failedSources, isEmpty);
+    expect(result.remoteFailed, false);
+    expect(result.remoteLastSuccess, now);
     expect(result.sourceStatuses.map((s) => s.state), [
       SourceState.ok,
       SourceState.ok,
@@ -320,7 +322,9 @@ void main() {
       expect(kariyerCalls, 1);
       expect(sbbCalls, 1);
       expect(result.failedSources, isEmpty);
-      expect(result.sourceStatuses, isEmpty);
+      expect(result.remoteFailed, true);
+      expect(result.remoteLastSuccess, now);
+      expect(result.sourceStatuses, hasLength(3));
       final urls = (await store.allListings()).map((r) => r.url).toSet();
       expect(urls, {_url, 'https://kariyerkapisi.gov.tr/IlanDetay?i=99'});
     },

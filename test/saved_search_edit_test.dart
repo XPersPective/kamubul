@@ -99,6 +99,11 @@ void main() {
         createdAt: now,
       ),
     );
+    await store.saveRemoteMetadata(
+      '{"schemaVersion":2,"taxonomyVersion":1,"latestSeq":0,"oldestRetainedSeq":0,"sources":[]}',
+      '"offline"',
+      DateTime(2026, 9, 30, 12),
+    );
   });
 
   testWidgets('profil alanları yönet listesinden düzenlenebilir', (
@@ -152,6 +157,8 @@ void main() {
       }
     }
 
+    // Offline refresh must keep the durable last-success label across startup.
+    expect(find.textContaining('Son eşitleme 30.9.2026 12:00'), findsOneWidget);
     await tester.tap(find.byTooltip('Kayıtlı aramaları yönet'));
     await pumpRoute(tester);
     var sheet = find.byType(BottomSheet);

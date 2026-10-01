@@ -1,10 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kamubul_core/kamubul_core.dart'
-    show SourceStatus, SearchCriteria, CriteriaMatch;
+    show
+        SourceStatus,
+        SourceState,
+        CatalogueMetadata,
+        SearchCriteria,
+        CriteriaMatch;
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -89,6 +95,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
   List<String> _failedSources = const [];
   List<SourceStatus> _sourceStatuses = const [];
   DateTime? _lastRefresh;
+  DateTime? _remoteLastSuccess;
+  bool _remoteFailed = false;
   List<ListingRecord> _records = const [];
   List<SavedSearch> _searches = const [];
   ListingRecord? _assistantListing;
@@ -179,10 +187,22 @@ class _KamuHomePageState extends State<KamuHomePage> {
     try {
       final records = await _store.allListings();
       final searches = await _store.savedSearches();
+      final cached = await _store.remoteMetadata();
+      List<SourceStatus>? statuses;
+      if (cached.metadata != null) {
+        try {
+          statuses = CatalogueMetadata.decode(jsonDecode(cached.metadata!))
+              .sources;
+        } on FormatException {
+          /* The listing cache remains usable. */
+        }
+      }
       if (!mounted) return;
       setState(() {
         _records = records;
         _searches = searches;
+        _remoteLastSuccess = cached.lastSuccess;
+        if (statuses != null) _sourceStatuses = statuses;
       });
       // Kullanıcı sunucu bildirimini açtıysa etiketler değişince kayıt tazelenir;
       // içerik değişmediyse ağa çıkılmaz.
@@ -241,15 +261,21 @@ class _KamuHomePageState extends State<KamuHomePage> {
     if (!mounted) return;
     setState(() {
       _lastRefresh = result.checkedAt;
+      _remoteLastSuccess = result.remoteLastSuccess ?? _remoteLastSuccess;
+      _remoteFailed = result.remoteFailed;
       _failedSources = result.failedSources;
       if (result.sourceStatuses.isNotEmpty) {
         _sourceStatuses = result.sourceStatuses;
       }
-      _error = result.failedSources.isEmpty
-          ? null
-          : '${turkishList(result.failedSources)} yenilenemedi. Son görülen liste korunuyor.';
+      final errors = [
+        if (result.remoteFailed)
+          'Sunucu kataloğu yenilenemedi. Mevcut önbellek korunuyor.',
+        if (result.failedSources.isNotEmpty)
+          '${turkishList(result.failedSources)} yenilenemedi. Son görülen liste korunuyor.',
+      ];
+      _error = errors.isEmpty ? null : errors.join(' ');
     });
-    if (result.failedSources.isEmpty) {
+    if (result.failedSources.isEmpty && !result.remoteFailed) {
       _ratePolicy.markPositiveMoment();
       try {
         await _review.maybePromptInApp(_ratePolicy, DateTime.now());
@@ -1154,6 +1180,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
           Text(
             _tab == 1
                 ? '${_visibleRecords.length} kayıt • çevrimdışı erişim'
+                : _remoteLastSuccess != null
+                ? 'Son eşitleme ${_date(_remoteLastSuccess)} ${_remoteLastSuccess!.hour.toString().padLeft(2, '0')}:${_remoteLastSuccess!.minute.toString().padLeft(2, '0')} • ${_records.where((record) => matchesFilters(record, const {})).length} ilan${_remoteFailed || DateTime.now().difference(_remoteLastSuccess!) > remoteSnapshotMaxAge ? ' • Önbellek' : ''}'
                 : _lastRefresh == null
                 ? _records.isEmpty
                       ? 'Katalog cihazdan yükleniyor.'
@@ -1731,7 +1759,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
           sharedAxisRoute<void>(
             _SourcesPage(
               open: _open,
-              checkedAt: _lastRefresh,
+              checkedAt: _remoteLastSuccess ?? _lastRefresh,
               failedSources: _failedSources,
               sourceStatuses: _sourceStatuses,
             ),
@@ -1823,12 +1851,16 @@ class _SourcesPage extends StatelessWidget {
   /// Sunucunun bildirdiği kaynak durumları (boşsa sunucu kapalı/okunamadı).
   final List<SourceStatus> sourceStatuses;
 
-  String? _serverNote(String id) {
-    for (final status in sourceStatuses) {
-      if (status.id == id) return status.note;
-    }
-    return null;
-  }
+  SourceStatus? _serverStatus(String id) =>
+      sourceStatuses.where((s) => s.id == id).firstOrNull;
+  String? _serverNote(String id) => _serverStatus(id)?.note;
+  String _serverLabel(String id) => switch (_serverStatus(id)?.state) {
+    SourceState.ok => 'Listeye erişildi',
+    SourceState.failed => 'Kaynak yenilenemedi',
+    SourceState.blocked => 'Kaynağa erişim engellendi',
+    SourceState.disabled => 'Kaynak kapalı',
+    null => 'Kaynak henüz denetlenmedi',
+  };
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1837,7 +1869,9 @@ class _SourcesPage extends StatelessWidget {
       children: [
         ListTile(
           leading: const Icon(Icons.update_outlined),
-          title: const Text('Son denetim'),
+          title: Text(
+            sourceStatuses.isEmpty ? 'Son denetim' : 'Son başarılı eşitleme',
+          ),
           subtitle: Text(
             checkedAt == null
                 ? 'Bu oturumda henüz denetlenmedi'
@@ -1845,19 +1879,25 @@ class _SourcesPage extends StatelessWidget {
                       '${checkedAt!.hour.toString().padLeft(2, '0')}:${checkedAt!.minute.toString().padLeft(2, '0')}',
           ),
         ),
-        for (final (name, description) in [
+        for (final (name, id, description) in [
           (
             'Kariyer Kapısı',
+            'kariyerkapisi',
             'Resmî liste ve RSS; ayrıntılar ilan açılınca okunur.',
           ),
           (
             'Kamu İlanları (SBB)',
+            'sbb',
             'Güncel yıl listesi; asıl ilan resmî PDF belgedir.',
           ),
         ])
           ListTile(
             leading: Icon(
-              checkedAt == null
+              _serverStatus(id) != null
+                  ? _serverStatus(id)!.state == SourceState.ok
+                        ? Icons.check_circle_outline
+                        : Icons.error_outline
+                  : checkedAt == null
                   ? Icons.help_outline
                   : failedSources.contains(name)
                   ? Icons.error_outline
@@ -1865,7 +1905,9 @@ class _SourcesPage extends StatelessWidget {
             ),
             title: Text(name),
             subtitle: Text(
-              checkedAt != null && failedSources.contains(name)
+              _serverStatus(id) != null
+                  ? '${_serverLabel(id)}. ${_serverNote(id) ?? description}'
+                  : checkedAt != null && failedSources.contains(name)
                   ? 'Son denetim başarısız; önbellek korunuyor. $description'
                   : description,
             ),
@@ -1879,7 +1921,7 @@ class _SourcesPage extends StatelessWidget {
           ),
           (
             'ilan.gov.tr',
-            'ilan_gov_tr',
+            'ilangov',
             'Arama arayüzü dokümanlanmamış bir ağ geçidi ardında; otomatik tarama hazırlanıyor.',
             'https://www.ilan.gov.tr/',
           ),
