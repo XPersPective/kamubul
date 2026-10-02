@@ -2,6 +2,42 @@ import 'package:test/test.dart';
 import 'package:kamubul_core/notifications/alert_history.dart';
 
 void main() {
+  test('tap identity survives history restart and old URL payloads', () {
+    const url = 'https://kariyerkapisi.gov.tr/IlanDetay?i=x';
+    const listingId = 'source:part/with?#ü';
+    final record = AlertRecord.create(
+      kind: AlertKind.instant,
+      searchName: '',
+      title: 'İlan',
+      body: '',
+      listingUrl: url,
+      listingId: listingId,
+    );
+    final restored = decodeAlerts(encodeAlerts([record])).single;
+    expect(restored.listingId, listingId);
+    expect(decodeAlertTap(restored.tapPayload), (
+      url: url,
+      listingId: listingId,
+    ));
+    expect(decodeAlertTap(url), (url: url, listingId: null));
+    for (final payload in [
+      'https:',
+      'https://user:secret@example.com',
+      'http://example.com',
+      '{broken',
+      '{"version":2,"url":"$url"}',
+      alertTapPayload(url, listingId: ''),
+      alertTapPayload(url, listingId: 'x' * 201),
+      'x' * 16385,
+    ]) {
+      expect(decodeAlertTap(payload), isNull);
+    }
+    expect(AlertRecord.fromJson({...record.toJson(), 'listingId': 1}), isNull);
+    expect(
+      AlertRecord.fromJson({...record.toJson(), 'listingId': null})?.listingId,
+      isNull,
+    );
+  });
   AlertRecord record(
     String id, {
     AlertDelivery delivery = AlertDelivery.held,

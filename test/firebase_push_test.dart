@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/notifications/firebase_push.dart';
+import 'package:kamubul_core/kamubul_core.dart';
 
 void main() {
   test('foreground FCM başlık, detay bağlantısı ve özet türünü korur', () {
@@ -10,6 +11,7 @@ void main() {
         data: {
           'url': 'https://kariyerkapisi.gov.tr/ilan',
           'kind': 'digest',
+          'listingId': 'kariyer:opaque/with?#ü',
           'eventId': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         },
       ),
@@ -18,8 +20,43 @@ void main() {
     expect(notification?.body, 'Kurum');
     expect(notification?.listingUrl, 'https://kariyerkapisi.gov.tr/ilan');
     expect(notification?.digest, isTrue);
+    expect(notification?.listingId, 'kariyer:opaque/with?#ü');
+    expect(
+      decodeAlertTap(notification?.tapPayload)?.listingId,
+      notification?.listingId,
+    );
     expect(notification?.eventId, 'a' * 64);
     expect(notification?.presentationId, 0x2aaaaaaa);
+  });
+  test('background and cold FCM tap share strict stable target decoding', () {
+    final target = notificationTapPayload(
+      const RemoteMessage(
+        data: {
+          'url': 'https://kariyerkapisi.gov.tr/ilan',
+          'listingId': 'kariyer:one',
+        },
+      ),
+    );
+    expect(decodeAlertTap(target), (
+      url: 'https://kariyerkapisi.gov.tr/ilan',
+      listingId: 'kariyer:one',
+    ));
+    for (final id in ['', 'x' * 201, 1]) {
+      expect(
+        notificationTapPayload(
+          RemoteMessage(
+            data: {'url': 'https://example.com/ilan', 'listingId': id},
+          ),
+        ),
+        isNull,
+      );
+    }
+    expect(
+      notificationTapPayload(
+        const RemoteMessage(data: {'url': 'https://example.com/ilan'}),
+      ),
+      'https://example.com/ilan',
+    );
   });
   test('sessiz veri mesajı ve geçersiz bağlantı bildirim üretmez', () {
     expect(

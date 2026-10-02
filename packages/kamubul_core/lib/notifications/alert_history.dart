@@ -1,5 +1,38 @@
 import 'dart:convert';
 
+/// Local plugin payload and FCM tap use the same bounded target; old URLs still read.
+({String url, String? listingId})? decodeAlertTap(String? payload) {
+  if (payload == null || payload.length > 16384) return null;
+  Object? url = payload, id;
+  if (payload.startsWith('{')) {
+    try {
+      final raw = jsonDecode(payload);
+      if (raw is! Map || raw['version'] != 1) return null;
+      url = raw['url'];
+      id = raw['listingId'];
+    } on FormatException {
+      return null;
+    }
+  }
+  if (url is! String ||
+      url.length > 2048 ||
+      (id != null && (id is! String || id.isEmpty || id.length > 200))) {
+    return null;
+  }
+  final uri = Uri.tryParse(url);
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty) {
+    return null;
+  }
+  return (url: uri.toString(), listingId: id as String?);
+}
+
+String alertTapPayload(String url, {String? listingId}) => listingId == null
+    ? url
+    : jsonEncode({'version': 1, 'url': url, 'listingId': listingId});
+
 int _alertIdSeed = 0;
 
 /// Bildirim türü; geçmişte kullanıcıya ne için uyarı geldiğini gösterir.
@@ -56,6 +89,7 @@ class AlertRecord {
     required this.body,
     required this.listingUrl,
     required this.createdAt,
+    this.listingId,
     this.delivery = AlertDelivery.held,
     this.deliveredAt,
   });
@@ -67,6 +101,7 @@ class AlertRecord {
     required String title,
     required String body,
     required String listingUrl,
+    String? listingId,
     DateTime? createdAt,
     AlertDelivery delivery = AlertDelivery.held,
     DateTime? deliveredAt,
@@ -79,6 +114,7 @@ class AlertRecord {
       title: title,
       body: body,
       listingUrl: listingUrl,
+      listingId: listingId,
       createdAt: created,
       delivery: delivery,
       deliveredAt: deliveredAt,
@@ -93,6 +129,8 @@ class AlertRecord {
 
   /// İlanın resmî bağlantısı; yalnızca https açılır.
   final String listingUrl;
+  final String? listingId;
+  String get tapPayload => alertTapPayload(listingUrl, listingId: listingId);
   final DateTime createdAt;
   AlertDelivery delivery;
   DateTime? deliveredAt;
@@ -104,6 +142,7 @@ class AlertRecord {
     'title': title,
     'body': body,
     'listingUrl': listingUrl,
+    if (listingId != null) 'listingId': listingId,
     'createdAt': createdAt.millisecondsSinceEpoch,
     'delivery': delivery.name,
     'deliveredAt': deliveredAt?.millisecondsSinceEpoch,
@@ -115,6 +154,11 @@ class AlertRecord {
     final id = raw['id'];
     final createdAt = raw['createdAt'];
     if (id is! String || createdAt is! int) return null;
+    final listingId = raw['listingId'];
+    if (listingId != null &&
+        (listingId is! String || listingId.isEmpty || listingId.length > 200)) {
+      return null;
+    }
     String text(Object? value) => value is String ? value : '';
     return AlertRecord(
       id: id,
@@ -123,6 +167,7 @@ class AlertRecord {
       title: text(raw['title']),
       body: text(raw['body']),
       listingUrl: text(raw['listingUrl']),
+      listingId: listingId as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(createdAt),
       delivery: AlertDelivery.parse(text(raw['delivery'])),
       deliveredAt: raw['deliveredAt'] is int

@@ -382,33 +382,7 @@ class ListingStore {
           );
         }
       } else {
-        final summary = (item['summary'] as List? ?? const [])
-            .map((s) {
-              if (s is! Map) return s;
-              final text = s['text'];
-              final label = s['scopeLabel'];
-              if (text is! String) return null;
-              if (label == null) return text;
-              return label is String &&
-                      label.trim().isNotEmpty &&
-                      label.length <= 50
-                  ? '$label: $text'
-                  : null;
-            })
-            .whereType<String>()
-            .take(5)
-            .toList();
-        final record = listingFromJson(
-          {
-            ...item,
-            'source': item['sourceId'],
-            'fetched': item['updatedAt'],
-            'published': item['publishedAt'],
-            'summary': summary,
-          },
-          fallbackFetchedAt: DateTime.now(),
-          utcDates: true,
-        );
+        final record = projectRemoteListing(item);
         if (record == null) {
           throw const FormatException('invalid delta record');
         }
@@ -448,6 +422,37 @@ class ListingStore {
         'payload': jsonEncode(item),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
+  }
+
+  /// Detail and delta share the same source/UTC/scoped-summary projection.
+  static ListingRecord? projectRemoteListing(Map<String, Object?> item) {
+    final summary = (item['summary'] as List? ?? const [])
+        .map((s) {
+          if (s is! Map) return s;
+          final text = s['text'];
+          final label = s['scopeLabel'];
+          if (text is! String) return null;
+          if (label == null) return text;
+          return label is String &&
+                  label.trim().isNotEmpty &&
+                  label.length <= 50
+              ? '$label: $text'
+              : null;
+        })
+        .whereType<String>()
+        .take(5)
+        .toList();
+    return listingFromJson(
+      {
+        ...item,
+        'source': item['sourceId'],
+        'fetched': item['updatedAt'],
+        'published': item['publishedAt'],
+        'summary': summary,
+      },
+      fallbackFetchedAt: DateTime.now(),
+      utcDates: true,
+    )?.copyWith(criteriaListing: item);
   }
 
   Future<void> _upgrade(Database db, int oldVersion, int newVersion) =>

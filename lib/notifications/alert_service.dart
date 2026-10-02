@@ -16,17 +16,19 @@ final FlutterLocalNotificationsPlugin _plugin =
     FlutterLocalNotificationsPlugin();
 bool _initialized = false;
 
-/// Bildirim dokunuşunda açılacak ilanın URL'si.
+/// Bildirim dokunuşu hedefi: eski URL veya stable listingId taşıyan JSON.
 ///
-/// Ana ekran bu değeri dinler: kayıt yerel önbellekteyse uygulama içi ayrıntı
-/// açılır, değilse resmî sayfa dışarıda açılır. Soğuk açılışta
-/// [consumeLaunchAlertTap] aynı yolu kullanır.
+/// Ana ekran stable kimliği API'den okur; eski URL payload'ları yerel yolu
+/// kullanır. Soğuk açılışta [consumeLaunchAlertTap] aynı hedefi korur.
 final ValueNotifier<String?> alertTapUrl = ValueNotifier<String?>(null);
 
 void _setAlertTap(String? payload) {
-  final uri = payload == null ? null : Uri.tryParse(payload);
-  if (uri != null && uri.scheme == 'https') {
-    alertTapUrl.value = uri.toString();
+  final target = decodeAlertTap(payload);
+  if (target != null) {
+    alertTapUrl.value = alertTapPayload(
+      target.url,
+      listingId: target.listingId,
+    );
   }
 }
 
@@ -132,7 +134,7 @@ Future<void> showPendingNotification(PendingNotification notification) async {
       ),
       iOS: const DarwinNotificationDetails(),
     ),
-    payload: notification.listingUrl,
+    payload: notification.tapPayload,
   );
 }
 
@@ -257,6 +259,7 @@ Future<int> runAlertCheckOnce() async {
         title: record.title,
         body: record.body,
         listingUrl: record.listingUrl,
+        listingId: record.listingId,
       ),
     );
     await settings.markHistoryDelivered(record, now);

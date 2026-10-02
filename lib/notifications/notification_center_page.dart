@@ -100,9 +100,14 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
     ).showSnackBar(const SnackBar(content: Text('Bildirim geçmişi silindi.')));
   }
 
-  Future<void> _open(String url) async {
+  Future<void> _open(AlertRecord record) async {
+    if (record.listingId != null && decodeAlertTap(record.tapPayload) != null) {
+      Navigator.of(context).pop();
+      openAlertUrl(record.tapPayload);
+      return;
+    }
     // Yalnızca https bağlantıları dışarıda açılır (C-020).
-    final uri = Uri.tryParse(url);
+    final uri = Uri.tryParse(record.listingUrl);
     if (uri == null || uri.scheme != 'https') return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
@@ -195,9 +200,7 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
       trailing: record.listingUrl.startsWith('https')
           ? const Icon(Icons.open_in_new, size: 18)
           : null,
-      onTap: record.listingUrl.startsWith('https')
-          ? () => _open(record.listingUrl)
-          : null,
+      onTap: record.listingUrl.startsWith('https') ? () => _open(record) : null,
     );
   }
 

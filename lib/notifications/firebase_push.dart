@@ -27,24 +27,20 @@ bool get firebaseConfigured =>
     _senderId.isNotEmpty &&
     _projectId.isNotEmpty;
 
-String? _httpsUrl(RemoteMessage message) {
+String? notificationTapPayload(RemoteMessage message) {
   final url = message.data['url'];
-  if (url is! String || url.length > 2048) return null;
-  final uri = Uri.tryParse(url);
-  return uri != null &&
-          uri.scheme == 'https' &&
-          uri.host.isNotEmpty &&
-          uri.userInfo.isEmpty
-      ? uri.toString()
-      : null;
+  final id = message.data['listingId'];
+  if (url is! String || (id != null && id is! String)) return null;
+  final payload = alertTapPayload(url, listingId: id as String?);
+  return decodeAlertTap(payload) == null ? null : payload;
 }
 
 PendingNotification? foregroundNotification(RemoteMessage message) {
-  final url = _httpsUrl(message);
+  final target = decodeAlertTap(notificationTapPayload(message));
   final title = message.notification?.title?.trim();
   final eventId = message.data['eventId'];
   final body = message.notification?.body ?? '';
-  if (url == null ||
+  if (target == null ||
       title == null ||
       title.isEmpty ||
       title.length > 300 ||
@@ -57,7 +53,8 @@ PendingNotification? foregroundNotification(RemoteMessage message) {
     searchName: '',
     title: title,
     body: body,
-    listingUrl: url,
+    listingUrl: target.url,
+    listingId: target.listingId,
     digest: message.data['kind'] == 'digest',
     eventId: eventId,
   );
@@ -122,7 +119,7 @@ class FirebasePush implements PushPlatform {
   @override
   Stream<String> get onNotificationOpened => _ready == true
       ? FirebaseMessaging.onMessageOpenedApp
-            .map(_httpsUrl)
+            .map(notificationTapPayload)
             .where((url) => url != null)
             .cast<String>()
       : const Stream.empty();
@@ -140,7 +137,7 @@ class FirebasePush implements PushPlatform {
     if (_ready != true) return null;
     try {
       final message = await FirebaseMessaging.instance.getInitialMessage();
-      return message == null ? null : _httpsUrl(message);
+      return message == null ? null : notificationTapPayload(message);
     } on Object {
       return null;
     }

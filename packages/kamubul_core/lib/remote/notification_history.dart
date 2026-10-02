@@ -78,6 +78,13 @@ class NotificationHistoryPage {
           (mode == 'digest' && (count is! int || count < 1 || count > 10))) {
         throw const FormatException('notification history identity');
       }
+      final listingId = row['id'];
+      if (listingId != null &&
+          (listingId is! String ||
+              listingId.isEmpty ||
+              listingId.length > 200)) {
+        throw const FormatException('notification listing identity');
+      }
       records.add(
         AlertRecord(
           id: id,
@@ -88,6 +95,7 @@ class NotificationHistoryPage {
               ? 'Günlük özet • $count ilan'
               : 'Sunucu bildirimi',
           listingUrl: url,
+          listingId: listingId as String?,
           createdAt: DateTime.parse(date).toLocal(),
           delivery: AlertDelivery.accepted,
         ),

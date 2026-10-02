@@ -100,6 +100,7 @@ void main() {
       if (after < watermark)
         {
           'seq': more ? 1 : watermark,
+          'id': 'kariyer:stable',
           'eventId': (more ? 'a' : 'b') * 64,
           'deliveryId': (more ? 'a' : 'b') * 64,
           'state': 'accepted',
@@ -120,11 +121,18 @@ void main() {
   test('history decoder rejects malformed order, identity, transport URL and pinned watermark', () {
     final good = historyPage(0);
     expect(
+      NotificationHistoryPage.decode(good, after: 0).records.single.listingId,
+      'kariyer:stable',
+    );
+    expect(
       NotificationHistoryPage.decode(good, after: 0).records.single.delivery,
       AlertDelivery.accepted,
     );
     for (final change in [
       {'seq': 0},
+      {'id': ''},
+      {'id': 1},
+      {'id': 'x' * 201},
       {'eventId': 'invalid'},
       {'url': 'https://user:pass@example.com'},
       {'url': 'http://example.com'},
@@ -229,6 +237,7 @@ void main() {
       body: 'İlan',
       listingUrl: 'https://example.gov.tr',
       eventId: 'a' * 64,
+      listingId: 'kariyer:stable',
     );
     expect(
       await Future.wait([
@@ -239,6 +248,7 @@ void main() {
     );
     expect(first.notificationHistory.single.delivery, AlertDelivery.received);
     final restarted = registrar();
+    expect(restarted.notificationHistory.single.listingId, 'kariyer:stable');
     expect(await restarted.recordForeground(message), isFalse);
     await restarted.clearNotificationHistory();
     expect(restarted.notificationHistory, isEmpty);

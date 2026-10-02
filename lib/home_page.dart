@@ -11,6 +11,8 @@ import 'package:kamubul_core/kamubul_core.dart'
         CatalogueMetadata,
         SearchCriteria,
         educationLabel,
+        RemoteCatalogueClient,
+        decodeAlertTap,
         CriteriaMatch;
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
@@ -20,6 +22,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'data/catalogue_refresh.dart';
 import 'data/listing_store.dart';
+import 'data/remote_sync.dart';
 import 'data/search_alerts.dart';
 import 'data/turkish_cities.dart';
 import 'data/user_data.dart';
@@ -52,6 +55,7 @@ class KamuHomePage extends StatefulWidget {
     this.shareService,
     this.reviewService,
     this.ratePolicy,
+    this.catalogueClient,
   });
 
   final AppIdentity identity;
@@ -67,6 +71,7 @@ class KamuHomePage extends StatefulWidget {
   final ShareService? shareService;
   final ReviewService? reviewService;
   final RatePromptPolicy? ratePolicy;
+  final RemoteCatalogueClient? catalogueClient;
 
   @override
   State<KamuHomePage> createState() => _KamuHomePageState();
@@ -88,6 +93,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   String? _kpssFilter;
   int? _activeSearchId;
   bool _includeUnknown = false;
+  int _alertTapGeneration = 0;
 
   SavedSearch? get _activeSearch =>
       _searches.where((s) => s.id == _activeSearchId).firstOrNull;
@@ -127,17 +133,63 @@ class _KamuHomePageState extends State<KamuHomePage> {
     });
   }
 
-  /// Bildirim dokunuşu hedefi: yerel kayıt uygulama içinde açılır; kayıt
-  /// budanmışsa resmî sayfa dışarıda açılır.
+  /// Stable server IDs read the API; legacy URL-only taps keep their local path.
   Future<void> _openAlertFromNotification() async {
-    final url = alertTapUrl.value;
-    if (url == null) return;
+    final payload = alertTapUrl.value;
+    if (payload == null) return;
     alertTapUrl.value = null;
+    final target = decodeAlertTap(payload);
+    if (target == null) return;
+    final url = target.url;
+    final tapGeneration = ++_alertTapGeneration;
     await _loadLocal();
-    if (!mounted) return;
+    if (!mounted || tapGeneration != _alertTapGeneration) return;
     ListingRecord? record;
     for (final candidate in _records) {
       if (candidate.url == url) record = candidate;
+    }
+    final client = target.listingId == null
+        ? null
+        : widget.catalogueClient ?? defaultRemoteClient();
+    if (client != null) {
+      try {
+        final generation = await _store.bindRemoteOrigin(
+          catalogueOrigin(client),
+        );
+        final item = await client.fetchListing(target.listingId!);
+        // An A→B→A switch or newer tap must not open an obsolete response.
+        await _store.remoteCursor(expectedGeneration: generation);
+        if (!mounted || tapGeneration != _alertTapGeneration) return;
+        if (item == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Bu ilan artık sunucuda bulunmuyor.')),
+          );
+          return;
+        }
+        final detail = ListingStore.projectRemoteListing(item);
+        if (detail == null) throw const FormatException('invalid detail');
+        // ponytail: detail is transient until an isolated revision/generation-safe
+        // cache write is implemented; never publish it into a frozen bootstrap.
+        Navigator.of(context).push(
+          sharedAxisRoute<void>(
+            OfficialListingPage(
+              listing: detail,
+              unavailable: item['active'] == false,
+            ),
+          ),
+        );
+      } on Exception {
+        if (mounted && tapGeneration == _alertTapGeneration) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('İlan ayrıntısı alınamadı. Yeniden deneyin.'),
+            ),
+          );
+        }
+      } finally {
+        if (widget.catalogueClient == null) client.close();
+      }
+      return;
     }
     if (record == null) {
       final uri = Uri.tryParse(url);

@@ -52,12 +52,15 @@ class PendingNotification {
     required this.listingUrl,
     this.digest = false,
     this.eventId,
+    this.listingId,
   });
 
   final String searchName;
   final String title;
   final String body;
   final String listingUrl;
+  final String? listingId;
+  String get tapPayload => alertTapPayload(listingUrl, listingId: listingId);
 
   /// Günlük özet bildirimi mi (anlık günlük tavana sayılmaz).
   final bool digest;

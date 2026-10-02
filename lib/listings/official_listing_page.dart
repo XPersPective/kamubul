@@ -6,9 +6,14 @@ import '../data/listing_store.dart';
 /// Kaynağında yapılandırılmış ayrıntı sunmayan ilanlar için yerel özet.
 /// Boş alanlar tahmin edilmez; belgeye geçiş kullanıcıya bırakılır.
 class OfficialListingPage extends StatelessWidget {
-  const OfficialListingPage({super.key, required this.listing});
+  const OfficialListingPage({
+    super.key,
+    required this.listing,
+    this.unavailable = false,
+  });
 
   final ListingRecord listing;
+  final bool unavailable;
 
   String _date(DateTime? value) => value == null
       ? 'Belirtilmemiş'
@@ -33,6 +38,7 @@ class OfficialListingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final source = switch (listing.sourceId) {
       'kamuilan_sbb' => 'Strateji ve Bütçe Başkanlığı',
+      'kariyerkapisi' => 'Kariyer Kapısı',
       'resmigazete' => 'Resmî Gazete',
       _ => 'Resmî kaynak',
     };
@@ -59,6 +65,16 @@ class OfficialListingPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(listing.title, style: theme.textTheme.headlineSmall),
+          if (unavailable) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Bu ilan artık yayında değil. Başvuru durumunu resmî kaynaktan kontrol edin.',
+            ),
+          ],
+          for (final text in listing.summary) ...[
+            const SizedBox(height: 12),
+            Text(text),
+          ],
           const SizedBox(height: 20),
           Card(
             child: Column(

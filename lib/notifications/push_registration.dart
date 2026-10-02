@@ -480,6 +480,7 @@ class PushRegistrar {
           title: notification.title,
           body: notification.body,
           listingUrl: notification.listingUrl,
+          listingId: notification.listingId,
           createdAt: _clock(),
           delivery: AlertDelivery.received,
         );
