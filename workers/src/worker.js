@@ -2,7 +2,7 @@ import {validateCriteria,migrateFilters,fold,installationAnchorKeys,educationVal
 import {runScheduled,handleWorkQueue} from './pipeline.js';
 
 export const nowISO=()=>new Date().toISOString();
-export async function sha256(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');}
+export async function sha256(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',value instanceof Uint8Array?value:new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');}
 const json=(body,status=200,headers={})=>Response.json(body,{status,headers:{'X-Content-Type-Options':'nosniff','Cache-Control':'no-store',...headers}});
 const int=(raw,min,max,fallback,strict=false)=>{if(raw===null||raw===undefined||(!strict&&raw===''))return fallback;if(strict&&!/^\d{1,16}$/.test(raw))return NaN;const n=Number(raw);return Number.isSafeInteger(n)&&n>=min&&n<=max?n:strict?NaN:fallback;};
 const stable=(a,b)=>{if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0;};

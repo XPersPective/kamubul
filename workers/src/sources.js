@@ -1,7 +1,7 @@
 const api = 'https://api.kariyerkapisi.gov.tr/api/';
 const hosts = new Set(['api.kariyerkapisi.gov.tr','kariyerkapisi.gov.tr','kamuilan.sbb.gov.tr']);
 export class SourceError extends Error { constructor(code) {super(code);this.code=code;} }
-export async function sourceFetch(url, options={}) {
+export async function sourceBytes(url, options={}) {
   const uri=new URL(url);
   if (uri.protocol!=='https:'||uri.username||uri.password||uri.port||!hosts.has(uri.hostname)) throw new SourceError('host_rejected');
   const response=await fetch(url,{...options,redirect:'manual',signal:AbortSignal.timeout(25000)});
@@ -15,8 +15,9 @@ export async function sourceFetch(url, options={}) {
   // Cleanup must not replace a source error or delay durable pipeline retry.
   finally {if(reader)void reader.cancel().catch(()=>{});}
   const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
-  return new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+  return bytes;
 }
+export async function sourceFetch(url,options={}){return new TextDecoder('utf-8',{fatal:true}).decode(await sourceBytes(url,options));}
 const post = async(route,body)=>JSON.parse(await sourceFetch(api+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));
 export const plain = value => String(value??'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<[^>]*>/g,' ').replace(/\[(?:\/?[a-z]+)(?:=[^\]]*)?\]/gi,'').replace(/&nbsp;|\u00a0/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#(\d+);/g,(_,v)=>{const n=Number(v);return n>0&&n<=0x10ffff&&!(n>=0xd800&&n<=0xdfff)?String.fromCodePoint(n):'\ufffd';}).replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
 const uuid=/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;

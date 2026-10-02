@@ -14,6 +14,21 @@ npm run deploy
 Runtime bağımlılığı yok. Node24 native SQLite contract kontrolleri yalnız
 bellek içi DB kullanır. Bunlar gerçek FCM/AI/kaynak erişimi testi değildir.
 
+SBB ayrıntısı aynı izinli hosttaki ilanDetay.aspx PDF'sinden alınır. sourceBytes
+25s/manual-redirect/3MiB sınırını sourceFetch ile paylaşır; %PDF- magic kontrolü
+sonrası AI.toMarkdown text/metadata:false kullanılır. Raw SHA256+reader version
+ve başarılı metin D1 payload'da cache olur. Binary metadata değişip metin aynı
+kaldığında hash güncellenir, yeni summary job oluşmaz. Günlük20 UTC conversion
+reservation mevcut rate_limits TTL satırında atomiktir; AI summary bütçesinden
+ayrıdır.45s conversion timeout/120KB UTF-8 çıktı sınırı; boş tarama/schema/hata
+unknown, eski başarılı ayrıntı korunur. Provider sayfa sayısı sınırı sunmaz;
+sayfa-count doğrulaması ve gerçek PDF CPU/kalite ölçümü açık kapıdır.
+[Cloudflare PDF dönüşüm yolu](https://developers.cloudflare.com/workers-ai/features/markdown-conversion/how-it-works/)
+PDF metin çıkarımını anlatır; image conversion/OCR model yolu kullanılmaz.
+Resmî [fiyat açıklaması](https://developers.cloudflare.com/workers-ai/features/markdown-conversion/)
+çoğu format dönüşümünün ücretsiz olduğunu belirtir. Native remote preview
+supported() PDF=true/28 format doğruladı; gerçek SBB PDF dönüşümü kanıtı değildir.
+
 Yerel100/1000/10000 wide-match kapasite/cursor/dedupe kontrolü:
 `node tool/check-fanout.js`. Gerçek scheduler'ın günlük aşama sayısını da sayar;
 Cloudflare/D1 üretim/FCM çağrısı yok. Sonuç ve açık throughput sınırı

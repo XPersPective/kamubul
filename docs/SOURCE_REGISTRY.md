@@ -9,7 +9,7 @@ sonuçlar ayrı kanıttır; yerel erişim sunucunun erişebildiğini göstermez.
 | Kaynak | Merkezi getirme yöntemi | Canlı Cloudflare sonucu | Açık iş |
 | --- | --- | --- | --- |
 | Kariyer Kapısı | Public `ilan/GetIseAlimPage` JSON; başarısızsa resmî `/RSS`. Ayrıntı: `ilan/GetIlanPreviewPublic` ve `altilan/GetAltIlanInfoByIlanIdPublic` POST | RSS üzerinden23 gerçek ilan/46 immutable değişiklik. Güncel Cloudflare remote preview ayrıntı HTTP522; kaynak notu eksik ayrıntıyı belirtir | Kaynak ayrıntısına gerçek Worker erişimi, kullanım şartları, yeterli belge üzerinden model değerlendirmesi |
-| Kamu İlanları SBB | `https://kamuilan.sbb.gov.tr/` GET WebForms token'ları + POST yıl; parser `parseSbbList` | Erişim engeli; `blocked` raporlanır. Kaynak başarıyla toplanmış kabul edilmez | Worker erişimi ve resmî belge/PDF okuyucu, kullanım şartları |
+| Kamu İlanları SBB | `https://kamuilan.sbb.gov.tr/` GET WebForms token'ları + POST yıl; parser `parseSbbList`; sabit resmî ilanDetay.aspx PDF'si native AI.toMarkdown text okuyucusuna gider | Erişim engeli; `blocked` raporlanır. Kaynak başarıyla toplanmış kabul edilmez | Gerçek Worker PDF erişimi/dönüşümü/kalitesi/CPU ve sayfa sınırı, kullanım şartları |
 | İŞKUR | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; oturum/CAPTCHA/WAF aşılmaz |
 | ilan.gov.tr | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; engel aşılmaz |
 | Resmî Gazete | Kapsam dışı; adaptör kaldırıldı | Yeni veri toplanmaz | Eski cihaz cache'i görülürse geçiş/retention kuralları uygulanır |
@@ -49,6 +49,17 @@ yaş/KPSS/eğitim koşulu ya da sahte ayrıntı üretilmez. Yeni bir izinli kayn
 kanıtı olmadan alternatif host/proxy eklenmez.
 
 ## Mobil geçiş ve çıkarım kanıtı
+
+Son kalıcı Workere284e590;162 native/dry-run/deploy ve canlı46change/23catalogue/
+applied46/detail/missing404/meta304 geçti. SBB native PDF okuyucusu binary
+hash+reader version ile başarılı metni cache'ler;20 UTC günlük atomik dönüşüm
+rezervasyonu,3MiB fetch/45s conversion/120KB UTF-8 output sınırı vardır.
+Metadata-only PDF değişimi aynı metin için yeni summary işi açmaz. Sayfa-count
+ve OCR yok; boş/hatalı belge unknown ve eski başarılı metin korunur.
+AI-only native remote preview supported() PDF=true/28 format doğruladı ve
+kapatıldı. Belge dönüşümü yapılmadı; bu sonuç SBB egress/kalite/CPU kanıtı
+değildir. Yerel PDF testlerinde byte fixture/converter stub vardır, üretim
+verisine eklenmez. Gerçek kaynak erişimi ve AI precision kapıları açıktır.
 
 Son kalıcı Worker58d0511e,158 native/dry-run/deploy ve canlı46change/23catalogue/
 applied46/detail/missing404/meta304 kontrolü geçti. SBB parser mevcut resmî

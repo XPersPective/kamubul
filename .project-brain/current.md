@@ -41,7 +41,7 @@ Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarıl�
 ## 2. Kalıcı bulut ve güvenli yapılandırma
 
 - Worker `kamubul-api`: https://kamubul-api.devx8585.workers.dev;
-  son CLI deployment version `58d0511e-414b-42ee-bb15-323ecf77563d`.
+  son CLI deployment version `e284e590-8b87-4407-a49c-3f9e147e6ce9`.
   D1 `kamubul`, UUID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB;
   migration0001–0016 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
 - Kalıcı Queue `kamubul-work`, ID3eb1ec0a4296443eb552a240dac77ec4;
@@ -75,6 +75,18 @@ Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarıl�
 
 ## 3. Worker veri akışı ve kalıcı işler
 
+SBB PDF metin yolu mevcut AI binding'in native toMarkdown dönüşümünü kullanır:
+sabit resmî ilanDetay.aspx adresi, PDF magic,25s/3MiB getirme,45s dönüşüm ve
+120KB UTF-8 çıktı sınırı. Raw SHA256+reader version başarılı metni cache'ler;
+aynı belge tekrar dönüşmez, yalnız PDF metadata değişimi aynı metin için yeni
+summary işi açmaz. Mevcut rate_limits tablosunda atomik20 UTC günlük dönüşüm
+rezervasyonu summary AI sayacından ayrıdır; başarısız dönüşüm de sayılır.
+Boş tarama/hata önceki başarılı metni silmez; OCR veya sayfa sayısı sınırı yok.
+162 native Worker kontrolü ve dry-run geçti; e284e590 kalıcı deployment sonrası
+canlı46/23/applied46/detail/404/meta304 kontrolü geçti. AI-only remote preview
+supported() PDF=true/28 format gösterdi; preview kapalıdır. Bu gerçek belge
+dönüşümü, başarılı SBB erişimi, PDF kalitesi veya Free CPU ölçümü değildir.
+
 SBB liste parser'ı gerçek kaydedilmiş HTML'deki class attribute boşluklarını
 okur. Mevcut55 etiketli liste satırında kurum/başlık/kategori/start/deadline
 gold değerleriyle eşitlik ve3-row fixture geçti;158 Worker native test.
@@ -86,7 +98,7 @@ AI typed extraction precision/PDF veya başarılı Cloudflare SBB egress değild
 Cloudflare uygulamasıdır. Official host/redirect/size/timeout kontrolleri,
 source lease/cursor/semantic hash/unique identity ve önceki başarılı içeriği
 koruyan failure davranışı bulunur. Kariyer API/RSS ve SBB list adapter vardır;
-PDF/OCR ve120KB üzeri kaynak okuyucusu yok. Windows'taki resmî adapter aynı
+SBB PDF metin okuyucusu vardır; OCR ve120KB üzeri kaynak okuyucusu yok. Windows'taki resmî adapter aynı
 ilanın11 kadro/7113 karakter ayrıntısını okudu; bu Worker egress kanıtı değildir.
 Public JS API rotalarını doğrular, RSS/SSR ayrıntı koşulu içermez. WAF/login
 bypass/proxy ve yerel ayrıntıyı üretime kopyalama yapılmadı; terms kapısı açıktır.

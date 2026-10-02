@@ -30,7 +30,7 @@ Cihazdaki arama/yer imleri dışa aktarılabilir; dosyanın saklanması ve payla
 
 ## Yapay zekâ
 
-İlan işleme için Cloudflare Workers AI'ya yalnız herkese açık ilan metni ve başlığı verilir; kullanıcı kriterleri veya bildirim jetonu verilmez. Başarılı çıktı ortak katalogda saklanır; aynı içerik her kullanıcı için yeniden işlenmez. Bilinmeyen şart uygunluk onayı sayılmaz. [Workers AI veri açıklaması](https://developers.cloudflare.com/workers-ai/platform/data-usage/) sağlayıcı uygulamalarını anlatır.
+İlan işleme için Cloudflare Workers AI'ya yalnız herkese açık ilan metni, başlığı veya resmî ilan PDF belgesi verilir; kullanıcı kriterleri veya bildirim jetonu verilmez. PDF'den metin çıkarılır; taranmış belgede okunabilir metin yoksa bilgi uydurulmaz. Başarılı çıktı ortak katalogda saklanır; aynı içerik her kullanıcı için yeniden işlenmez. Bilinmeyen şart uygunluk onayı sayılmaz. [Workers AI veri açıklaması](https://developers.cloudflare.com/workers-ai/platform/data-usage/) sağlayıcı uygulamalarını anlatır.
 
 Harici AI hesabıyla kota sonrası fallback ve doğal dille kriter asistanı planlanmıştır; **bu sürümde etkin değildir**. Etkinleştirilmeden önce sağlayıcı, gönderilecek mesaj/kriterler ve saklama açıklaması burada ve asistan akışında güncellenecektir. Mevcut ilan rehberi böyle bir sohbet asistanı değildir.
 

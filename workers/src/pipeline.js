@@ -1,4 +1,4 @@
-import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,plain} from './sources.js';
+import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,sourceBytes,plain} from './sources.js';
 import {matchListing,listingAnchorKeys} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
@@ -8,6 +8,24 @@ const safeError=e=>/^\w{1,70}$/.test(e.message)?e.message:'operation_failed';
 // Bump when the prompt/validator changes; old partial work needs explicit reprocessing, not mixed excerpts.
 export const aiExtractionRevision=2;
 export function semanticInput(notice){return JSON.stringify({title:notice.title,category:notice.category,deadline:notice.deadline,institution:notice.institution??'',text:plain(notice.text),positions:(notice.positions??[]).map(p=>({title:p.title,profession:p.profession,text:plain(p.text),places:[...p.places].sort(),quota:p.quota}))});}
+export async function readSbbDetail(env,id,previous={}){
+  if(typeof id!=='string'||!id.length||id.length>1024)throw new Error('pdf_identity');
+  const bytes=await sourceBytes('https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod='+encodeURIComponent(id));
+  if(new TextDecoder().decode(bytes.subarray(0,5))!=='%PDF-')throw new Error('pdf_format');
+  const documentHash=await sha256(bytes),documentReader='cloudflare-pdf-text-v1';
+  if(previous.documentHash===documentHash&&previous.documentReader===documentReader&&typeof previous.text==='string'&&previous.text.trim())return {text:previous.text,documentHash,documentReader,detailState:'available'};
+  if(typeof env.AI?.toMarkdown!=='function')throw new Error('pdf_reader_unavailable');
+  const day=nowISO().slice(0,10),expires=new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString();
+  // ponytail: 20 conversions/day, bounded bytes/time/output; provider has no page-count option. Add a reliable page-count reader before raising limits.
+  const reserved=await env.DB.prepare('INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 WHERE count<20 RETURNING count').bind('pdf:'+day,expires).first();
+  if(!reserved)throw new Error('pdf_daily_budget');
+  let timer;
+  const result=await Promise.race([env.AI.toMarkdown({name:'notice.pdf',blob:new Blob([bytes],{type:'application/pdf'})},{conversionOptions:{output:{format:'text'},pdf:{metadata:false}}}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('pdf_timeout')),45000);})]).finally(()=>clearTimeout(timer));
+  if(result?.format!=='text'||result.mimetype!=='application/pdf'||typeof result.data!=='string')throw new Error('pdf_conversion');
+  if(result.data.length>120000||new TextEncoder().encode(result.data).length>120000)throw new Error('pdf_text_oversize');
+  const text=plain(result.data);if(!text)throw new Error('pdf_text_empty');
+  return {text,documentHash,documentReader,detailState:'available'};
+}
 export async function readSource(env){
   const now=nowISO();let source=await env.DB.prepare("SELECT * FROM sources WHERE id IN ('kariyerkapisi','sbb') AND (lease_until IS NULL OR lease_until<?) AND next_due<=? ORDER BY CASE WHEN pending_batch IS NULL THEN 1 ELSE 0 END,next_due LIMIT 1").bind(now,now).first();
   if(!source)return;
@@ -27,9 +45,8 @@ export async function readSource(env){
       const old=await env.DB.prepare('SELECT content_hash,recheck_at,payload,first_seen FROM listings WHERE id=?').bind(base.id).first();
       if(old&&old.recheck_at>now)continue;
       let detail={};
-      if(source.id==='kariyerkapisi'){
-        try{detail=await fetchKariyerDetail(base.externalId);}catch(e){detailFailure=true;detail={detailState:'unavailable',detailError:safeError(e)};}
-      }
+      try{detail=source.id==='kariyerkapisi'?await fetchKariyerDetail(base.externalId):await readSbbDetail(env,base.externalId,old?JSON.parse(old.payload):{});}
+      catch(e){detailFailure=true;detail={detailState:'unavailable',detailError:safeError(e)};}
       if(detail.detailState==='unavailable'&&old){
         // A transient source failure cannot erase the last successful detail/summary.
         await env.DB.prepare('UPDATE listings SET recheck_at=? WHERE id=?').bind(later(30),base.id).run();
@@ -38,7 +55,7 @@ export async function readSource(env){
       const notice={...base,...detail,firstSeenAt:old?.first_seen??now,updatedAt:now};
       const input=semanticInput(notice),hash=await sha256(input);
       if(old?.content_hash===hash){
-        const previous=JSON.parse(old.payload),metadata=['publishedAt','start','url','detailState'];
+        const previous=JSON.parse(old.payload),metadata=['publishedAt','start','url','detailState','documentHash','documentReader'];
         if(metadata.some(k=>(previous[k]??null)!==(notice[k]??null))){
           const refreshed={...previous,updatedAt:now};for(const k of metadata)refreshed[k]=notice[k]??null;
           await env.DB.prepare('UPDATE listings SET payload=?,revision=revision+1,updated_at=?,recheck_at=? WHERE id=?').bind(JSON.stringify(refreshed),now,later(360),base.id).run();
