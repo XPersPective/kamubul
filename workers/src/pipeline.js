@@ -253,18 +253,26 @@ function nextDigestDay(now) {
 export async function flushOutbox(env,{send=sendFcm,now=new Date()}={}) {
   if(!env.FCM_PRIVATE_KEY||!env.FCM_CLIENT_EMAIL)return;
   const timestamp=now.toISOString(),lease=new Date(+now+180000).toISOString();
-  const job=await env.DB.prepare("UPDATE notification_outbox SET state='leased',lease_until=? WHERE id=(SELECT id FROM notification_outbox WHERE (state='pending' OR (state='leased' AND lease_until<?)) AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) ORDER BY due_at,id LIMIT 1) RETURNING *").bind(lease,timestamp,timestamp).first();if(!job)return;
+  // Each state uses outbox_due to select one leader; only those two candidates are sorted.
+  // ponytail: expired-lease selection still visits live leased rows; bound future consumer concurrency and measure before adding a lease-expiry index.
+  const job=await env.DB.prepare(`UPDATE notification_outbox SET state='leased',lease_until=? WHERE id=(
+    SELECT id FROM (
+      SELECT id,due_at FROM (SELECT id,due_at FROM notification_outbox WHERE state='pending' AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) ORDER BY due_at,id LIMIT 1)
+      UNION ALL
+      SELECT id,due_at FROM (SELECT id,due_at FROM notification_outbox WHERE state='leased' AND lease_until<? AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) ORDER BY due_at,id LIMIT 1)
+    ) ORDER BY due_at,id LIMIT 1) RETURNING *`).bind(lease,timestamp,timestamp,timestamp).first();if(!job)return;
   const event=JSON.parse(job.payload);
   const group=job.delivery_id??job.id;
   const updateGroup=async(state,due,error=null)=>env.DB.batch([
     env.DB.prepare("UPDATE notification_outbox SET state=?,due_at=?,lease_until=NULL,error_code=? WHERE id=? AND state='leased' AND lease_until=?").bind(state,due,error,job.id,lease),
     env.DB.prepare("UPDATE notification_outbox SET state=?,due_at=?,lease_until=NULL,error_code=? WHERE delivery_id=? AND id!=? AND state IN ('pending','leased') AND EXISTS(SELECT 1 FROM notification_outbox WHERE id=? AND state=? AND due_at=? AND lease_until IS NULL)").bind(state,due,error,group,job.id,job.id,state,due)
   ]);
-  let device=await env.DB.prepare('SELECT * FROM installations WHERE id=? AND enabled=1').bind(job.installation_id).first();
-  if(!device||device.version!==event.preferencesVersion){await updateGroup('cancelled',timestamp,'preferences_changed');return;}
-  const owner=await env.DB.prepare('UPDATE installations SET send_lease_until=? WHERE id=? AND enabled=1 AND (send_lease_until IS NULL OR send_lease_until<?) RETURNING *').bind(lease,device.id,timestamp).first();
-  if(!owner){await updateGroup('pending',device.send_lease_until??new Date(+now+60000).toISOString(),'delivery_busy');return;}
-  device=owner;
+  let device=await env.DB.prepare('UPDATE installations SET send_lease_until=? WHERE id=? AND enabled=1 AND (send_lease_until IS NULL OR send_lease_until<?) RETURNING *').bind(lease,job.installation_id,timestamp).first();
+  if(!device){
+    const current=await env.DB.prepare('SELECT * FROM installations WHERE id=? AND enabled=1').bind(job.installation_id).first();
+    if(!current||current.version!==event.preferencesVersion){await updateGroup('cancelled',timestamp,'preferences_changed');return;}
+    await updateGroup('pending',current.send_lease_until??new Date(+now+60000).toISOString(),'delivery_busy');return;
+  }
   try {
     if(device.version!==event.preferencesVersion){await updateGroup('cancelled',timestamp,'preferences_changed');return;}
     const preferences=JSON.parse(device.preferences),day=localParts(now).toISOString().slice(0,10);

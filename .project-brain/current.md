@@ -24,7 +24,7 @@ Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarıl�
 ## 2. Kalıcı bulut ve güvenli yapılandırma
 
 - Worker `kamubul-api`: https://kamubul-api.devx8585.workers.dev;
-  son CLI deployment version `cdc82483-b04b-4405-bfc8-9719298cd16c`,100%.
+  son CLI deployment version `6deecc4f-3b48-4355-9315-e0a5189cee0d`,100%.
   D1 `kamubul`, UUID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB;
   migration0001–0015 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
 - `workers/wrangler.jsonc`: AI binding `@cf/meta/llama-3.1-8b-instruct`,
@@ -238,7 +238,17 @@ cdc82483 sonrası live readonly watermark46/catalogue23/applied46/detail/missing
 meta304 geçti; sources Kariyerok ve diğer3blocked. Nonempty cloud fanout/
 OAuth send CPU/gerçek teslim ölçülmedi; yeni Queue kaynağı yok.
 
-Son doğrulama:171 Flutter full,181 core full,149 Worker native; changed Dart
+Sender pending/leased backlog root sort iki indexed LIMIT1 candidate ile
+sınırlandı; due/id sırası ve expired/live lease korumaları testli. Atomik owner
+claim güncel kayıt döndürür; final opt-out/version/cap kontrolleri durur.
+Extended local sender probe10k max8SQL,80000 total,p95/p99=1.34/1.78ms;
+injected sender, actual FCM/OAuth/CPU/cihaz kanıtı yok. Remote readonly EXPLAIN
+iki outbox_due index'i0read/0write/changed=false doğruladı; runtime scan değil.
+Leased branch canlı lease ziyaret sınırı hâlâ var. Cron tek send davranışı
+ve456/gün üst hızı aynı;150 native/dry-run/deploy geçti.6deecc4f sonrasında
+live readonly46/23/applied46/detail/missing404/meta304 geçti.
+
+Son doğrulama:171 Flutter full,181 core full,150 Worker native; changed Dart
 analyze ve diff-check temiz. SQLite race tests:
 cross-owner initial registration bütün dependent rows'u korur; stale same-owner
 heartbeat409/newer criteria korunur/retry yeni version; delete/recreate hash

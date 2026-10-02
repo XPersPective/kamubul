@@ -621,10 +621,11 @@ test('opt-out between matching and sending cancels a grouped digest before FCM',
   const {sql,env,calls,send}=notifications(t,2);
   let reads=0;const prepare=env.DB.prepare;
   env.DB.prepare=query=>{
-    if(query==='SELECT * FROM installations WHERE id=? AND enabled=1'&&++reads===2)sql.exec('UPDATE installations SET enabled=0');
+    if(query==='SELECT * FROM installations WHERE id=? AND enabled=1'&&++reads===1)sql.exec('UPDATE installations SET enabled=0');
     return prepare(query);
   };
   await flushOutbox(env,{send,now:new Date('2026-10-01T15:00:00Z')});
+  assert.equal(reads,1,'Opt-out must occur at the final pre-FCM read');
   assert.equal(calls.length,0);
   assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE state='cancelled'").get().n,2);
   assert.equal(sql.prepare('SELECT send_lease_until FROM installations').get().send_lease_until,null);
@@ -734,7 +735,7 @@ test('history migration preserves accepted rows and skips pending rows',t=>{
   assert.equal(sql.prepare("SELECT history_seq FROM notification_outbox WHERE id='pending'").get().history_seq,3);
 });
 
-test('fresh send lease rechecks cap after an earlier stale installation read',async t=>{
+test('atomic send lease reads the cap updated immediately before the claim',async t=>{
   const {sql,env,calls,send}=notifications(t,1,{mode:'instant',preferences:{quietStart:22,quietEnd:8,cap:1}});
   const prepare=env.DB.prepare;
   env.DB.prepare=query=>{
@@ -905,6 +906,32 @@ test('invalid token removes candidate facets but preserves saved preferences',as
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM installation_facets').get().n,0);
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,1);
   assert.equal(sql.prepare('SELECT enabled FROM installations').get().enabled,0);
+});
+
+test('send claim merges indexed state leaders in due/id order and skips live leases',async t=>{
+  for(const due of ['2026-10-01T12:00:00Z','2026-10-01T13:00:00Z']) {
+    const {sql,env,calls,send}=notifications(t,3,{mode:'instant'});
+    sql.prepare("UPDATE notification_outbox SET state='leased',lease_until='2026-10-01T14:59:00Z',due_at=? WHERE id='event0'").run(due);
+    sql.exec("UPDATE notification_outbox SET due_at='2026-10-01T13:00:00Z' WHERE id='event1'; UPDATE notification_outbox SET state='leased',lease_until='2026-10-01T15:05:00Z',due_at='2026-10-01T11:00:00Z' WHERE id='event2'");
+    const prepare=env.DB.prepare;let claimChecked=false;
+    env.DB.prepare=query=>{
+      const statement=prepare(query);
+      if(query.startsWith("UPDATE notification_outbox SET state='leased'")){
+        const bind=statement.bind;
+        statement.bind=function(...args){
+          const plan=sql.prepare('EXPLAIN QUERY PLAN '+query).all(...args).map(row=>row.detail);
+          assert.equal(plan.filter(detail=>detail.includes('SEARCH notification_outbox USING INDEX outbox_due')).length,2);
+          assert.ok(!plan.includes('MULTI-INDEX OR'),'Do not sort the entire pending/leased backlog');
+          claimChecked=true;return bind.call(this,...args);
+        };
+      }return statement;
+    };
+    await flushOutbox(env,{send,now:new Date('2026-10-01T15:00:00Z')});
+    assert.ok(claimChecked);assert.equal(calls[0].event.eventId,'event0');
+    await flushOutbox(env,{send,now:new Date('2026-10-01T15:01:00Z')});
+    assert.equal(calls[1].event.eventId,'event1');
+    assert.equal(sql.prepare("SELECT state FROM notification_outbox WHERE id='event2'").get().state,'leased');
+  }
 });
 
 test('consolidation keeps later source excerpts and incomplete final summaries stay unpublished',async t=>{
