@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/listings/kariyer_detail.dart';
 import 'package:kamubul/listings/kariyer_detail_page.dart';
@@ -9,10 +13,37 @@ import 'package:napp_core/napp_core.dart';
 
 /// PB-008 altın görüntüler: telefon, 1.3x metin ölçeği ve tablet düzenleri.
 ///
-/// Varsayılan test fontu (kutu glifler) kullanılır: metin çizimi platformdan
-/// bağımsız kalır, görüntüler düzen/taşma regresyonlarını yakalar. Çizim
-/// farkında `flutter test --update-goldens` ile yenileyin.
+/// Flutter SDK'nın Roboto fontları Türkçe glif ve gerçek metin genişliklerini
+/// denetler. SDK/font güncellemesinde referansları görsel olarak inceleyerek
+/// `flutter test --update-goldens` ile yenileyin; fiziksel cihaz kabulü ayrıdır.
 void main() {
+  setUpAll(() async {
+    final config = File('.dart_tool/package_config.json');
+    final packages =
+        jsonDecode(await config.readAsString())['packages'] as List;
+    final flutter = config.absolute.uri.resolve(
+      '${packages.singleWhere((p) => p['name'] == 'flutter')['rootUri']}/',
+    );
+    final loader = FontLoader('Roboto');
+    for (final weight in ['regular', 'medium', 'bold']) {
+      final file = File.fromUri(
+        flutter.resolve(
+          '../../bin/cache/artifacts/material_fonts/roboto-$weight.ttf',
+        ),
+      );
+      loader.addFont(file.readAsBytes().then(ByteData.sublistView));
+    }
+    await loader.load();
+    final icons = FontLoader('MaterialIcons')
+      ..addFont(
+        File.fromUri(
+          flutter.resolve(
+            '../../bin/cache/artifacts/material_fonts/materialicons-regular.otf',
+          ),
+        ).readAsBytes().then(ByteData.sublistView),
+      );
+    await icons.load();
+  });
   // Test-only cache record: no network, inference or production writes.
   final canonical = ListingRecord(
     url: 'https://kariyerkapisi.gov.tr/IlanDetay?i=test',
@@ -30,7 +61,7 @@ void main() {
         {
           'occupations': ['Mühendis'],
           'cities': ['city:ankara'],
-          'education': ['bachelor'],
+          'education': ['education:bachelor'],
           'kpssStatus': 'required',
           'kpssType': 'P3',
           'kpssScore': 70,
@@ -95,6 +126,7 @@ void main() {
         find.text('Yaş şartı: henüz belirlenemedi').hitTestable(),
         findsOneWidget,
       );
+      expect(find.text('Eğitim: Lisans'), findsOneWidget);
       final cta = find.widgetWithText(FilledButton, 'Resmî belgeyi aç');
       expect(cta.hitTestable(), findsOneWidget);
       expect(tester.getSize(cta).height, greaterThanOrEqualTo(48));

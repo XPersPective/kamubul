@@ -231,7 +231,11 @@ Normal/saved canonical cache, guide offline, SBB freshness/conflicting aliases,
 backup roundtrip,320px1.3x light/dark/unknown/malformed/nav testleri vardır.
 Yeni canonical detail dört phone/tablet/light/dark/1.3x düzeninde üst/koşul
 bölümleri için8 golden taşır; gerçek AppTheme ve48dp CTA hit-test kontrolü.
-Test fontu Ahem: düzen regresyonu, gerçek glyph/physical premium kabulü değil.
+Golden test SDK'nın Roboto regular/medium/bold ve MaterialIcons fontlarını
+package_config'deki Flutter root'tan yükler; host fontu/yeni dependency yok.
+8 canonical +3 legacy reference gerçek Türkçe gliflerle görsel olarak incelendi;
+canonical fixture education:bachelor ve Lisans label assert kullanır. Telefon/
+tablet/light/dark/1.3x layout kontrolüdür; physical premium kabulü değildir.
 Önceki70023118 sürümü dashboard19 invocation/0 subrequest/0 error,
 CPU P50/P90/P99=2.04/5.26/6.29ms. Aynı sürüm15:54 scheduled source/expiry/AI
 slotu2ms CPU/748ms wall/outcome ok; idle/due kontrolü, başarılı detail/AI
