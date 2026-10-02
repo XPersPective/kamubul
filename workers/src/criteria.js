@@ -59,7 +59,11 @@ export function migrateFilters(filters, now = new Date()) {
 function matchAge(group,criteria,now){
   const date=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value?new Date(value):null;
   const asOf=date(criteria.ageAsOf);
-  if(!asOf||now-asOf>366*86400000||asOf>now)return 'unknown';
+  // ageAsOf is a civil date, not midnight UTC. Use the existing Istanbul pilot
+  // calendar so today's profile does not become "future" during 00:00–03:00.
+  // ponytail: UTC+3 Istanbul pilot; version the shared IANA calendar if source jurisdictions expand.
+  const local=new Date(+now+3*3600000),today=new Date(Date.UTC(local.getUTCFullYear(),local.getUTCMonth(),local.getUTCDate()));
+  if(!asOf||today-asOf>366*86400000||asOf>today)return 'unknown';
   const fields=['minAge','maxAge','ageReferenceDate','bornOnOrAfter','bornOnOrBefore'];
   if(group.ageStatus==='no_restriction')return fields.some(k=>group[k]!=null)?'unknown':'match';
   if(group.ageStatus!=='known'||!['minAge','maxAge','bornOnOrAfter','bornOnOrBefore'].some(k=>group[k]!=null))return 'unknown';

@@ -24,7 +24,7 @@ Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarıl�
 ## 2. Kalıcı bulut ve güvenli yapılandırma
 
 - Worker `kamubul-api`: https://kamubul-api.devx8585.workers.dev;
-  son CLI deployment version `0f072369-ecde-45b5-a2ad-6a8eea334194`,100%.
+  son CLI deployment version `70023118-b184-4cae-aee7-bc7587c33da6`,100%.
   D1 `kamubul`, UUID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB;
   migration0001–0015 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
 - `workers/wrangler.jsonc`: AI binding `@cf/meta/llama-3.1-8b-instruct`,
@@ -88,7 +88,10 @@ match/no_match/unknown, strict unknown push yok. Yaş+asOf tüm olası doğum g�
 aralığıdır; inclusive min/max/reference/birth bounds, completed years ve
 29Şubat→1Mart; partial overlap/conflict/malformed/unsupported calculation
 unknown.366day freshness; legacy referanssız yaş1970 olarak unknown kalır.
-58 ortak Worker/Dart/SQLite case ve144 enumerated-birthday oracle vardır.
+64 ortak Worker/Dart/SQLite case ve144 enumerated-birthday oracle vardır.
+AgeAsOf freshness bugün/<=366 takvim günü İstanbul UTC+3 pilotuna göre;
+00:00–03:00 bugünün tarihi future sayılmaz,367+ gün ve gerçek gelecek unknown.
+Source reference/birth bounds civil gün, deadline/publishedAt mutlak an kalır.
 81 city:<folded-name> ve5 education:* kimlik/label/alias sözlüğü canlıdır;
 meslek/kurum/kategori identity/wire version migration bütünü tamamlanmadı.
 
@@ -208,15 +211,15 @@ Android native secure write/reopen/plaintext cleanup API36/x64 emulator'da
 
 ## 7. Doğrulama, geçiş kodu ve sonraki kapılar
 
-Son doğrulama:167 Flutter full,175 core full,138 Worker native; changed Dart
+Son doğrulama:167 Flutter full,181 core full,144 Worker native; changed Dart
 analyze ve diff-check temiz. SQLite race tests:
 cross-owner initial registration bütün dependent rows'u korur; stale same-owner
 heartbeat409/newer criteria korunur/retry yeni version; delete/recreate hash
 guard. Mobile bounded retry/cache invalidation/identity preservation testleri.
 Normal/saved canonical cache, guide offline, SBB freshness/conflicting aliases,
 backup roundtrip,320px1.3x light/dark/unknown/malformed/nav testleri vardır.
-Latest actual Firebase/API x64 debug116612132bytes/22.2s (onboarding/registry/
-deadline code), cihaz kurulumu/visual proof yok. Önceki universal debug
+Latest actual Firebase/API x64 debug116605171bytes/15.4s (age calendar/onboarding/
+registry/deadline code), cihaz kurulumu/visual proof yok. Önceki universal debug
 223536538bytes/25.7s ve x64 debug89653916bytes/20.5s. emulator-5556 install-r
 storage error, yeni debug kurulmadı; unrelated
 files/apps veya kullanıcı verisi silinmedi. Profile actual-config x64 APK

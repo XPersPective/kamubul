@@ -1,4 +1,5 @@
 import 'turkish_cities.dart';
+import '../time/wall_clock.dart';
 
 enum CriteriaMatch { match, noMatch, unknown }
 
@@ -277,9 +278,14 @@ CriteriaMatch _matchAge(
   }
 
   final asOf = date(criteria['ageAsOf']);
+  // Same Istanbul pilot calendar as Worker; ageAsOf is a civil date.
+  final local = now.toUtc().add(
+    const Duration(minutes: kTurkeyUtcOffsetMinutes),
+  );
+  final today = DateTime.utc(local.year, local.month, local.day);
   if (asOf == null ||
-      now.difference(asOf).inMilliseconds > 366 * 86400000 ||
-      asOf.isAfter(now)) {
+      today.difference(asOf).inMilliseconds > 366 * 86400000 ||
+      asOf.isAfter(today)) {
     return CriteriaMatch.unknown;
   }
   const fields = [
