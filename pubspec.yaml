@@ -34,7 +34,7 @@ dependencies:
     git:
       url: https://github.com/XPersPective/napp_kit.git
       path: packages/napp_core
-      ref: core-v1.0.0
+      ref: core-v1.0.1
   napp_pro:
     git:
       url: https://github.com/XPersPective/napp_kit.git
@@ -77,7 +77,7 @@ dependency_overrides:
     git:
       url: https://github.com/XPersPective/napp_kit.git
       path: packages/napp_core
-      ref: core-v1.0.0
+      ref: core-v1.0.1
 
 dev_dependencies:
   flutter_test:

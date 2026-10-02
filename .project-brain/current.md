@@ -182,13 +182,19 @@ criteria upload açıklaması vardır; onboarding native permission istemez,
 bildirimleri kullanıcı ayrıca açar. Skip/save marker AppHome.onDone'da saklanır.
 5 widget check: skip/current-date/error/busy/city+KPSS/320px1.3x+keyboard.
 
-Template master7101480 fetch güncel; core-v1.0.0 OtherAppsPage/Repository reuse.
+Template master7101480 fetch güncel; core-v1.0.1 OtherAppsPage/Repository reuse.
 Keşfet5th destination + settings Diğer uygulamalarımız; ilk4 tab index korunur.
 OTHER_APPS_URL default napp_apps/HEAD/apps.json, explicit empty disables;
 HTTPS/URL guard, app-lifetime repository/24h SettingsStore cache ve real
 DoctorFilter tr/en embedded fallback, own package exclusion. Live catalogue
-200/schema1/1record. Shared repository body/redirect/cache corruption hardening
-henüz yapılmadı. napp_core/pro/ads Git tags korunur; yeni dependency yok.
+200/schema1/1record. Shared repository256KiB streaming cap/no redirects/total
+timeout+abort; rejected/cancelled body cleanup nonblocking, owned client closes,
+injected client remains caller-owned. Corrupt cache shape/type/date fallback,
+future date refresh ve default order0 omission near-cap offline retention.
+Core patch0.0.1+1 fixed tagcore-v1.0.1; old tags/pro/ads unchanged. Shared119
+workspace tests/analyze passed, independent review findings fixed. Actual new
+repository GitHub GET catalogue_count1, no injected/embedded fallback. Yeni
+dependency yok; package Git metadata preserves hosted ^0.0.1 constraints.
 
 ## 6. Cihazdaki bildirim ve güvenli kurulum kimliği
 
@@ -225,8 +231,10 @@ Aktif70023118 sürümü dashboard19 invocation/0 subrequest/0 error,
 CPU P50/P90/P99=2.04/5.26/6.29ms. Aynı sürüm15:54 scheduled source/expiry/AI
 slotu2ms CPU/748ms wall/outcome ok; idle/due kontrolü, başarılı detail/AI
 işleme veya10k kanıtı değil. Ayrıntı docs/WORKER_FREE_PILOT.md.
-Latest actual Firebase/API x64 debug116605171bytes/15.4s (age calendar/onboarding/
-registry/deadline code), cihaz kurulumu/visual proof yok. Önceki universal debug
+Latest actual Firebase/API x64 debug116610754bytes/141.3s (core catalogue patch/
+age calendar/onboarding/registry/deadline code), cihaz kurulumu/visual proof yok.
+171 Flutter/changed analyze passed with pinned core patch; real catalogue count1.
+Önceki universal debug
 223536538bytes/25.7s ve x64 debug89653916bytes/20.5s. emulator-5556 install-r
 storage error, yeni debug kurulmadı; unrelated
 files/apps veya kullanıcı verisi silinmedi. Profile actual-config x64 APK

@@ -496,11 +496,11 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/napp_core"
-      ref: "core-v1.0.0"
-      resolved-ref: ff837be1ec2173c0418bf99c684b2480155e40ae
+      ref: "core-v1.0.1"
+      resolved-ref: b9cf832961eea4dc3613d2d6196a099262d80f7e
       url: "https://github.com/XPersPective/napp_kit.git"
     source: git
-    version: "0.0.1"
+    version: "0.0.1+1"
   napp_pro:
     dependency: "direct main"
     description:
