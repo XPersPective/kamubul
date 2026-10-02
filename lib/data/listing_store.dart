@@ -383,7 +383,18 @@ class ListingStore {
         }
       } else {
         final summary = (item['summary'] as List? ?? const [])
-            .map((s) => s is Map ? s['text'] : s)
+            .map((s) {
+              if (s is! Map) return s;
+              final text = s['text'];
+              final label = s['scopeLabel'];
+              if (text is! String) return null;
+              if (label == null) return text;
+              return label is String &&
+                      label.trim().isNotEmpty &&
+                      label.length <= 50
+                  ? '$label: $text'
+                  : null;
+            })
             .whereType<String>()
             .take(5)
             .toList();

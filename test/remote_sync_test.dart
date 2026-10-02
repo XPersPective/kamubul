@@ -54,46 +54,59 @@ void main() {
     ],
   });
 
-  RemoteCatalogueClient client(String body, {int status = 200}) =>
-      RemoteCatalogueClient(
-        baseUrl: Uri.parse('https://kamubul.example'),
-        client: MockClient((request) async {
-          if (request.url.path == '/api/v2/meta') {
-            return http.Response.bytes(
-              utf8.encode(body),
-              status,
-              headers: {'etag': '"meta1"'},
-            );
-          }
-          expect(request.url.path, '/api/v2/listings');
-          expect(request.url.queryParameters['watermark'], '1');
-          return http.Response(
-            jsonEncode({
-              'watermark': 1,
-              'next': null,
-              'items': [
+  RemoteCatalogueClient client(
+    String body, {
+    int status = 200,
+  }) => RemoteCatalogueClient(
+    baseUrl: Uri.parse('https://kamubul.example'),
+    client: MockClient((request) async {
+      if (request.url.path == '/api/v2/meta') {
+        return http.Response.bytes(
+          utf8.encode(body),
+          status,
+          headers: {'etag': '"meta1"'},
+        );
+      }
+      expect(request.url.path, '/api/v2/listings');
+      expect(request.url.queryParameters['watermark'], '1');
+      return http.Response(
+        jsonEncode({
+          'watermark': 1,
+          'next': null,
+          'items': [
+            {
+              'id': 'stable',
+              'revision': 1,
+              'url': _url,
+              'sourceId': kKariyerSourceId,
+              'title': 'TEST KURUMU - Memur Alımı',
+              'category': 'Personel',
+              'publishedAt': '2026-09-28T08:00:00Z',
+              'updatedAt': '2026-09-29T08:00:00Z',
+              'deadline': '2026-10-12T20:59:00Z',
+              'places': ['ANKARA'],
+              'maxAge': 35,
+              'maxAgeQuote': '35 yaşını doldurmamış olmak',
+              'summary': [
+                'Yaş sınırı 35',
                 {
-                  'id': 'stable',
-                  'revision': 1,
-                  'url': _url,
-                  'sourceId': kKariyerSourceId,
-                  'title': 'TEST KURUMU - Memur Alımı',
-                  'category': 'Personel',
-                  'publishedAt': '2026-09-28T08:00:00Z',
-                  'updatedAt': '2026-09-29T08:00:00Z',
-                  'deadline': '2026-10-12T20:59:00Z',
-                  'places': ['ANKARA'],
-                  'maxAge': 35,
-                  'maxAgeQuote': '35 yaşını doldurmamış olmak',
-                  'summary': ['Yaş sınırı 35'],
+                  'text': '2024 KPSS (P94) puanı en az 60 puan ve üzeri olmak.',
+                  'scopeLabel': 'Destek personeli',
                 },
+                {
+                  'text':
+                      'Başvurular yalnız Kariyer Kapısı üzerinden alınacaktır.',
+                },
+                {'text': null, 'scopeLabel': 'Geçersiz'},
               ],
-            }),
-            200,
-            headers: {'content-type': 'application/json; charset=utf-8'},
-          );
+            },
+          ],
         }),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
       );
+    }),
+  );
 
   var kariyerCalls = 0;
   var sbbCalls = 0;
@@ -390,7 +403,11 @@ void main() {
     expect(stored.places, ['ANKARA']);
     expect(stored.maxAge, 35);
     expect(stored.maxAgeQuote, '35 yaşını doldurmamış olmak');
-    expect(stored.summary, ['Yaş sınırı 35']);
+    expect(stored.summary, [
+      'Yaş sınırı 35',
+      'Destek personeli: 2024 KPSS (P94) puanı en az 60 puan ve üzeri olmak.',
+      'Başvurular yalnız Kariyer Kapısı üzerinden alınacaktır.',
+    ]);
   });
 
   test('sunucu SBB\'yi sağlayamıyorsa yalnızca SBB cihazdan çekilir', () async {

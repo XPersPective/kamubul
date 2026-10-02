@@ -3,7 +3,9 @@
 Cloudflare dashboard Workers Plans ekranında Workers Free `$0`, Current plan
 doğrulandı. Ücretli upgrade/fallback açılmadı. Account subscriptions REST okuması
 mevcut OAuth kapsamıyla403/code10000 verdi; kapsam genişletilmedi. Model
-`@cf/meta/llama-3.1-8b-instruct-fp8` gerçek REST çağrısına HTTP200 yanıt verdi.
+ilk pilotta `@cf/meta/llama-3.1-8b-instruct-fp8` gerçek REST çağrısına HTTP200 yanıt verdi.
+Sonraki karşılaştırmada JSON Mode destekli `@cf/meta/llama-3.1-8b-instruct`
+seçildi; Workers Free planı korunur.
 
 ## Girdi ve kapsam
 
@@ -24,10 +26,10 @@ Bu, Worker kaynak egress'i veya Free CPU kanıtı değildir.
 | Aynı prompt, sınırlı yeni pilot |2| İlk parça kabul edildi; ikinci parçada birebir alıntı yok, iş tamamlanmadı |71.4137011049|
 | Alıntı içinden metin/temperature0 |1| Model metin/alıntıyı birebir kopyalamadı, yeni kontrol reddetti |49.4920400027|
 
-Toplam5 girişim,4 HTTP200. Yanıtların bildirdiği toplam179.8903009349 Neurons;
+İlk kontrol noktasında toplam5 girişim,4 HTTP200. Yanıtların bildirdiği toplam179.8903009349 Neurons;
 timeout çağrısının tüketimi dahil değildir. Bu tutar günlük hesap toplamı veya
-fatura değildir.3–5 maddelik tam çıktı, son birleştirme ve completed-hash dedupe
-gerçek modelle henüz kanıtlanmadı. Hiçbir deneme üretime tamamlanmış özet yazmadı.
+fatura değildir. İlk kontrol noktasında3–5 maddelik tam çıktı, son birleştirme ve
+completed-hash dedupe gerçek modelle henüz kanıtlanmamıştı. Pilotlar üretime özet yazmaz.
 
 Birinci parçada model, sınavsız KPSS sıralaması iddiasına puan eşitliği alıntısı
 ekledi; alıntının metinde bulunması iddiayı doğrulamıyordu. Koşul adaylarında
@@ -36,9 +38,12 @@ alıntılar da görüldü. Bu nedenle precision/recall kabul kapısı geçilmiş
 
 ## Uygulanan koruma ve kalan iş
 
-Özet `text` en az10/en çok240 karakter ve kaynakta birebir bulunan `quote`
-içinden kesintisiz bir alıntı olmalı. Prompt10–180/10–400 karakter ister,
-temperature0 kullanır. Paraphrase ve koşul çıkarımı kalite kapısı geçene kadar
+Özet `text` en az30/en çok240 karakter ve kaynakta birebir bulunan `quote`
+içinden kesintisiz bir alıntı olmalı; tekrar eden metinler elenir. Model yalnız
+30–240 karakterlik quote seçer; text kaynak alıntısından deterministik üretilir.
+JSON Mode destekli iki aday için JSON schema, diğer önceki fp8 model için
+json_object ve temperature0 kullanılır. Final en az3 ayrı doğrulanmış madde
+gerektirir; iki maddeli final yayımlanmaz. Paraphrase ve koşul çıkarımı kalite kapısı geçene kadar
 açılmaz; conditions boş istenir. Alıntı seçiminin önem/anlaşılabilirlik/coverage
 kalitesi henüz kanıtlanmadı. Bu geçici kaynak alıntısı koruması, hedefteki
 kanıtlı Türkçe özet ve typed şart çıkarımının yerine tamamlanmış kabul edilmez.
@@ -65,3 +70,59 @@ yazılmaz; manuel pilot tüketimi ayrıca değerlendirilmelidir. Tekrarlar otoma
 döngüye alınmaz. Rapor başarısızsa exit1; model API usage/Neurons, ham public
 çıktı ve kabul edilen summary kaydedilir. Ignored `.tmp` dosyaları Git'e girmez;
 devirde yukarıdaki kaynak/hash/sonuç kaydı esas alınır.
+
+## JSON Mode karşılaştırması ve son kontrol noktası
+
+Resmî [JSON Mode desteği](https://developers.cloudflare.com/workers-ai/features/json-mode/)
+doğrulandı; Free [fiyat/kota kuralları](https://developers.cloudflare.com/workers-ai/platform/pricing/)
+değiştirilmedi. Model seçimi sadece Free erişimli üç incelenmiş adaydan yapılır;
+CLI son parametresi modeli override eder, üretim config'ini değiştirmez.
+
+| Sonraki deneme | Çağrı | Sonuç | API bildirilen Neurons |
+| --- | ---: | --- | ---: |
+|3.3 70B json_object|2| İkinci parça schema dışı; tamamlanmadı |177.0352306366|
+|3.3 70B text+quote schema|1| Paraphrase üretildi; exact-excerpt guard reddetti |131.8466033936|
+|3.3 70B quote-only schema|3| İki parça+consolidation tamamlandı,3 madde |178.5308532715|
+|Önceki3.1 8B fp8 quote-only prompt|1| JSON yerine düz metin; yayımlanmadı |52.7209884515|
+|3.1 8B JSON Mode quote-only schema|3| İki parça+consolidation tamamlandı,5 madde |35.7728300095|
+|3.1 8B son scope+hash replay kontrolü|3|5 scoped madde; pending replay→superseded, yeni model çağrısı yok |35.8425664902|
+
+Bu belge kapsamındaki toplam18 girişim/17 HTTP200/1 timeout; bilinen toplam
+791.6393731877 Neurons, timeout tüketimi bilinmiyor. Bunlar tek gerçek ilan için
+kontrollü karşılaştırmalardır;18 farklı ilan veya hesap toplamı değildir.
+Seçilen8B JSON Mode son pilotunda3 çağrı yaklaşık6s sürdü; Worker CPU değildir.
+API result model alanı `@cf/meta/llama-3.1-8b-json` yönlendirmesi gösterdi;
+raporda gerçek usage.neurons esas alınır, fiyat tablosundan kullanım uydurulmaz.
+
+Model artık yalnız quote seçer; tekrar metin/paraphrase üretmez. Consolidation
+önceki gibi yalnız her parçanın ilk maddesini değil bütün doğrulanmış alıntıları
+görür.24KB request sınırı aşılırsa iş hata verir ve ilerleme korunur;
+çok büyük consolidation için bounded multi-pass hâlâ gerekir, alıntı sessizce
+atılmaz. JSON parse bozukluğu `ai_schema` olarak kaydedilir.
+
+Kadro bağlamı AI'dan alınmaz: quote bir kaynak pozisyonunda bulunuyorsa o
+pozisyonun başlığı (<=50 karakter), birden fazla pozisyonda “Bazı kadrolar”;
+pozisyon metninde hiç bulunmayıp ortak metinde bulunuyorsa genel. Aynı quote
+ortak metne de kopyalanmışsa kadro etiketi korunur. Tek gerçek kaynak
+alanında bulunmayan, birleştirme sınırını geçen quote reddedilir. Additive
+`scopeLabel` v2 mobil cache ve v1 string projection'da metnin önüne eklenir;
+eski string/unscoped maddeler korunur, malformed label/text elenir.
+
+Son gerçek çıktı: Bilgi ve Belge Yönetimi lisans/P3>=60 maddeleri
+“Kütüphaneci (Erkek-Kadın)”; yaş35, öğrenci kaydı ve vardiya şartları “Bazı
+kadrolar”. Bu bağlamlı kaynak alıntısı, bütün kadroların typed eligibility
+çıkarımı değildir. Genel deadline/yöntem coverage ve yararlı madde seçimi
+henüz>=50 örnek üzerinden ölçülmedi. Typed koşullar ve paraphrase kapısı kapalı.
+
+İlk iki başarılı rapor yalnız completed job'a yeniden girişte çağrı olmadığını
+kontrol etmişti. Son araç completed job'u aynı hash ile bellekte pending yapar;
+processed_hash guard gerçek model çağrısını atlar ve superseded durumu doğrular.
+SQL fixture/üretim kaydı değil, gerçek modelin tamamladığı bellekteki pilot işidir.
+Model config değişimi eski arşivi topluca yeniden işlemeye açmaz; extractor/model
+version ve planlı yeniden işleme sözleşmesi hâlâ ayrı kabul işidir.
+
+Doğrulama: Worker95 native test, Flutter132 full ve10 remote sync targeted,
+iki değişen Dart dosyası analyze temiz. Native regression later-source excerpts,
+final<3 unpublished, quote-only schema/object yanıt, kaynak kadro etiketleri ve
+cross-position quotation reddini kapsar. Mobil SQLite check label'ın kayıtta
+korunduğunu kanıtlar; gerçek cihaz/kapalı uygulama FCM veya release UX değildir.

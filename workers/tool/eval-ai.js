@@ -7,8 +7,8 @@ import {fileURLToPath} from 'node:url';
 import {processNotice,semanticInput,splitAiText} from '../src/pipeline.js';
 import {sha256} from '../src/worker.js';
 
-const [inputPath,reportPath]=process.argv.slice(2);
-assert.ok(inputPath&&reportPath,'Usage: node tool/eval-ai.js real-notice.json report.json');
+const [inputPath,reportPath,modelOverride]=process.argv.slice(2);
+assert.ok(inputPath&&reportPath,'Usage: node tool/eval-ai.js real-notice.json report.json [model]');
 const notice=JSON.parse(readFileSync(inputPath,'utf8'));
 assert.ok(notice.id&&notice.externalId&&notice.sourceId&&notice.title&&notice.text,'Full official notice required');
 const sourceUrl=new URL(notice.url);
@@ -20,6 +20,8 @@ const chunks=splitAiText(text),callLimit=chunks.length+(chunks.length>1?1:0);
 // ponytail: three paid-in-compute calls maximum per manual pilot; larger documents need a reviewed evaluation budget.
 assert.ok(callLimit<=3,'Pilot permits at most three model calls');
 const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
+const aiModel=modelOverride??config.vars.AI_MODEL;
+assert.ok(['@cf/meta/llama-3.1-8b-instruct-fp8','@cf/meta/llama-3.1-8b-instruct','@cf/meta/llama-3.3-70b-instruct-fp8-fast'].includes(aiModel),'Only reviewed Free-accessible models; no paid fallback');
 // Capture authorized OAuth in memory; never persist or print credentials.
 let auth;
 try{auth=JSON.parse(execFileSync(process.execPath,[fileURLToPath(new URL('../node_modules/wrangler/bin/wrangler.js',import.meta.url)),'auth','token','--json'],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:30000}));}
@@ -44,15 +46,19 @@ const calls=[],AI={async run(model,request,options){
 }};
 try{
   for(let i=0;i<callLimit;i++){
-    await processNotice({DB,AI,AI_MODEL:config.vars.AI_MODEL,AI_DAILY_JOBS:String(callLimit)});
+    await processNotice({DB,AI,AI_MODEL:aiModel,AI_DAILY_JOBS:String(callLimit)});
     const job=sql.prepare("SELECT * FROM processing_jobs WHERE id='pilot'").get();
     if(job.state!=='pending'||job.error_code)break;
   }
   const job=sql.prepare("SELECT * FROM processing_jobs WHERE id='pilot'").get();
   const payload=JSON.parse(sql.prepare('SELECT payload FROM listings WHERE id=?').get(notice.id).payload);
-  const before=calls.length;await processNotice({DB,AI,AI_MODEL:config.vars.AI_MODEL});
+  // Replay the completed hash as pending, so the hash guard itself is exercised.
+  if(job.state==='completed')sql.prepare("UPDATE processing_jobs SET state='pending',lease_until=NULL,due_at=? WHERE id='pilot'").run(new Date().toISOString());
+  const before=calls.length;await processNotice({DB,AI,AI_MODEL:aiModel});
   assert.equal(calls.length,before,'Completed hash must not be inferred again');
-  const report={sourceUrl:notice.url,listingId:notice.id,inputHash:hash,model:config.vars.AI_MODEL,textBytes:Buffer.byteLength(text),chunks:chunks.length,calls,reportedNeurons:calls.reduce((sum,c)=>sum+(c.result?.usage?.neurons??0),0),state:job.state,errorCode:job.error_code,summary:payload.summary??[],aiCandidates:JSON.parse(job.input).aiCandidates??null,completedHashDedupChecked:job.state==='completed',scope:'Actual REST inference and production pipeline with in-memory SQLite; API-reported neurons, not invoice, Worker CPU, production D1, or field precision'};
+  const replayState=sql.prepare("SELECT state FROM processing_jobs WHERE id='pilot'").get().state;
+  if(job.state==='completed')assert.equal(replayState,'superseded');
+  const report={sourceUrl:notice.url,listingId:notice.id,inputHash:hash,model:aiModel,textBytes:Buffer.byteLength(text),chunks:chunks.length,calls,reportedNeurons:calls.reduce((sum,c)=>sum+(c.result?.usage?.neurons??0),0),state:job.state,errorCode:job.error_code,summary:payload.summary??[],aiCandidates:JSON.parse(job.input).aiCandidates??null,completedHashDedupChecked:job.state==='completed',replayState,scope:'Actual REST inference and production pipeline with in-memory SQLite; API-reported neurons, not invoice, Worker CPU, production D1, or field precision'};
   writeFileSync(reportPath,JSON.stringify(report,null,2));
   console.log(JSON.stringify({state:report.state,errorCode:report.errorCode,calls:calls.length,summaryItems:report.summary.length,reportPath}));
   if(job.state!=='completed')process.exitCode=1;

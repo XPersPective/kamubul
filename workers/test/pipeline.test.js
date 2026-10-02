@@ -28,10 +28,10 @@ function insertNotice(sql,text){
 }
 function model(calls){return {async run(model,request,options){
   assert.equal(options.rejectIfBusy,true);assert.ok(new TextEncoder().encode(JSON.stringify(request)).length<=24000);
-  assert.match(request.messages[0].content,/10-180 characters/);assert.match(request.messages[0].content,/10-400 characters/);assert.equal(request.temperature,0);
+  assert.match(request.messages[0].content,/30-240 characters/);assert.equal(request.temperature,0);
   const {text}=JSON.parse(request.messages[1].content);calls.push(text);
   const quote=text.startsWith('[{')?JSON.parse(text)[0].quote:text.slice(0,80);
-  return {response:JSON.stringify({summary:[{text:quote,quote}],conditions:[]})};
+  return {response:JSON.stringify({summary:[0,1,2].map(i=>({text:quote.slice(i,60+i),quote})),conditions:[]})};
 }};}
 
 test('scheduled timestamp separates source, matching and delivery into three slots',async()=>{
@@ -668,6 +668,28 @@ test('invalid token removes candidate facets but preserves saved preferences',as
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM installation_facets').get().n,0);
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,1);
   assert.equal(sql.prepare('SELECT enabled FROM installations').get().enabled,0);
+});
+
+test('consolidation keeps later source excerpts and incomplete final summaries stay unpublished',async t=>{
+  const quotes=['Başvurular yalnız Kariyer Kapısı üzerinden alınacaktır.','Son başvuru tarihi itibarıyla 35 yaşını doldurmamış olmak.','2024 KPSS (P94) puanı en az 60 puan ve üzeri olmak.'];
+  for(const count of [2,3]){
+    const {sql,DB}=database();t.after(()=>sql.close());
+    const text=quotes.join('\n').repeat(100);insertNotice(sql,text);
+    const progress={index:splitAiText(text).length,summaries:[quotes.map(quote=>({text:quote,quote}))],conditions:[[]]};
+    sql.prepare("UPDATE processing_jobs SET input=json_set(input,'$.aiProgress',json(?)) WHERE id='processing'").run(JSON.stringify(progress));
+    await processNotice({DB,AI_MODEL:'@cf/meta/llama-3.3-70b-instruct-fp8-fast',AI:{async run(_,request){
+      assert.equal(request.response_format.type,'json_schema');assert.equal(request.response_format.json_schema.properties.summary.minItems,3);
+      assert.equal(request.response_format.json_schema.properties.summary.items.additionalProperties,false);
+      const excerpts=JSON.parse(JSON.parse(request.messages[1].content).text).map(s=>s.quote);
+      assert.ok(excerpts.includes(quotes[1]));assert.ok(excerpts.includes(quotes[2]));
+      return {response:{summary:quotes.slice(0,count).map(quote=>({quote})),conditions:[]}};
+    }}});
+    const job=sql.prepare("SELECT state,error_code FROM processing_jobs WHERE id='processing'").get();
+    assert.equal(job.state,count===3?'completed':'pending');assert.equal(job.error_code,count===3?null:'ai_incomplete_summary');
+    const listing=sql.prepare("SELECT payload,processed_hash FROM listings WHERE id='job'").get();
+    assert.equal(listing.processed_hash,count===3?'hash':null);
+    assert.equal(JSON.parse(listing.payload).summary.length,count===3?3:0);
+  }
 });
 
 test('city identity migration protects old anchors until authenticated heartbeat rebuilds them',async t=>{

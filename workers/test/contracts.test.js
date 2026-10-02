@@ -60,6 +60,21 @@ test('unsupported AI statements never enter summary',()=>{
   const quote='Başvurular yalnız Kariyer Kapısı üzerinden alınacaktır.';
   assert.deepEqual(validateAiSummary({summary:[{text:'KPSS en az 70 puan olmalıdır.',quote}]},quote),[]);
   assert.deepEqual(validateAiSummary({summary:[{text:quote,quote}]},quote),[{text:quote,quote}]);
+  assert.deepEqual(validateAiSummary({summary:[{quote}]},quote),[{text:quote,quote}]);
+  assert.deepEqual(validateAiSummary({summary:[{text:'Kariyer Kapısı',quote}]},quote),[]);
+  assert.deepEqual(validateAiSummary({summary:[{text:quote,quote},{text:quote,quote}]},quote),[{text:quote,quote}]);
+});
+
+test('summary scope comes from source positions, never from model labels or concatenated fragments',()=>{
+  const quote='2024 KPSS (P94) puanı en az 60 puan ve üzeri olmak.';
+  const shared='Son başvuru tarihi itibarıyla 35 yaşını doldurmamış olmak.';
+  const general='Başvurular yalnız Kariyer Kapısı üzerinden alınacaktır.';
+  const notice={text:general,positions:[{title:'Kütüphaneci',text:shared},{title:'Destek personeli',text:quote+'\n'+shared}]};
+  const text=[notice.text,...notice.positions.map(p=>p.text)].join('\n\n');
+  const summary=validateAiSummary({summary:[{quote,scopeLabel:'Tüm kadrolar'},{quote:shared},{quote:general}]},text,notice);
+  assert.equal(summary[0].scopeLabel,'Destek personeli');assert.equal(summary[1].scopeLabel,'Bazı kadrolar');assert.equal(summary[2].scopeLabel,undefined);
+  assert.equal(validateAiSummary({summary:[{quote}]},text,{...notice,text:notice.text+'\n'+quote})[0].scopeLabel,'Destek personeli');
+  assert.deepEqual(validateAiSummary({summary:[{quote:general+'\n\n'+shared}]},text,notice),[]);
 });
 test('real migration enforces identity, committed changes and deletion cascade',()=>{
   const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');

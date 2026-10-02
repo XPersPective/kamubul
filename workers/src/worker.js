@@ -167,7 +167,7 @@ export async function fetchRequest(request,env,ctx){
 }
 function conditional(request,body,etag){const headers={'ETag':etag,'Cache-Control':'public, max-age=60, s-maxage=60'};return request.headers.get('if-none-match')===etag?new Response(null,{status:304,headers}):json(body,200,headers);}
 function sourceV1(s){return {id:s.id,name:s.name,state:s.state==='pending'?'failed':s.state,lastAttemptAt:s.last_attempt,lastSuccessAt:s.last_success,note:s.note,count:0};}
-function v1Listing(p){const g=p.requirementGroups?.length===1?p.requirementGroups[0]:{};return {...p,source:p.sourceId,published:p.publishedAt,fetched:p.updatedAt??p.firstSeenAt,kpss:g.kpssType??null,education:g.education?.length===1?g.education[0]:null,maxAge:g.maxAge??null,summary:(p.summary??[]).map(s=>typeof s==='string'?s:s.text),saved:false};}
+function v1Listing(p){const g=p.requirementGroups?.length===1?p.requirementGroups[0]:{};return {...p,source:p.sourceId,published:p.publishedAt,fetched:p.updatedAt??p.firstSeenAt,kpss:g.kpssType??null,education:g.education?.length===1?g.education[0]:null,maxAge:g.maxAge??null,summary:(p.summary??[]).map(s=>typeof s==='string'?s:s.scopeLabel?`${s.scopeLabel}: ${s.text}`:s.text),saved:false};}
 export async function cachedFetch(request,env,ctx){
   const url=new URL(request.url),path=url.pathname;
   const parameters=path==='/api/v2/listings'?['watermark','after','limit']:path==='/api/v2/changes'?['watermark','after','limit']:['/api/v2/meta','/api/v2/taxonomy'].includes(path)||/^\/api\/v2\/listings\/[^/]+$/.test(path)?[]:null;

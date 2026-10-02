@@ -58,14 +58,22 @@ Shared Dart/Worker corpus31 case; bütün81 ID/label ve unknown/district durumla
 kontrol edilir. Dictionary/coded-city matching çalışması actual source city
 coverage, AI/model kalitesi veya gerçek cihaz push kanıtı değildir.
 
-Model `@cf/meta/llama-3.1-8b-instruct-fp8`, güncel official catalogue'da doğrulandı:
-[model](https://developers.cloudflare.com/workers-ai/models/llama-3.1-8b-instruct-fp8/),
+Model `@cf/meta/llama-3.1-8b-instruct`, güncel official JSON Mode desteğinde doğrulandı:
+[JSON Mode](https://developers.cloudflare.com/workers-ai/features/json-mode/),
 [Free allocation](https://developers.cloudflare.com/workers-ai/platform/pricing/).
-Gerçek REST pilotu5 girişimde4 HTTP200 aldı; raporlanan179.8903 Neurons ve bir
-timeout tüketimi bilinmiyor. Tam iki-parça/birleştirme sonucu doğrulanmadı;
-[pilot kanıtı](../docs/AI_MODEL_PILOT.md) ve `tool/eval-ai.js` tekrar komutu içerir.
-Model alıntı yanında desteklenmeyen iddia ürettiği için özet text'i yalnız
-alıntının birebir içinden kabul edilir; paraphrase/koşul kalite kapısı açık.
+Gerçek REST karşılaştırmasında18 girişim/17 HTTP200/1 timeout oldu; bildirilen
+toplam791.6394 Neurons, timeout tüketimi bilinmiyor. JSON Mode8B ile son gerçek
+ilan iki parça+consolidation/3 çağrıda5 kaynak alıntısı üretti,35.8426 Neurons;
+aynı completed hash'i pending replay etmek yeni model çağrısı yapmadan superseded
+oldu. [Pilot kanıtı](../docs/AI_MODEL_PILOT.md), CLI model override ve sınırları
+içerir. Üretim D1 pilot kaydı/push yok, source_only20 ilan korunur.
+Text modelden yeniden yazılmaz; exact quote'dan üretilir,30–240 karakter/duplicate
+kontrolü ve final>=3 madde gerekir. Quote-only JSON schema şekli sınırlasa da
+kaynak doğrulaması ayrıca yapılır. Her parçanın bütün alıntıları consolidation'a
+gider;24KB aşımında hata/kalıcı ilerleme, sessiz veri kırpma yok. Source position
+etiketi compiler'dan gelir; additive scopeLabel, v1/mobile string'de korunur.
+Cross-position birleşme alıntısı reddedilir. Paraphrase/typed koşul precision ve
+genel useful-summary coverage kapısı açık; bu kaynak alıntısı geçici korumadır.
 
 `FCM_CLIENT_EMAIL` ve `FCM_PRIVATE_KEY` yalnız Worker Secrets'tadır.
 Firebase Android client ayarı sunucu özel anahtarının yerine geçmez.
