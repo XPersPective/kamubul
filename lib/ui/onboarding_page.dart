@@ -54,8 +54,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       'sehir': city.isEmpty ? '' : canonicalCity(city) ?? city,
       'egitim': ?_education,
       'yas': age,
-      if (age.isNotEmpty)
-        'yasTarih': DateTime.now().toIso8601String().substring(0, 10),
+      if (age.isNotEmpty) 'yasTarih': dayKey(wallClock(DateTime.now())),
       'kpss': ?(_kpssController.text.trim().isEmpty
           ? null
           : _kpssController.text.trim().toUpperCase()),

@@ -181,6 +181,11 @@ controller dispose ve keyboard-aware ListView/expanded primary button. Server
 criteria upload açıklaması vardır; onboarding native permission istemez,
 bildirimleri kullanıcı ayrıca açar. Skip/save marker AppHome.onDone'da saklanır.
 5 widget check: skip/current-date/error/busy/city+KPSS/320px1.3x+keyboard.
+Onboarding ve editörün bugün doğrulaması mevcut wallClock/dayKey ile Türkiye
+takvimini kullanır; cihaz saat dilimi aynı referansı değiştirmez. Kayıtlı arama
+özetinde yaşın referans tarihi görünür. Editör366gün/future unknown ve strict
+push açıklaması verir; doğrulama yalnız tarihi değiştirir, yaşı tahmin etmez.
+Normal/320px1.3x düzenleme testleri bu davranışı ve eski tarihi korumayı denetler.
 
 Template master7101480 fetch güncel; core-v1.0.1 OtherAppsPage/Repository reuse.
 Keşfet5th destination + settings Diğer uygulamalarımız; ilk4 tab index korunur.

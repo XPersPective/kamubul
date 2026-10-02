@@ -10,6 +10,8 @@ import 'package:kamubul_core/kamubul_core.dart'
         SourceState,
         CatalogueMetadata,
         SearchCriteria,
+        dayKey,
+        wallClock,
         educationLabel,
         RemoteCatalogueClient,
         RemoteCatalogueException,
@@ -1010,8 +1012,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
     final keyword = TextEditingController(text: '${values['keyword'] ?? ''}');
     var keywordScope = values['keywordScope'] == 'title' ? 'title' : 'full';
     final ageDate = TextEditingController(
-      text:
-          '${values['ageAsOf'] ?? DateTime.now().toIso8601String().substring(0, 10)}',
+      text: '${values['ageAsOf'] ?? dayKey(wallClock(DateTime.now()))}',
     );
     String? error;
     final pendingChoices = <String, TextEditingController>{};
@@ -1153,12 +1154,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     keyboardType: TextInputType.datetime,
                     decoration: const InputDecoration(
                       labelText: 'Yaş bilgisi tarihi (YYYY-AA-GG)',
+                      helperText: 'Yaşınız değiştiğinde güncelleyin. 366 günden eski veya gelecekteki bilgiyle yaş uygunluğu doğrulanmaz; kesin uygunluk bildirimi gönderilmez.',
+                      helperMaxLines: 6,
                     ),
                   ),
                   TextButton(
-                    onPressed: () => ageDate.text = DateTime.now()
-                        .toIso8601String()
-                        .substring(0, 10),
+                    onPressed: () =>
+                        ageDate.text = dayKey(wallClock(DateTime.now())),
                     child: const Text('Yaşımı bugün doğrula'),
                   ),
                   TextField(
@@ -1469,7 +1471,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
     }
     if (criteria['last30'] == true) parts.add('son 30 gün');
     final yas = criteria['age'];
-    if (yas != null) parts.add('yaş $yas');
+    if (yas != null) {
+      parts.add('yaş $yas (${criteria['ageAsOf']})');
+    }
     final kpss = criteria['kpssType'] as String?;
     if (kpss != null && kpss.isNotEmpty) parts.add('KPSS $kpss');
     final score = criteria['kpssScore'];

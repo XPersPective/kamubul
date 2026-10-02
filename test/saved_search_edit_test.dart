@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/home_page.dart';
 import 'package:kamubul_core/remote/catalogue_delta.dart';
+import 'package:kamubul_core/time/wall_clock.dart';
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -424,6 +425,21 @@ void main() {
     expect(
       tester.widget<TextField>(ageDateField).controller!.text,
       '1970-01-01',
+    );
+    expect(find.textContaining('366 günden eski'), findsOneWidget);
+    final confirmAge = find.text('Yaşımı bugün doğrula');
+    await tester.ensureVisible(confirmAge);
+    await pumpRoute(tester);
+    await tester.tap(confirmAge);
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(ageDateField).controller!.text,
+      dayKey(wallClock(DateTime.now())),
+    );
+    expect(
+      tester.widget<TextField>(fields.at(1)).controller!.text,
+      age,
+      reason: 'Tarihi doğrulamak adayın yaşını tahmin ederek değiştirmez',
     );
     await tester.tap(find.text('Vazgeç'));
     await pumpRoute(tester);

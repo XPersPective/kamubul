@@ -71,10 +71,7 @@ void main() {
       await press(tester, 'Devam');
       await press(tester, 'İlanları bul');
       expect(done, 1);
-      expect(
-        saved!['yasTarih'],
-        DateTime.now().toIso8601String().substring(0, 10),
-      );
+      expect(saved!['yasTarih'], dayKey(wallClock(DateTime.now())));
       expect(saved!['kpss'], 'P3');
       final criteria = SearchCriteria.fromLegacy(saved!).values;
       expect(criteria['age'], 30);
