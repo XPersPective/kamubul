@@ -28,6 +28,7 @@ async function boundedCataloguePage(db,statement){
   if(!selected.length)return {rows:[],hasMore:false};
   const rows=(await db.prepare(`SELECT * FROM catalogue_changes WHERE seq IN (${selected.map(()=>'?').join(',')})`).bind(...selected.map(r=>r.seq)).all()).results;
   const bySeq=new Map(rows.map(r=>[r.seq,r]));
+  if(selected.some(r=>!bySeq.has(r.seq)))throw new Error('catalogue_expired');
   return {rows:selected.map(r=>bySeq.get(r.seq)),hasMore:selected.length<metadata.length};
 }
 async function authenticate(request,db,id){
@@ -111,6 +112,7 @@ export async function fetchRequest(request,env,ctx){
       if(watermark<after)return json({error:'watermark'},400);
       if(after<floor)return json({error:'cursor_expired'},409);
       const {rows}=await boundedCataloguePage(env.DB,env.DB.prepare('SELECT seq,listing_id,length(CAST(payload AS BLOB)) payload_bytes FROM catalogue_changes WHERE seq>? AND seq<=? ORDER BY seq LIMIT ?').bind(after,watermark,limit));
+      if(after<(await env.DB.prepare('SELECT floor FROM catalogue_retention WHERE id=1').first()).floor)return json({error:'cursor_expired'},409);
       const appliedThrough=rows.length?rows.at(-1).seq:watermark;
       return conditional(request,{watermark,appliedThrough,hasMore:appliedThrough<watermark,changes:rows.map(r=>({seq:r.seq,operation:r.operation,id:r.listing_id,revision:r.revision,item:JSON.parse(r.payload)}))},'"changes-'+after+'-'+watermark+'-'+limit+'"');
     }
@@ -122,6 +124,7 @@ export async function fetchRequest(request,env,ctx){
       if(watermark<floor)return json({error:'snapshot_expired'},409);
       const {rows,hasMore}=await boundedCataloguePage(env.DB,env.DB.prepare(`SELECT c.seq,c.listing_id,length(CAST(c.payload AS BLOB)) payload_bytes FROM catalogue_changes c JOIN (SELECT listing_id,MAX(seq) seq FROM catalogue_changes WHERE seq<=? GROUP BY listing_id) last ON c.seq=last.seq
         WHERE c.operation='upsert' AND c.listing_id>? ORDER BY c.listing_id LIMIT ?`).bind(watermark,after,limit+1));
+      if(watermark<(await env.DB.prepare('SELECT floor FROM catalogue_retention WHERE id=1').first()).floor)return json({error:'snapshot_expired'},409);
       const visible=rows.slice(0,limit);return conditional(request,{watermark,items:visible.map(r=>JSON.parse(r.payload)),next:hasMore||rows.length>limit?visible.at(-1).listing_id:null},'"list-'+watermark+'-'+await sha256(after)+'-'+limit+'"');
     }
     if(path.startsWith('/api/v2/listings/')) {
@@ -156,6 +159,7 @@ export async function fetchRequest(request,env,ctx){
     }
     return json({error:'not_found'},404);
   } catch(error){
+    if(error.message==='catalogue_expired')return json({error:path==='/api/v2/changes'?'cursor_expired':'snapshot_expired'},409);
     if(error.message==='record_oversize')return json({error:'record_oversize'},413);
     if(error instanceof SyntaxError||['criteria','unknown_criterion','registration','search','mode','content_type','body_oversize','age','ageAsOf','kpssScore','kpssType','kpssYear','version','cities','categories','occupations','institutions','education','keyword','keywordScope','onlyKpss','last30'].includes(error.message))return json({error:'invalid_request'},400);
     console.error('api_failure',error.name);return json({error:'service_unavailable'},503);

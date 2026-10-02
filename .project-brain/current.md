@@ -32,7 +32,7 @@ Eğitim taxonomy kontrol noktası: beş sabit education:* kimliği, Ön lisans/�
 Katalog API strict after/watermark validasyonu korundu: malformed400/future409,
 metadata ETag saklama sınırını kapsar; public cache v2. Migration0011 kalıcı floor
 ve mobil typed expired-pin recovery aşağıdaki güncel kontrol noktasında doğrulandı.
-Bounded log silme hâlâ sonraki adımdır; floor'daki immutable per-listing base korunmalı.
+Bounded log silme migration0012 ile aşağıdaki güncel bakım akışındadır.
 
 ## 3. Ortak kod ve eski sunucu — VERIFIED kod incelemesi
 
@@ -48,7 +48,7 @@ Kariyer Kapısı liste/API/RSS ve SBB WebForms/PDF Dart adaptörleri mevcut. Wor
 
 ## 5. Kalıcı bulut kaynakları — VERIFIED CLI/live HTTP, planlar OBSERVED konsol
 
-- Worker `kamubul-api`, `https://kamubul-api.devx8585.workers.dev`, Free $0; D1 `kamubul`, ID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB binding. Migration0001–0011 remote uygulandı. Deployment `ade7386c-365e-45f4-af25-e5f798907d5b`; live health status=ok/latestSeq40/fcmConfigured=true/aiConfigured=true. Cron her dakika; scheduledTime mod3 kaynak/AI/expiry, eşleştirme, gönderim slotlarını ayırır. Her aşama3dk, kaynak polling30dk. Üretime demo ilan/cihaz yazılmadı; son read-only installations/outbox/facets/pending_matches0/0/0/0 ve bu çalışmada registry/push çağrısı yok.
+- Worker `kamubul-api`, `https://kamubul-api.devx8585.workers.dev`, Free $0; D1 `kamubul`, ID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB binding. Migration0001–0012 remote uygulandı. Deployment `7e082188-63dc-4dfb-b8bb-05aff99e123e`; live health status=ok/latestSeq40/fcmConfigured=true/aiConfigured=true. Cron her dakika; scheduledTime mod3 kaynak/AI/expiry, eşleştirme, gönderim slotlarını ayırır. Her aşama3dk, kaynak polling30dk. Üretime demo ilan/cihaz yazılmadı; son read-only installations/outbox/facets/pending_matches0/0/0/0 ve bu çalışmada registry/push çağrısı yok.
 - Worker v2 meta/taxonomy/listings/changes/detail/installations/history ve v1 geçiş uçları var. Immutable seq/tombstone trigger, source lease/cursor/hash, durable AI processing, matching cursor/outbox/FCM HTTPv1 kodu bulunur; runtime dependency yok. Indexed candidate matching uygulandı; büyük kitle kapasitesi, eğitim dışı canonical/alias kimliği ve toplam server retention eksik; mobil retained-cursor bootstrap hazır.
 - Aday indeksi installation_facets(key,installation_id); şehir/meslek/eğitim/kurumdan en kısa arama listesi, broad/keyword/score-only `*`. Registry transaction'da set diff yapar (değişmeyen facet heartbeat yazımı0), eski abonelikler migration'da wildcard ile korunur. İlan kadro anahtarları superset, exact shared predicate son karar; unknown push yok. Slot başına10 aday/4 boş facet, kalıcı facet_index+ID cursor, kurulum+ilan outbox unique. Native fixture sorgu sayımı<=38; canlı EXPLAIN covering key+ID indeksi. Free50 sorgu/subrequest sınırı için slotlar ayrıldı; gerçek CPU/fanout/write kapasitesi henüz ölçülmedi.
 - Private history migration0005: FCM accepted commit trigger'ı notification_sequence tek-satır sayacından history_seq/accepted_at atar, eski accepted kayıtlar korunur; repeated acceptance yeni sıra üretmez. Authenticated own-record endpoint accepted-only, compact presentation fields, numeric after/pinned watermark/appliedThrough/hasMore/next; hash cursor400/ahead409. Live installation_history_seq range index doğrulandı; production accepted/outbox0 olduğundan gerçek gönderimle sequence doğrulanmadı. Native fixtures düşük hash/yeni acceptance/pinned pages/auth crossing/2MB source excluded/backfill kontrolü içerir. İki ek row mutation/acceptance+index maliyeti; accepted payload arşivi ve mobil feed/dedupe kodu mevcut, gerçek cihaz teslimi ve kalan retention açık.
@@ -64,16 +64,16 @@ Kariyer Kapısı liste/API/RSS ve SBB WebForms/PDF Dart adaptörleri mevcut. Wor
 
 ## 6. Doğrulama ve açık sınırlar
 
-Migration0008 outbox_accepted_retention partial covering indeksi canlı EXPLAIN ile doğrulandı. Saatlik bakım90day accepted kayıtların en çok20 tanesini archived yapar; payload `{}`/FCM ID/error silinir. Installation+listing UNIQUE/eventID/history_seq/accepted_at/digest bağı tutulur, pending/leased grup üyeleri korunur. History GET accepted-only, watermark MAX tüm accepted+archived sequence'den; pinned boş final page imleci ilerletir, yeni acceptance sıra artırır. Native69 test (prune/dedupe/20row cap/pending group/pinned gaps) ve canlı20/40/304 geçti. Üretim outbox/installation0, model/gerçek push yok. Migration0009 terminal payload indeksi canlı EXPLAIN ile doğrulandı; aynı bakım slotunda90 gün önce oluşturulan failed/cancelled/expired satırlardan<=20 payload boşaltılır ve FCM ID temizlenir. Durum/error code/UNIQUE/identity/digest bağı korunur, incomplete digest üyeleri korunur; boş payload partial indeksten çıkar. Native70 full; sınır günü/yeni/pending/leased/grup/dedupe/sequence ve tekrar-pass kontrolü geçti. Owner yoksa5, varsa9 SQL; gerçek backlog CPU/read/write, uzun yaşayan kurulum tombstone kapasitesi ve katalog retention hâlâ açık.
+Migration0008 outbox_accepted_retention partial covering indeksi canlı EXPLAIN ile doğrulandı. Saatlik bakım90day accepted kayıtların en çok20 tanesini archived yapar; payload `{}`/FCM ID/error silinir. Installation+listing UNIQUE/eventID/history_seq/accepted_at/digest bağı tutulur, pending/leased grup üyeleri korunur. History GET accepted-only, watermark MAX tüm accepted+archived sequence'den; pinned boş final page imleci ilerletir, yeni acceptance sıra artırır. Native69 test (prune/dedupe/20row cap/pending group/pinned gaps) ve canlı20/40/304 geçti. Üretim outbox/installation0, model/gerçek push yok. Migration0009 terminal payload indeksi canlı EXPLAIN ile doğrulandı; aynı bakım slotunda90 gün önce oluşturulan failed/cancelled/expired satırlardan<=20 payload boşaltılır ve FCM ID temizlenir. Durum/error code/UNIQUE/identity/digest bağı korunur, incomplete digest üyeleri korunur; boş payload partial indeksten çıkar. Native70 full; sınır günü/yeni/pending/leased/grup/dedupe/sequence ve tekrar-pass kontrolü geçti. Owner yoksa5, varsa9 SQL; gerçek backlog CPU/read/write, uzun yaşayan kurulum tombstone kapasitesi hâlâ açık. Katalog bakım politikası aşağıda güncel.
 Mobil history/registry25 targeted test ve ilgili analyze temiz; yeni boş-final-page/pinned ilerleme kontrolü eklendi. Flutter131 full yeni history ve selector kontrollerini içerir.
 
-Migration0007 rate_limit_expiry covering indeksi canlı EXPLAIN ile doğrulandı. Saatlik :59 Cron normal gönderim yerine maintainRegistry çalıştırır (bir saatlik döngüde bir kez gönderim aralığı6dk): 120day stale/send-lease-expired owner seçilir, aynı transaction tüm adımlarda tarih/lease yeniden kontrolüyle disabled→20 outbox/50 facet budama→child bitince owner+<=20 search cascade. Heartbeat araya girerse kayıtlar kalır; aktif send lease korunur. Pass başına100 expired rate counter/30 eski UTC günlük AI budget row; bugünkü bütçe korunur. Native69 test stale boundary/partial resume/concurrent heartbeat/live index ve canlı20/40/304 geçti. Üretimde installation/outbox0; gerçek bakım backlog/CPU/load veya tüm server retention tamamlandı kanıtı değildir. Accepted history payload arşivi yukarıda doğrulandı; pinned katalog log retention ve tombstone toplam kapasitesi açık.
+Migration0007 rate_limit_expiry covering indeksi canlı EXPLAIN ile doğrulandı. Saatlik :59 Cron normal gönderim yerine maintainRegistry çalıştırır (bir saatlik döngüde bir kez gönderim aralığı6dk): 120day stale/send-lease-expired owner seçilir, aynı transaction tüm adımlarda tarih/lease yeniden kontrolüyle disabled→20 outbox/50 facet budama→child bitince owner+<=20 search cascade. Heartbeat araya girerse kayıtlar kalır; aktif send lease korunur. Pass başına100 expired rate counter/30 eski UTC günlük AI budget row; bugünkü bütçe korunur. Native69 test stale boundary/partial resume/concurrent heartbeat/live index ve canlı20/40/304 geçti. Üretimde installation/outbox0; gerçek bakım backlog/CPU/load veya tüm server retention tamamlandı kanıtı değildir. Accepted history payload arşivi yukarıda doğrulandı; Katalog bakım akışı aşağıda doğrulandı; tombstone toplam kapasitesi açık.
 
-Migration0006 kalıcı listings.first_seq ekledi; mevcut20 ilan en erken change seq'den dolduruldu (missing0/mismatch0 canlı salt-okunur kontrol). Yeni ilan ilk catalogue commit trigger'ında aynı transaction'da atanır, sonraki revision/tombstone korur. MatchEvents current listing okumasından bu sırayı kullanır; katalog log'u budandığında yeni abonelik eski ilan için push almaz. Eksik sıra fail-closed/retry; sunucu temizlik politikası henüz uygulanmadı. Worker69 native test/dry-run/deploy ve canlı20/40/meta304 başarılı; gerçek fanout/CPU kanıtı değildir.
+Migration0006 kalıcı listings.first_seq ekledi; mevcut20 ilan en erken change seq'den dolduruldu (missing0/mismatch0 canlı salt-okunur kontrol). Yeni ilan ilk catalogue commit trigger'ında aynı transaction'da atanır, sonraki revision/tombstone korur. MatchEvents current listing okumasından bu sırayı kullanır; katalog log'u budandığında yeni abonelik eski ilan için push almaz. Eksik sıra fail-closed/retry; sınırlı katalog temizliği migration0012 ile devrededir. Worker69 native test/dry-run/deploy ve canlı20/40/meta304 başarılı; gerçek fanout/CPU kanıtı değildir.
 
 | Kapsam | Son doğrulanmış kanıt | Kanıtın sınırı |
 |---|---|---|
-| Worker |81 native Node/SQLite test, dry-run/deploy; remote migration0004 ve covering index planı, üç-slot timestamp kontrolü; canlı Dart watermark40/catalogue20/applied40/changes40/metadata304 | Gerçek model, source detail erişimi, OAuth/FCM/great-page CPU ve load değil |
+| Worker |86 native Node/SQLite test, dry-run/deploy; remote migration0004 ve covering index planı, üç-slot timestamp kontrolü; canlı Dart watermark40/catalogue20/applied40/changes40/metadata304 | Gerçek model, source detail erişimi, OAuth/FCM/great-page CPU ve load değil |
 | Core/backend referansı | Core127 full; backend37 önceki hizalama kontrolü | Canlı cloud/backend release kanıtı değil |
 | Flutter |131 full; selectors390px/320px1.3x ve önceki history32 targeted+8 UI/2FG; core135 full; pinned history resume/receipt FIFO/native budget/HTTP auth/redirect/size ve320px1.3x offline/live UI; analyze temiz | Keychain/gerçek kapalı-app teslimi veya release cihaz UX değil; Android native-store kanıtı ayrı satırda |
 | Android build | Main app debug + Firebase defines/kalıcı API ile başarılı, Gradle115.2s; build/app/outputs/flutter-apk/app-debug.apk223496834bytes | Debug signing/AdMob test fallback; production release değildir. Schema8 origin/generation, notification/history ve typed multi-select/header/quick-matching/eğitim aliases değişiklikleri main debug build içinde. Universal update emulator depolamasına sığmadı, eski app korundu;151513370byte actual-config x64 APK install-r başarılı. Normal universal223496834byte APK restore edilip build çıktısında korundu. Kurulum startup/FCM kanıtı değil |
@@ -86,18 +86,28 @@ Listing persistence testindeki takvime bağlı expired beklentisi kaldırıldı;
 
 Hızlı typed filtre kontrol noktası: Flutter131 full/core135 full, değişen5 alan analyze ve diff-check temiz. 390px/320px1.3x UI akışında elle kelime değişimi, belirsiz kart uyarısı ve yeniden kayıt formunda çoklu seçim/puan/eski yaş referansı korunması doğrulandı. Actual API+Firebase debug APK yeniden derlendi (223494589 byte); cihaz çalışması/release kanıtı değildir.
 
-Katalog retention hazırlığı: migration0011 kalıcı floor singleton (canlı0);
-meta bounds tek SQL içinde ayrı MIN/MAX scalar sorgularıyla index uçlarını okur.
-Floor>0 için oldestRetainedSeq=floor+1; delta after<floor409 cursor_expired,
-snapshot watermark<floor409 snapshot_expired; floor eşitliği geçerlidir. MIN(seq)
-eski snapshot temel kayıtları nedeniyle floor yerine kullanılmaz. Mobil bounded1KB
-endpoint-specific409 kodunu typed exception yapar, tek no-cache/koşulsuz metadata
-ve bootstrap retry; başka HTTP/malformed409 reset yapmaz. SQLite kontrollerinde
-delta/staged snapshot retry, ikinci expiry, favori/cache/başarı zamanı korunur.
-Worker82/core136/Flutter132 full; canlı20/40/meta304 ve floor0 read-only kontrolü
-geçti. Üretimade7386c-365e-45f4-af25-e5f798907d5b. Katalog silme henüz yok;
-sonraki pruner floor'daki son immutable per-listing base+tüm yeni değişiklikleri
-korumalı; kapasite/CPU ve real-device recovery hâlâ doğrulanmadı.
+Katalog retention: migrations0011–0012 kalıcı floor/gc_after singleton
+(canlı0/0). Saatlik:59 registry sonrası maintainCatalogue; <=50 floor adayı,
+<=50 eski sweep adayı/<=20 silme. Floor yalnız canonical ISO90day eski kesintisiz
+önek boyunca ilerler; ilk recent/invalid tarihte durur ve global latest seq
+korunur. Her ilanın floor'daki son immutable upsert/tombstone temel kaydı ve
+bütün sonraki revizyonları kalır. Silme+gc cursor atomic batch/CAS ile korumalı;
+concurrent pass state'i değiştirirse eski pass değişiklik yapmaz, failed batch
+cursor/silme rollback olur. listings.first_seq/güncel ilan/outbox etkilenmez.
+Mevcut catalogue_listing_seq covering indeksi yeniden kullanılır; live EXPLAIN
+primary-key bounded range+covering lookup gösterdi. Katalog kısmı<=6 SQL, registry
+ile<=15; backlog silme20/hour ceiling, CPU10ms/yük kapasitesi ölçüm bekler.
+Metadata floor+1 ve expired409 sözleşmesi korunur. Delta/bootstrap response öncesi
+floor tekrar kontrolü ve arada kaybolan payload tespiti yanlış başarılı cursor
+ilerlemesini engeller. Mobil bounded1KB endpoint-specific409/tek no-cache metadata
++bootstrap retry önceki132 Flutter/136 core full kontrolünde ve actual-config
+APK'da doğrulandı. Son server değişiklikleri86 native full/dry-run/deploy;
+base/ilk yayın/latest/tombstone/recent+invalidtimestamp/partial resume/CAS/rollback
+ve page-read prune race kontrolü içerir. Üretim7e082188-63dc-4dfb-b8bb-05aff99e123e;
+canlı floor0/gc0/listing20/change40 ve no-cache API20/40/latest40/oldest1+304 geçti.
+90day eski canlı kayıt olmadığı için üretim silme sonucu veya bakım CPU/yük
+kanıtı yok; sahte production veri yaratılmadı. Eski temel kayıt/ilan minimumu ve
+bildirim dedupe tombstone kapasitesi, source/AI/FCM/release kapıları hâlâ açık.
 
 Bu kontrol noktasında actual Firebase/API Android debug APK yeniden derlendi:
 223497245bytes, Gradle62.1s. Changed4 analyze temiz; emulator kurulum/çalıştırma

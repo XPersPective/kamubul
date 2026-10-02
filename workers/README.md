@@ -135,7 +135,7 @@ doldurur; yeni ilan ilk katalog commit'inde trigger ile aynı transaction'da
 atanır. Sonraki revizyonlar/değişiklik günlüğü temizliği bu değeri değiştirmez.
 Eşleştirme aboneliğin effective_after değerini bu kalıcı ilk sırayla karşılaştırır;
 yeni arama eski ilan revizyonu için push almaz. Eksik ilk sıra fail-closed'dur.
-Katalog temizliği henüz devrede değildir; pinned snapshot sınırı ayrıca korunmalıdır.
+Katalog temizliği migration0012 ile aşağıdaki sınırlı bakım akışında çalışır.
 
 Katalog `after`/`watermark` yalnız güvenli, negatif olmayan tam sayı dizeleridir.
 Eksik watermark o isteğin latest sırasını sabitler; verilmiş watermark sessizce
@@ -150,11 +150,34 @@ watermark<floor için409 snapshot_expired döner. Floor'daki snapshot ve delta
 geçerlidir; eski per-listing temel kayıtları MIN(seq)'den bağımsız korunabilir.
 Mobil yalnız endpoint-specific/bounded409 hata kodunda bir kez no-cache metadata
 ve bootstrap dener; ağ/diğer409/malformed hata cache'i sıfırlamaz. Favoriler ve
-son başarı zamanı tamamlanmamış tekrar indirmede korunur. Bu checkpoint silme
-çalıştırmaz: sonraki bounded pruner her ilanın floor'daki son immutable sürümünü
-ve tüm sonraki değişiklikleri korumalı; latest seq ileri imleci kalıcı kalmalıdır.
+son başarı zamanı tamamlanmamış tekrar indirmede korunur.
 
-Saatlik `:59` Cron slotu yalnız registry bakımına ayrılır; o saatte gönderim
+Migration0012 `gc_after` kalıcı sweep imlecini ekler; mevcut
+`catalogue_listing_seq` indeksi yeniden kullanılır. Saatlik bakımda floor'dan
+sonraki en çok50 sıra/tarih okunur; yalnız90 günü geçmiş kesintisiz önek boyunca
+floor ilerler. İlk yeni/geçersiz/canonical-olmayan tarih durdurur; en son global
+seq daima tutulur. Böylece timestamp sırası bozulsa bile yeni bir revizyonun
+üzerinden atlanmaz. Floor yayınlandıktan sonra en çok50 eski sıra okunur, aynı
+ilana ait floor'a kadar daha yeni bir kayıt varsa en çok20 eski kayıt silinir.
+Her ilanın floor'daki son upsert/tombstone kaydı ve floor sonrası bütün değişiklikler
+kalır. Silme+sweep cursor aynı atomic batch/CAS; başka pass'ın floor/cursor'u
+değiştiyse eski pass hiçbirini değiştirmez. `listings.first_seq`, güncel ilan,
+eşleştirme/outbox/favori verisi etkilenmez. En az bir temel kayıt/ilan kalır;
+bu politika tüm arşiv ilanlarını veya bildirim dedupe tombstone'larını silmez.
+
+Delta/bootstrap cache-miss okumaları yanıt vermeden floor'u yeniden kontrol
+eder; metadata ile immutable payload okuması arasında silinen kayıt da typed409
+üretir. Prune yüzünden eksik sayfa başarılı imleç ilerlemesi olarak sunulmaz.
+Cache'deki tam immutable sayfa TTL boyunca kullanılabilir; sonraki expired pin
+mobilin tek fresh-metadata/bootstrap retry yoluna girer.
+
+ponytail ceiling: saatte50 floor satırı,50 sweep adayı,20 silme. Daha büyük
+backlog'da temizlik süresi ve CPU/row-write ölçümüne göre bakım slotu artırılmalı.
+Katalog bakımı boş log'da1, recent/floor0 log'da2, eski/obsolete log'da en çok6
+SQL kullanır; registry ile toplam en çok15 SQL, Free50 sınırı altındadır.
+Bu query sayısı CPU10ms veya kullanıcı kapasitesi kanıtı değildir.
+
+Saatlik `:59` Cron slotu registry ve katalog bakımına ayrılır; o saatte gönderim
 slotları arasındaki aralık bir kez 6dk olur. 120 gün heartbeat almayan kurulumun
 aktif send lease'i varsa dokunulmaz. Diğer stale kurulumlar önce disabled olur;
 tek owner/pass için 20 outbox ve 50 facet silinir, child'lar bitince kurulum ve
@@ -164,7 +187,7 @@ Rate-limit expiry indeksiyle/pass 100 süresi dolmuş sayaç, 30 günden eski g�
 AI bütçesinden/pass 30 satır temizlenir; bugünkü bütçe korunur. Büyük backlog'un
 temizlenme süresi ve CPU/row-write kapasitesi ölçüm bekler. Aktif kurulumların
 bildirim geçmişinin sunum payload'u aşağıdaki arşiv politikasıyla küçültülür;
-katalog log'u henüz budanmaz, pinned katalog cursor politikası açık.
+katalog log'u yukarıdaki floor/base/sweep politikasıyla budanır.
 
 Migration0008 accepted_at/id partial indeksi ile bakım slotu en çok20 adet
 90 günü geçmiş accepted bildirimi archived yapar. Payload `{}` olur; FCM
@@ -182,5 +205,6 @@ payload'u `{}` yapar ve FCM provider ID'sini temizler. Durum/hata kodu,
 kimlik/UNIQUE ve digest bağı korunur; history sequence değişmez. Pending/leased
 grup üyesi varsa terminal payload da korunur. Boşaltılmış satır partial indeksten
 çıkar, her pass tekrar yazılmaz. Bu politika tombstone toplam satır büyümesini
-çözmez; katalog pruning ve kapasite ölçümü ayrı açık işlerdir. Owner seçilmezse
-bakım5 SQL, seçilirse9 SQL çalıştırır; gerçek backlog CPU/read/write ölçümü gerekir.
+çözmez; toplam satır kapasitesi açık iştir. Registry kısmı owner seçilmezse
+5 SQL, seçilirse9 SQL çalıştırır; katalog kısmı yukarıdaki en çok6 SQL ekler.
+Gerçek backlog CPU/read/write ölçümü gerekir.

@@ -91,3 +91,27 @@ test('durable retention floor rejects expired pins while preserving older snapsh
   assert.throws(()=>sql.exec('UPDATE catalogue_retention SET floor=-1'));
   assert.throws(()=>sql.exec('INSERT INTO catalogue_retention(id,floor) VALUES(2,0)'));
 });
+
+test('retention racing a page read returns expiry instead of silently skipping deleted revisions',async t=>{
+  for(const phase of ['bounds','payload'])for(const snapshot of [false,true]){
+    const {sql,insert,DB}=setup(t);insert('first','one');
+    sql.exec("UPDATE listings SET revision=2,payload=json_set(payload,'$.title','Revised') WHERE id='first'");
+    insert('second','two');insert('third','three');
+    const prepare=DB.prepare;let pruned=false;
+    const prune=()=>{pruned=true;sql.exec('UPDATE catalogue_retention SET floor=3; DELETE FROM catalogue_changes WHERE seq=1');};
+    DB.prepare=query=>{
+      const statement=prepare(query);
+      if(phase==='bounds'&&query.includes('COALESCE(MIN(seq)')){
+        const first=statement.first;statement.first=async()=>{const result=await first();if(!pruned)prune();return result;};
+      }
+      if(phase==='payload'&&query.includes('payload_bytes')){
+        const all=statement.all;statement.all=async()=>{const result=await all();if(!pruned)prune();return result;};
+      }
+      return statement;
+    };
+    const path=snapshot?'listings?watermark=1':'changes?after=0&watermark=4';
+    const response=await fetchRequest(new Request('https://api/api/v2/'+path),{DB},{});
+    assert.equal(response.status,409,phase+' '+path);
+    assert.deepEqual(await response.json(),{error:snapshot?'snapshot_expired':'cursor_expired'});
+  }
+});

@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {searchAnchorKeys,installationAnchorKeys,listingAnchorKeys,matchListing,validateCriteria,migrateFilters} from '../src/criteria.js';
 import {fcmMessage} from '../src/fcm.js';
 import {fetchRequest,sha256} from '../src/worker.js';
-import {splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled,maintainRegistry} from '../src/pipeline.js';
+import {splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled,maintainRegistry,maintainCatalogue} from '../src/pipeline.js';
 
 function database(){
   const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
@@ -17,7 +17,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0007_maintenance.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0008_notification_archive.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0009_terminal_payload_retention.sql',import.meta.url),'utf8'));
-  sql.exec(readFileSync(new URL('../migrations/0010_education_alias_facets.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0011_catalogue_retention_floor.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0010_education_alias_facets.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0011_catalogue_retention_floor.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0012_catalogue_sweep.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -48,6 +48,77 @@ test('scheduled timestamp separates source, matching and delivery into three slo
     assert.ok(!queries.some(q=>q.includes('UPDATE notification_outbox'))||minute%3===2);
     sql.close();
   }
+});
+
+test('catalogue maintenance bounds work and preserves snapshot bases, first publication and latest sequence',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  const old='2026-01-01T00:00:00.000Z',now=new Date('2026-10-01T00:00:00.000Z');
+  sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('history','sbb','history','h',?,?,'later','{\"title\":\"Revision 1\"}')").run(old,old);
+  for(let revision=2;revision<=70;revision++)sql.prepare("UPDATE listings SET revision=?,payload=json_object('title',?),updated_at=? WHERE id='history'").run(revision,'Revision '+revision,old);
+  const original=DB.prepare,queries=[];DB.prepare=query=>{queries.push(query);return original(query);};
+  await maintainCatalogue({DB},now);
+  assert.ok(queries.length<=6);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM catalogue_changes').get().n,50);
+  assert.deepEqual({...sql.prepare('SELECT floor,gc_after FROM catalogue_retention').get()},{floor:50,gc_after:20});
+  assert.equal(sql.prepare('SELECT first_seq FROM listings').get().first_seq,1);
+  const snapshot=await fetchRequest(new Request('https://api/api/v2/listings?watermark=50'),{DB},{});
+  assert.equal(snapshot.status,200);assert.equal((await snapshot.json()).items[0].title,'Revision 50');
+  assert.ok(queries.filter(q=>q.includes('LIMIT 50')).length===2);
+  const plan=sql.prepare('EXPLAIN QUERY PLAN SELECT 1 FROM catalogue_changes WHERE listing_id=? AND seq>? AND seq<=?').all('history',1,50);
+  assert.ok(plan.some(r=>r.detail.includes('catalogue_listing_seq')));
+  for(let pass=0;pass<6;pass++){
+    const before=sql.prepare('SELECT COUNT(*) n FROM catalogue_changes').get().n;
+    await maintainCatalogue({DB},now);
+    assert.ok(before-sql.prepare('SELECT COUNT(*) n FROM catalogue_changes').get().n<=20);
+  }
+  assert.deepEqual(sql.prepare('SELECT seq FROM catalogue_changes ORDER BY seq').all().map(r=>r.seq),[69,70]);
+  assert.equal(sql.prepare('SELECT floor FROM catalogue_retention').get().floor,69);
+  assert.equal(sql.prepare('SELECT MAX(seq) n FROM catalogue_changes').get().n,70);
+  assert.equal(sql.prepare('SELECT first_seq FROM listings').get().first_seq,1);
+  const delta=await fetchRequest(new Request('https://api/api/v2/changes?after=69'),{DB},{});
+  assert.deepEqual((await delta.json()).changes.map(r=>r.seq),[70]);
+  sql.prepare("UPDATE listings SET revision=71,payload='{\"title\":\"New after pruning\"}',updated_at=? WHERE id='history'").run(now.toISOString());
+  await maintainCatalogue({DB},now);
+  assert.equal(sql.prepare('SELECT first_seq FROM listings').get().first_seq,1);
+  assert.equal(sql.prepare('SELECT floor FROM catalogue_retention').get().floor,70);
+  assert.deepEqual(sql.prepare('SELECT seq FROM catalogue_changes ORDER BY seq').all().map(r=>r.seq),[70,71]);
+});
+
+test('catalogue floor stops at recent/invalid commits and keeps one base for every listing including tombstones',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  const now=new Date('2026-10-01T00:00:00.000Z'),old='2026-01-01T00:00:00.000Z';
+  for(const id of ['old','closed','changed'])sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES(?,'sbb',?,'h',?,?,'later',json_object('title',?))").run(id,id,old,old,id);
+  sql.prepare("UPDATE listings SET active=0,revision=2 WHERE id='closed'").run();
+  sql.prepare("UPDATE listings SET revision=2,payload='{\"title\":\"Changed\"}' WHERE id='changed'").run();
+  sql.prepare("UPDATE listings SET revision=3,payload='{\"title\":\"Recent\"}',updated_at=? WHERE id='changed'").run(now.toISOString());
+  sql.prepare("UPDATE listings SET revision=4,payload='{\"title\":\"Later old timestamp\"}',updated_at=? WHERE id='changed'").run(old);
+  await maintainCatalogue({DB},now);
+  assert.equal(sql.prepare('SELECT floor FROM catalogue_retention').get().floor,5);
+  assert.deepEqual(sql.prepare('SELECT seq FROM catalogue_changes ORDER BY seq').all().map(r=>r.seq),[1,4,5,6,7]);
+  const snapshot=await fetchRequest(new Request('https://api/api/v2/listings?watermark=5'),{DB},{});
+  assert.deepEqual((await snapshot.json()).items.map(r=>r.title),['Changed','old']);
+  sql.exec("UPDATE catalogue_changes SET committed_at='not a timestamp' WHERE seq=6");
+  await maintainCatalogue({DB},new Date('2027-10-01T00:00:00.000Z'));
+  assert.equal(sql.prepare('SELECT floor FROM catalogue_retention').get().floor,5);
+});
+
+test('concurrent retention pass and failed sweep cannot lose the durable cleanup cursor',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  const old='2026-01-01T00:00:00.000Z',now=new Date('2026-10-01T00:00:00.000Z');
+  sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('one','sbb','one','h',?,?,'later','{}')").run(old,old);
+  for(let i=2;i<=5;i++)sql.prepare("UPDATE listings SET revision=?,payload=json_object('revision',?) WHERE id='one'").run(i,i);
+  const batch=DB.batch;
+  DB.batch=async statements=>{sql.exec('UPDATE catalogue_retention SET gc_after=2');return batch(statements);};
+  await maintainCatalogue({DB},now);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM catalogue_changes').get().n,5);
+  assert.equal(sql.prepare('SELECT gc_after FROM catalogue_retention').get().gc_after,2);
+  DB.batch=async statements=>{sql.exec('BEGIN');try{await statements[0].run();throw new Error('interrupted');}finally{sql.exec('ROLLBACK');}};
+  await assert.rejects(maintainCatalogue({DB},now),/interrupted/);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM catalogue_changes').get().n,5);
+  assert.equal(sql.prepare('SELECT gc_after FROM catalogue_retention').get().gc_after,2);
+  DB.batch=batch;
+  for(let i=0;i<3;i++)await maintainCatalogue({DB},now);
+  assert.deepEqual(sql.prepare('SELECT seq FROM catalogue_changes ORDER BY seq').all().map(r=>r.seq),[4,5]);
 });
 
 test('maintenance bounds stale-owner deletion, protects send leases and reactivated owners',async t=>{
@@ -82,7 +153,7 @@ test('hourly maintenance expires bounded counters while preserving current budge
   sql.exec("INSERT INTO rate_limits VALUES('active',2,'2999-01-01'); INSERT INTO daily_usage VALUES('2000-01-01',20),('2999-01-01',20)");
   const prepare=DB.prepare,queries=[];DB.prepare=query=>{queries.push(query);return prepare(query);};
   await runScheduled({DB},59*60000);
-  assert.equal(queries.length,5);
+  assert.equal(queries.length,6);
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM rate_limits').get().n,2);
   assert.deepEqual(sql.prepare('SELECT day,ai_jobs FROM daily_usage').all().map(x=>({...x})),[{day:'2999-01-01',ai_jobs:20}]);
   const plan=sql.prepare('EXPLAIN QUERY PLAN SELECT key FROM rate_limits WHERE expires_at<=? ORDER BY expires_at,key LIMIT 100').all('now');

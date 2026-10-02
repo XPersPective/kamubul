@@ -247,6 +247,35 @@ export async function flushOutbox(env,{send=sendFcm,now=new Date()}={}) {
     await env.DB.prepare('UPDATE installations SET send_lease_until=NULL WHERE id=? AND send_lease_until=?').bind(job.installation_id,lease).run();
   }
 }
+export async function maintainCatalogue(env,now=new Date()){
+  let state=await env.DB.prepare('SELECT floor,gc_after,(SELECT COALESCE(MAX(seq),0) FROM catalogue_changes) latest FROM catalogue_retention WHERE id=1').first();
+  if(!state||!state.latest)return;
+  const cutoff=+now-90*86400000;
+  const pending=(await env.DB.prepare('SELECT seq,committed_at FROM catalogue_changes WHERE seq>? AND seq<? ORDER BY seq LIMIT 50').bind(state.floor,state.latest).all()).results;
+  let floor=state.floor;
+  // Advance only across a contiguous old prefix; never cross a recent/invalid timestamp or remove the latest sequence.
+  for(const row of pending){
+    const date=Date.parse(row.committed_at);
+    if(!Number.isFinite(date)||date>cutoff||new Date(date).toISOString()!==row.committed_at)break;
+    floor=row.seq;
+  }
+  if(floor>state.floor){
+    state=await env.DB.prepare('UPDATE catalogue_retention SET floor=? WHERE id=1 AND floor=? RETURNING floor,gc_after').bind(floor,state.floor).first();
+    if(!state)return; // Another pass owns the new floor; retry from its durable state next time.
+  }
+  if(!state.floor)return;
+  const rows=(await env.DB.prepare(`SELECT c.seq,EXISTS(SELECT 1 FROM catalogue_changes n WHERE n.listing_id=c.listing_id AND n.seq>c.seq AND n.seq<=?) obsolete
+    FROM catalogue_changes c WHERE c.seq>? AND c.seq<=? ORDER BY c.seq LIMIT 50`).bind(state.floor,state.gc_after,state.floor).all()).results;
+  const obsolete=[];let consumed=0,after=state.gc_after;
+  // ponytail: hourly floor/sweep scan <=50 rows each, deletes <=20; measured backlog may require more maintenance slots.
+  for(const row of rows){after=row.seq;consumed++;if(row.obsolete)obsolete.push(row.seq);if(obsolete.length===20)break;}
+  if(after>=state.floor||(consumed===rows.length&&rows.length<50))after=0;
+  const guard='EXISTS(SELECT 1 FROM catalogue_retention WHERE id=1 AND floor=? AND gc_after=?)';
+  const statements=[];
+  if(obsolete.length)statements.push(env.DB.prepare(`DELETE FROM catalogue_changes WHERE seq IN (${obsolete.map(()=>'?').join(',')}) AND ${guard}`).bind(...obsolete,state.floor,state.gc_after));
+  statements.push(env.DB.prepare('UPDATE catalogue_retention SET gc_after=? WHERE id=1 AND floor=? AND gc_after=?').bind(after,state.floor,state.gc_after));
+  await env.DB.batch(statements);
+}
 export async function maintainRegistry(env,now=new Date()){
   const timestamp=now.toISOString(),cutoff=new Date(+now-120*86400000).toISOString();
   const device=await env.DB.prepare('SELECT id FROM installations WHERE updated_at<=? AND (send_lease_until IS NULL OR send_lease_until<=?) ORDER BY updated_at,id LIMIT 1').bind(cutoff,timestamp).first();
@@ -278,7 +307,7 @@ export async function maintainRegistry(env,now=new Date()){
 export async function runScheduled(env,scheduledTime=Date.now()){
   if(!env.DB)throw new Error('database_not_configured');
   // The hourly :59 slot is dedicated to bounded maintenance, never added to fanout/query budgets.
-  if(Math.floor(scheduledTime/60000)%60===59){await maintainRegistry(env);return;}
+  if(Math.floor(scheduledTime/60000)%60===59){await maintainRegistry(env);await maintainCatalogue(env);return;}
   // ponytail: three-minute stage cycle keeps each invocation below Free's 50 queries/subrequests; measured CPU/fanout sets the capacity ceiling.
   const stages=[[expireListings,readSource,processNotice],[matchEvents],[flushOutbox]];
   // Each durable stage is recoverable; failures do not clear another stage's backlog.
