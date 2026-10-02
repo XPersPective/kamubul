@@ -40,6 +40,47 @@ class _PushStore implements PushStateStore {
 /// PB-008: 1.3x metin ölçeği ve tablet genişliğinde taşma olmadan düzen;
 /// büyük başlık çökmesi ve yapışkan CTA davranışı.
 void main() {
+  testWidgets('canonical guide reads cache and opens position detail offline', (
+    tester,
+  ) async {
+    final listing = ListingRecord(
+      url: 'https://kariyerkapisi.gov.tr/IlanDetay?i=one',
+      sourceId: 'kariyerkapisi',
+      title: 'CACHED GUIDE',
+      category: 'Personel',
+      publishedAt: null,
+      fetchedAt: DateTime(2026, 10, 2),
+      summary: ['Başvurular resmî başvuru sistemi üzerinden yapılır.'],
+      criteriaListing: {
+        'requirementGroups': [
+          {
+            'occupations': ['Mühendis'],
+          },
+        ],
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(children: [ListingGuideView(listing: listing)]),
+        ),
+      ),
+    );
+    expect(find.text('İlan rehberi'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.textContaining('Sunucudan alınan'), findsOneWidget);
+    await tester.tap(find.text('Kadro koşullarını incele'));
+    await tester.pumpAndSettle();
+    expect(find.byType(OfficialListingPage), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Mühendis'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Mühendis'), findsOneWidget);
+    expect(find.textContaining('İlan ayrıntısı şu an okunamadı'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'canonical detail keeps separate positions and unknown conditions at 1.3x',
     (tester) async {

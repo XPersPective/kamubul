@@ -5,6 +5,7 @@ import '../data/listing_store.dart';
 import '../listings/extract_conditions.dart';
 import '../listings/extraction_policy.dart';
 import '../listings/kariyer_detail.dart';
+import 'official_listing_page.dart';
 
 /// İlan Rehberi'nin deterministik çekirdeği: seçili ilanın şart
 /// alanlarını kaynak cümleleriyle yanıtlar. Serbest AI sohbeti ileri aşamadır;
@@ -38,6 +39,41 @@ class ListingGuideView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (listing.criteriaListing != null) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'İlan rehberi',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Sunucudan alınan ilan bilgileri kullanılıyor. Her kadronun koşullarını ilan ayrıntısında ayrı inceleyebilirsiniz.',
+            ),
+            for (final text in listing.summary) ...[
+              const SizedBox(height: 12),
+              Text(text),
+            ],
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => OfficialListingPage(
+                    listing: listing,
+                    unavailable: listing.criteriaListing?['active'] == false,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.article_outlined),
+              label: const Text('Kadro koşullarını incele'),
+            ),
+          ],
+        ),
+      );
+    }
     if (listing.sourceId != 'kariyerkapisi') {
       return _localSummary(context);
     }

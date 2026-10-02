@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
+import 'package:kamubul/data/remote_sync.dart';
 import 'package:kamubul/home_page.dart';
 import 'package:kamubul/listings/kariyer_detail_page.dart';
 import 'package:kamubul/listings/official_listing_page.dart';
@@ -179,6 +180,103 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
       if (finder.evaluate().isNotEmpty) return;
     }
+  }
+
+  for (final active in [true, false]) {
+    testWidgets(
+      '${active ? 'normal' : 'saved unavailable'} canonical cards open cached detail without source HTTP',
+      (tester) async {
+        final requests = <Uri>[];
+        final now = DateTime.now().toUtc().toIso8601String();
+        final client = RemoteCatalogueClient(
+          baseUrl: Uri.parse('https://api.example.com'),
+          client: MockClient((request) async {
+            requests.add(request.url);
+            if (request.url.path == '/api/v2/meta') {
+              return http.Response(
+                jsonEncode({
+                  'schemaVersion': 2,
+                  'taxonomyVersion': 1,
+                  'latestSeq': 1,
+                  'oldestRetainedSeq': 1,
+                  'sources': [
+                    for (final id in [kKariyerSourceId, kSbbSourceId])
+                      {
+                        'id': id,
+                        'name': id,
+                        'state': 'ok',
+                        'last_success': now,
+                      },
+                  ],
+                }),
+                200,
+              );
+            }
+            expect(request.url.path, '/api/v2/listings');
+            return http.Response(
+              jsonEncode({
+                'watermark': 1,
+                'next': null,
+                'items': [
+                  {
+                    'id': 'cached-card',
+                    'revision': 1,
+                    'active': active,
+                    'title': 'CANONICAL CARD',
+                    'category': 'Personel',
+                    'url': 'https://kariyerkapisi.gov.tr/card',
+                    'sourceId': kKariyerSourceId,
+                    'updatedAt': now,
+                    'publishedAt': now,
+                    'summary': [
+                      {
+                        'text': 'Başvurular resmî başvuru sistemi üzerinden yapılır.',
+                      },
+                    ],
+                    'aiProvenance': {'provider': 'cloudflare'},
+                    'requirementGroups': [
+                      {
+                        'occupations': ['Mühendis'],
+                        'kpssStatus': 'unknown',
+                        'ageStatus': 'unknown',
+                      },
+                    ],
+                  },
+                ],
+              }),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }),
+        );
+        final store = ListingStore();
+        await tester.runAsync(() async {
+          await syncRemoteV2Catalogue(
+            store: store,
+            client: client,
+            now: DateTime.now(),
+          );
+          await store.setSaved('https://kariyerkapisi.gov.tr/card', true);
+        });
+        await pumpHome(tester, client: client);
+        if (!active) {
+          await tester.tap(find.text('Kaydedilen'));
+          await tester.pumpAndSettle();
+        }
+        await settleUntil(tester, find.text('CANONICAL CARD'));
+        await tester.tap(find.text('CANONICAL CARD'));
+        await tester.pumpAndSettle();
+        expect(find.byType(OfficialListingPage), findsOneWidget);
+        expect(find.byType(KariyerDetailPage), findsNothing);
+        expect(find.text('Yapay zekâ özeti'), findsOneWidget);
+        expect(
+          find.textContaining('artık yayında değil'),
+          active ? findsNothing : findsOneWidget,
+        );
+        expect(requests.every((uri) => uri.host == 'api.example.com'), isTrue);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets(

@@ -2062,13 +2062,16 @@ class _KamuHomePageState extends State<KamuHomePage> {
   }
 
   Widget _listingPage(ListingRecord record) =>
-      record.sourceId == 'kariyerkapisi'
+      record.sourceId == 'kariyerkapisi' && record.criteriaListing == null
       ? KariyerDetailPage(
           listing: _asPublicListing(record),
           summary: record.summary,
           onLoaded: (detail) => _cacheDetail(record.url, detail),
         )
-      : OfficialListingPage(listing: record);
+      : OfficialListingPage(
+          listing: record,
+          unavailable: record.criteriaListing?['active'] == false,
+        );
 
   PublicListing _asPublicListing(ListingRecord record) => PublicListing(
     title: record.title,

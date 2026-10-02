@@ -4,6 +4,20 @@
 
 ## 1. Gerçek durum ve sınır
 
+Canonical kart/rehber kontrol noktası: Home _listingPage bütün normal/saved ve
+legacy URL-tap caller'larında criteriaListing varsa OfficialListingPage cache
+yolunu kullanır; active=false unavailable gösterir. Legacy Kariyer kayıtları
+geçişte eski yolu korur. ListingGuideView canonical kayıtta HTTP/FutureBuilder
+başlatmaz; mevcut özet ve aynı cache'ten ayrı kadro detayına erişim sunar.
+allListings curated canonical projection aiProvenance alanını da korur;
+ambiguous URL bilinmeyen şart olarak kalır, yeni model verisi uydurulmaz.
+Normal active ve saved unavailable widget akışları SQLite bootstrap'ten gerçek
+üretim koduyla cache kurar; source HTTP denied, API-only mocked requests ve
+AI label/unavailable kontrolü geçer. Guide immediate cache/detay offline kontrolü,
+155 Flutter full, changed5 analyze/diff-check geçti. Actual Firebase/API debug
+APK223536141bytes/26.8s; fiziksel cihaz kurulumu veya release kanıtı yok.
+Global remote-only cutover tamamlanmadı; source/AI/CPU/physical FCM kapıları açık.
+
 Canonical detail presentation2 Ekim: OfficialListingPage requirementGroups
 alanlarını ayrı kadro kartlarında gösterir; şehir/eğitim ortak label'ları, KPSS
 type/score/year ve min/max age/reference/birth-date sınırları ayrıdır. Unknown

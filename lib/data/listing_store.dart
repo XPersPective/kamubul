@@ -745,6 +745,7 @@ class ListingStore {
               'places',
               'occupations',
               'requirementGroups',
+              'aiProvenance',
             ])
               key: payload[key],
           };
