@@ -169,6 +169,16 @@ anında sona erer; yerel takvim günlerini UTC date-only farkıyla sayar. Kısmi
 24h truncation yanlış Bugün/erken hatırlatma üretmez; kaynak saati gün sonuna
 ötelenmez. Ertesi gün/son dakika/aynı gün expiry/bounded3day/UTC testleri vardır.
 
+İlk açılış4 skippable adım; Atla yalnız onboarded marker yazar, arama/izin
+oluşturmaz. İlanları bul shared SearchCriteria doğrulamasından sonra ilk yerel
+aramayı kaydeder: age+current ageAsOf, canonical81-city autocomplete/max20,
+KPSS uppercase/type validation; score/year ve diğer koşullar mevcut editörde.
+Save single-flight, controls disabled, failure alanları korur/retry/skip açık;
+controller dispose ve keyboard-aware ListView/expanded primary button. Server
+criteria upload açıklaması vardır; onboarding native permission istemez,
+bildirimleri kullanıcı ayrıca açar. Skip/save marker AppHome.onDone'da saklanır.
+5 widget check: skip/current-date/error/busy/city+KPSS/320px1.3x+keyboard.
+
 Template master7101480 fetch güncel; core-v1.0.0 OtherAppsPage/Repository reuse.
 Keşfet5th destination + settings Diğer uygulamalarımız; ilk4 tab index korunur.
 OTHER_APPS_URL default napp_apps/HEAD/apps.json, explicit empty disables;
@@ -198,15 +208,17 @@ Android native secure write/reopen/plaintext cleanup API36/x64 emulator'da
 
 ## 7. Doğrulama, geçiş kodu ve sonraki kapılar
 
-Son doğrulama:162 Flutter full,175 core full,138 Worker native; changed Dart
+Son doğrulama:167 Flutter full,175 core full,138 Worker native; changed Dart
 analyze ve diff-check temiz. SQLite race tests:
 cross-owner initial registration bütün dependent rows'u korur; stale same-owner
 heartbeat409/newer criteria korunur/retry yeni version; delete/recreate hash
 guard. Mobile bounded retry/cache invalidation/identity preservation testleri.
 Normal/saved canonical cache, guide offline, SBB freshness/conflicting aliases,
 backup roundtrip,320px1.3x light/dark/unknown/malformed/nav testleri vardır.
-Actual Firebase/API universal debug223536538bytes,25.7s; x64 debug89653916bytes,
-20.5s. emulator-5556 install-r storage error, yeni debug kurulmadı; unrelated
+Latest actual Firebase/API x64 debug116612132bytes/22.2s (onboarding/registry/
+deadline code), cihaz kurulumu/visual proof yok. Önceki universal debug
+223536538bytes/25.7s ve x64 debug89653916bytes/20.5s. emulator-5556 install-r
+storage error, yeni debug kurulmadı; unrelated
 files/apps veya kullanıcı verisi silinmedi. Profile actual-config x64 APK
 44286151bytes/49.8s derlendi. Streamed install session abandoned; non-streaming
 tekrar da storage355687827bytes gereksinimiyle reddedildi.5556 old codePath/

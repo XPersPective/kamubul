@@ -204,9 +204,10 @@ class _AppHomeState extends State<_AppHome> {
             } finally {
               await listingStore.close();
             }
-            widget.store.setInt('kamubul.onboarded', 1);
-            widget.store.setInt('kamubul.alerts.asked', 1);
           },
-          onDone: () => setState(() => _onboarded = true),
+          onDone: () {
+            widget.store.setInt('kamubul.onboarded', 1);
+            setState(() => _onboarded = true);
+          },
         );
 }
