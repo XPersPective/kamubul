@@ -6,6 +6,24 @@ import 'package:kamubul_core/data/turkish_cities.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('non-finite source KPSS score remains unknown', () {
+    final criteria = SearchCriteria.parse({'kpssType': 'P3', 'kpssScore': 75});
+    for (final score in [
+      double.nan,
+      double.infinity,
+      double.negativeInfinity,
+    ]) {
+      expect(
+        criteria.match({
+          'title': 'Memur',
+          'requirementGroups': [
+            {'kpssStatus': 'required', 'kpssType': 'P3', 'kpssScore': score},
+          ],
+        }, now: DateTime.utc(2026, 9, 30)),
+        CriteriaMatch.unknown,
+      );
+    }
+  });
   final corpus = jsonDecode(
     File('../../contracts/criteria-v2.json').readAsStringSync(),
   ) as List;

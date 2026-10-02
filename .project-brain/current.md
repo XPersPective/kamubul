@@ -54,7 +54,7 @@ Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarıl�
 ## 2. Kalıcı bulut ve güvenli yapılandırma
 
 - Worker `kamubul-api`: https://kamubul-api.devx8585.workers.dev;
-  son CLI deployment version `e284e590-8b87-4407-a49c-3f9e147e6ce9`.
+  son CLI deployment version `3e8bcf33-45e5-4200-9a4d-b1554c674628`.
   D1 `kamubul`, UUID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB;
   migration0001–0016 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
 - Kalıcı Queue `kamubul-work`, ID3eb1ec0a4296443eb552a240dac77ec4;
@@ -149,7 +149,14 @@ match/no_match/unknown, strict unknown push yok. Yaş+asOf tüm olası doğum g�
 aralığıdır; inclusive min/max/reference/birth bounds, completed years ve
 29Şubat→1Mart; partial overlap/conflict/malformed/unsupported calculation
 unknown.366day freshness; legacy referanssız yaş1970 olarak unknown kalır.
-64 ortak Worker/Dart/SQLite case ve144 enumerated-birthday oracle vardır.
+77 ortak Worker/Dart/SQLite case ve144 enumerated-birthday oracle vardır.
+Kaynak KPSS type/score/year malformed/range/non-finite veya not_required ile
+çelişkili ise kriter filtresinde unknown olur; JS numeric-string coercion yok.
+Diğer alanın kesin no_match sonucu ve geçerli alternatif kadro korunur.
+176 native Worker/195 core test ve changed2 analyze/dry-run geçti;3e8bcf33
+deployment sonrası canlı46/23/applied46/detail/404/meta304 doğrulandı.
+172 full Flutter test,77-case SQLite projection ve goldens dahil geçti.
+Bu extraction precision veya actual FCM delivery kanıtı değildir.
 AgeAsOf freshness bugün/<=366 takvim günü İstanbul UTC+3 pilotuna göre;
 00:00–03:00 bugünün tarihi future sayılmaz,367+ gün ve gerçek gelecek unknown.
 Source reference/birth bounds civil gün, deadline/publishedAt mutlak an kalır.

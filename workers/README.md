@@ -81,7 +81,7 @@ Migration0013 yalnız eski `cities:city:*` facet sahiplerini wildcard ile korur;
 authenticated heartbeat label/ID için aynı eski `cities:istanbul` anahtarını
 kurar. Düz label anchor'ları değişmez. Tercih version/baseline ve saved searches
 korunur; partial fanout reset, completed event'ler ve outbox dedupe değişmez.
-Shared Dart/Worker corpus64 case; bütün81 ID/label ve unknown/district durumları
+Shared Dart/Worker corpus77 case; bütün81 ID/label ve unknown/district durumları
 kontrol edilir. Dictionary/coded-city matching çalışması actual source city
 coverage, AI/model kalitesi veya gerçek cihaz push kanıtı değildir.
 
@@ -106,7 +106,7 @@ Gece00:00–03:00, 366/367 gün sınırı ve aynı anın UTC/+03 gösterimleri o
 corpus'tadır. İlan deadline/publishedAt mutlak an olarak kalır. Doğum günü tahmin
 edilip profil yaşı otomatik değiştirilmez. V1 tek maxAge alanı tarihli koşulları
 temsil edemediğinden dated koşul varsa null; tam requirementGroups korunur.
-64 ortak case Worker/pure Dart/mobil SQLite üzerinden aynı sonucu verir;
+77 ortak case Worker/pure Dart/mobil SQLite üzerinden aynı sonucu verir;
 ayrıca144 yaş/ref aralığı tüm olası365/366 doğum günü enumerate edilerek kontrol
 edilir. Bu matcher kanıtıdır; gerçek source-native/AI alan precision kanıtı yok.
 

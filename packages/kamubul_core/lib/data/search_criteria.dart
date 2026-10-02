@@ -230,28 +230,46 @@ class SearchCriteria {
         }
       }
       if ('${c['kpssType'] ?? ''}'.isNotEmpty || c['onlyKpss'] == true) {
-        if (raw['kpssStatus'] == 'not_required') {
-          if (c['onlyKpss'] == true) status = CriteriaMatch.noMatch;
-        } else if (raw['kpssStatus'] != 'required') {
+        final type = raw['kpssType'],
+            score = raw['kpssScore'],
+            year = raw['kpssYear'];
+        final invalid =
+            (raw['kpssStatus'] == 'not_required' &&
+                [type, score, year].any((v) => v != null)) ||
+            (type != null &&
+                (type is! String || !RegExp(r'^P\d{1,3}$').hasMatch(type))) ||
+            (score != null &&
+                (score is! num ||
+                    !score.isFinite ||
+                    score < 0 ||
+                    score > 100)) ||
+            (year != null && (year is! int || year < 2000 || year > 2100));
+        if (invalid) {
           uncertain();
-        } else if ('${c['kpssType'] ?? ''}'.isNotEmpty &&
-            raw['kpssType'] == null) {
-          uncertain();
-        } else if ('${c['kpssType'] ?? ''}'.isNotEmpty &&
-            raw['kpssType'] != c['kpssType']) {
-          status = CriteriaMatch.noMatch;
-        } else if (c['kpssScore'] != null) {
-          if (raw['kpssScore'] is! num) {
+        } else {
+          if (raw['kpssStatus'] == 'not_required') {
+            if (c['onlyKpss'] == true) status = CriteriaMatch.noMatch;
+          } else if (raw['kpssStatus'] != 'required') {
             uncertain();
-          } else if ((c['kpssScore'] as num) < (raw['kpssScore'] as num)) {
+          } else if ('${c['kpssType'] ?? ''}'.isNotEmpty &&
+              raw['kpssType'] == null) {
+            uncertain();
+          } else if ('${c['kpssType'] ?? ''}'.isNotEmpty &&
+              raw['kpssType'] != c['kpssType']) {
             status = CriteriaMatch.noMatch;
+          } else if (c['kpssScore'] != null) {
+            if (raw['kpssScore'] is! num) {
+              uncertain();
+            } else if ((c['kpssScore'] as num) < (raw['kpssScore'] as num)) {
+              status = CriteriaMatch.noMatch;
+            }
           }
-        }
-        if (raw['kpssYear'] != null) {
-          if (c['kpssYear'] == null) {
-            uncertain();
-          } else if (raw['kpssYear'] != c['kpssYear']) {
-            status = CriteriaMatch.noMatch;
+          if (raw['kpssYear'] != null) {
+            if (c['kpssYear'] == null) {
+              uncertain();
+            } else if (raw['kpssYear'] != c['kpssYear']) {
+              status = CriteriaMatch.noMatch;
+            }
           }
         }
       }

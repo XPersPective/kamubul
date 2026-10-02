@@ -16,6 +16,9 @@ test('source normalization survives malformed entities and rejects unsafe identi
 });
 
 const now=new Date('2026-09-30T12:00:00Z');
+test('non-finite source KPSS score remains unknown',()=>{
+  for(const kpssScore of [NaN,Infinity,-Infinity])assert.equal(matchListing({title:'Memur',requirementGroups:[{kpssStatus:'required',kpssType:'P3',kpssScore}]},{kpssType:'P3',kpssScore:75},now),'unknown');
+});
 for(const row of JSON.parse(readFileSync(new URL('../../contracts/criteria-v2.json',import.meta.url),'utf8'))){
   test('Dart parity: '+row.name,()=>assert.equal(matchListing(row.listing,row.legacy?migrateFilters(row.legacy):validateCriteria(row.criteria),row.now?new Date(row.now):now),row.expected));
 }
