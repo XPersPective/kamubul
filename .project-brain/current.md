@@ -17,16 +17,30 @@ Fake üretim ilanı/kurulumu/push yok; harici ücretli AI etkin değil.
 Son readonly kanıt: canlı watermark46/catalogue23/appliedThrough46/detail GET,
 missing detail404/conditional meta304. D1 kaynak last_success
 2026-10-02T15:45:04.670Z; SBB blocked last_attempt15:48:04.711Z.
-Migrations0001–0015; yeni ownership triggerları ve installation0 remote readonly
-doğrulandı. Önceki installation/outbox/facets0/0/0; sorgu yazması0.
+Migrations0001–0016; ownership triggerları önce installation0 ile doğrulandı.
+Son queue deployment readonly installation1/outbox0, dispatch match/send
+idle generation0 ve queue_jobs0. Bu kurulumun kaynağı/cihaz teslimi doğrulanmadı;
+kimlik/token okunmadı. Önceki installation/outbox/facets0/0/0 tarihsel kanıttır.
 Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarılı.
 
 ## 2. Kalıcı bulut ve güvenli yapılandırma
 
 - Worker `kamubul-api`: https://kamubul-api.devx8585.workers.dev;
-  son CLI deployment version `6deecc4f-3b48-4355-9315-e0a5189cee0d`,100%.
+  son CLI deployment version `b41b6716-bd7c-45ec-9db6-08296d884ce1`,100%.
   D1 `kamubul`, UUID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB;
-  migration0001–0015 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
+  migration0001–0016 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
+- Kalıcı Queue `kamubul-work`, ID3eb1ec0a4296443eb552a240dac77ec4;
+ 17:00:46.689Z oluşturuldu,24h retention seçildi. CLI producer/consumer
+ kamubul-api1/1 doğruladı. WORK_QUEUE binding; consumer batch1/concurrency1/
+ retry0. Migration16 dispatch_state+daily_usage.queue_jobs.3000 UTC daily
+ reservation; AI sayacı ayrı. Mesaj kind+generation, kişisel bilgi yok.
+ Generational3dk lease/dedupe, matching mevcut10owner page, send max4instant
+ veya ilk3 içindeki digest; dördüncü instant-only. Chaining/Cron recovery,
+ kota/transport sonrası D1 iş korunumu. ADR-003 kapsamı/gerçek sınırlar.
+ Yerel sequential Queue kontrolü100/1000 alıcıyı36/351 görevde boşalttı;
+ 10k'da3000 günlük rezervasyon korundu,7996 injected send/2004 pending kaldı.
+ Stage/cleanup D1 failure lease recovery ve duplicate korunumu test geçti.
+ Bu Cloudflare CPU/Queue operasyonu veya cihaz teslimi ölçümü değildir.
 - `workers/wrangler.jsonc`: AI binding `@cf/meta/llama-3.1-8b-instruct`,
   AI_DAILY_JOBS20, source interval30dk, Cron her dakika, observability%10.
   mod3 kaynak/AI/expiry, matching, sending slotları ayırır; her aşama3dk.
@@ -231,12 +245,12 @@ max15SQL/round ve eksiksiz/idempotent pending outbox doğrular.10k SQL sayısı
 34004→15004; ten-owner indexed JOIN enabled/search/version/baseline birlikte
 okur. EXPLAIN full owner/search scan yok; unrelated/unknown/new-subscription/
 multi-facet regresyonu geçti.149 native/dry-run/deploy doğrulandı. Scheduler480
-match/456send günlük slot üretir; tek kurulum/invocation nedeniyle10k eşleşmede
+match/456send günlük Cron slot üretir; eski yalnız-Cron yolunda10k eşleşmede
 ideal steady-state gönderim iş yükü21.93gün. Fast10k kabulü geçmedi; cloud
 CPU/D1 counter kanıtı değildir. docs/FANOUT_CAPACITY.md/PB-021 sonraki kapıdır.
 cdc82483 sonrası live readonly watermark46/catalogue23/applied46/detail/missing404/
 meta304 geçti; sources Kariyerok ve diğer3blocked. Nonempty cloud fanout/
-OAuth send CPU/gerçek teslim ölçülmedi; yeni Queue kaynağı yok.
+OAuth send CPU/gerçek teslim ölçülmedi; bu eski sürümde Queue yoktu.
 
 Sender pending/leased backlog root sort iki indexed LIMIT1 candidate ile
 sınırlandı; due/id sırası ve expired/live lease korumaları testli. Atomik owner
@@ -245,10 +259,16 @@ Extended local sender probe10k max8SQL,80000 total,p95/p99=1.34/1.78ms;
 injected sender, actual FCM/OAuth/CPU/cihaz kanıtı yok. Remote readonly EXPLAIN
 iki outbox_due index'i0read/0write/changed=false doğruladı; runtime scan değil.
 Leased branch canlı lease ziyaret sınırı hâlâ var. Cron tek send davranışı
-ve456/gün üst hızı aynı;150 native/dry-run/deploy geçti.6deecc4f sonrasında
+ve456/gün Cron üst hızı aynı;150 native/dry-run/deploy geçti.6deecc4f sonrasında
 live readonly46/23/applied46/detail/missing404/meta304 geçti.
 
-Son doğrulama:171 Flutter full,181 core full,150 Worker native; changed Dart
+Yeni Queue dispatch156 native/dry-run/deploy/remote migration16 geçti;
+b41b6716 live readonly46/23/applied46/detail/missing404/meta304 geçti.
+Producer+consumer CLI doğrulaması actual nonempty Queue/CPU/FCM kanıtı değildir.
+Yalnız-Cron456 sınırı toplam mimariyi artık tanımlamaz; shared task bütçesi ve
+cloud Consumer CPU/10k daily cost/delivery ölçümü henüz açık.
+
+Son doğrulama:171 Flutter full,181 core full,156 Worker native; changed Dart
 analyze ve diff-check temiz. SQLite race tests:
 cross-owner initial registration bütün dependent rows'u korur; stale same-owner
 heartbeat409/newer criteria korunur/retry yeni version; delete/recreate hash

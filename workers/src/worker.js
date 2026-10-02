@@ -1,5 +1,5 @@
 import {validateCriteria,migrateFilters,fold,installationAnchorKeys,educationValues,cityValues} from './criteria.js';
-import {runScheduled} from './pipeline.js';
+import {runScheduled,handleWorkQueue} from './pipeline.js';
 
 export const nowISO=()=>new Date().toISOString();
 export async function sha256(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');}
@@ -196,4 +196,4 @@ export async function cachedFetch(request,env,ctx){
   const unchanged=response.status===200&&etag&&request.headers.get('if-none-match')?.split(',').some(value=>value.trim()==='*'||value.trim().replace(/^W\//,'')===etag);
   return new Response(unchanged?null:response.body,{status:unchanged?304:response.status,headers});
 }
-export default {fetch:cachedFetch,async scheduled(controller,env,ctx){ctx.waitUntil(runScheduled(env,controller.scheduledTime));}};
+export default {fetch:cachedFetch,async scheduled(controller,env,ctx){ctx.waitUntil(runScheduled(env,controller.scheduledTime));},async queue(batch,env){await handleWorkQueue(batch,env);}};

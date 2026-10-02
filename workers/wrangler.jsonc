@@ -8,6 +8,10 @@
   "observability": { "enabled": true, "head_sampling_rate": 0.1 },
   "ai": { "binding": "AI" },
   "d1_databases": [{"binding":"DB","database_name":"kamubul","database_id":"371092dd-2cc7-487f-b971-84c2499bbc7d","migrations_dir":"migrations"}],
+  "queues": {
+    "producers": [{"binding":"WORK_QUEUE","queue":"kamubul-work"}],
+    "consumers": [{"queue":"kamubul-work","max_batch_size":1,"max_batch_timeout":1,"max_retries":0,"max_concurrency":1}]
+  },
   "vars": {
     "FIREBASE_PROJECT_ID": "kamubul-3ae6e",
     "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",

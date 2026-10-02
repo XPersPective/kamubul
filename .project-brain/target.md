@@ -11,6 +11,11 @@ Premium görünümlü, Türkçe Android/iOS uygulaması; hesap açmadan resmî k
 
 Cloudflare Workers Free, D1, Cron, public edge cache ve Free erişimli Workers AI; Firebase Spark yalnız FCM. SQLite/sqflite ve napp_* korunur. Firestore, Cloud Run, Cloud Scheduler, Blaze, ücretli API ve VPS hedef dışı. Queue/R2/KV/ek arama altyapısı ilk sürüm şartı değildir; gerçek bir sınıra ve güncel ücretsiz erişime göre değerlendirilir.
 
+ADR-003: ölçülen yalnız-Cron456 send/gün sınırı için Free Queues bütçeli
+wake-up transport olarak kabul edildi. D1 authoritative işler, generational
+lease/Cron recovery ve ayrı Queue günlük budget korunur; teslim süresi ve10k
+kapasite ölçülür. Ücretli upgrade açılmaz; R2/KV hâlâ gerekmiyor.
+
 ## 2. Sorumluluk sınırı
 
 | İş | Dışarıda / Cloudflare | İçeride / Flutter |

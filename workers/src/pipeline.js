@@ -250,16 +250,16 @@ function nextDigestDay(now) {
   const local=localParts(now);local.setUTCDate(local.getUTCDate()+1);local.setUTCHours(18,0,0,0);
   return new Date(+local-3*3600000).toISOString();
 }
-export async function flushOutbox(env,{send=sendFcm,now=new Date()}={}) {
+export async function flushOutbox(env,{send=sendFcm,now=new Date(),instantOnly=false}={}) {
   if(!env.FCM_PRIVATE_KEY||!env.FCM_CLIENT_EMAIL)return;
   const timestamp=now.toISOString(),lease=new Date(+now+180000).toISOString();
   // Each state uses outbox_due to select one leader; only those two candidates are sorted.
   // ponytail: expired-lease selection still visits live leased rows; bound future consumer concurrency and measure before adding a lease-expiry index.
   const job=await env.DB.prepare(`UPDATE notification_outbox SET state='leased',lease_until=? WHERE id=(
     SELECT id FROM (
-      SELECT id,due_at FROM (SELECT id,due_at FROM notification_outbox WHERE state='pending' AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) ORDER BY due_at,id LIMIT 1)
+      SELECT id,due_at FROM (SELECT id,due_at FROM notification_outbox WHERE state='pending' AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) ${instantOnly?"AND json_extract(payload,'$.mode')='instant'":''} ORDER BY due_at,id LIMIT 1)
       UNION ALL
-      SELECT id,due_at FROM (SELECT id,due_at FROM notification_outbox WHERE state='leased' AND lease_until<? AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) ORDER BY due_at,id LIMIT 1)
+      SELECT id,due_at FROM (SELECT id,due_at FROM notification_outbox WHERE state='leased' AND lease_until<? AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) ${instantOnly?"AND json_extract(payload,'$.mode')='instant'":''} ORDER BY due_at,id LIMIT 1)
     ) ORDER BY due_at,id LIMIT 1) RETURNING *`).bind(lease,timestamp,timestamp,timestamp).first();if(!job)return;
   const event=JSON.parse(job.payload);
   const group=job.delivery_id??job.id;
@@ -321,6 +321,45 @@ export async function flushOutbox(env,{send=sendFcm,now=new Date()}={}) {
     }
   } finally {
     await env.DB.prepare('UPDATE installations SET send_lease_until=NULL WHERE id=? AND send_lease_until=?').bind(job.installation_id,lease).run();
+  }
+  return event.mode;
+}
+export async function flushOutboxBatch(env,options={}) {
+  // ponytail: up to four instant recipients, or a digest among the first three; measured cloud CPU may require a smaller group.
+  for(let n=0;n<4;n++)if(await flushOutbox(env,{...options,instantOnly:n===3})!=='instant')break;
+}
+async function pendingDispatch(env,kind,now) {
+  return kind==='match'
+    ?env.DB.prepare("SELECT 1 FROM match_events WHERE state='pending' OR (state='leased' AND lease_until<?) LIMIT 1").bind(now).first()
+    :env.DB.prepare("SELECT 1 FROM notification_outbox WHERE (state='pending' OR (state='leased' AND lease_until<?)) AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) LIMIT 1").bind(now,now).first();
+}
+export async function dispatchWork(env,kind) {
+  if(!env.WORK_QUEUE||!['match','send'].includes(kind)||(kind==='send'&&(!env.FCM_PRIVATE_KEY||!env.FCM_CLIENT_EMAIL)))return;
+  const now=nowISO();if(!await pendingDispatch(env,kind,now))return;
+  const ticket=await env.DB.prepare("UPDATE dispatch_state SET generation=generation+1,state='queued',lease_until=? WHERE kind=? AND (state='idle' OR lease_until<?) RETURNING generation").bind(later(3),kind,now).first();if(!ticket)return;
+  try {
+    // Independent atomic budget: at most 9,000 normal Queue operations/day; platform Free caps still apply to redelivery.
+    const reserved=await env.DB.prepare('INSERT INTO daily_usage(day,queue_jobs) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET queue_jobs=queue_jobs+1 WHERE queue_jobs<3000 RETURNING queue_jobs').bind(now.slice(0,10)).first();
+    if(!reserved)throw new Error('queue_daily_budget');
+    await env.WORK_QUEUE.send({kind,generation:ticket.generation});
+  }catch(error){
+    await env.DB.prepare("UPDATE dispatch_state SET state='idle',lease_until=NULL WHERE kind=? AND generation=? AND state='queued'").bind(kind,ticket.generation).run();
+    console.error('dispatch_deferred',kind,safeError(error));
+  }
+}
+export async function handleWorkQueue(batch,env,options={}) {
+  for(const message of batch.messages){
+    const body=message.body;
+    if(!body||!['match','send'].includes(body.kind)||!Number.isSafeInteger(body.generation)||body.generation<1){message.ack();continue;}
+    const owner=await env.DB.prepare("UPDATE dispatch_state SET state='running',lease_until=? WHERE kind=? AND generation=? AND state='queued' AND lease_until>? RETURNING kind").bind(later(3),body.kind,body.generation,nowISO()).first();
+    if(!owner){message.ack();continue;}
+    try{await(body.kind==='match'?matchEvents(env):flushOutboxBatch(env,options));}
+    catch(error){console.error('queue_stage_failed',body.kind,safeError(error));}
+    finally{
+      await env.DB.prepare("UPDATE dispatch_state SET state='idle',lease_until=NULL WHERE kind=? AND generation=? AND state='running'").bind(body.kind,body.generation).run();
+      message.ack();
+    }
+    await dispatchWork(env,body.kind);
   }
 }
 export async function maintainCatalogue(env,now=new Date()){
@@ -389,5 +428,10 @@ export async function runScheduled(env,scheduledTime=Date.now()){
   // Each durable stage is recoverable; failures do not clear another stage's backlog.
   for(const step of stages[Math.floor(scheduledTime/60000)%stages.length]) {
     try {await step(env);}catch(e){console.error('scheduled_stage_failed',step.name,safeError(e));}
+  }
+  if(env.WORK_QUEUE){
+    const slot=Math.floor(scheduledTime/60000)%3;
+    if(slot===1)await dispatchWork(env,'match');
+    if(slot===2)await dispatchWork(env,'send');
   }
 }

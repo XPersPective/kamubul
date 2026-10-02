@@ -46,7 +46,7 @@ sayar:480 matching ve456 send slot/gün. Saatlik:59 bakım slotu24 send slotunu
 alır. Mevcut `flushOutbox` bir invocation'da bir kurulumun mesajını gönderir;
 digest aynı kurulumdaki ilanları birleştirir, farklı kurulumları birleştirmez.
 
-Dolayısıyla tek ilan100/1000/10000 kuruluma uyarsa kusursuz, sürekli dolu
+Eski yalnız-Cron yolunda tek ilan100/1000/10000 kuruluma uyarsa kusursuz, sürekli dolu
 kuyrukta gönderim üst hızı456 mesaj/gündür. Yalnız gönderim için steady-state
 iş yükü sırasıyla0.219/2.193/21.930 gündür. Başlangıç hizası, eşleştirme,
 OAuth/FCM hatası, quiet hours/cap ve deadline süreyi etkiler; süresi geçenler
@@ -65,4 +65,41 @@ Free günlük10.000 operasyon/24h retention gösterir; write/read/delete normald
 3operasyon ve retry ek read tüketir. Alıcı başına Queue mesajı10k push için
 30k normal operasyon oluşturur. Bu yüzden yalnız Queue ekleyerek kapasite
 kanıtlanamaz; bounded batch/dispatch bütçesi ve D1 authoritative recovery gerekir.
-Queues altyapısı henüz oluşturulmadı/etkin değil, ücretli upgrade yok.
+Kalıcı Queue artık kuruldu/bağlandı; ücretli upgrade yok.
+
+## Bütçeli Queue dispatch — ADR-003
+
+kamubul-work24h retention; Workerb41b6716 producer/consumer1/1 doğrulandı.
+Migration0016 dispatch_state(kind,generation,state,lease_until) ve bağımsız
+daily_usage.queue_jobs ekler. Mesaj yalnız kind/generation; kişisel veri yok.
+Claimqueued→running atomiktir. Max batch1/concurrency1/retry0; send consumer
+en çok4instant iş yapar. İlk3'te digest varsa grup durur; dördüncü instant-only
+seçilir.6 yeni native test race/duplicate/expired ticket, quota2999→3000,
+AI counter korunumu, publish failure recovery ve whole consumer query bütçesi
+kontrol eder. Stage veya cleanup D1 hatasında lease recovery ve duplicate
+outbox korunumu da test edilir. Toplam156 Worker testi geçti;
+runtime dry-run/deploy/live API kontrolü başarılıdır.
+
+3000 task/gün normal9000 Queue operasyonu demektir; platform redelivery/failed
+publish ek maliyet/kapasite tüketebilir. İş içerikleri D1'da kalır; lost wake-up,
+24h message expiry veya quota sonrası Cron lease expiry ile yeniden dener.
+Cron480match/456send slotu ayrıca durur. Shared budget tamamen instant-send
+görevlerine ayrılsa teorik12000 recipient/gün işlenebilir; gerçekte matching,
+digest/quiet/cap/retry ve CPU aynı bütçeyi etkiler. Tek10k wide-match için
+1001match +2500 four-send task=3501task; bu shared3000 limitini aşar ve Cron
+katkısına/zamanlamaya bağlıdır.10k anlık/aynı-gün garantisi verilmez.
+
+Çalıştırılabilir araç artık gerçek dispatcher/consumer fonksiyonlarını da aynı
+in-memory D1 adaptörü ve injected sender ile sırayla çalıştırır (Cron eşzamanlı
+değildir).100/1000 alıcı36/351 görevde tamamen işlendi.10k için günlük3000
+rezervasyon sınırı korundu:7996 gönderim ve2004 pending kayıt kaldı; normal
+Queue operasyon tahmini9000. Pending+accepted toplamı10k, rezervasyon/görev
+sayısı eşit ve her görev ack kontrolü geçti. Bu yerel sonuç gerçek Cloudflare
+Queue işlemi, Worker CPU veya FCM teslimi ölçümü değildir.
+
+Son readonly production: dispatchmatch/sendidle generation0, queue_jobs0,
+installation1/outbox0. Yeni kurulumun kaynağı/teslimi doğrulanmadı. Consumer
+CPU/gerçek Queue işlemi/FCM OAuth/cihaz teslimi henüz gözlenmedi; sahte prod
+message/installation/push ile kanıt üretilmedi. Sonraki gate gerçek nonempty
+işleme ve operations/CPU ölçümü; Free sınırı aşılırsa grup azaltılır/cache/backlog
+korunur. Kalıcı katalog23/46 hâlâ source-only, source detail gate ayrıca açıktır.

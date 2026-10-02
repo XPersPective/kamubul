@@ -19,6 +19,13 @@ Yerel100/1000/10000 wide-match kapasite/cursor/dedupe kontrolü:
 Cloudflare/D1 üretim/FCM çağrısı yok. Sonuç ve açık throughput sınırı
 `../docs/FANOUT_CAPACITY.md`; local wall cloud CPU kabulü değildir.
 
+Kalıcı `kamubul-work` Queue yalnız `{kind,generation}` uyandırması taşır;
+asıl işler D1'da kalır. Migration0016 + WORK_QUEUE binding; consumer batch1/
+concurrency1/retry0, günlük3000 UTC shared task reservation. Send task en çok
+4instant veya ilk3 içindeki digest'i işler; dördüncü seçim instant-only.
+Quota/transport/expired wake-up sonrası Cron D1 işini yeniden uyandırır.
+No paid upgrade; gerçek Consumer CPU/FCM proof native testten ayrıdır.
+
 `contracts/criteria-v2.json` Dart/Worker ortak corpus'tur. Saf Dart v2 paritesi
 `packages/kamubul_core/test/search_criteria_test.dart` içindedir. Canlı HTTP
 sözleşmesini üretime kayıt yazmadan doğrulamak için core dizininde:

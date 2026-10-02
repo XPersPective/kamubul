@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {performance} from 'node:perf_hooks';
-import {matchEvents,runScheduled,flushOutbox} from '../src/pipeline.js';
+import {matchEvents,runScheduled,flushOutbox,dispatchWork,handleWorkQueue} from '../src/pipeline.js';
 
 let matchingSlotsPerDay=0,sendSlotsPerDay=0;
 const emptyDB={prepare(query){return {bind(){return this;},async first(){
@@ -65,5 +65,26 @@ for(const recipients of [100,1000,10000]) {
     sendTimings.sort((a,b)=>a-b);
     console.log(JSON.stringify({scope:'local SQLite and injected offline sender; no FCM/API/OAuth/device proof',recipients,sendCalls,sendSqlExecutions:sendQueries,maxSendSqlExecutions:maxSendQueries,localSendWallP95Ms:sendTimings[Math.ceil(sendTimings.length*.95)-1],localSendWallP99Ms:sendTimings[Math.ceil(sendTimings.length*.99)-1]}));
     if(recipients===100)console.log(JSON.stringify({sendPlans:[...sendPlans]}));
+    // Reset this in-memory fixture only to compare the new dispatch strategy.
+    sql.exec("DELETE FROM notification_outbox; UPDATE installations SET sent_count=0,sent_day=NULL; UPDATE match_events SET state='pending',cursor='',facet_index=0,lease_until=NULL");
+    const tasks=[];env.WORK_QUEUE={async send(body){tasks.push(body);}};
+    let queueMessages=0,queueSends=0;
+    const consume=async()=>{
+      while(tasks.length){
+        const body=tasks.shift();let acked=false;
+        await handleWorkQueue({messages:[{body,ack(){acked=true;}}]},env,{send:async()=>{queueSends++;return {state:'accepted',id:'offline-queue-stub'};}});
+        assert.ok(acked);assert.ok(++queueMessages<=3000,'Queue reservation ceiling exceeded');
+      }
+    };
+    await dispatchWork(env,'match');await consume();
+    assert.equal(sql.prepare('SELECT state FROM match_events').get().state,'completed');
+    assert.equal(sql.prepare('SELECT COUNT(*) n FROM notification_outbox').get().n,recipients);
+    await dispatchWork(env,'send');await consume();
+    const queueReservations=sql.prepare('SELECT queue_jobs FROM daily_usage WHERE day=?').get(new Date().toISOString().slice(0,10)).queue_jobs;
+    assert.equal(queueReservations,queueMessages);
+    assert.equal(queueSends,Math.min(recipients,(3000-rounds)*4));
+    const pending=sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE state='pending'").get().n;
+    assert.equal(pending+queueSends,recipients,'Quota exhaustion lost outbox work');
+    console.log(JSON.stringify({scope:'sequential match/send Queue simulation in memory with injected sender; no cloud Queue operations/CPU/FCM proof',recipients,queueMessages,queueReservations,queueSends,pending,normalOperationEstimate:queueMessages*3}));
   }finally{sql.close();}
 }
