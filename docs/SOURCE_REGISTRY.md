@@ -50,12 +50,17 @@ kanıtı olmadan alternatif host/proxy eklenmez.
 
 ## Mobil geçiş ve çıkarım kanıtı
 
-2 Ekim son cloud readonly kontrol: canlı API21 ilan/42change/detail/missing404/
-meta304 başarılı. D1 Kariyer last_success2026-10-02T11:12:04.668Z, son not
-ayrıntı yenilemesi başarısız/eski veri korunuyor; SBB blocked11:15:04.689Z.
-21 ilanın tamamı detailState unavailable, full source text0;21 completed
+2 Ekim son cloud readonly kontrol: canlı API23 ilan/46change/detail/missing404/
+meta304 başarılı. D1 Kariyer last_success2026-10-02T15:45:04.670Z, son not
+ayrıntı yenilemesi başarısız/eski veri korunuyor; SBB blocked15:48:04.711Z.
+23 ilanın tamamı detailState unavailable, full source text0;23 completed
 processing işi source-only, AI koşul/özet başarısı sayılmaz. Sorgular yazma0.
 Cloud success list toplama başarısıdır, tam detail başarısı değildir.
+SourceFetch unread HTTP/oversize response'ları iptal eder; cleanup hatası veya
+gecikmesi retry'ı durdurmaz.149 native test/dry-run ve5dbc7649 deploy geçti.
+3MiB actual streamed cap, HTTP classification, bodyless response/stream error
+ve allowlist kontrolleri vardır. Yeni sürümde başarılı detail/AI/CPU kanıtı
+değildir. Son inline readonly D1 sonuçları0written/changed_db=false; fixture yok.
 
 Son Windows readonly kontrol: aynı resmî detail adaptörü ile
 12c5b0ac-cd05-4316-9d7c-39ed4d06a358 için273ms'de main7113 karakter/11 kadro

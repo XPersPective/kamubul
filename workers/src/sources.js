@@ -5,11 +5,15 @@ export async function sourceFetch(url, options={}) {
   const uri=new URL(url);
   if (uri.protocol!=='https:'||uri.username||uri.password||uri.port||!hosts.has(uri.hostname)) throw new SourceError('host_rejected');
   const response=await fetch(url,{...options,redirect:'manual',signal:AbortSignal.timeout(25000)});
-  if(response.status!==200) throw new SourceError([401,403,429].includes(response.status)?'blocked':'source_http_'+response.status);
-  if(Number(response.headers.get('content-length')??0)>3*1024*1024) throw new SourceError('source_oversize');
-  const reader=response.body.getReader(); const chunks=[]; let size=0;
-  try { for(;;) {const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>3*1024*1024)throw new SourceError('source_oversize');chunks.push(value);} }
-  finally {await reader.cancel();}
+  const reader=response.body?.getReader(); const chunks=[]; let size=0;
+  try {
+    if(response.status!==200) throw new SourceError([401,403,429].includes(response.status)?'blocked':'source_http_'+response.status);
+    if(Number(response.headers.get('content-length')??0)>3*1024*1024) throw new SourceError('source_oversize');
+    if(!reader)throw new SourceError('source_empty');
+    for(;;) {const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>3*1024*1024)throw new SourceError('source_oversize');chunks.push(value);}
+  }
+  // Cleanup must not replace a source error or delay durable pipeline retry.
+  finally {if(reader)void reader.cancel().catch(()=>{});}
   const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
   return new TextDecoder('utf-8',{fatal:true}).decode(bytes);
 }

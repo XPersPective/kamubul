@@ -6,17 +6,17 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 ## 1. Üretim durumu ve gerçek sınır
 
 **Sunucuya geçiş tamamlanmadı.** Kalıcı Cloudflare API/D1/Cron yayında; Flutter
-v2 katalog/cache ve FCM entegrasyonu vardır. Gerçek üretim 21 resmî RSS ilanı ve
-42 immutable değişiklik taşır. İlanların tamamında detailState=unavailable,
-full source text=0; 21 processing işi source-only completed. Liste başarısı
+v2 katalog/cache ve FCM entegrasyonu vardır. Gerçek üretim 23 resmî RSS ilanı ve
+46 immutable değişiklik taşır. İlanların tamamında detailState=unavailable,
+full source text=0; 23 processing işi source-only completed. Liste başarısı
 AI özet/typed uygunluk çıkarımı veya kapalı telefon bildirimi başarısı değildir.
 Kariyer liste taze, ayrıntı yenilemesi başarısız; SBB/İŞKUR/ilan.gov blocked.
 Telefon fallback/şehir çekimi ve eski Workmanager pilot kapıları nedeniyle durur.
 Fake üretim ilanı/kurulumu/push yok; harici ücretli AI etkin değil.
 
-Son readonly kanıt: canlı watermark42/catalogue21/appliedThrough42/detail GET,
+Son readonly kanıt: canlı watermark46/catalogue23/appliedThrough46/detail GET,
 missing detail404/conditional meta304. D1 kaynak last_success
-2026-10-02T11:12:04.668Z; SBB blocked last_attempt11:15:04.689Z.
+2026-10-02T15:45:04.670Z; SBB blocked last_attempt15:48:04.711Z.
 Migrations0001–0015; yeni ownership triggerları ve installation0 remote readonly
 doğrulandı. Önceki installation/outbox/facets0/0/0; sorgu yazması0.
 Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarılı.
@@ -24,13 +24,13 @@ Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarıl�
 ## 2. Kalıcı bulut ve güvenli yapılandırma
 
 - Worker `kamubul-api`: https://kamubul-api.devx8585.workers.dev;
-  son CLI deployment version `70023118-b184-4cae-aee7-bc7587c33da6`,100%.
+  son CLI deployment version `5dbc7649-f310-4ea9-8975-de3b3edbf765`,100%.
   D1 `kamubul`, UUID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB;
   migration0001–0015 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
 - `workers/wrangler.jsonc`: AI binding `@cf/meta/llama-3.1-8b-instruct`,
   AI_DAILY_JOBS20, source interval30dk, Cron her dakika, observability%10.
   mod3 kaynak/AI/expiry, matching, sending slotları ayırır; her aşama3dk.
-  Kaynak slotu yalnız bir kalıcı batch girdisini işler:21 giriş yaklaşık63dk
+  Kaynak slotu yalnız bir kalıcı batch girdisini işler:23 giriş yaklaşık69dk
   ve batch sonrasında30dk bekleme demektir; tam refresh30dk garantisi yok.
 - Firebase `kamubul-3ae6e`, Spark $0, FCM HTTPv1 açık; Android
   `com.crazypenguin.kamubul`, appID `1:1003012781397:android:c474608bf0e36534ae2bdc`,
@@ -217,7 +217,7 @@ Android native secure write/reopen/plaintext cleanup API36/x64 emulator'da
 
 ## 7. Doğrulama, geçiş kodu ve sonraki kapılar
 
-Son doğrulama:171 Flutter full,181 core full,144 Worker native; changed Dart
+Son doğrulama:171 Flutter full,181 core full,149 Worker native; changed Dart
 analyze ve diff-check temiz. SQLite race tests:
 cross-owner initial registration bütün dependent rows'u korur; stale same-owner
 heartbeat409/newer criteria korunur/retry yeni version; delete/recreate hash
@@ -227,7 +227,7 @@ backup roundtrip,320px1.3x light/dark/unknown/malformed/nav testleri vardır.
 Yeni canonical detail dört phone/tablet/light/dark/1.3x düzeninde üst/koşul
 bölümleri için8 golden taşır; gerçek AppTheme ve48dp CTA hit-test kontrolü.
 Test fontu Ahem: düzen regresyonu, gerçek glyph/physical premium kabulü değil.
-Aktif70023118 sürümü dashboard19 invocation/0 subrequest/0 error,
+Önceki70023118 sürümü dashboard19 invocation/0 subrequest/0 error,
 CPU P50/P90/P99=2.04/5.26/6.29ms. Aynı sürüm15:54 scheduled source/expiry/AI
 slotu2ms CPU/748ms wall/outcome ok; idle/due kontrolü, başarılı detail/AI
 işleme veya10k kanıtı değil. Ayrıntı docs/WORKER_FREE_PILOT.md.
