@@ -37,6 +37,38 @@ class OfficialListingPage extends StatelessWidget {
     }
   }
 
+  Widget _summary(String text) {
+    final entries = listing.criteriaListing?['summary'];
+    if (entries is List) {
+      for (final entry in entries.take(5).whereType<Map>()) {
+        final original = entry['text'], quote = entry['quote'];
+        final label = entry['scopeLabel'];
+        if (original is! String ||
+            quote is! String ||
+            quote.length < 30 ||
+            quote.length > 600 ||
+            !quote.contains(original) ||
+            (label != null &&
+                (label is! String ||
+                    label.trim().isEmpty ||
+                    label.length > 50))) {
+          continue;
+        }
+        if (text != (label == null ? original : '$label: $original')) continue;
+        return Card(
+          child: ExpansionTile(
+            title: Text(text),
+            subtitle: const Text('Kaynak alıntısını göster'),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            children: [SelectableText('“$quote”')],
+          ),
+        );
+      }
+    }
+    return Text(text);
+  }
+
   Widget _group(BuildContext context, Map group, int index) {
     String values(String key, String Function(String) label) =>
         (group[key] is List ? group[key] as List : const [])
@@ -172,7 +204,7 @@ class OfficialListingPage extends StatelessWidget {
           ],
           for (final text in listing.summary) ...[
             const SizedBox(height: 12),
-            Text(text),
+            _summary(text),
           ],
           const SizedBox(height: 20),
           Card(

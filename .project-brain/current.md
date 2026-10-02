@@ -5,6 +5,13 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 
 ## 1. Üretim durumu ve gerçek sınır
 
+Canonical mobil ayrıntı mevcut cache'teki summary text/quote/scopeLabel için
+açılır kaynak alıntısı gösterir. Eşleşmeyen veya600 karakteri aşan alıntı
+sunulmaz; kadro etiketi korunur, alıntısız özet düz metin kalır. Bu yeni
+koşul çıkarımı veya AI kalite kapısı değildir. Dar320px/1.3x/light-dark aç/kapat
+kontrolü geçti; değiştirilmiş iki dosyanın Flutter analyze sonucu temizdir.
+172 full Flutter kontrolü (golden dahil) geçti; fiziksel release kanıtı değildir.
+
 PRIVACY.md artık gerçek Cloudflare katalog/kriter upload/Queue/retention ve
 çevrimdışı silme davranışını açıklar. Server-push ayarı arama adları/kriterleri
 gönderildiğini ve offline silme retry'sini gösterir. Bu legal/store/privacy

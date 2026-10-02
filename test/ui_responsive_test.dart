@@ -40,6 +40,58 @@ class _PushStore implements PushStateStore {
 /// PB-008: 1.3x metin ölçeği ve tablet genişliğinde taşma olmadan düzen;
 /// büyük başlık çökmesi ve yapışkan CTA davranışı.
 void main() {
+  testWidgets('scoped summary opens its own bounded quote offline at 1.3x', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 844);
+    addTearDown(tester.view.reset);
+    const text = 'Başvurular resmî başvuru sistemi üzerinden yapılır.';
+    const quote = '$text Posta yoluyla başvuru kabul edilmez.';
+    final listing = ListingRecord(
+      url: 'https://kariyerkapisi.gov.tr/IlanDetay?i=test',
+      sourceId: 'kariyerkapisi',
+      title: 'Kurum personel alımı',
+      category: 'Personel',
+      publishedAt: null,
+      fetchedAt: DateTime(2026, 10, 2),
+      summary: const ['Mühendis: $text', 'Alıntısı olmayan özet'],
+      criteriaListing: {
+        'aiProvenance': {'provider': 'cloudflare'},
+        'summary': [
+          {'text': text, 'quote': quote, 'scopeLabel': 'Mühendis'},
+          {'text': 'Alıntısı olmayan özet', 'quote': 'x' * 601},
+          {'text': 'Alıntısı olmayan özet', 'quote': quote},
+        ],
+      },
+    );
+    for (final brightness in Brightness.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(brightness: brightness),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(1.3)),
+            child: child!,
+          ),
+          home: OfficialListingPage(listing: listing),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(ExpansionTile), findsOneWidget);
+      expect(find.text('Alıntısı olmayan özet'), findsOneWidget);
+      expect(find.text('“$quote”'), findsNothing);
+      await tester.tap(find.text('Kaynak alıntısını göster'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mühendis: $text'), findsOneWidget);
+      expect(find.text('“$quote”'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Kaynak alıntısını göster'));
+      await tester.pumpAndSettle();
+      expect(find.text('“$quote”'), findsNothing);
+    }
+  });
+
   testWidgets(
     'live and legacy SBB detail labels identify the official source',
     (tester) async {
