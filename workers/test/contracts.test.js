@@ -57,6 +57,9 @@ test('quiet hours wrap midnight in Istanbul',()=>{
 });
 test('unsupported AI statements never enter summary',()=>{
   assert.deepEqual(validateAiSummary({summary:[{text:'Tahmin',quote:'Kaynakta bulunmayan alıntı'}]},'Lisans mezunları başvurabilir.'),[]);
+  const quote='Başvurular yalnız Kariyer Kapısı üzerinden alınacaktır.';
+  assert.deepEqual(validateAiSummary({summary:[{text:'KPSS en az 70 puan olmalıdır.',quote}]},quote),[]);
+  assert.deepEqual(validateAiSummary({summary:[{text:quote,quote}]},quote),[{text:quote,quote}]);
 });
 test('real migration enforces identity, committed changes and deletion cascade',()=>{
   const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');

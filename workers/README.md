@@ -61,7 +61,11 @@ coverage, AI/model kalitesi veya gerçek cihaz push kanıtı değildir.
 Model `@cf/meta/llama-3.1-8b-instruct-fp8`, güncel official catalogue'da doğrulandı:
 [model](https://developers.cloudflare.com/workers-ai/models/llama-3.1-8b-instruct-fp8/),
 [Free allocation](https://developers.cloudflare.com/workers-ai/platform/pricing/).
-Gerçek model değerlendirmesi ve neurons ölçümü henüz tamamlanmadı.
+Gerçek REST pilotu5 girişimde4 HTTP200 aldı; raporlanan179.8903 Neurons ve bir
+timeout tüketimi bilinmiyor. Tam iki-parça/birleştirme sonucu doğrulanmadı;
+[pilot kanıtı](../docs/AI_MODEL_PILOT.md) ve `tool/eval-ai.js` tekrar komutu içerir.
+Model alıntı yanında desteklenmeyen iddia ürettiği için özet text'i yalnız
+alıntının birebir içinden kabul edilir; paraphrase/koşul kalite kapısı açık.
 
 `FCM_CLIENT_EMAIL` ve `FCM_PRIVATE_KEY` yalnız Worker Secrets'tadır.
 Firebase Android client ayarı sunucu özel anahtarının yerine geçmez.

@@ -28,9 +28,10 @@ function insertNotice(sql,text){
 }
 function model(calls){return {async run(model,request,options){
   assert.equal(options.rejectIfBusy,true);assert.ok(new TextEncoder().encode(JSON.stringify(request)).length<=24000);
+  assert.match(request.messages[0].content,/10-180 characters/);assert.match(request.messages[0].content,/10-400 characters/);assert.equal(request.temperature,0);
   const {text}=JSON.parse(request.messages[1].content);calls.push(text);
   const quote=text.startsWith('[{')?JSON.parse(text)[0].quote:text.slice(0,80);
-  return {response:JSON.stringify({summary:[{text:'Resmî başvuru koşulları.',quote}],conditions:[]})};
+  return {response:JSON.stringify({summary:[{text:quote,quote}],conditions:[]})};
 }};}
 
 test('scheduled timestamp separates source, matching and delivery into three slots',async()=>{
