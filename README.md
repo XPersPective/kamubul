@@ -34,6 +34,6 @@ flutter drive --driver=test_driver/integration_test.dart --target=integration_te
 
 Cihaz ID'sini `adb devices` sonucuna göre seçin. İlk manuel kurulum başarısızsa veri silen uninstall ile ilerlemeyin. Kontrol sonrası normal APK'yı `adb install -r` ile geri kurun. Kontrol native yazma/yeniden okuma/plaintext temizliğini kanıtlar; gerçek push, süreç yeniden başlatma, backup/restore veya iOS kanıtı değildir. Eski Workmanager kaydı test binary'sinde bulunmayan uygulama callback'ini çalıştırmayı deneyebilir; normal APK geri kurulmalıdır.
 
-Kariyer Kapısı/SBB parserleri mevcut; Resmî Gazete kapsam dışı, İŞKUR/ilan.gov erişim kısıtları ve Cloudflare kaynak probe işi açıktır. [Kaynak kayıt defteri](docs/SOURCE_REGISTRY.md), [gizlilik](PRIVACY.md) ve [ortak standart](ORTAK_UYGULAMA_STANDARDI.md) geçerlidir. Kaynak terms/privacy/store beyanları yeni server kriter/token akışı için release öncesi yenilenecek.
+Kariyer Kapısı/SBB parserleri mevcut; Resmî Gazete kapsam dışı, İŞKUR/ilan.gov erişim kısıtları ve Cloudflare kaynak probe işi açıktır. [Kaynak kayıt defteri](docs/SOURCE_REGISTRY.md), [gizlilik](PRIVACY.md) ve [ortak standart](ORTAK_UYGULAMA_STANDARDI.md) geçerlidir. Gizlilik açıklaması Cloudflare kriter/token/arama adı ve silme akışıyla hizalandı; kaynak terms, gerçek destek iletişimi ve mağaza beyanları release öncesi ayrıca doğrulanacak.
 
 Kod GPL-3.0; KamuBul adı ve logosu lisansa dahil değildir.

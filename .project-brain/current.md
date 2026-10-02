@@ -5,6 +5,15 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 
 ## 1. Üretim durumu ve gerçek sınır
 
+PRIVACY.md artık gerçek Cloudflare katalog/kriter upload/Queue/retention ve
+çevrimdışı silme davranışını açıklar. Server-push ayarı arama adları/kriterleri
+gönderildiğini ve offline silme retry'sini gösterir. Bu legal/store/privacy
+release kabulü değildir; gerçek destek iletişimi hâlâ eksiktir.
+Değişen Home açıklaması analyze ve16 alert/navigation widget kontrolünden
+geçti. Android Gradle release hâlâ debug signing kullanır; mağaza üretim
+imzası hazır değildir. CONTACT_EMAIL yoksa example.com fallback build'e
+girebilir; böyle bir build üretim kabulünü karşılamaz.
+
 **Sunucuya geçiş tamamlanmadı.** Kalıcı Cloudflare API/D1/Cron yayında; Flutter
 v2 katalog/cache ve FCM entegrasyonu vardır. Gerçek üretim 23 resmî RSS ilanı ve
 46 immutable değişiklik taşır. İlanların tamamında detailState=unavailable,

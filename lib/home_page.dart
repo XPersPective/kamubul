@@ -2233,9 +2233,10 @@ class _KamuHomePageState extends State<KamuHomePage> {
           secondary: const Icon(Icons.cloud_outlined),
           title: const Text('Sunucudan anlık bildirim'),
           subtitle: const Text(
-            'Uygulama kapalıyken de yeni ilanlar için haber alın. Sunucuya '
-            'yalnızca bildirim jetonunuz ve kayıtlı arama süzgeçleriniz gider; '
-            'hesap yoktur. Kapatınca kaydınız silinir.',
+            'Yeni ilan bildirimleri için kurulum kimliğiniz, bildirim jetonunuz '
+            've bildirimi açık aramalarınızın adları, kriterleri ve tercihleri '
+            'Cloudflare sunucusuna gönderilir. Kapatınca silme istenir; '
+            'çevrimdışıysanız bağlantı gelince yeniden denenir.',
           ),
           value: pushRegistrar!.enabled,
           onChanged: _setServerPush,
