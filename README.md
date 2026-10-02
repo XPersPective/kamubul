@@ -24,6 +24,31 @@ Ortak core/backend kendi klasöründe `dart pub get`, `dart analyze`, `dart test
 
 Firebase client ayarları Git dışında. Yerel Android build için `--dart-define-from-file=.tmp/firebase-android.defines.json --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev` mevcut. Server private key/AI credential APK veya repoya girmez. AdMob test kimlikleri; gerçek signing/ad/contact ayarları release sahibindedir.
 
+### Android üretim imzası
+
+Release APK/AAB `android/key.properties` içindeki `storeFile`, `storePassword`,
+`keyAlias`, `keyPassword` ile imzalanır; debug anahtarına fallback yoktur.
+Eksik/boş alan veya standart `androiddebugkey` alias'ı release doğrulamasını
+durdurur. Debug/profile geliştirme derlemeleri kendi debug imzasını kullanır.
+Gerçek değerler yalnız gitignore'daki dosyaya girilir; örnek dosya
+`android/key.properties.example`dir. `storeFile` mutlak yol veya `android/`
+dizinine göre relatif yoldur. Windows'ta `/` ya da kaçışlı `\\` kullanılır.
+
+İmza doğrulaması (JDK ayarlı terminal, `android/` içinde):
+
+```sh
+gradlew :app:checkReleaseSigning :app:validateSigningDebug :app:validateSigningProfile --continue
+```
+
+Anahtar yokken release'in hata vermesi ve debug/profile'ın geçmesi beklenir.
+Anahtar varken AGP dosya/keystore doğrulamasını da yapar; gerçek APK/AAB
+imzası ayrıca release artifact üzerinde doğrulanmalıdır. Anahtarı/parolaları
+repo veya sohbete koymayın; repo dışında iki ayrı güvenli yedek tutun ve
+mağazadaki mevcut upload-key kimliğini değiştirmeyin.
+[Flutter Android yayın rehberi](https://docs.flutter.dev/deployment/android)
+anahtar oluşturma ve Play App Signing ayrımını açıklar. Bu yapılandırma gerçek
+anahtarın sağlandığı, yedeklendiği veya mağaza yayınının tamamlandığı kanıtı değildir.
+
 Android güvenli depo kontrolü mevcut `integration_test/secure_push_store_test.dart` ve `test_driver/integration_test.dart` ile çalışır. Önce normal APK'yı ayrı yerde koruyun; integration build aynı çıktı yolunu kullanır. Dar depolamalı x64 emülatör için:
 
 ```sh

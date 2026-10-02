@@ -1,5 +1,8 @@
-storeFile=XXXX.jks
-storePassword=XXXX
-keyAlias=XXXX
-keyPassword=XXXX
+# Copy to ignored android/key.properties; never commit the real values.
+# Absolute path outside the repository, or a path relative to android/.
+# Windows paths use / or escaped backslashes (\\).
+storeFile=PLACEHOLDER-upload-key.jks
+storePassword=PLACEHOLDER-store-password
+keyAlias=PLACEHOLDER-upload-alias
+keyPassword=PLACEHOLDER-key-password
 admobAppId=ca-app-pub-XXXX~XXXX

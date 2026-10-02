@@ -42,6 +42,15 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = keystoreProperties.getProperty("storeFile")?.takeIf { it.isNotBlank() }?.let { rootProject.file(it) }
+            storePassword = keystoreProperties.getProperty("storePassword")
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -50,11 +59,27 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
+}
+
+val checkReleaseSigning = tasks.register("checkReleaseSigning") {
+    doLast {
+        check(listOf("storeFile", "storePassword", "keyAlias", "keyPassword").all {
+            !keystoreProperties.getProperty(it).isNullOrBlank()
+        }) { "Production signing requires android/key.properties: storeFile, storePassword, keyAlias, keyPassword. No debug-key fallback." }
+        check(!keystoreProperties.getProperty("keyAlias").equals("androiddebugkey", ignoreCase = true)) {
+            "Production signing cannot use the Android debug key."
+        }
+        check(rootProject.file(keystoreProperties.getProperty("storeFile")).isFile) {
+            "Production signing keystore file is missing."
+        }
+    }
+}
+// AGP omits validateSigningRelease when signing fields are incomplete; protect packaging itself.
+tasks.matching { it.name in setOf("preReleaseBuild", "packageRelease", "packageReleaseBundle", "packageReleaseUniversalApk", "signReleaseBundle") }.configureEach {
+    dependsOn(checkReleaseSigning)
 }
 
 dependencies {

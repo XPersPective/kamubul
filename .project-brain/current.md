@@ -10,8 +10,14 @@ PRIVACY.md artık gerçek Cloudflare katalog/kriter upload/Queue/retention ve
 gönderildiğini ve offline silme retry'sini gösterir. Bu legal/store/privacy
 release kabulü değildir; gerçek destek iletişimi hâlâ eksiktir.
 Değişen Home açıklaması analyze ve16 alert/navigation widget kontrolünden
-geçti. Android Gradle release hâlâ debug signing kullanır; mağaza üretim
-imzası hazır değildir. CONTACT_EMAIL yoksa example.com fallback build'e
+geçti. Android Gradle release gerçek key.properties alanlarına bağlıdır;
+debug fallback yoktur. checkReleaseSigning APK/AAB paketleme yolunda eksik
+ayar, standart debug alias ve eksik keystore'ı reddeder. Native eksik-ayar
+kontrolü beklenen hatayı verdi, debug/profile imza kontrolü up-to-date geçti.
+Native dry-run APK/AAB görev grafiği korumayı ve dört paketleme/sign hedefini
+doğruladı; gerçek imzalı release artefact üretilmedi.
+Gerçek key.properties yok; mağaza imzası ve yedek kanıtı hazır değildir.
+CONTACT_EMAIL yoksa example.com fallback build'e
 girebilir; böyle bir build üretim kabulünü karşılamaz.
 
 **Sunucuya geçiş tamamlanmadı.** Kalıcı Cloudflare API/D1/Cron yayında; Flutter
