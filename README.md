@@ -45,6 +45,14 @@ Anahtar varken AGP dosya/keystore doğrulamasını da yapar; gerçek APK/AAB
 imzası ayrıca release artifact üzerinde doğrulanmalıdır. Anahtarı/parolaları
 repo veya sohbete koymayın; repo dışında iki ayrı güvenli yedek tutun ve
 mağazadaki mevcut upload-key kimliğini değiştirmeyin.
+
+Release paketleme ayrıca `--dart-define=CONTACT_EMAIL=...` ister. Boş/hatalı
+adres, example.com/net/org (alt alanları dahil) ve test/invalid/localhost
+alanları reddedilir; debug/profile geliştirme akışı korunur. Bu yazım kontrolü
+posta kutusunun sahipliğini veya çalıştığını doğrulamaz. Gerçek destek adresini
+release sahibi doğrulamalıdır. JDK ayarlı PowerShell'de artefact/anahtar
+üretmeden native kontrol: `powershell -File tool/check-release-contact.ps1`.
+
 [Flutter Android yayın rehberi](https://docs.flutter.dev/deployment/android)
 anahtar oluşturma ve Play App Signing ayrımını açıklar. Bu yapılandırma gerçek
 anahtarın sağlandığı, yedeklendiği veya mağaza yayınının tamamlandığı kanıtı değildir.

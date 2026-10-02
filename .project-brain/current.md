@@ -24,8 +24,14 @@ kontrolü beklenen hatayı verdi, debug/profile imza kontrolü up-to-date geçti
 Native dry-run APK/AAB görev grafiği korumayı ve dört paketleme/sign hedefini
 doğruladı; gerçek imzalı release artefact üretilmedi.
 Gerçek key.properties yok; mağaza imzası ve yedek kanıtı hazır değildir.
-CONTACT_EMAIL yoksa example.com fallback build'e
-girebilir; böyle bir build üretim kabulünü karşılamaz.
+Android checkReleaseContact release paketleme yolunda CONTACT_EMAIL zorunlu
+tutar; yanlış yazım/example.com-net-org (subdomain dahil)/test-invalid-localhost
+alanlarını reddeder. Native altı vaka geçti; syntax-only adres kabulü gerçek
+destek posta kutusu/sahiplik doğrulaması değildir. Debug/profile fallback
+geliştirme içindir; iOS release kontrolü ve gerçek destek adresi hâlâ eksiktir.
+Native dry-run APK/AAB görev grafiği contact/signing korumalarını ve dört
+paketleme/sign hedefini doğruladı; paket üretilmedi.
+Değişiklik sonrası native debug/profile signing validation başarılıdır.
 
 **Sunucuya geçiş tamamlanmadı.** Kalıcı Cloudflare API/D1/Cron yayında; Flutter
 v2 katalog/cache ve FCM entegrasyonu vardır. Gerçek üretim 23 resmî RSS ilanı ve

@@ -5,6 +5,7 @@ plugins {
 }
 
 import java.util.Properties
+import java.util.Base64
 
 val keystoreProperties = Properties().apply {
     val file = rootProject.file("key.properties")
@@ -77,9 +78,28 @@ val checkReleaseSigning = tasks.register("checkReleaseSigning") {
         }
     }
 }
+val checkReleaseContact = tasks.register("checkReleaseContact") {
+    doLast {
+        val defines = try {
+            (project.findProperty("dart-defines")?.toString() ?: "")
+                .split(',').filter { it.isNotEmpty() }
+                .map { String(Base64.getDecoder().decode(it), Charsets.UTF_8) }
+        } catch (_: IllegalArgumentException) {
+            error("Release dart-defines must contain valid Base64 values.")
+        }
+        val email = defines.lastOrNull { it.startsWith("CONTACT_EMAIL=") }
+            ?.substringAfter('=') ?: ""
+        val domain = email.substringAfter('@', "").lowercase()
+        check(Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email) &&
+            listOf("example.com", "example.net", "example.org", "test", "invalid", "localhost")
+                .none { domain == it || domain.endsWith(".$it") }) {
+            "Production requires a real CONTACT_EMAIL dart-define; missing or placeholder contact addresses are rejected."
+        }
+    }
+}
 // AGP omits validateSigningRelease when signing fields are incomplete; protect packaging itself.
 tasks.matching { it.name in setOf("preReleaseBuild", "packageRelease", "packageReleaseBundle", "packageReleaseUniversalApk", "signReleaseBundle") }.configureEach {
-    dependsOn(checkReleaseSigning)
+    dependsOn(checkReleaseSigning, checkReleaseContact)
 }
 
 dependencies {
