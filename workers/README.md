@@ -144,10 +144,15 @@ watermark, latest'ten büyük sıra409 cursor_ahead döner. Watermark0 boş geç
 anıdır; limit için mevcut bounded/default davranış korunur. Metadata ETag'i
 latest+oldestRetainedSeq+source durumlarını içerir; retention sınırı değişince
 aynı latest için304 dönmez. Public cache namespace v2 eski gevşek yanıtları ayırır.
-Bu sınır kontrolleri log pruning değildir: bounded silme eklenmeden önce kalıcı
-retention floor ve her ilanın o floor'daki en son immutable temel sürümü korunmalı,
-floor öncesi pinned bootstrap/delta recovery Flutter'da doğrulanmalıdır. MIN(seq)
-eski temel sürümler tutulduğunda retention floor'un yerine geçemez.
+Migration0011 kalıcı `catalogue_retention.floor` ekler (başlangıç0). Metadata
+sınırı floor+1 olur; delta after<floor için409 cursor_expired, snapshot
+watermark<floor için409 snapshot_expired döner. Floor'daki snapshot ve delta
+geçerlidir; eski per-listing temel kayıtları MIN(seq)'den bağımsız korunabilir.
+Mobil yalnız endpoint-specific/bounded409 hata kodunda bir kez no-cache metadata
+ve bootstrap dener; ağ/diğer409/malformed hata cache'i sıfırlamaz. Favoriler ve
+son başarı zamanı tamamlanmamış tekrar indirmede korunur. Bu checkpoint silme
+çalıştırmaz: sonraki bounded pruner her ilanın floor'daki son immutable sürümünü
+ve tüm sonraki değişiklikleri korumalı; latest seq ileri imleci kalıcı kalmalıdır.
 
 Saatlik `:59` Cron slotu yalnız registry bakımına ayrılır; o saatte gönderim
 slotları arasındaki aralık bir kez 6dk olur. 120 gün heartbeat almayan kurulumun

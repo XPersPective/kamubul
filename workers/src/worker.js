@@ -15,6 +15,7 @@ async function bodyJSON(request){
   return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
 }
 export async function latestSeq(db){return (await db.prepare('SELECT COALESCE(MAX(seq),0) n FROM catalogue_changes').first()).n;}
+async function catalogueBounds(db){return db.prepare('SELECT (SELECT COALESCE(MAX(seq),0) FROM catalogue_changes) n,(SELECT COALESCE(MIN(seq),0) FROM catalogue_changes) oldest,(SELECT floor FROM catalogue_retention WHERE id=1) floor').first();}
 async function boundedCataloguePage(db,statement){
   const metadata=(await statement.all()).results,selected=[];
   let bytes=1024;
@@ -95,8 +96,8 @@ export async function fetchRequest(request,env,ctx){
       const seq=await latestSeq(env.DB);return json({status:seq?'ok':'awaiting_ingestion',latestSeq:seq,fcmConfigured:!!(env.FCM_PRIVATE_KEY&&env.FCM_CLIENT_EMAIL),aiConfigured:!!env.AI});
     }
     if(path==='/api/v2/meta') {
-      const seq=await latestSeq(env.DB);const sources=(await env.DB.prepare("SELECT id,name,CASE WHEN state IN ('ok','failed','blocked','disabled') THEN state WHEN state='processing' AND last_success IS NOT NULL THEN 'ok' ELSE 'failed' END state,last_attempt,last_success,note FROM sources").all()).results;
-      const oldest=(await env.DB.prepare('SELECT COALESCE(MIN(seq),0) n FROM catalogue_changes').first()).n;
+      const {n:seq,oldest:minimum,floor}=await catalogueBounds(env.DB);const sources=(await env.DB.prepare("SELECT id,name,CASE WHEN state IN ('ok','failed','blocked','disabled') THEN state WHEN state='processing' AND last_success IS NOT NULL THEN 'ok' ELSE 'failed' END state,last_attempt,last_success,note FROM sources").all()).results;
+      const oldest=floor>0?floor+1:minimum;
       return conditional(request,{schemaVersion:2,taxonomyVersion:1,latestSeq:seq,oldestRetainedSeq:oldest,sources},'"meta-'+seq+'-'+oldest+'-'+await sha256(JSON.stringify(sources))+'"');
     }
     if(path==='/api/v2/taxonomy') {
@@ -104,19 +105,21 @@ export async function fetchRequest(request,env,ctx){
       return json({version:1,education:educationValues.map(x=>x.label),educationValues,kpssTypes:['P3','P93','P94'],categories:['işçi','personel','belediye'],occupations},200,{'Cache-Control':'public, max-age=300'});
     }
     if(path==='/api/v2/changes') {
-      const latest=await latestSeq(env.DB),after=int(url.searchParams.get('after'),0,Number.MAX_SAFE_INTEGER,0,true),watermark=int(url.searchParams.get('watermark'),0,Number.MAX_SAFE_INTEGER,latest,true),limit=int(url.searchParams.get('limit'),1,50,30);
+      const {n:latest,floor}=await catalogueBounds(env.DB),after=int(url.searchParams.get('after'),0,Number.MAX_SAFE_INTEGER,0,true),watermark=int(url.searchParams.get('watermark'),0,Number.MAX_SAFE_INTEGER,latest,true),limit=int(url.searchParams.get('limit'),1,50,30);
       if(!Number.isSafeInteger(after)||!Number.isSafeInteger(watermark))return json({error:'cursor'},400);
       if(after>latest||watermark>latest)return json({error:'cursor_ahead'},409);
       if(watermark<after)return json({error:'watermark'},400);
+      if(after<floor)return json({error:'cursor_expired'},409);
       const {rows}=await boundedCataloguePage(env.DB,env.DB.prepare('SELECT seq,listing_id,length(CAST(payload AS BLOB)) payload_bytes FROM catalogue_changes WHERE seq>? AND seq<=? ORDER BY seq LIMIT ?').bind(after,watermark,limit));
       const appliedThrough=rows.length?rows.at(-1).seq:watermark;
       return conditional(request,{watermark,appliedThrough,hasMore:appliedThrough<watermark,changes:rows.map(r=>({seq:r.seq,operation:r.operation,id:r.listing_id,revision:r.revision,item:JSON.parse(r.payload)}))},'"changes-'+after+'-'+watermark+'-'+limit+'"');
     }
     if(path==='/api/v2/listings') {
-      const latest=await latestSeq(env.DB),watermark=int(url.searchParams.get('watermark'),0,Number.MAX_SAFE_INTEGER,latest,true),after=url.searchParams.get('after')??'',limit=int(url.searchParams.get('limit'),1,50,30);
+      const {n:latest,floor}=await catalogueBounds(env.DB),watermark=int(url.searchParams.get('watermark'),0,Number.MAX_SAFE_INTEGER,latest,true),after=url.searchParams.get('after')??'',limit=int(url.searchParams.get('limit'),1,50,30);
       if(!Number.isSafeInteger(watermark))return json({error:'cursor'},400);
       if(watermark>latest)return json({error:'cursor_ahead'},409);
       if(after.length>200)return json({error:'cursor'},400);
+      if(watermark<floor)return json({error:'snapshot_expired'},409);
       const {rows,hasMore}=await boundedCataloguePage(env.DB,env.DB.prepare(`SELECT c.seq,c.listing_id,length(CAST(c.payload AS BLOB)) payload_bytes FROM catalogue_changes c JOIN (SELECT listing_id,MAX(seq) seq FROM catalogue_changes WHERE seq<=? GROUP BY listing_id) last ON c.seq=last.seq
         WHERE c.operation='upsert' AND c.listing_id>? ORDER BY c.listing_id LIMIT ?`).bind(watermark,after,limit+1));
       const visible=rows.slice(0,limit);return conditional(request,{watermark,items:visible.map(r=>JSON.parse(r.payload)),next:hasMore||rows.length>limit?visible.at(-1).listing_id:null},'"list-'+watermark+'-'+await sha256(after)+'-'+limit+'"');

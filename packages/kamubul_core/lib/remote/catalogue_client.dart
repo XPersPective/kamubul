@@ -20,6 +20,10 @@ class RemoteCatalogueException implements Exception {
   String toString() => 'RemoteCatalogueException: $message';
 }
 
+class RemoteCatalogueExpiredException extends RemoteCatalogueException {
+  const RemoteCatalogueExpiredException(super.message);
+}
+
 class RemoteFetchResult {
   const RemoteFetchResult({this.snapshot, this.etag}) : notModified = false;
   const RemoteFetchResult.notModified(this.etag)
@@ -66,12 +70,14 @@ class RemoteCatalogueClient {
 
   Future<({CatalogueMetadata? metadata, String? etag})> fetchMetadata({
     String? etag,
+    bool bypassCache = false,
   }) async {
     try {
       return await (() async {
         final request = http.Request('GET', _uri('/api/v2/meta'));
         request.headers['Accept'] = 'application/json';
         if (etag != null) request.headers['If-None-Match'] = etag;
+        if (bypassCache) request.headers['Cache-Control'] = 'no-cache';
         final response = await _client.send(request);
         if (response.statusCode == 304) {
           await response.stream.listen(null).cancel();
@@ -120,8 +126,7 @@ class RemoteCatalogueClient {
           http.Request('GET', uri)..headers['Accept'] = 'application/json',
         );
         if (response.statusCode != 200) {
-          await response.stream.listen(null).cancel();
-          throw RemoteCatalogueException('HTTP ${response.statusCode}');
+          await _rejectPage(response, 'cursor_expired');
         }
         final bytes = <int>[];
         await for (final chunk in response.stream) {
@@ -163,8 +168,7 @@ class RemoteCatalogueClient {
           http.Request('GET', uri)..headers['Accept'] = 'application/json',
         );
         if (response.statusCode != 200) {
-          await response.stream.listen(null).cancel();
-          throw RemoteCatalogueException('HTTP ${response.statusCode}');
+          await _rejectPage(response, 'snapshot_expired');
         }
         final bytes = <int>[];
         await for (final chunk in response.stream) {
@@ -184,6 +188,32 @@ class RemoteCatalogueClient {
     } on Exception catch (error) {
       throw RemoteCatalogueException('catalogue page: $error');
     }
+  }
+
+  Future<Never> _rejectPage(
+    http.StreamedResponse response,
+    String expiredCode,
+  ) async {
+    if (response.statusCode == 409) {
+      final bytes = <int>[];
+      await for (final chunk in response.stream) {
+        if (bytes.length + chunk.length > 1024) {
+          throw const RemoteCatalogueException('HTTP 409');
+        }
+        bytes.addAll(chunk);
+      }
+      try {
+        final body = jsonDecode(utf8.decode(bytes));
+        if (body is Map && body['error'] == expiredCode) {
+          throw RemoteCatalogueExpiredException(expiredCode);
+        }
+      } on FormatException {
+        // Malformed errors must not trigger a catalogue reset.
+      }
+    } else {
+      await response.stream.listen(null).cancel();
+    }
+    throw RemoteCatalogueException('HTTP ${response.statusCode}');
   }
 
   Future<RemoteFetchResult> fetchListings({String? etag}) async {

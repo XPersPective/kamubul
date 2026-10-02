@@ -17,7 +17,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0007_maintenance.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0008_notification_archive.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0009_terminal_payload_retention.sql',import.meta.url),'utf8'));
-  sql.exec(readFileSync(new URL('../migrations/0010_education_alias_facets.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0010_education_alias_facets.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0011_catalogue_retention_floor.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }

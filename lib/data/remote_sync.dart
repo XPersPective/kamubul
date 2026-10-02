@@ -52,39 +52,48 @@ Future<CatalogueMetadata> syncRemoteV2Catalogue({
   } on FormatException {
     /* Bozuk metadata için koşulsuz GET; katalog/cursor korunur. */
   }
-  final fetched = await client.fetchMetadata(
-    etag: previous == null ? null : cached.etag,
-  );
-  final metadata = fetched.metadata ?? previous;
-  if (metadata == null) {
-    throw const RemoteCatalogueException('metadata missing after 304');
+  // One fresh metadata/bootstrap retry handles retention advancing mid-page.
+  for (var attempt = 0; ; attempt++) {
+    try {
+      final fetched = await client.fetchMetadata(
+        etag: attempt == 0 && previous != null ? cached.etag : null,
+        bypassCache: attempt > 0,
+      );
+      final metadata = fetched.metadata ?? (attempt == 0 ? previous : null);
+      if (metadata == null) {
+        throw const RemoteCatalogueException('metadata missing after 304');
+      }
+      final cursor = await store.remoteCursor(expectedGeneration: generation);
+      if (attempt > 0 ||
+          (cursor == 0 && cached.metadata == null) ||
+          cursor > metadata.latestSeq ||
+          cursor + 1 < metadata.oldestRetainedSeq ||
+          cached.pendingBootstrap) {
+        await syncRemoteBootstrap(
+          store: store,
+          client: client,
+          metadata: metadata,
+          generation: generation,
+        );
+      }
+      await syncRemoteChanges(
+        store: store,
+        client: client,
+        through: metadata.latestSeq,
+        generation: generation,
+      );
+      await store.saveRemoteMetadata(
+        jsonEncode(metadata.json),
+        fetched.etag,
+        now,
+        expectedCursor: metadata.latestSeq,
+        expectedGeneration: generation,
+      );
+      return metadata;
+    } on RemoteCatalogueExpiredException {
+      if (attempt > 0) rethrow;
+    }
   }
-  final cursor = await store.remoteCursor(expectedGeneration: generation);
-  if ((cursor == 0 && cached.metadata == null) ||
-      cursor > metadata.latestSeq ||
-      cursor + 1 < metadata.oldestRetainedSeq ||
-      cached.pendingBootstrap) {
-    await syncRemoteBootstrap(
-      store: store,
-      client: client,
-      metadata: metadata,
-      generation: generation,
-    );
-  }
-  await syncRemoteChanges(
-    store: store,
-    client: client,
-    through: metadata.latestSeq,
-    generation: generation,
-  );
-  await store.saveRemoteMetadata(
-    jsonEncode(metadata.json),
-    fetched.etag,
-    now,
-    expectedCursor: metadata.latestSeq,
-    expectedGeneration: generation,
-  );
-  return metadata;
 }
 
 /// Sayfa cache+cursor atomik; network failure bir sonraki açılışta devam eder.

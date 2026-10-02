@@ -10,7 +10,7 @@ function setup(t){
     async put(key,response){puts++;entries.set(key.url,response.clone());},
   }}});
   t.after(()=>{if(before)Object.defineProperty(globalThis,'caches',before);else delete globalThis.caches;});
-  const DB={prepare(query){return {bind(){return this;},async first(){reads++;return query.includes('installations')?null:{n:40};},async all(){reads++;return {results:[]};}};}};
+  const DB={prepare(query){return {bind(){return this;},async first(){reads++;return query.includes('installations')?null:{n:40,oldest:1,floor:0};},async all(){reads++;return {results:[]};}};}};
   const ctx={waitUntil(promise){pending.push(promise);}};
   return {env:{DB},ctx,entries,counts:()=>({reads,matches,puts}),settle:()=>Promise.all(pending)};
 }

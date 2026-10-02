@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {fetchRequest} from '../src/worker.js';
 
 function setup(t){
-  const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));t.after(()=>sql.close());
+  const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0011_catalogue_retention_floor.sql',import.meta.url),'utf8'));t.after(()=>sql.close());
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};}};}};
   const insert=(id,text)=>sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES(?,'sbb',?,'hash','first','first','later',?)").run(id,id,JSON.stringify({id,title:'Resmî ilan '+id,sourceId:'sbb',text,url:'https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod='+id,updatedAt:'2026-10-01T00:00:00Z'}));
   const fetch=async path=>{
@@ -71,4 +71,23 @@ test('metadata ETag changes when retained boundary changes without a new publica
   sql.exec('DELETE FROM catalogue_changes WHERE seq=1');
   const changed=await fetchRequest(request(etag),{DB},{});assert.equal(changed.status,200);
   const body=await changed.json();assert.equal(body.latestSeq,2);assert.equal(body.oldestRetainedSeq,2);assert.notEqual(changed.headers.get('etag'),etag);
+});
+
+test('durable retention floor rejects expired pins while preserving older snapshot bases',async t=>{
+  const {sql,insert,fetch,DB}=setup(t);insert('first','one');insert('second','two');
+  sql.exec("UPDATE listings SET revision=2,payload=json_set(payload,'$.title','Revised') WHERE id='second'");
+  const meta=etag=>fetchRequest(new Request('https://api/api/v2/meta',{headers:etag?{'If-None-Match':etag}:{}}),{DB},{});
+  const initial=await meta(),etag=initial.headers.get('etag');
+  sql.exec('UPDATE catalogue_retention SET floor=2 WHERE id=1');
+  const changed=await meta(etag);assert.equal(changed.status,200);
+  const metadata=await changed.json();assert.equal(metadata.latestSeq,3);assert.equal(metadata.oldestRetainedSeq,3);
+  assert.equal(sql.prepare('SELECT MIN(seq) n FROM catalogue_changes').get().n,1);
+  for(const path of ['changes?after=0','changes?after=1&watermark=2'])assert.deepEqual(await fetch(path),{status:409,body:{error:'cursor_expired'}});
+  assert.deepEqual(await fetch('listings?watermark=1'),{status:409,body:{error:'snapshot_expired'}});
+  const snapshot=await fetch('listings?watermark=2');assert.equal(snapshot.status,200);
+  assert.deepEqual(snapshot.body.items.map(x=>x.title),['Resmî ilan first','Resmî ilan second']);
+  const delta=await fetch('changes?after=2');assert.equal(delta.status,200);assert.equal(delta.body.changes[0].item.title,'Revised');
+  assert.equal((await fetch('changes?after=2&watermark=2')).body.changes.length,0);
+  assert.throws(()=>sql.exec('UPDATE catalogue_retention SET floor=-1'));
+  assert.throws(()=>sql.exec('INSERT INTO catalogue_retention(id,floor) VALUES(2,0)'));
 });

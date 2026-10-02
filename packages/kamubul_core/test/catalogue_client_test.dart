@@ -24,6 +24,50 @@ void main() {
   final base = Uri.parse('https://kamubul.example');
 
   test(
+    'only bounded endpoint-specific 409 errors request retention recovery',
+    () async {
+      for (final snapshot in [false, true]) {
+        final code = snapshot ? 'snapshot_expired' : 'cursor_expired';
+        for (final response in [
+          http.Response(jsonEncode({'error': code}), 409),
+          http.Response(jsonEncode({'error': code}), 503),
+          http.Response(jsonEncode({'error': 'cursor_ahead'}), 409),
+          http.Response(
+            jsonEncode({
+              'error': snapshot ? 'cursor_expired' : 'snapshot_expired',
+            }),
+            409,
+          ),
+          http.Response('bad json', 409),
+          http.Response('x' * 1025, 409),
+        ]) {
+          final client = RemoteCatalogueClient(
+            baseUrl: base,
+            client: MockClient((_) async => response),
+          );
+          final expired =
+              response.statusCode == 409 &&
+              response.body == jsonEncode({'error': code});
+          await expectLater(
+            snapshot
+                ? client.fetchCataloguePage(watermark: 1)
+                : client.fetchChanges(after: 1),
+            throwsA(
+              expired
+                  ? isA<RemoteCatalogueExpiredException>()
+                  : isA<RemoteCatalogueException>().having(
+                      (e) => e is RemoteCatalogueExpiredException,
+                      'expired',
+                      false,
+                    ),
+            ),
+          );
+        }
+      }
+    },
+  );
+
+  test(
     'frozen catalogue HTTP page validates watermark and bounds body',
     () async {
       for (final body in [

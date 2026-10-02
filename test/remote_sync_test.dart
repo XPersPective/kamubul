@@ -119,6 +119,111 @@ void main() {
     sbbCalls = 0;
   });
 
+  test('expired delta or staged snapshot retries once with fresh metadata and keeps favorites', () async {
+    for (final snapshot in [false, true]) {
+      for (final failsAgain in [false, true]) {
+        final store = await freshStore();
+        addTearDown(store.close);
+        await syncRemoteV2Catalogue(
+          store: store,
+          client: client(metadataBody()),
+          now: now,
+        );
+        await store.setSaved(_url, true);
+        final generation = await store.bindRemoteOrigin(
+          'https://kamubul.example',
+        );
+        if (snapshot) {
+          await store.beginBootstrap(
+            latest: 2,
+            oldest: 1,
+            expectedGeneration: generation,
+          );
+          await store.stageCataloguePage(
+            CataloguePage(2, [
+              {
+                'id': 'staged',
+                'revision': 1,
+                'url': 'https://example.gov.tr/staged',
+                'title': 'Staged',
+                'sourceId': kKariyerSourceId,
+                'category': 'Personel',
+                'updatedAt': '2026-09-29T08:00:00Z',
+              },
+            ], 'staged'),
+            after: '',
+            expectedGeneration: generation,
+          );
+        }
+        var metas = 0, pages = 0;
+        final remote = RemoteCatalogueClient(
+          baseUrl: Uri.parse('https://kamubul.example'),
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v2/meta') {
+              metas++;
+              final meta = jsonDecode(metadataBody()) as Map;
+              meta['latestSeq'] = metas == 1 ? 2 : 4;
+              meta['oldestRetainedSeq'] = metas == 1 ? 1 : 4;
+              if (metas == 2) {
+                expect(request.headers['If-None-Match'], isNull);
+                expect(request.headers['Cache-Control'], 'no-cache');
+              }
+              return http.Response(
+                jsonEncode(meta),
+                200,
+                headers: {
+                  'etag': '"new"',
+                  'content-type': 'application/json; charset=utf-8',
+                },
+              );
+            }
+            pages++;
+            if (pages == 1 && snapshot) {
+              expect(request.url.queryParameters['after'], 'staged');
+            }
+            if (pages == 1 || failsAgain) {
+              return http.Response(
+                jsonEncode({
+                  'error': request.url.path.endsWith('changes')
+                      ? 'cursor_expired'
+                      : 'snapshot_expired',
+                }),
+                409,
+              );
+            }
+            expect(request.url.path, '/api/v2/listings');
+            expect(request.url.queryParameters['watermark'], '4');
+            expect(request.url.queryParameters['after'], '');
+            return http.Response(
+              jsonEncode({'watermark': 4, 'items': [], 'next': null}),
+              200,
+            );
+          }),
+        );
+        final sync = syncRemoteV2Catalogue(
+          store: store,
+          client: remote,
+          now: now.add(const Duration(hours: 1)),
+        );
+        if (failsAgain) {
+          await expectLater(
+            sync,
+            throwsA(isA<RemoteCatalogueExpiredException>()),
+          );
+          expect(await store.remoteCursor(), 1);
+          expect((await store.remoteMetadata()).lastSuccess, now);
+        } else {
+          await sync;
+          expect(await store.remoteCursor(), 4);
+          expect((await store.remoteMetadata()).etag, '"new"');
+        }
+        expect(metas, 2);
+        expect(pages, 2);
+        expect((await store.allListings()).single.saved, true);
+      }
+    }
+  });
+
   test(
     'tutulmayan eski cursor katalog silinmeden bootstrap gerektirir',
     () async {
