@@ -113,3 +113,11 @@ Bu kontrol noktasında actual Firebase/API Android debug APK yeniden derlendi:
 223497245bytes, Gradle62.1s. Changed4 analyze temiz; emulator kurulum/çalıştırma
 bu build için yapılmadı. Eski APK build çıktısı yenisiyle güncellendi; debug
 signing/AdMob test fallback ve fiziksel FCM/iOS/release sınırları aynıdır.
+
+Kaynak erişimi incelemesi2Oct: Windows'tan public Kariyer Infrastructure ve
+IlanDetay JS okuması Worker'ın API root/iki POST adresiyle aynı rotaları gösterdi;
+RSS açıklaması başlık tekrarı, detail HTML koşulları SSR olarak vermiyor. Bu
+kontrol doğru rotaya işaret eder, Worker522 nedeni/egress başarısı kanıtı değildir.
+docs/SOURCE_REGISTRY.md Cloudflare/30dk/legacy pilot durumuna hizalandı; eski
+Google backend zamanlaması işletim mimarisi diye sunulmaz. Terms/robots/model
+örnek kalite ve Worker detail erişimi hâlâ açık; bypass/proxy/fake detail yok.

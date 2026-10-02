@@ -1,35 +1,58 @@
 # Kaynak kayıt defteri
 
-Yalnızca resmî kaynaklar (C-001). Her satır, hedefteki "Source registry"
-gereği getirme yöntemi, ayrıştırıcı, hız sınırı, atıf ve son sonucu
-kayıt altına alır; bilinmeyenler "kayıt yok"tur, uydurulmaz. Son doğrulama:
-2026-09-28.
+Güncel işletim: kalıcı Cloudflare Worker `kamubul-api` + D1 `kamubul`.
+Kaynak kodu `workers/src/sources.js`, merkezi toplama `workers/src/pipeline.js`.
+Google Cloud Run veya eski `backend/` zamanlayıcısı işletim mimarisi değildir.
+Son kontrol: 2 Ekim 2026. Cloudflare çıkışı ile geliştirme bilgisayarından alınan
+sonuçlar ayrı kanıttır; yerel erişim sunucunun erişebildiğini göstermez.
 
-| Kaynak | Getirme yöntemi | Ayrıştırıcı | Hız sınırı (öz-kısıt) | Atıf | Son sonuç | robots / coğrafya | Kullanım şartları |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Kariyer Kapısı (`kariyerkapisi.gov.tr`) | Herkese açık `GetIseAlimPage` JSON liste çağrısı; yayın tarihi resmî RSS'den zenginleştirilir; liste düşerse RSS'ye düşüş | `lib/listings/kariyer_feed.dart`, ayrıntı: `kariyer_detail.dart` | Yenileme başına tek liste çağrısı; planlı kontrol 12 saatte bir (Workmanager), manuel yenileme kullanıcı eliyle | Her kartta kaynak adı + resmî ilan URL'i | 2026-09-28 başarılı: 26 kayıtlı ilan; iki "Yurt Dışı Eğitim" duyurusu iş ilanı olmadığı için ayıklandı; 5 gelecek tarihli kayıt yalnızca yayın gününde listelenir | robots.txt incelemesi: kayıt yok; coğrafi kısıt: kayıt yok | TD-002: yayın öncesi şartlar doğrulanacak |
-| Kamu İlanları SBB (`kamuilan.sbb.gov.tr`) | Sunucu taraflı WebForms liste (GET token, POST yıl); resmî ayrıntı PDF | `lib/listings/sbb_feed.dart` | Yenileme başına tek liste akışı; planlı kontrol 12 saatte bir | Her kartta kaynak adı + resmî belge URL'i | 2026-09-28 başarılı: kurum, başlık, kategori, kontenjan ve tarih aralığı alanları geliyor; resmî ayrıntı PDF olarak açılıyor | TR dışı IP'leri engelleyebilir (2026-09-27 TD-002 notu); robots.txt incelemesi: kayıt yok | TD-002: yayın öncesi şartlar doğrulanacak |
-| Resmî Gazete (`resmigazete.gov.tr`) | KAPSAM DIŞI (2026-09-29): son günlerde personel alım ilanı vermedi; adaptör ve sertifika zinciri sunucudan ve uygulamadan kaldırıldı | — | — | — | Eski önbellek satırları budanana kadar görünebilir | — | — |
-| İŞKUR (`esube.iskur.gov.tr`) | YOK — WAF oturum akışı; anon istek "Request Rejected — İŞKUR Bilgi İşlem Dairesi Başkanlığı" yanıtı veriyor | yok | — | — | 2026-09-27 başarısız (kanıtlı engel); oturum/CAPTCHA aşma yasak (C-001) | WAF: anon istek reddi | Engel notu geçerli; veri kaynağı değil |
-| ilan.gov.tr | YOK — `/api/services/app/Ad/AdsByFilter` doğrudan çağrıda Kong üzerinden 404; oturum akışı tersine mühendisliği yeni kapsam | yok | — | — | 2026-09-27 başarısız (kanıtlı engel) | Oturum/kapı: doğrudan çağrı 404 | Engel notu geçerli; veri kaynağı değil |
-| Belediyeler | Yok (kapsam dışı) | — | — | — | — | — | — |
+| Kaynak | Merkezi getirme yöntemi | Canlı Cloudflare sonucu | Açık iş |
+| --- | --- | --- | --- |
+| Kariyer Kapısı | Public `ilan/GetIseAlimPage` JSON; başarısızsa resmî `/RSS`. Ayrıntı: `ilan/GetIlanPreviewPublic` ve `altilan/GetAltIlanInfoByIlanIdPublic` POST | RSS üzerinden20 gerçek ilan/40 immutable değişiklik. Ayrıntı API'si HTTP522; kaynak notu eksik ayrıntıyı belirtir | Kaynak ayrıntısına gerçek Worker erişimi, kullanım şartları, yeterli belge üzerinden model değerlendirmesi |
+| Kamu İlanları SBB | `https://kamuilan.sbb.gov.tr/` GET WebForms token'ları + POST yıl; parser `parseSbbList` | Erişim engeli; `blocked` raporlanır. Kaynak başarıyla toplanmış kabul edilmez | Worker erişimi ve resmî belge/PDF okuyucu, kullanım şartları |
+| İŞKUR | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; oturum/CAPTCHA/WAF aşılmaz |
+| ilan.gov.tr | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; engel aşılmaz |
+| Resmî Gazete | Kapsam dışı; adaptör kaldırıldı | Yeni veri toplanmaz | Eski cihaz cache'i görülürse geçiş/retention kuralları uygulanır |
+| Belediyelerin ayrı siteleri | Ayrı kaynak adaptörü yok | Veri sağlanmış kabul edilmez | Kullanıcı kapsamı/kaynak sözleşmesi olmadan yeni scraper eklenmez |
 
-## Notlar
+## Zamanlama ve güvenlik
 
-- Planlı aralık, uygulamanın kendi 12 saatlik Workmanager denetimidir;
-  kaynak başına ayrı bir ticari hız sınırı sözleşmesi **kayıt yok**tur —
-  yayın öncesi (TD-002) her kaynak için kullanım şartları tek tek
-  doğrulanacaktır.
-- Yarışma/derleyici siteler veri kaynağı değildir (C-001); yalnızca özellik
-  araştırması için incelenebilir.
-- Yapısal alan (yaş, KPSS, eğitim vb.) çıkarımı yalnızca kaynak cümlesiyle
-  yapılır; kanıt yoksa alan "belirtilmemiş" kalır (`extract_conditions.dart`,
-  `tool/eval_extraction.dart` ile 55 Kariyer + 55 SBB örneklikte 1.000
-  precision/recall).
+- Kaynak liste kontrolü30dk; tek kalıcı batch ve lease. Her source invocation
+  en çok4 ilanı işler; üç-slot Cron'da source/AI, matching, send ayrı çalışır.
+  Saatlik `:59` registry+katalog bakımına ayrılır. Bu sınırlar sağlayıcının
+  ticari hız sınırı izni değildir; kullanım şartları doğrulaması açık kalır.
+- Yeniden kontrol süresi kayıt başına başarılı akışta6saat, geçici ayrıntı
+  hatasında30dk. Önceki başarılı ayrıntı/özet hata nedeniyle silinmez.
+  Eksik/güncellenemeyen ayrıntı kaynak notunda belirtilir.
+- HTTPS ve kaynak host allowlist, manuel redirect/redirect reddi,25s timeout,
+ 3MB yanıt sınırı. Private/isteğe bağlı key, oturum veya CAPTCHA aşma yok.
+- Uygulama kartı kaynak adı ve resmî bağlantı gösterir. Kullanıcının resmî
+  başvuru/belge bağlantısını açması otomatik scraping değildir.
+- robots.txt, yeniden yayınlama/kullanım şartları ve source-specific izin/hız
+  sözleşmeleri henüz doğrulanmadı. Başarılı GET, yeniden yayınlama izni kanıtı
+  değildir; release kapısı açık kalır.
 
-## Sunucu çekimi (2026-09-29 tasarımı)
+## Ayrıntı API'si kontrolü — 2 Ekim 2026
 
-- Sunucu (`backend/`) Kariyer Kapısı ve SBB'yi günde ~3 kez (08:00, 13:00, 18:00 TR) okur; kaynak başına istek sayısı ve gecikmesi ayarlıdır (`REQUEST_DELAY_MS`, `DETAIL_FETCH_LIMIT`). İŞKUR ve ilan.gov.tr için `PROBE_SOURCES=1` yalnızca herkese açık ana sayfaya çalışma başına **tek anonim GET** atar ve sonucu `sources.json` durumuna (`blocked` / `disabled` = erişilebilir ama ayrıştırıcı yok / `failed`) yazar; oturum, CAPTCHA ya da WAF aşılmaz.
-- **Sunucu IP'sinden gerçek okuma sonucu: kayıt yok.** Sunucu henüz Google Cloud'da çalıştırılmadı. Bu geliştirme oturumunun çıkış vekili tüm resmî adresleri 403 ile reddetti; bu sonuç kaynakların davranışı hakkında hiçbir şey söylemez ve kayda alınmamıştır.
-- Google Cloud'da Türkiye bölgesi yoktur (planlı 2028–2029). SBB yurt dışı IP'leri reddederse sunucu SBB'yi `failed`/`blocked` raporlar ve uygulama yalnızca SBB'yi cihazdan çeker.
-- Yayın öncesi (TD-002): ilanların sunucudan yeniden yayınlanması için her kaynağın kullanım şartları doğrulanacaktır.
+Geliştirme bilgisayarı resmî RSS'yi ve `IlanDetay` HTML/JavaScript'ini alabildi.
+Public `Infrastructure` JavaScript'i API kökünü
+`https://api.kariyerkapisi.gov.tr/api` olarak tanımlar; public `IlanDetayV1`
+JavaScript'i Worker'da kullanılan aynı iki ayrıntı POST rotasını çağırır.
+Adresler güncel site koduyla uyumludur; bu kontrol Worker'daki522'nin nedenini
+veya oradan başarılı erişimi kanıtlamaz. IP/coğrafya nedeni tahmin edilmez.
+
+Kontrol edilen RSS açıklaması başlığı tekrarlar; ayrıntı HTML'i API'den
+sonradan doldurulan alanları içerir, doğrudan koşul metni vermez. Bunlardan
+yaş/KPSS/eğitim koşulu ya da sahte ayrıntı üretilmez. Yeni bir izinli kaynak
+kanıtı olmadan alternatif host/proxy eklenmez.
+
+## Mobil geçiş ve çıkarım kanıtı
+
+Telefonun eski fetch/Workmanager yolları yalnız pilot tamamlanmadığı için
+geçiş kodunda durur; hedef30dk merkezi sunucu çekimidir. Kodun hâlâ çalışması
+hedef mimari kabul edilmez. Kaldırma koşulları `.project-brain/tasks/PB-019.md`.
+
+Önceki Dart fixture corpus sonuçları gerçek Workers AI doğruluk ölçümü
+sayılmaz. Kaynak alıntısı olmayan koşul belirsizdir; AI alanlarının precision
+kapısı kapalıdır. Free modelden en az50 etiketli örnek/kaynak, recall/precision,
+neuron ve CPU ölçümü hâlâ yapılmalıdır. Kullanıcı profilleri modele gönderilmez.
