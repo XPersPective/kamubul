@@ -306,6 +306,23 @@ void main() {
     );
   });
 
+  test('deadline reminder uses calendar days and never notifies after exact expiry', () {
+    final now = DateTime(2026, 10, 2, 23, 30);
+    PendingNotification? remind(DateTime end) => deadlineReminder(
+      record: record('deadline', deadline: end, saved: true),
+      alreadyReminded: {},
+      now: now,
+    );
+    expect(remind(DateTime(2026, 10, 3, 0, 30))?.title, 'Son 1 gün');
+    expect(remind(DateTime(2026, 10, 5, 8))?.title, 'Son 3 gün');
+    expect(remind(DateTime(2026, 10, 6, 8)), isNull);
+    expect(remind(DateTime(2026, 10, 2, 23, 59))?.title, 'Bugün son gün');
+    expect(remind(DateTime(2026, 10, 2, 13)), isNull);
+    expect(remind(now), isNull);
+    expect(remind(DateTime(2026, 10, 1, 23, 59)), isNull);
+    expect(remind(DateTime(2026, 10, 3, 0, 30).toUtc())?.title, 'Son 1 gün');
+  });
+
   test('son30 yayın tarihini kullanır; başvuru bitişi yerine geçmez', () {
     ListingRecord sbbRecord(
       String url, {

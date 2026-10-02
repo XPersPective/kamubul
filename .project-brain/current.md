@@ -164,6 +164,10 @@ occupation/institution önerileri ek model/ağ çağrısı yapmaz. Stable search
 manual/quick filters aynı matcher, unknown ayrı Şartları kontrol et opt-in.
 SBB wire sbb ve legacy kamuilan_sbb refresh/status/label/backup tanınır;
 canonical wire state alias'a üstün, existing IDs/URLs topluca rewrite edilmez.
+Kart geri sayımı ve geçiş kodundaki yerel deadlineReminder, gerçek deadline
+anında sona erer; yerel takvim günlerini UTC date-only farkıyla sayar. Kısmi
+24h truncation yanlış Bugün/erken hatırlatma üretmez; kaynak saati gün sonuna
+ötelenmez. Ertesi gün/son dakika/aynı gün expiry/bounded3day/UTC testleri vardır.
 
 Template master7101480 fetch güncel; core-v1.0.0 OtherAppsPage/Repository reuse.
 Keşfet5th destination + settings Diğer uygulamalarımız; ilk4 tab index korunur.
@@ -194,8 +198,8 @@ Android native secure write/reopen/plaintext cleanup API36/x64 emulator'da
 
 ## 7. Doğrulama, geçiş kodu ve sonraki kapılar
 
-Son doğrulama:161 Flutter full,138 Worker native; changed Dart analyze ve
-diff-check temiz. Core174 önceki full (core kodu değişmedi). SQLite race tests:
+Son doğrulama:162 Flutter full,175 core full,138 Worker native; changed Dart
+analyze ve diff-check temiz. SQLite race tests:
 cross-owner initial registration bütün dependent rows'u korur; stale same-owner
 heartbeat409/newer criteria korunur/retry yeni version; delete/recreate hash
 guard. Mobile bounded retry/cache invalidation/identity preservation testleri.

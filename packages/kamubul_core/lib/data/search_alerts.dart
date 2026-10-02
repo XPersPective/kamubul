@@ -221,8 +221,13 @@ PendingNotification? deadlineReminder({
 }) {
   if (!record.saved || alreadyReminded.contains(record.url)) return null;
   final deadline = record.deadline;
-  if (deadline == null) return null;
-  final remaining = deadline.difference(now).inDays;
+  if (deadline == null || !deadline.isAfter(now)) return null;
+  final end = deadline.toLocal(), today = now.toLocal();
+  final remaining = DateTime.utc(
+    end.year,
+    end.month,
+    end.day,
+  ).difference(DateTime.utc(today.year, today.month, today.day)).inDays;
   if (remaining < 0 || remaining > daysBefore) return null;
   return PendingNotification(
     searchName: 'Son başvuru',

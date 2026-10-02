@@ -143,15 +143,13 @@ PageRouteBuilder<T> sharedAxisRoute<T>(Widget page) => PageRouteBuilder<T>(
 /// Son başvuruya kalan günü kısa etiketle döndürür; null = tarih yok.
 String? countdownLabel(DateTime? deadline, DateTime now) {
   if (deadline == null) return null;
-  final endOfDay = DateTime(
-    deadline.year,
-    deadline.month,
-    deadline.day,
-    23,
-    59,
-  );
-  final days = endOfDay.difference(now).inDays;
-  if (days < 0) return 'Süre doldu';
+  if (!deadline.isAfter(now)) return 'Süre doldu';
+  final end = deadline.toLocal(), today = now.toLocal();
+  final days = DateTime.utc(
+    end.year,
+    end.month,
+    end.day,
+  ).difference(DateTime.utc(today.year, today.month, today.day)).inDays;
   if (days == 0) return 'Bugün son gün';
   if (days == 1) return 'Son 1 gün';
   return 'Son $days gün';
