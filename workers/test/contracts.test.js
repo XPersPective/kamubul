@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {validateCriteria,matchListing,fold,migrateFilters} from '../src/criteria.js';
 import {nextAllowed,validateAiSummary} from '../src/pipeline.js';
-import {fetchRequest} from '../src/worker.js';
+import {fetchRequest,sha256} from '../src/worker.js';
 import {plain,parseKariyerIndex,parseKariyerRss,sourceFetch} from '../src/sources.js';
 
 test('source normalization survives malformed entities and rejects unsafe identities',async()=>{
@@ -114,7 +114,7 @@ test('real migration enforces identity, committed changes and deletion cascade',
   assert.equal(db.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,0);db.close();
 });
 test('registry heartbeat and token rotation preserve pending notifications',async()=>{
-  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0011_catalogue_retention_floor.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0004_match_facets.sql',import.meta.url),'utf8'));
+  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0011_catalogue_retention_floor.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0004_match_facets.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0015_installation_ownership.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   const id='a'.repeat(32),secret='b'.repeat(64),body={fcmToken:'token'.repeat(10),platform:'android',searches:[{id:'s1',name:'Ankara',criteria:{version:2,cities:['Ankara']},mode:'instant'}]};
   const put=async value=>fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret},body:JSON.stringify(value)}),{DB},{});
@@ -131,4 +131,66 @@ test('registry heartbeat and token rotation preserve pending notifications',asyn
   const listingPage=await (await fetchRequest(new Request('https://api/api/v2/listings'),{DB},{})).json();
   assert.equal(listingPage.items.length,1);
   sql.close();
+});
+
+test('concurrent first registration cannot overwrite another owner or its dependent rows',async()=>{
+  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');
+  for(const name of ['0001_catalogue','0004_match_facets','0015_installation_ownership'])sql.exec(readFileSync(new URL('../migrations/'+name+'.sql',import.meta.url),'utf8'));
+  const id='a'.repeat(32),secret='b'.repeat(64),ownerHash=await sha256('c'.repeat(64));
+  const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){
+    // The other owner's registration commits after this request's empty read.
+    sql.prepare("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES(?,?,'owner-token','android','{}','now')").run(id,ownerHash);
+    sql.prepare("INSERT INTO saved_searches VALUES(?,'mine','Owner','{}','instant',7)").run(id);
+    sql.prepare("INSERT INTO installation_facets VALUES('owner-facet',?)").run(id);
+    sql.prepare("INSERT INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES('event',?,'listing','{}','now','now')").run(id);
+    sql.exec('BEGIN');try{for(const s of statements)await s.run();sql.exec('COMMIT');}catch(e){sql.exec('ROLLBACK');throw e;}
+  }};
+  try {
+    const response=await fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret},body:JSON.stringify({fcmToken:'attacker-token'.repeat(3),platform:'android',searches:[]})}),{DB},{});
+    assert.equal(response.status,401);
+    assert.deepEqual({...sql.prepare('SELECT secret_hash,token,version FROM installations').get()},{secret_hash:ownerHash,token:'owner-token',version:1});
+    assert.equal(sql.prepare('SELECT id,effective_after FROM saved_searches').get().id,'mine');
+    assert.equal(sql.prepare('SELECT effective_after FROM saved_searches').get().effective_after,7);
+    assert.equal(sql.prepare('SELECT key FROM installation_facets').get().key,'owner-facet');
+    assert.equal(sql.prepare('SELECT state FROM notification_outbox').get().state,'pending');
+    assert.throws(()=>sql.prepare('UPDATE installations SET secret_hash=? WHERE id=?').run('different-hash',id),/installation_owner_conflict/);
+    const prepare=DB.prepare;
+    DB.prepare=query=>{
+      const statement=prepare(query);
+      if(query.startsWith('DELETE FROM installations')){
+        const run=statement.run;
+        statement.run=async()=>{
+          // The authenticated row is deleted/recreated under another key before DELETE.
+          sql.prepare('DELETE FROM installations WHERE id=?').run(id);
+          sql.prepare("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES(?,?,'replacement','android','{}','now')").run(id,await sha256(secret));
+          return run();
+        };
+      }
+      return statement;
+    };
+    const deletion=await fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+'c'.repeat(64)}}),{DB},{});
+    assert.equal(deletion.status,200);
+    assert.equal(sql.prepare('SELECT token FROM installations WHERE id=?').get(id).token,'replacement');
+  } finally {sql.close();}
+});
+
+test('stale registry heartbeat rolls back instead of reverting newer criteria at the same version',async()=>{
+  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');
+  for(const name of ['0001_catalogue','0004_match_facets','0015_installation_ownership'])sql.exec(readFileSync(new URL('../migrations/'+name+'.sql',import.meta.url),'utf8'));
+  const id='a'.repeat(32),secret='b'.repeat(64),body={fcmToken:'token'.repeat(10),platform:'android',searches:[{id:'s',name:'Original',criteria:{version:2},mode:'instant'}]};
+  let race=false;
+  const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){
+    if(race){race=false;sql.prepare('UPDATE installations SET version=version+1 WHERE id=?').run(id);sql.prepare("UPDATE saved_searches SET name='Newer' WHERE installation_id=?").run(id);}
+    sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}
+  }};
+  const put=()=>fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret},body:JSON.stringify(body)}),{DB},{});
+  try {
+    assert.equal((await put()).status,201);
+    race=true;
+    const response=await put();assert.equal(response.status,409);assert.equal((await response.json()).error,'registry_conflict');
+    assert.equal(sql.prepare('SELECT version FROM installations').get().version,2);
+    assert.equal(sql.prepare('SELECT name FROM saved_searches').get().name,'Newer');
+    assert.equal((await (await put()).json()).version,3);
+    assert.equal(sql.prepare('SELECT name FROM saved_searches').get().name,'Original');
+  } finally {sql.close();}
 });

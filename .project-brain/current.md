@@ -17,15 +17,16 @@ Fake üretim ilanı/kurulumu/push yok; harici ücretli AI etkin değil.
 Son readonly kanıt: canlı watermark42/catalogue21/appliedThrough42/detail GET,
 missing detail404/conditional meta304. D1 kaynak last_success
 2026-10-02T11:12:04.668Z; SBB blocked last_attempt11:15:04.689Z.
-Migrations0001–0014 ve installation/outbox/facets0/0/0 doğrulandı; sorgu yazması0.
+Migrations0001–0015; yeni ownership triggerları ve installation0 remote readonly
+doğrulandı. Önceki installation/outbox/facets0/0/0; sorgu yazması0.
 Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarılı.
 
 ## 2. Kalıcı bulut ve güvenli yapılandırma
 
 - Worker `kamubul-api`: https://kamubul-api.devx8585.workers.dev;
-  son CLI deployment version `373fdacc-b244-4a8b-81c1-676f7762dbee`,100%.
+  son CLI deployment version `0f072369-ecde-45b5-a2ad-6a8eea334194`,100%.
   D1 `kamubul`, UUID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB;
-  migration0001–0014 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
+  migration0001–0015 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
 - `workers/wrangler.jsonc`: AI binding `@cf/meta/llama-3.1-8b-instruct`,
   AI_DAILY_JOBS20, source interval30dk, Cron her dakika, observability%10.
   mod3 kaynak/AI/expiry, matching, sending slotları ayırır; her aşama3dk.
@@ -93,7 +94,13 @@ meslek/kurum/kategori identity/wire version migration bütünü tamamlanmadı.
 
 Registry authenticated own-installation PUT/DELETE, <=32KB criteria payload,
 version/effective baseline ve facet set-diff; secure credential ack öncesi
-HTTP yok. Facet coarse superset+exact predicate,10 candidate/4 empty facet
+HTTP yok. Migration0015 farklı secret ile concurrent initial insert'i tüm batch
+rollback/401 ile reddeder; hash değişmez. DELETE aynı statement içinde hash
+kontrol eder. UPSERT version NOT NULL precondition stale read'i batch rollback/409
+yapar; aynı version ile yeni kriter geri yazılamaz. Mobile409 eski heartbeat
+cache'ini geçersiz kılar, aynı identity/payload ile bir kez retry; tekrar conflict
+failed ve sonraki sync eligible. Normal heartbeat/token rotation version ve
+pending outbox'u değiştirmez. Facet coarse superset+exact predicate,10 candidate/4 empty facet
 slot, covering index ve kalıcı cursor; broad searches wildcard. Outbox
 durable unique event, instant/digest/quiet/deadline, token/version/criteria
 send-time recheck, per-installation send lease ve invalid-token race guard.
@@ -187,8 +194,11 @@ Android native secure write/reopen/plaintext cleanup API36/x64 emulator'da
 
 ## 7. Doğrulama, geçiş kodu ve sonraki kapılar
 
-Son kod checkpoint08114e5:159 Flutter full, changed7 analyze/diff-check temiz;
-önceki Worker136 native/core174 full (bu turn backend/core kodu değişmedi).
+Son doğrulama:161 Flutter full,138 Worker native; changed Dart analyze ve
+diff-check temiz. Core174 önceki full (core kodu değişmedi). SQLite race tests:
+cross-owner initial registration bütün dependent rows'u korur; stale same-owner
+heartbeat409/newer criteria korunur/retry yeni version; delete/recreate hash
+guard. Mobile bounded retry/cache invalidation/identity preservation testleri.
 Normal/saved canonical cache, guide offline, SBB freshness/conflicting aliases,
 backup roundtrip,320px1.3x light/dark/unknown/malformed/nav testleri vardır.
 Actual Firebase/API universal debug223536538bytes,25.7s; x64 debug89653916bytes,

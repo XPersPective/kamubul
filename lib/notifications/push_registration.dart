@@ -341,7 +341,13 @@ class PushRegistrar {
         return PushSyncOutcome.unchanged;
       }
       final credentials = await _credentials();
-      final status = await _put(credentials, body);
+      var status = await _put(credentials, body);
+      if (status == 409) {
+        // A concurrent server write invalidates the cached heartbeat. Retry once
+        // with the same identity and criteria; later syncs remain eligible too.
+        await store.write({_kLastSync: null});
+        status = await _put(credentials, body);
+      }
       if (status == 200 || status == 201) {
         await _saveHistory(
           _historyState(),

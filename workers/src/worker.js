@@ -45,7 +45,7 @@ async function registry(request,env,id){
   const hash=await sha256(secret);const existing=await env.DB.prepare('SELECT * FROM installations WHERE id=?').bind(id).first();
   if(existing&&!stable(hash,existing.secret_hash))return json({error:'unauthorized'},401);
   if(request.method==='DELETE') {
-    if(existing)await env.DB.prepare('DELETE FROM installations WHERE id=?').bind(id).run();
+    if(existing)await env.DB.prepare('DELETE FROM installations WHERE id=? AND secret_hash=?').bind(id,hash).run();
     return json({deleted:true});
   }
   const raw=await bodyJSON(request);
@@ -65,9 +65,11 @@ async function registry(request,env,id){
   const changed=!existing||existing.preferences!==preferences||JSON.stringify(previous)!==JSON.stringify(desired);
   const version=existing?(existing.version+(changed?1:0)):1;
   // Registry writes are bounded to 20 searches; existing effective baseline survives updates.
+  // A stale read must abort the entire batch rather than reuse a preferences version.
+  // The NOT NULL version constraint enforces this optimistic write precondition.
   const statements=[env.DB.prepare(`INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES(?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET token=excluded.token,platform=excluded.platform,preferences=excluded.preferences,
-    updated_at=excluded.updated_at,enabled=1,version=?`).bind(id,hash,raw.fcmToken,raw.platform,preferences,now,version)];
+    updated_at=excluded.updated_at,enabled=1,version=CASE WHEN installations.version=? THEN ? ELSE NULL END`).bind(id,hash,raw.fcmToken,raw.platform,preferences,now,existing?.version??0,version)];
   if(searches.length)statements.push(env.DB.prepare(`DELETE FROM saved_searches WHERE installation_id=? AND id NOT IN (${searches.map(()=>'?').join(',')})`).bind(id,...searches.map(s=>s.id)));
   else statements.push(env.DB.prepare('DELETE FROM saved_searches WHERE installation_id=?').bind(id));
   for(const s of searches)statements.push(env.DB.prepare(`INSERT INTO saved_searches(installation_id,id,name,criteria,mode,effective_after) VALUES(?,?,?,?,?,?)
@@ -159,6 +161,8 @@ export async function fetchRequest(request,env,ctx){
     }
     return json({error:'not_found'},404);
   } catch(error){
+    if(error.message?.includes('installation_owner_conflict'))return json({error:'unauthorized'},401);
+    if(error.message?.includes('NOT NULL constraint failed: installations.version'))return json({error:'registry_conflict'},409);
     if(error.message==='catalogue_expired')return json({error:path==='/api/v2/changes'?'cursor_expired':'snapshot_expired'},409);
     if(error.message==='record_oversize')return json({error:'record_oversize'},413);
     if(error instanceof SyntaxError||['criteria','unknown_criterion','registration','search','mode','content_type','body_oversize','age','ageAsOf','kpssScore','kpssType','kpssYear','version','cities','categories','occupations','institutions','education','keyword','keywordScope','onlyKpss','last30'].includes(error.message))return json({error:'invalid_request'},400);

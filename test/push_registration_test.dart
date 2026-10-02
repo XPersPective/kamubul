@@ -508,6 +508,36 @@ void main() {
     );
   });
 
+  test(
+    'registry conflict retries once with identical identity and payload',
+    () async {
+      var attempts = 0;
+      respond = (_) => ++attempts == 1 ? 409 : 201;
+      final r = registrar();
+      expect(await r.enable(const []), PushSyncOutcome.registered);
+      expect(requests.length, 2);
+      expect(requests[1].url, requests[0].url);
+      expect(
+        requests[1].headers['authorization'],
+        requests[0].headers['authorization'],
+      );
+      expect(requests[1].body, requests[0].body);
+      expect(await r.sync(const []), PushSyncOutcome.unchanged);
+    },
+  );
+
+  test('repeated registry conflicts are bounded and invalidate old heartbeat cache', () async {
+    final r = registrar();
+    expect(await r.enable(const []), PushSyncOutcome.registered);
+    requests.clear();
+    respond = (_) => 409;
+    expect(await r.sync(const [], force: true), PushSyncOutcome.failed);
+    expect(requests.length, 2);
+    respond = (_) => 201;
+    expect(await r.sync(const []), PushSyncOutcome.registered);
+    expect(requests.length, 3);
+  });
+
   test('sunucu hatasında failed döner ve açık kalır; sonraki eşitleme yeniden dener', () async {
     respond = (_) => 503;
     final r = registrar();
