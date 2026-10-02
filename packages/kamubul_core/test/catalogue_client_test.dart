@@ -23,6 +23,116 @@ String _body() => CatalogueSnapshot(
 void main() {
   final base = Uri.parse('https://kamubul.example');
 
+  Map<String, Object?> detail(String id) => {
+    'id': id,
+    'revision': 3,
+    'active': true,
+    'sourceId': 'kariyerkapisi',
+    'url': 'https://kariyerkapisi.gov.tr/IlanDetay?i=real',
+    'title': 'Kurum personel ilanı',
+    'category': 'Personel',
+    'updatedAt': '2026-10-02T08:00:00Z',
+    'summary': [
+      {'text': 'Başvuru yalnız resmî bağlantıdan yapılacaktır.'},
+    ],
+  };
+  http.Response detailResponse(Map<String, Object?> data) =>
+      http.Response.bytes(utf8.encode(jsonEncode(data)), 200);
+
+  test(
+    'single detail preserves stable identity and safely encodes an opaque ID',
+    () async {
+      const id = 'source:part/with?#ü';
+      for (final active in [true, false]) {
+        final client = RemoteCatalogueClient(
+          baseUrl: Uri.parse('https://kamubul.example/prefix'),
+          client: MockClient((request) async {
+            expect(request.method, 'GET');
+            expect(request.url.host, base.host);
+            expect(request.url.pathSegments, [
+              'prefix',
+              'api',
+              'v2',
+              'listings',
+              id,
+            ]);
+            expect(request.url.hasQuery, isFalse);
+            expect(request.url.hasFragment, isFalse);
+            expect(request.headers['Accept'], 'application/json');
+            return detailResponse({...detail(id), 'active': active});
+          }),
+        );
+        final result = await client.fetchListing(id);
+        expect(result?['id'], id);
+        expect(result?['revision'], 3);
+        expect(result?['active'], active);
+        expect((result?['summary'] as List).single['text'], contains('resmî'));
+      }
+    },
+  );
+
+  test(
+    'single detail distinguishes not found from transport and invalid identity',
+    () async {
+      final missing = RemoteCatalogueClient(
+        baseUrl: base,
+        client: MockClient((_) async => http.Response('{}', 404)),
+      );
+      expect(await missing.fetchListing('id'), isNull);
+      for (final response in [
+        http.Response('{}', 503),
+        http.Response('broken', 200),
+        detailResponse(detail('other')),
+        detailResponse({...detail('id'), 'active': 'false'}),
+        detailResponse({...detail('id'), 'revision': 0}),
+      ]) {
+        final client = RemoteCatalogueClient(
+          baseUrl: base,
+          client: MockClient((_) async => response),
+        );
+        await expectLater(
+          client.fetchListing('id'),
+          throwsA(isA<RemoteCatalogueException>()),
+        );
+      }
+      var requests = 0;
+      final invalid = RemoteCatalogueClient(
+        baseUrl: base,
+        client: MockClient((_) async {
+          requests++;
+          return http.Response('{}', 200);
+        }),
+      );
+      await expectLater(invalid.fetchListing(''), throwsArgumentError);
+      await expectLater(invalid.fetchListing('x' * 201), throwsArgumentError);
+      expect(requests, 0);
+    },
+  );
+
+  test('single detail enforces streamed size and timeout', () async {
+    final oversized = RemoteCatalogueClient(
+      baseUrl: base,
+      maxBytes: 32,
+      client: MockClient((_) async => detailResponse(detail('id'))),
+    );
+    await expectLater(
+      oversized.fetchListing('id'),
+      throwsA(isA<RemoteCatalogueException>()),
+    );
+    final slow = RemoteCatalogueClient(
+      baseUrl: base,
+      timeout: const Duration(milliseconds: 5),
+      client: MockClient((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        return detailResponse(detail('id'));
+      }),
+    );
+    await expectLater(
+      slow.fetchListing('id'),
+      throwsA(isA<RemoteCatalogueException>()),
+    );
+  });
+
   test(
     'only bounded endpoint-specific 409 errors request retention recovery',
     () async {

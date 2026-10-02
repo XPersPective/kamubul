@@ -68,6 +68,50 @@ class RemoteCatalogueClient {
         '${baseUrl.path.endsWith('/') ? baseUrl.path.substring(0, baseUrl.path.length - 1) : baseUrl.path}$path',
   );
 
+  /// A notification target can precede bootstrap; this read never advances a sync cursor.
+  /// null means the server no longer has the ID; active=false retains the removed notice.
+  Future<Map<String, Object?>?> fetchListing(String id) async {
+    if (id.isEmpty || id.length > 200) throw ArgumentError('listing id');
+    final base = _uri('/api/v2/listings');
+    final uri = base.replace(pathSegments: [...base.pathSegments, id]);
+    try {
+      return await (() async {
+        final response = await _client.send(
+          http.Request('GET', uri)..headers['Accept'] = 'application/json',
+        );
+        if (response.statusCode == 404) {
+          await response.stream.listen(null).cancel();
+          return null;
+        }
+        if (response.statusCode != 200) {
+          await response.stream.listen(null).cancel();
+          throw RemoteCatalogueException('HTTP ${response.statusCode}');
+        }
+        final bytes = <int>[];
+        await for (final chunk in response.stream) {
+          if (bytes.length + chunk.length > maxBytes ||
+              bytes.length + chunk.length > 2 * 1024 * 1024) {
+            throw const RemoteCatalogueException('listing too large');
+          }
+          bytes.addAll(chunk);
+        }
+        final raw = jsonDecode(utf8.decode(bytes));
+        if (raw is! Map || raw['id'] != id || raw['active'] is! bool) {
+          throw const RemoteCatalogueException('listing identity');
+        }
+        return CataloguePage.decode({
+          'watermark': 0,
+          'items': [raw],
+          'next': null,
+        }, watermark: 0).items.single;
+      })().timeout(timeout);
+    } on RemoteCatalogueException {
+      rethrow;
+    } on Exception catch (error) {
+      throw RemoteCatalogueException('listing: $error');
+    }
+  }
+
   Future<({CatalogueMetadata? metadata, String? etag})> fetchMetadata({
     String? etag,
     bool bypassCache = false,

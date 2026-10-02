@@ -8,7 +8,7 @@ sonuçlar ayrı kanıttır; yerel erişim sunucunun erişebildiğini göstermez.
 
 | Kaynak | Merkezi getirme yöntemi | Canlı Cloudflare sonucu | Açık iş |
 | --- | --- | --- | --- |
-| Kariyer Kapısı | Public `ilan/GetIseAlimPage` JSON; başarısızsa resmî `/RSS`. Ayrıntı: `ilan/GetIlanPreviewPublic` ve `altilan/GetAltIlanInfoByIlanIdPublic` POST | RSS üzerinden20 gerçek ilan/40 immutable değişiklik. Ayrıntı API'si HTTP522; kaynak notu eksik ayrıntıyı belirtir | Kaynak ayrıntısına gerçek Worker erişimi, kullanım şartları, yeterli belge üzerinden model değerlendirmesi |
+| Kariyer Kapısı | Public `ilan/GetIseAlimPage` JSON; başarısızsa resmî `/RSS`. Ayrıntı: `ilan/GetIlanPreviewPublic` ve `altilan/GetAltIlanInfoByIlanIdPublic` POST | RSS üzerinden21 gerçek ilan/42 immutable değişiklik. Kayıtlı ayrıntı hatası HTTP522; kaynak notu eksik ayrıntıyı belirtir | Kaynak ayrıntısına gerçek Worker erişimi, kullanım şartları, yeterli belge üzerinden model değerlendirmesi |
 | Kamu İlanları SBB | `https://kamuilan.sbb.gov.tr/` GET WebForms token'ları + POST yıl; parser `parseSbbList` | Erişim engeli; `blocked` raporlanır. Kaynak başarıyla toplanmış kabul edilmez | Worker erişimi ve resmî belge/PDF okuyucu, kullanım şartları |
 | İŞKUR | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; oturum/CAPTCHA/WAF aşılmaz |
 | ilan.gov.tr | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; engel aşılmaz |
@@ -17,8 +17,10 @@ sonuçlar ayrı kanıttır; yerel erişim sunucunun erişebildiğini göstermez.
 
 ## Zamanlama ve güvenlik
 
-- Kaynak liste kontrolü30dk; tek kalıcı batch ve lease. Her source invocation
-  en çok4 ilanı işler; üç-slot Cron'da source/AI, matching, send ayrı çalışır.
+- Tamamlanan kaynak turundan sonra30dk bekleme; tek kalıcı batch ve lease.
+  Her source invocation en çok1 batch girdisi tüketir; üç-slot Cron'da
+  source/AI, matching, send ayrı çalışır. Source slotu3dk olduğundan21 girdi
+  yaklaşık63dk + tur sonu30dk bekleme gerektirebilir;30dk full-refresh SLA yok.
   Saatlik `:59` registry+katalog bakımına ayrılır. Bu sınırlar sağlayıcının
   ticari hız sınırı izni değildir; kullanım şartları doğrulaması açık kalır.
 - Yeniden kontrol süresi kayıt başına başarılı akışta6saat, geçici ayrıntı
@@ -47,6 +49,17 @@ yaş/KPSS/eğitim koşulu ya da sahte ayrıntı üretilmez. Yeni bir izinli kayn
 kanıtı olmadan alternatif host/proxy eklenmez.
 
 ## Mobil geçiş ve çıkarım kanıtı
+
+Son readonly kontrol: Windows aynı resmî detail adaptörü ile
+12c5b0ac-cd05-4316-9d7c-39ed4d06a358 için273ms'de main7113 karakter/11 kadro
+ve2026-10-19T14:00:00Z deadline alabildi. D1 aynı ilanda eski kayıtlı
+detail_error=source_http_522 /detail_state=unavailable taşıyor; son source
+notu ayrıntı başarısızlığını koruyor. Bu eski payload hata kodu son denemenin
+tam HTTP sonucunu kanıtlamaz. Yerel ayrıntı üretime aktarılmadı, proxy yok.
+Windows robots.txt GET Kariyer ve SBB'de404: bunun yeniden yayınlama izni
+olduğu varsayılmaz; kullanım şartları/release kapısı açık. Web aracı bu iki
+URL'yi alamadı, resmî kullanım şartı araması sonuç vermedi; yokluk kanıtı değil.
+ADB envanteri yalnız emulator-5554/5556; fiziksel cihaz teslimi doğrulanmadı.
 
 Telefonun eski fetch/Workmanager yolları yalnız pilot tamamlanmadığı için
 geçiş kodunda durur; hedef30dk merkezi sunucu çekimidir. Kodun hâlâ çalışması
