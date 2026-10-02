@@ -17,6 +17,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0007_maintenance.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0008_notification_archive.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0009_terminal_payload_retention.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0010_education_alias_facets.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -553,7 +554,7 @@ test('registry replaces facets atomically and preserves them on token-only heart
   assert.deepEqual(keys(),['cities:ankara']);
   const version=sql.prepare('SELECT version FROM installations').get().version;
   await put([search],'rotated'.repeat(8));assert.deepEqual(keys(),['cities:ankara']);assert.equal(sql.prepare('SELECT version FROM installations').get().version,version);
-  await put([{...search,criteria:{version:2,education:['Lisans']}}]);assert.deepEqual(keys(),['education:lisans']);
+  await put([{...search,criteria:{version:2,education:['Lisans']}}]);assert.deepEqual(keys(),['education:bachelor']);
   await put([{...search,mode:'off'}]);assert.deepEqual(keys(),[]);
   await put([search]);
   const response=await fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+secret}}),{DB},{});
@@ -569,6 +570,23 @@ test('facet migration preserves existing subscriptions and restarts old partial 
   const event=sql.prepare('SELECT cursor,state,lease_until,facet_index FROM match_events').get();
   assert.deepEqual({...event},{cursor:'',state:'pending',lease_until:null,facet_index:0});
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,2);
+});
+
+test('education anchor migration retains old subscriptions, resets fanout and rebuilds on heartbeat',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());const id='a'.repeat(32),secret='b'.repeat(64);
+  const search={id:'s',name:'Eğitim',mode:'instant',criteria:{version:2,education:['Ön lisans']}};
+  const put=()=>fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret},body:JSON.stringify({fcmToken:'token'.repeat(8),platform:'android',searches:[search]})}),{DB},{});
+  await put();const version=sql.prepare('SELECT version FROM installations').get().version;
+  sql.prepare("UPDATE installation_facets SET key='education:on lisans' WHERE installation_id=?").run(id);
+  sql.exec("INSERT INTO match_events(id,listing_id,revision,payload,created_at,cursor,state,lease_until,facet_index) VALUES('old','listing',1,'{}','now','last','leased','future',4),('done','listing',2,'{}','now','last','completed',NULL,9)");
+  sql.exec(readFileSync(new URL('../migrations/0010_education_alias_facets.sql',import.meta.url),'utf8'));
+  assert.deepEqual(sql.prepare('SELECT key FROM installation_facets ORDER BY key').all().map(x=>x.key),['*','education:on lisans']);
+  assert.deepEqual({...sql.prepare("SELECT cursor,state,lease_until,facet_index FROM match_events WHERE id='old'").get()},{cursor:'',state:'pending',lease_until:null,facet_index:0});
+  assert.equal(sql.prepare("SELECT state FROM match_events WHERE id='done'").get().state,'completed');
+  await put();
+  assert.deepEqual(sql.prepare('SELECT key FROM installation_facets').all().map(x=>x.key),['education:associate']);
+  assert.equal(sql.prepare('SELECT version FROM installations').get().version,version);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,1);
 });
 
 test('invalid token removes candidate facets but preserves saved preferences',async t=>{

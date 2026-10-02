@@ -90,7 +90,7 @@ void main() {
   });
 
   test(
-    'Worker ortak corpus SQLite projeksiyonundan da aynı 19 sonucu verir',
+    'Worker ortak corpus SQLite projeksiyonundan da aynı sonucu verir',
     () async {
       final corpus = jsonDecode(
         File('contracts/criteria-v2.json').readAsStringSync(),

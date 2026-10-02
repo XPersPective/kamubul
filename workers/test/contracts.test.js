@@ -19,6 +19,14 @@ const now=new Date('2026-09-30T12:00:00Z');
 for(const row of JSON.parse(readFileSync(new URL('../../contracts/criteria-v2.json',import.meta.url),'utf8'))){
   test('Dart parity: '+row.name,()=>assert.equal(matchListing(row.listing,row.legacy?migrateFilters(row.legacy):validateCriteria(row.criteria),now),row.expected));
 }
+test('public taxonomy advertises stable education IDs, labels and accepted aliases',async()=>{
+  const response=await fetchRequest(new Request('https://api/api/v2/taxonomy'),{DB:{prepare(){return {async all(){return {results:[]};}};}}},{});
+  assert.equal(response.status,200);const body=await response.json();
+  assert.deepEqual(body.education,['Lise','Ön lisans','Lisans','Yüksek lisans','Doktora']);
+  assert.deepEqual(body.educationValues.map(x=>x.id),['education:secondary','education:associate','education:bachelor','education:master','education:doctorate']);
+  for(const value of body.educationValues)for(const alias of [value.label,...value.aliases])assert.equal(matchListing({title:'İlan',requirementGroups:[{education:[alias]}]},validateCriteria({version:2,education:[value.id]}),now),'match');
+});
+
 test('typed criteria rejects ambiguous and invalid dates',()=>{
   assert.throws(()=>validateCriteria({version:1}));
   assert.throws(()=>validateCriteria({age:30,ageAsOf:'2026-02-30'}));

@@ -10,6 +10,7 @@ import 'package:kamubul_core/kamubul_core.dart'
         SourceState,
         CatalogueMetadata,
         SearchCriteria,
+        educationLabel,
         CriteriaMatch;
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
@@ -436,7 +437,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _quickCriteria = search.effectiveCriteria;
       _educationFilter = (search.filters['egitim'] ?? '').isEmpty
           ? null
-          : search.filters['egitim'];
+          : educationLabel(search.filters['egitim']!);
       _kpssFilter = (search.filters['kpss'] ?? '').isEmpty
           ? null
           : search.filters['kpss'];
@@ -786,6 +787,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
     var values = <String, Object?>{};
     try {
       values = {...search.effectiveCriteria.values};
+      if (values['education'] case final List education) {
+        values['education'] = education
+            .cast<String>()
+            .map(educationLabel)
+            .toSet()
+            .toList();
+      }
     } on FormatException {
       /* Kullanıcı aşağıdaki uyarıyla onarabilir. */
     }
@@ -1244,7 +1252,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
     ]) {
       final selected = criteria[key] as List?;
       if (selected != null && selected.isNotEmpty) {
-        parts.add(selected.join(', '));
+        parts.add(
+          selected
+              .cast<String>()
+              .map(
+                (value) => key == 'education' ? educationLabel(value) : value,
+              )
+              .join(', '),
+        );
       }
     }
     if (criteria['last30'] == true) parts.add('son 30 gün');

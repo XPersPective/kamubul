@@ -22,6 +22,24 @@ sözleşmesini üretime kayıt yazmadan doğrulamak için core dizininde:
 dart run tool/check_worker.dart
 ```
 
+Eğitim sözlüğü eşleştirme ve aday indeksinde aynı sabit kimlikleri kullanır:
+`education:secondary` Lise, `education:associate` Ön lisans/Önlisans,
+`education:bachelor` Lisans, `education:master` Yüksek lisans/Yükseklisans,
+`education:doctorate` Doktora. `/api/v2/taxonomy` eski `education` label listesini
+korur; ek `educationValues` kimlik/label/alias kayıtlarını yayımlar. Kriter ve
+katalogdaki eski label değerleri hâlâ kabul edilir; saklanan değerler topluca
+yeniden yazılmaz. Tanınmayan eğitim düzeyi unknown olur, strict push üretmez;
+aynı kadroda bilinen uygun eğitim alternatifi varsa eşleşir. Üst öğrenim düzeyi
+alt düzeyin yerine otomatik geçmez. Şehir/meslek/kurum/kategori kimlikleri ve
+genel sözlük-version migration henüz tamamlanmadı.
+
+Migration0010 eski eğitim facet'li aktif kurulumlara `*` koruma anahtarı ekler;
+sonraki authenticated registry heartbeat ortak kodlarla indeksi yeniden kurar.
+Tercih sürümü/effective_after değiştirilmez, abonelik kaybolmaz. Pending/leased
+match cursor'ları yeni sıralama için başa alınır; tamamlanmış event'ler tekrar
+açılmaz, outbox UNIQUE tekrar kuyruğa almayı önler. Geniş koruma grubunun geçici
+ek okuma yükü heartbeat'e kadar sürer; büyük geçişte kapasite ölçülmelidir.
+
 Model `@cf/meta/llama-3.1-8b-instruct-fp8`, güncel official catalogue'da doğrulandı:
 [model](https://developers.cloudflare.com/workers-ai/models/llama-3.1-8b-instruct-fp8/),
 [Free allocation](https://developers.cloudflare.com/workers-ai/platform/pricing/).

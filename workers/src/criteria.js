@@ -1,5 +1,14 @@
 export const fold = value => String(value ?? '').toUpperCase().replaceAll('İ','I').replaceAll('Ç','C').replaceAll('Ğ','G').replaceAll('Ö','O').replaceAll('Ş','S').replaceAll('Ü','U').replaceAll('Â','A').replaceAll('Î','I').replaceAll('Û','U').toLowerCase().replace(/\s+/g,' ').trim();
-const oneOf = (wanted, actual) => !wanted?.length || wanted.some(value => actual.map(fold).includes(fold(value)));
+export const educationValues = [
+  {id:'education:secondary',label:'Lise',aliases:[]},
+  {id:'education:associate',label:'Ön lisans',aliases:['Önlisans']},
+  {id:'education:bachelor',label:'Lisans',aliases:[]},
+  {id:'education:master',label:'Yüksek lisans',aliases:['Yükseklisans']},
+  {id:'education:doctorate',label:'Doktora',aliases:[]}
+];
+const educationAliases = new Map(educationValues.flatMap(entry=>[entry.id,entry.label,...entry.aliases].map(value=>[fold(value),entry.id.split(':')[1]])));
+const criterionKey = (field,value) => field==='education' ? educationAliases.get(fold(value))??fold(value) : fold(value);
+const oneOf = (wanted, actual, field) => !wanted?.length || wanted.some(value => actual.map(v=>criterionKey(field,v)).includes(criterionKey(field,value)));
 export function validateCriteria(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('criteria');
   const allowed = new Set(['version','keyword','cities','categories','occupations','institutions','education','age','ageAsOf','kpssType','kpssScore','kpssYear','onlyKpss','last30','keywordScope']);
@@ -54,14 +63,18 @@ export function matchListing(listing, criteria, now = new Date()) {
   const groups=listing.requirementGroups?.length ? listing.requirementGroups : [{cities:listing.places??[],occupations:listing.occupations??[]}];
   for(const group of groups) {
     let status='match';
-    const check=(wanted,actual)=>{
+    const check=(wanted,actual,field)=>{
       if(!wanted?.length) return;
       if(!actual?.length) {if(status!=='no_match') status='unknown';}
-      else if(!oneOf(wanted,actual)) status='no_match';
+      else if(field==='education' && !wanted.some(v=>educationAliases.has(fold(v)) && actual.some(a=>educationAliases.has(fold(a)) && criterionKey(field,v)===criterionKey(field,a)))) {
+        if(wanted.some(v=>!educationAliases.has(fold(v))) || actual.some(v=>!educationAliases.has(fold(v)))) {if(status!=='no_match')status='unknown';}
+        else status='no_match';
+      }
+      else if(!oneOf(wanted,actual,field)) status='no_match';
     };
     check(criteria.cities,group.cities?.length?group.cities:(groups.length===1?listing.places:[]));
     check(criteria.occupations,group.occupations);
-    check(criteria.education,group.education);
+    check(criteria.education,group.education,'education');
     if(criteria.age!==undefined) {
       const ageDate=new Date(criteria.ageAsOf+'T00:00:00Z');
       if(!Number.isFinite(+ageDate) || now-ageDate>366*86400000 || ageDate>now || !['known','no_restriction'].includes(group.ageStatus) || (group.ageStatus==='known'&&group.minAge==null&&group.maxAge==null)) {if(status!=='no_match')status='unknown';}
@@ -88,7 +101,7 @@ export function matchListing(listing, criteria, now = new Date()) {
 export function searchAnchorKeys(criteria) {
   const fields=['cities','occupations','education','institutions'];
   const field=fields.filter(k=>criteria[k]?.length).sort((a,b)=>criteria[a].length-criteria[b].length)[0];
-  return field?[...new Set(criteria[field].map(value=>field+':'+fold(value)))].sort():['*'];
+  return field?[...new Set(criteria[field].map(value=>field+':'+criterionKey(field,value)))].sort():['*'];
 }
 export function installationAnchorKeys(searches) {
   const keys=new Set(searches.filter(s=>s.mode!=='off').flatMap(s=>searchAnchorKeys(s.criteria)));
@@ -101,7 +114,7 @@ export function listingAnchorKeys(listing) {
   for(const group of groups) {
     for(const field of ['cities','occupations','education']) {
       const values=field==='cities'?(group.cities?.length?group.cities:(groups.length===1?listing.places??[]:[])):group[field]??[];
-      for(const value of values)keys.add(field+':'+fold(value));
+      for(const value of values)keys.add(field+':'+criterionKey(field,value));
     }
   }
   return [...keys].sort();

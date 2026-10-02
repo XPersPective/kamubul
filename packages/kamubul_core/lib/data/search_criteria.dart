@@ -199,7 +199,23 @@ class SearchCriteria {
             : _list(raw[key]);
         if (actual.isEmpty) {
           uncertain();
-        } else if (!_oneOf(wanted, actual)) {
+        } else if (key == 'education' &&
+            !wanted.any(
+              (w) =>
+                  _educationAliases.containsKey(_fold(w)) &&
+                  actual.any(
+                    (a) =>
+                        _educationAliases.containsKey(_fold(a)) &&
+                        _criterionKey(key, a) == _criterionKey(key, w),
+                  ),
+            )) {
+          if (wanted.any((w) => !_educationAliases.containsKey(_fold(w))) ||
+              actual.any((a) => !_educationAliases.containsKey(_fold(a)))) {
+            uncertain();
+          } else {
+            status = CriteriaMatch.noMatch;
+          }
+        } else if (!_oneOf(wanted, actual, field: key)) {
           status = CriteriaMatch.noMatch;
         }
       }
@@ -260,6 +276,38 @@ String _fold(Object? value) =>
         .replaceAll('Û', 'U')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
-bool _oneOf(List<Object?> wanted, List<Object?> actual) =>
+const _educationAliases = {
+  'LISE': 'secondary',
+  'EDUCATION:SECONDARY': 'secondary',
+  'ON LISANS': 'associate',
+  'ONLISANS': 'associate',
+  'EDUCATION:ASSOCIATE': 'associate',
+  'LISANS': 'bachelor',
+  'EDUCATION:BACHELOR': 'bachelor',
+  'YUKSEK LISANS': 'master',
+  'YUKSEKLISANS': 'master',
+  'EDUCATION:MASTER': 'master',
+  'DOKTORA': 'doctorate',
+  'EDUCATION:DOCTORATE': 'doctorate',
+};
+String _criterionKey(String? field, Object? value) {
+  final key = _fold(value);
+  return field == 'education' ? _educationAliases[key] ?? key : key;
+}
+
+String educationLabel(String value) =>
+    const {
+      'secondary': 'Lise',
+      'associate': 'Ön lisans',
+      'bachelor': 'Lisans',
+      'master': 'Yüksek lisans',
+      'doctorate': 'Doktora',
+    }[_educationAliases[_fold(value)]] ??
+    value;
+
+bool _oneOf(List<Object?> wanted, List<Object?> actual, {String? field}) =>
     wanted.isEmpty ||
-    wanted.any((w) => actual.any((a) => _fold(a) == _fold(w)));
+    wanted.any(
+      (w) =>
+          actual.any((a) => _criterionKey(field, a) == _criterionKey(field, w)),
+    );
