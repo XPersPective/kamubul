@@ -27,6 +27,14 @@ test('public cache hit and conditional hit skip database work',async t=>{
   const stored=[...state.entries.values()][0];assert.equal(stored.headers.get('Cache-Control'),'public, max-age=60');
 });
 
+test('old public cache cannot bypass strict catalogue cursor validation',async t=>{
+  const state=setup(t);
+  state.entries.set('https://api/_cache/public-v1/api/v2/changes?after=41',Response.json({watermark:40,appliedThrough:40,hasMore:false,changes:[]}));
+  const response=await cachedFetch(new Request('https://api/api/v2/changes?after=41'),state.env,state.ctx);
+  assert.equal(response.status,409);assert.equal(response.headers.get('X-KamuBul-Cache'),'MISS');
+  await state.settle();assert.equal(state.counts().puts,0);
+});
+
 test('private, credentialed, unknown query and health requests bypass public cache',async t=>{
   const state=setup(t),id='a'.repeat(32);
   for(const request of [

@@ -137,6 +137,18 @@ Eşleştirme aboneliğin effective_after değerini bu kalıcı ilk sırayla kar�
 yeni arama eski ilan revizyonu için push almaz. Eksik ilk sıra fail-closed'dur.
 Katalog temizliği henüz devrede değildir; pinned snapshot sınırı ayrıca korunmalıdır.
 
+Katalog `after`/`watermark` yalnız güvenli, negatif olmayan tam sayı dizeleridir.
+Eksik watermark o isteğin latest sırasını sabitler; verilmiş watermark sessizce
+latest'e çevrilmez. Boş/bozuk değer400 cursor, after'dan küçük watermark400
+watermark, latest'ten büyük sıra409 cursor_ahead döner. Watermark0 boş geçmiş
+anıdır; limit için mevcut bounded/default davranış korunur. Metadata ETag'i
+latest+oldestRetainedSeq+source durumlarını içerir; retention sınırı değişince
+aynı latest için304 dönmez. Public cache namespace v2 eski gevşek yanıtları ayırır.
+Bu sınır kontrolleri log pruning değildir: bounded silme eklenmeden önce kalıcı
+retention floor ve her ilanın o floor'daki en son immutable temel sürümü korunmalı,
+floor öncesi pinned bootstrap/delta recovery Flutter'da doğrulanmalıdır. MIN(seq)
+eski temel sürümler tutulduğunda retention floor'un yerine geçemez.
+
 Saatlik `:59` Cron slotu yalnız registry bakımına ayrılır; o saatte gönderim
 slotları arasındaki aralık bir kez 6dk olur. 120 gün heartbeat almayan kurulumun
 aktif send lease'i varsa dokunulmaz. Diğer stale kurulumlar önce disabled olur;

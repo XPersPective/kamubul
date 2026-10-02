@@ -12,7 +12,7 @@ function setup(t){
     const response=await fetchRequest(new Request('https://api/api/v2/'+path),{DB},{}),bytes=new Uint8Array(await response.arrayBuffer());
     assert.ok(bytes.length<=1800000);return {status:response.status,body:JSON.parse(new TextDecoder().decode(bytes))};
   };
-  return {sql,insert,fetch};
+  return {sql,insert,fetch,DB};
 }
 
 test('large UTF8 delta pages advance only sent immutable changes, including tombstones',async t=>{
@@ -48,4 +48,27 @@ test('single oversized record fails explicitly without returning an advanced cur
   for(const path of ['changes?after=0','listings']){
     const response=await fetch(path);assert.equal(response.status,413);assert.deepEqual(response.body,{error:'record_oversize'});
   }
+});
+
+test('catalogue numeric cursors never silently change a frozen watermark',async t=>{
+  const {insert,fetch}=setup(t);insert('first','one');insert('second','two');
+  for(const invalid of ['', '-1','abc','1.5','1e0','+1','%20','9007199254740992']) {
+    for(const path of ['changes?after='+invalid,'changes?watermark='+invalid,'listings?watermark='+invalid])assert.equal((await fetch(path)).status,400,path);
+  }
+  for(const path of ['changes?after=3','changes?watermark=3','listings?watermark=3'])assert.equal((await fetch(path)).status,409,path);
+  assert.equal((await fetch('changes?after=2&watermark=1')).status,400);
+  const delta=await fetch('changes?after=0&watermark=1');assert.equal(delta.body.watermark,1);assert.deepEqual(delta.body.changes.map(x=>x.id),['first']);
+  const snapshot=await fetch('listings?watermark=1');assert.equal(snapshot.body.watermark,1);assert.deepEqual(snapshot.body.items.map(x=>x.id),['first']);
+  assert.equal((await fetch('listings?watermark=0')).body.items.length,0);
+});
+
+test('metadata ETag changes when retained boundary changes without a new publication',async t=>{
+  const {sql,insert,DB}=setup(t);insert('first','one');insert('second','two');
+  const request=etag=>new Request('https://api/api/v2/meta',{headers:etag?{'If-None-Match':etag}:{}});
+  const initial=await fetchRequest(request(),{DB},{}),etag=initial.headers.get('etag');
+  assert.equal((await initial.json()).oldestRetainedSeq,1);
+  assert.equal((await fetchRequest(request(etag),{DB},{})).status,304);
+  sql.exec('DELETE FROM catalogue_changes WHERE seq=1');
+  const changed=await fetchRequest(request(etag),{DB},{});assert.equal(changed.status,200);
+  const body=await changed.json();assert.equal(body.latestSeq,2);assert.equal(body.oldestRetainedSeq,2);assert.notEqual(changed.headers.get('etag'),etag);
 });

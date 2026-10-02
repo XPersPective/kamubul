@@ -4,7 +4,7 @@ import {runScheduled} from './pipeline.js';
 export const nowISO=()=>new Date().toISOString();
 export async function sha256(value){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');}
 const json=(body,status=200,headers={})=>Response.json(body,{status,headers:{'X-Content-Type-Options':'nosniff','Cache-Control':'no-store',...headers}});
-const int=(raw,min,max,fallback)=>{if(raw===null||raw===undefined||raw==='')return fallback;const n=Number(raw);return Number.isSafeInteger(n)&&n>=min&&n<=max?n:fallback;};
+const int=(raw,min,max,fallback,strict=false)=>{if(raw===null||raw===undefined||(!strict&&raw===''))return fallback;if(strict&&!/^\d{1,16}$/.test(raw))return NaN;const n=Number(raw);return Number.isSafeInteger(n)&&n>=min&&n<=max?n:strict?NaN:fallback;};
 const stable=(a,b)=>{if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0;};
 async function bodyJSON(request){
   if(!request.headers.get('content-type')?.startsWith('application/json'))throw new Error('content_type');
@@ -96,20 +96,26 @@ export async function fetchRequest(request,env,ctx){
     }
     if(path==='/api/v2/meta') {
       const seq=await latestSeq(env.DB);const sources=(await env.DB.prepare("SELECT id,name,CASE WHEN state IN ('ok','failed','blocked','disabled') THEN state WHEN state='processing' AND last_success IS NOT NULL THEN 'ok' ELSE 'failed' END state,last_attempt,last_success,note FROM sources").all()).results;
-      return conditional(request,{schemaVersion:2,taxonomyVersion:1,latestSeq:seq,oldestRetainedSeq:(await env.DB.prepare('SELECT COALESCE(MIN(seq),0) n FROM catalogue_changes').first()).n,sources},'"meta-'+seq+'-'+await sha256(JSON.stringify(sources))+'"');
+      const oldest=(await env.DB.prepare('SELECT COALESCE(MIN(seq),0) n FROM catalogue_changes').first()).n;
+      return conditional(request,{schemaVersion:2,taxonomyVersion:1,latestSeq:seq,oldestRetainedSeq:oldest,sources},'"meta-'+seq+'-'+oldest+'-'+await sha256(JSON.stringify(sources))+'"');
     }
     if(path==='/api/v2/taxonomy') {
       const occupations=(await env.DB.prepare("SELECT DISTINCT value FROM listings,json_each(payload,'$.occupations') WHERE active=1 LIMIT 200").all()).results.map(x=>x.value);
       return json({version:1,education:educationValues.map(x=>x.label),educationValues,kpssTypes:['P3','P93','P94'],categories:['işçi','personel','belediye'],occupations},200,{'Cache-Control':'public, max-age=300'});
     }
     if(path==='/api/v2/changes') {
-      const latest=await latestSeq(env.DB),after=int(url.searchParams.get('after'),0,Number.MAX_SAFE_INTEGER,0),watermark=int(url.searchParams.get('watermark'),after,latest,latest),limit=int(url.searchParams.get('limit'),1,50,30);
+      const latest=await latestSeq(env.DB),after=int(url.searchParams.get('after'),0,Number.MAX_SAFE_INTEGER,0,true),watermark=int(url.searchParams.get('watermark'),0,Number.MAX_SAFE_INTEGER,latest,true),limit=int(url.searchParams.get('limit'),1,50,30);
+      if(!Number.isSafeInteger(after)||!Number.isSafeInteger(watermark))return json({error:'cursor'},400);
+      if(after>latest||watermark>latest)return json({error:'cursor_ahead'},409);
+      if(watermark<after)return json({error:'watermark'},400);
       const {rows}=await boundedCataloguePage(env.DB,env.DB.prepare('SELECT seq,listing_id,length(CAST(payload AS BLOB)) payload_bytes FROM catalogue_changes WHERE seq>? AND seq<=? ORDER BY seq LIMIT ?').bind(after,watermark,limit));
       const appliedThrough=rows.length?rows.at(-1).seq:watermark;
       return conditional(request,{watermark,appliedThrough,hasMore:appliedThrough<watermark,changes:rows.map(r=>({seq:r.seq,operation:r.operation,id:r.listing_id,revision:r.revision,item:JSON.parse(r.payload)}))},'"changes-'+after+'-'+watermark+'-'+limit+'"');
     }
     if(path==='/api/v2/listings') {
-      const latest=await latestSeq(env.DB),watermark=int(url.searchParams.get('watermark'),0,latest,latest),after=url.searchParams.get('after')??'',limit=int(url.searchParams.get('limit'),1,50,30);
+      const latest=await latestSeq(env.DB),watermark=int(url.searchParams.get('watermark'),0,Number.MAX_SAFE_INTEGER,latest,true),after=url.searchParams.get('after')??'',limit=int(url.searchParams.get('limit'),1,50,30);
+      if(!Number.isSafeInteger(watermark))return json({error:'cursor'},400);
+      if(watermark>latest)return json({error:'cursor_ahead'},409);
       if(after.length>200)return json({error:'cursor'},400);
       const {rows,hasMore}=await boundedCataloguePage(env.DB,env.DB.prepare(`SELECT c.seq,c.listing_id,length(CAST(c.payload AS BLOB)) payload_bytes FROM catalogue_changes c JOIN (SELECT listing_id,MAX(seq) seq FROM catalogue_changes WHERE seq<=? GROUP BY listing_id) last ON c.seq=last.seq
         WHERE c.operation='upsert' AND c.listing_id>? ORDER BY c.listing_id LIMIT ?`).bind(watermark,after,limit+1));
@@ -161,7 +167,7 @@ export async function cachedFetch(request,env,ctx){
   const cache=globalThis.caches?.default;
   // Only explicitly public reads share cache entries; credentials and private routes bypass it.
   if(!cache||!ctx?.waitUntil||request.method!=='GET'||parameters===null||request.headers.has('authorization')||request.headers.has('cookie')||url.href.length>1024||/no-store/i.test(request.headers.get('cache-control')??'')||[...url.searchParams.keys()].some(k=>!parameters.includes(k)||url.searchParams.getAll(k).length!==1))return fetchRequest(request,env,ctx);
-  url.searchParams.sort();url.pathname='/_cache/public-v1'+path;
+  url.searchParams.sort();url.pathname='/_cache/public-v2'+path;
   const key=new Request(url.href),fresh=/no-cache|max-age=0/i.test(request.headers.get('cache-control')??'');
   let response;
   try{if(!fresh)response=await cache.match(key);}catch{console.error('public_cache_read_failed');}
