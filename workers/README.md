@@ -125,6 +125,16 @@ Her tamamlanan parçanın sonucu kalıcı processing job'da tutulur; son özet
 birleştirilmeden yayımlanmaz. `AI_DAILY_JOBS=20` ilan sayısını değil, parça,
 birleştirme ve başarısız denemeler dahil günlük model isteklerini sınırlar.
 Her isteğin serialized girdisi24KB, çıktısı1024 token ile sınırlıdır.
+İlk metin inference öncesi job.input.aiContract provider/model/extractionRevision
+olarak kalıcı sabitlenir. Sonraki parça, retry ve consolidation env model değişse
+bile aynı modeli kullanır; revision prompt ve validator sözleşmesini kapsar.
+Başarılı ilan payload.aiProvenance aynı sözleşmeyi taşır; job iç alanları ilana
+kopyalanmaz. Source-only sonuçta provenance null'dır, inference yapılmış sayılmaz.
+Eski provenance'sız tamamlanan ilanlar geriye dönük model tahminiyle doldurulmaz.
+Sürümü bilinmeyen eski partial iş ai_revision_unknown, mevcut kodla uyumsuz sürüm
+ai_revision_mismatch durumuyla failed olur; input/chunk korunur, quota harcanmaz.
+Yeni sürüm aynı hash arşivini otomatik tekrar okutmaz. Unique job hâlâ listing+hash;
+versioned job identity ve açık bounded reprocess aracı PB-017'de kalan iştir.
 [rejectIfBusy](https://developers.cloudflare.com/workers-ai/features/reject-if-busy/)
 kapasite doluyken kuyruğa kabulü engeller.45 saniyelik uygulama timeout'u
 sağlayıcı inference işleminin iptal edildiğini garanti etmez; retry de kotaya sayılır.

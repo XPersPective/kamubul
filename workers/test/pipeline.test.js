@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {searchAnchorKeys,installationAnchorKeys,listingAnchorKeys,matchListing,validateCriteria,migrateFilters} from '../src/criteria.js';
 import {fcmMessage} from '../src/fcm.js';
 import {fetchRequest,sha256} from '../src/worker.js';
-import {splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled,maintainRegistry,maintainCatalogue} from '../src/pipeline.js';
+import {aiExtractionRevision,splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled,maintainRegistry,maintainCatalogue} from '../src/pipeline.js';
 
 function database(){
   const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
@@ -242,6 +242,35 @@ test('account AI quota preserves progress and retry allowance, and stops other j
   await processNotice(env);
   assert.equal(JSON.parse(sql.prepare("SELECT input FROM processing_jobs WHERE id='processing'").get().input).aiProgress.index,2);
   assert.equal(calls.length,2);sql.close();
+});
+
+test('partial AI jobs pin the model across configuration changes and publish provenance',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());const calls=[],models=[];
+  insertNotice(sql,'Başvuru koşulları kaynak metninde açıklanmaktadır. '.repeat(600));
+  const AI={async run(name,request,options){models.push(name);return model(calls).run(name,request,options);}};
+  await processNotice({DB,AI,AI_MODEL:'original-model'});
+  const contract=JSON.parse(sql.prepare("SELECT input FROM processing_jobs WHERE id='processing'").get().input).aiContract;
+  assert.deepEqual(contract,{provider:'cloudflare',model:'original-model',extractionRevision:aiExtractionRevision});
+  for(let i=0;i<10&&sql.prepare("SELECT state FROM processing_jobs WHERE id='processing'").get().state!=='completed';i++)await processNotice({DB,AI,AI_MODEL:'replacement-model'});
+  assert.ok(models.length>1);assert.ok(models.every(name=>name==='original-model'));
+  assert.equal(sql.prepare("SELECT state FROM processing_jobs WHERE id='processing'").get().state,'completed');
+  const payload=JSON.parse(sql.prepare("SELECT payload FROM listings WHERE id='job'").get().payload);
+  assert.deepEqual(payload.aiProvenance,contract);assert.equal(payload.aiContract,undefined);assert.equal(payload.aiProgress,undefined);
+});
+
+test('unknown or incompatible partial AI revisions preserve work without spending quota',async t=>{
+  for(const incompatible of [false,true]){
+    const {sql,DB}=database();t.after(()=>sql.close());insertNotice(sql,'Başvuru koşulları kaynak metninde açıklanmaktadır. '.repeat(600));
+    const progress={index:1,summaries:[[{text:'Kalıcı kaynak alıntısı korunur.',quote:'Kalıcı kaynak alıntısı korunur.'}]],conditions:[[]]};
+    sql.prepare("UPDATE processing_jobs SET input=json_set(input,'$.aiProgress',json(?)) WHERE id='processing'").run(JSON.stringify(progress));
+    if(incompatible)sql.prepare("UPDATE processing_jobs SET input=json_set(input,'$.aiContract',json(?)) WHERE id='processing'").run(JSON.stringify({provider:'cloudflare',model:'original',extractionRevision:aiExtractionRevision+1}));
+    const before=sql.prepare("SELECT input FROM processing_jobs WHERE id='processing'").get().input;
+    let calls=0;await processNotice({DB,AI_MODEL:'replacement',AI:{async run(){calls++;throw new Error('must_not_call');}}});
+    const job=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get();
+    assert.equal(job.state,'failed');assert.equal(job.lease_until,null);assert.equal(job.error_code,incompatible?'ai_revision_mismatch':'ai_revision_unknown');
+    assert.equal(job.input,before);assert.equal(calls,0);assert.equal(sql.prepare('SELECT COUNT(*) n FROM daily_usage').get().n,0);
+    assert.equal(sql.prepare("SELECT processed_hash FROM listings WHERE id='job'").get().processed_hash,null);
+  }
 });
 
 test('AI capacity errors use bounded retry without losing completed chunks',async()=>{
@@ -736,7 +765,7 @@ test('consolidation keeps later source excerpts and incomplete final summaries s
     const {sql,DB}=database();t.after(()=>sql.close());
     const text=quotes.join('\n').repeat(100);insertNotice(sql,text);
     const progress={index:splitAiText(text).length,summaries:[quotes.map(quote=>({text:quote,quote}))],conditions:[[]]};
-    sql.prepare("UPDATE processing_jobs SET input=json_set(input,'$.aiProgress',json(?)) WHERE id='processing'").run(JSON.stringify(progress));
+    sql.prepare("UPDATE processing_jobs SET input=json_set(input,'$.aiProgress',json(?),'$.aiContract',json(?)) WHERE id='processing'").run(JSON.stringify(progress),JSON.stringify({provider:'cloudflare',model:'@cf/meta/llama-3.3-70b-instruct-fp8-fast',extractionRevision:aiExtractionRevision}));
     await processNotice({DB,AI_MODEL:'@cf/meta/llama-3.3-70b-instruct-fp8-fast',AI:{async run(_,request){
       assert.equal(request.response_format.type,'json_schema');assert.equal(request.response_format.json_schema.properties.summary.minItems,3);
       assert.equal(request.response_format.json_schema.properties.summary.items.additionalProperties,false);
