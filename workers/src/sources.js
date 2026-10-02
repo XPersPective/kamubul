@@ -54,25 +54,33 @@ export function parseKariyerDetail(main,positions) {
 }
 export async function fetchKariyerDetail(id) {return parseKariyerDetail(await post('ilan/GetIlanPreviewPublic',{ilanGuid:id}),await post('altilan/GetAltIlanInfoByIlanIdPublic',{ilanGuid:id}));}
 const months=['ocak','şubat','mart','nisan','mayıs','haziran','temmuz','ağustos','eylül','ekim','kasım','aralık'];
-function sbbDate(value,year,end=false) {
-  const m=plain(value).match(/(\d{1,2})\s+([a-zçğıöşü]+)(?:\s+(20\d{2}))?/i);
+function sbbDate(value,year,end=false,start=null) {
+  const m=plain(value).match(/(\d{1,2})\s+([a-zçğıöşüİ]+)(?:\s+(20\d{2}))?/i);
   if(!m)return null;const month=months.indexOf(m[2].toLocaleLowerCase('tr'));
-  if(month<0)return null;const y=Number(m[3]??year),day=Number(m[1]);
-  const d=new Date(Date.UTC(y,month,day,end?20:0,end?59:0,end?59:0));
-  return day>=1&&day<=31&&d.getUTCMonth()===month?d.toISOString():null;
+  if(month<0)return null;let y=Number(m[3]??year);const day=Number(m[1]);
+  if(!m[3]&&start){
+    const civil=new Date(Date.parse(start)+3*3600000);
+    y=civil.getUTCFullYear()+(month*100+day<civil.getUTCMonth()*100+civil.getUTCDate()?1:0);
+  }
+  const d=new Date(Date.UTC(y,month,day));
+  return day>=1&&day<=31&&d.getUTCMonth()===month?new Date(+d+(end?21*3600000-1000:-3*3600000)).toISOString():null;
 }
 export function parseSbbList(html, year=new Date().getUTCFullYear()) {
   const rows=[];
   for(const match of html.matchAll(/<a\s[^>]*href=['"](ilanDetay\.aspx\?kod=[^'"]+)['"][^>]*>([\s\S]*?)<\/a>/gi)) {
-    const block=match[2]; const part=cls=>plain(block.match(new RegExp('<(?:span|p)[^>]*class=[\\\'\"]'+cls+'[\\\'\"][^>]*>([\\s\\S]*?)<\\/(?:span|p)>','i'))?.[1]??'');
+    const block=match[2]; const part=cls=>plain(block.match(new RegExp('<(?:span|p)[^>]*class\\s*=\\s*[\\\'\"]'+cls+'[\\\'\"][^>]*>([\\s\\S]*?)<\\/(?:span|p)>','i'))?.[1]??'');
     const institution=part('black')||part('alt_p1');
-    const body=block.match(/<p[^>]*class=['"]alt_p2['"][^>]*>([\s\S]*?)<\/p>/i)?.[1]??'';
+    const body=block.match(/<p[^>]*class\s*=\s*['"]alt_p2['"][^>]*>([\s\S]*?)<\/p>/i)?.[1]??'';
     const title=part('patrol')||plain(body.split(/<em/i)[0]);
     const range=part('h5date')||plain(body.match(/<em[^>]*>([\s\S]*?)<\/em>/i)?.[1]??'');
     if(!title||!institution)continue;
     const dates=range.split(/[-–]/);const url=new URL(match[1].replace(/&amp;/g,'&'),'https://kamuilan.sbb.gov.tr/');const externalId=url.searchParams.get('kod');
     if(!externalId)continue;
-    rows.push({id:'sbb:'+externalId,externalId,sourceId:'sbb',url:url.href,title,institution,category:title.includes('İŞÇİ')?'İşçi':'Kamu Personeli',start:sbbDate(dates[0],year),deadline:sbbDate(dates[1],year,true),publishedAt:null,places:[],requirementGroups:[],summary:[],active:true});
+    const start=dates.length===2?sbbDate(dates[0],year):null;
+    let deadline=dates.length===2?sbbDate(dates[1],year,true,start):null;
+    if(start&&deadline&&deadline<start)deadline=null;
+    const upper=title.toLocaleUpperCase('tr');
+    rows.push({id:'sbb:'+externalId,externalId,sourceId:'sbb',url:url.href,title,institution,category:upper.includes('SÖZLEŞMELİ')?'Sözleşmeli Personel':upper.includes('İŞÇİ')?'İşçi':'Kamu Personeli',start,deadline,publishedAt:null,places:[],requirementGroups:[],summary:[],active:true});
   }
   if(!rows.length)throw new SourceError('layout_changed');return rows.slice(0,500);
 }

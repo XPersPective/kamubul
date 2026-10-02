@@ -50,6 +50,21 @@ kanıtı olmadan alternatif host/proxy eklenmez.
 
 ## Mobil geçiş ve çıkarım kanıtı
 
+Son kalıcı Worker58d0511e,158 native/dry-run/deploy ve canlı46change/23catalogue/
+applied46/detail/missing404/meta304 kontrolü geçti. SBB parser mevcut resmî
+kayıtlı HTML'deki `class ='black'` boşluğu yüzünden layout_changed veriyordu;
+iki satır şablonunda attribute boşlukları düzeltildi. Aynı55 etiketli liste
+satırında kurum/başlık/kategori/start/deadline gold eşitliği geçti. Başlangıç
+Türkiye00:00, son tarih Türkiye23:59:59; implicit yıl geçişi/leap day, açık
+çelişkili yıl ve geçersiz tarihte unknown kontrolleri var. Bu liste çıkarımıdır;
+AI yaş/KPSS/eğitim veya PDF precision kapısını karşılamaz.
+
+Son readonly D1 kaynak: Kariyer last_success17:21:08.812Z/ayrıntı failure notu,
+SBB blocked last_attempt17:24:08.873Z;23/23 unavailable. SELECT4+23read,
+0written/changed=false. SBB Web aracı aynı resmî kökte403 gördü; bunun
+Cloudflare egress ölçümü veya yeni kaynak izni olduğu varsayılmaz. Yerel corpus
+üretime aktarılmadı, fixture/push/AI çağrısı oluşturulmadı.
+
 16:33UTC yeni diagnostic: binding'siz resmî Wrangler remote preview üzerinde
 aynı kaynak adaptörü/izinli adres çağrıldı. Kariyer detail20.240ms HTTP522,
 SBB579ms blocked. Yanıt HTTP200 diagnostic envelope'dir; kaynak başarı değildir.

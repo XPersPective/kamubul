@@ -30,8 +30,8 @@ Telefon fallback/şehir çekimi ve eski Workmanager pilot kapıları nedeniyle d
 Fake üretim ilanı/kurulumu/push yok; harici ücretli AI etkin değil.
 
 Son readonly kanıt: canlı watermark46/catalogue23/appliedThrough46/detail GET,
-missing detail404/conditional meta304. D1 kaynak last_success
-2026-10-02T15:45:04.670Z; SBB blocked last_attempt15:48:04.711Z.
+missing detail404/conditional meta304. D1 son readonly Kariyer last_success
+2026-10-02T17:21:08.812Z/ayrıntı hata notu; SBB blocked last_attempt17:24:08.873Z.
 Migrations0001–0016; ownership triggerları önce installation0 ile doğrulandı.
 Son queue deployment readonly installation1/outbox0, dispatch match/send
 idle generation0 ve queue_jobs0. Bu kurulumun kaynağı/cihaz teslimi doğrulanmadı;
@@ -41,7 +41,7 @@ Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarıl�
 ## 2. Kalıcı bulut ve güvenli yapılandırma
 
 - Worker `kamubul-api`: https://kamubul-api.devx8585.workers.dev;
-  son CLI deployment version `b41b6716-bd7c-45ec-9db6-08296d884ce1`,100%.
+  son CLI deployment version `58d0511e-414b-42ee-bb15-323ecf77563d`.
   D1 `kamubul`, UUID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB;
   migration0001–0016 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
 - Kalıcı Queue `kamubul-work`, ID3eb1ec0a4296443eb552a240dac77ec4;
@@ -74,6 +74,13 @@ Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarıl�
   erişilemezliği veya CPU testi başarısızlığı olarak yorumlanmaz.
 
 ## 3. Worker veri akışı ve kalıcı işler
+
+SBB liste parser'ı gerçek kaydedilmiş HTML'deki class attribute boşluklarını
+okur. Mevcut55 etiketli liste satırında kurum/başlık/kategori/start/deadline
+gold değerleriyle eşitlik ve3-row fixture geçti;158 Worker native test.
+Türkiye UTC+3 civil başlangıç/end-of-day, açık yıl çelişkisi unknown, implicit
+yıl geçişi ve leap-day/uppercase EKİM kontrolleri var. Bu liste parser kanıtı
+AI typed extraction precision/PDF veya başarılı Cloudflare SBB egress değildir.
 
 `workers/src/{sources,pipeline,criteria,worker,fcm}.js` runtime dependency'siz
 Cloudflare uygulamasıdır. Official host/redirect/size/timeout kontrolleri,
