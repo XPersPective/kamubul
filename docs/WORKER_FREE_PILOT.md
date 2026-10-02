@@ -4,6 +4,31 @@
 Ölçüm: mevcut üretim kamubul-api / kamubul D1, gerçek resmî RSS kataloğu.
 Kaynak ayrıntısı erişimi ve gerçek AI/fanout/FCM CPU kapıları açık.
 
+## Son aktif sürüm gözlemi
+
+2 Ekim yaklaşık15:58 Europe/Istanbul: Metrics / Last24h / **Actively deployed
+versions** filtresinde yalnız70023118-b184-4cae-aee7-bc7587c33da6, trafik100%.
+19 invocation,0 subrequest,0 error; CPU P50/P90/P99/P999
+2.04/5.26/6.29/6.29ms. Wall time256/760/767/767ms; memory
+1.75/2.28/2.54/2.54MB. CPU-limit exception0. Sürüm o anda yaklaşık16dk
+yaşındaydı;24h seçimi24h boyunca aynı sürümün çalıştığı anlamına gelmez.
+
+Observability Last1h/%10 örnekleme:15:54:05.102GMT+3 scheduled çağrı,
+aynı sürüm,scheduledTime1790945644,cpuTimeMs2,wallTimeMs748,outcome ok.
+Dakika modulo3=0: kaynak/expiry/AI slotudur. Ancak tamamlanan kaynak işi veya
+inference logu yok; bu **idle/due kontrolü**, başarılı detail/AI işleme maliyeti
+diye kullanılamaz. Önceki0f072369 sürümünde15:42:07.574GMT+3 scheduled
+çağrı,cpuTimeMs3,wallTimeMs3231,outcome ok; bu da tek başına başarılı kaynak
+işi ispatı değildir. Catch edilen hata outcome ok kalabilir.
+
+All deployed versions ayrı gözlem:1.63k invocation,658 subrequest,
+P50/P90/P99/P9991.78/6.83/10.63/10.63ms,0 runtime error. Bunları aktif
+sürümün dağılımıyla karıştırmayın. Günlük hesap requests932/100000;
+Workers listesinde tek kamubul-api gözlendi. Bu sayaç ve düşük yük
+örneklemesi10k/gerçek OAuth signing/AI/FCM/fanout kabulü değildir. D1
+metrikleri bu tur yenilenmedi. Ayar/scope/plan değişikliği veya üretim fixture
+yazması yapılmadı.
+
 ## Dashboard gözlemi
 
 2 Ekim yaklaşık09:46 Europe/Istanbul hesabın Current plan Free / $0 olarak

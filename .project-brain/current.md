@@ -211,13 +211,20 @@ Android native secure write/reopen/plaintext cleanup API36/x64 emulator'da
 
 ## 7. Doğrulama, geçiş kodu ve sonraki kapılar
 
-Son doğrulama:167 Flutter full,181 core full,144 Worker native; changed Dart
+Son doğrulama:171 Flutter full,181 core full,144 Worker native; changed Dart
 analyze ve diff-check temiz. SQLite race tests:
 cross-owner initial registration bütün dependent rows'u korur; stale same-owner
 heartbeat409/newer criteria korunur/retry yeni version; delete/recreate hash
 guard. Mobile bounded retry/cache invalidation/identity preservation testleri.
 Normal/saved canonical cache, guide offline, SBB freshness/conflicting aliases,
 backup roundtrip,320px1.3x light/dark/unknown/malformed/nav testleri vardır.
+Yeni canonical detail dört phone/tablet/light/dark/1.3x düzeninde üst/koşul
+bölümleri için8 golden taşır; gerçek AppTheme ve48dp CTA hit-test kontrolü.
+Test fontu Ahem: düzen regresyonu, gerçek glyph/physical premium kabulü değil.
+Aktif70023118 sürümü dashboard19 invocation/0 subrequest/0 error,
+CPU P50/P90/P99=2.04/5.26/6.29ms. Aynı sürüm15:54 scheduled source/expiry/AI
+slotu2ms CPU/748ms wall/outcome ok; idle/due kontrolü, başarılı detail/AI
+işleme veya10k kanıtı değil. Ayrıntı docs/WORKER_FREE_PILOT.md.
 Latest actual Firebase/API x64 debug116605171bytes/15.4s (age calendar/onboarding/
 registry/deadline code), cihaz kurulumu/visual proof yok. Önceki universal debug
 223536538bytes/25.7s ve x64 debug89653916bytes/20.5s. emulator-5556 install-r
