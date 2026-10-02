@@ -21,7 +21,9 @@ void main() {
             );
       final outcome = criteria.match(
         Map<String, Object?>.from(row['listing'] as Map),
-        now: DateTime.utc(2026, 9, 30, 12),
+        now: row['now'] == null
+            ? DateTime.utc(2026, 9, 30, 12)
+            : DateTime.parse(row['now'] as String),
       );
       expect(
         outcome == CriteriaMatch.noMatch ? 'no_match' : outcome.name,

@@ -54,9 +54,30 @@ Migration0013 yalnız eski `cities:city:*` facet sahiplerini wildcard ile korur;
 authenticated heartbeat label/ID için aynı eski `cities:istanbul` anahtarını
 kurar. Düz label anchor'ları değişmez. Tercih version/baseline ve saved searches
 korunur; partial fanout reset, completed event'ler ve outbox dedupe değişmez.
-Shared Dart/Worker corpus31 case; bütün81 ID/label ve unknown/district durumları
+Shared Dart/Worker corpus58 case; bütün81 ID/label ve unknown/district durumları
 kontrol edilir. Dictionary/coded-city matching çalışması actual source city
 coverage, AI/model kalitesi veya gerçek cihaz push kanıtı değildir.
+
+Yaş sözleşmesi: aday `age` tamamlanmış yıl ve `ageAsOf` ISO takvim günüdür;
+tam doğum tarihi alınmaz. Kaynak requirementGroup `minAge`/`maxAge` kapsayıcı
+tamamlanmış yaş sınırları, optional `ageReferenceDate` ISO gün, optional
+`bornOnOrAfter`/`bornOnOrBefore` kapsayıcı ISO doğum sınırları taşıyabilir.
+Sınırlar aynı kadroda AND uygulanır. Tarih verilmezse legacy sayısal sınır
+adayın ageAsOf gününe uygulanır; parser gerçek kaynak referansını atlayamaz.
+Ham “35 yaşını doldurmamış” ifadesi doğrudan maxAge35 değildir; normalizasyon
+kanıtı/precision kapısı gerekir. `ageCalculation` absent/`completed_years`
+normalize sözleşmesidir; başka hesap, malformed veya çelişkili alan unknown.
+Başka yasal/kuruma özel yaş hesabı bu algoritmaya varsayımla çevrilmez.
+
+Tamamlanmış yılın takvim hesabında29 Şubat yıldönümü artık olmayan yılda1 Mart;
+adayın olası doğum aralığı ters takvim sınırlarından bulunur. Bütün olası günler
+şartı sağlarsa match, hiçbiri sağlamazsa no_match, bir kısmı sağlarsa unknown.
+366 günden eski/gelecekteki aday referansı unknown kalır; doğum günü tahmin
+edilip profil yaşı otomatik değiştirilmez. V1 tek maxAge alanı tarihli koşulları
+temsil edemediğinden dated koşul varsa null; tam requirementGroups korunur.
+58 ortak case Worker/pure Dart/mobil SQLite üzerinden aynı sonucu verir;
+ayrıca144 yaş/ref aralığı tüm olası365/366 doğum günü enumerate edilerek kontrol
+edilir. Bu matcher kanıtıdır; gerçek source-native/AI alan precision kanıtı yok.
 
 Model `@cf/meta/llama-3.1-8b-instruct`, güncel official JSON Mode desteğinde doğrulandı:
 [JSON Mode](https://developers.cloudflare.com/workers-ai/features/json-mode/),

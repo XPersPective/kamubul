@@ -17,8 +17,23 @@ test('source normalization survives malformed entities and rejects unsafe identi
 
 const now=new Date('2026-09-30T12:00:00Z');
 for(const row of JSON.parse(readFileSync(new URL('../../contracts/criteria-v2.json',import.meta.url),'utf8'))){
-  test('Dart parity: '+row.name,()=>assert.equal(matchListing(row.listing,row.legacy?migrateFilters(row.legacy):validateCriteria(row.criteria),now),row.expected));
+  test('Dart parity: '+row.name,()=>assert.equal(matchListing(row.listing,row.legacy?migrateFilters(row.legacy):validateCriteria(row.criteria),row.now?new Date(row.now):now),row.expected));
 }
+test('age ranges agree with enumerated birthdays, including leap-year anniversaries',()=>{
+  const ageAt=(birth,day)=>day.getUTCFullYear()-birth.getUTCFullYear()-(day.getUTCMonth()*100+day.getUTCDate()<birth.getUTCMonth()*100+birth.getUTCDate()?1:0);
+  for(const asOfText of ['2024-02-29','2025-02-28','2025-03-01','2026-09-30'])for(const age of [20,35]){
+    const asOf=new Date(asOfText),births=[];
+    for(let birth=new Date(Date.UTC(asOf.getUTCFullYear()-age-2,0,1));birth.getUTCFullYear()<=asOf.getUTCFullYear()-age;birth=new Date(+birth+86400000))if(ageAt(birth,asOf)===age)births.push(birth);
+    assert.ok(births.length>=365&&births.length<=366);
+    for(const offset of [-366,-1,0,1,365,366])for(const [minAge,maxAge] of [[age,age],[age-1,age],[age,age+1]]){
+      const reference=new Date(+asOf+offset*86400000),group={ageStatus:'known',minAge,maxAge,ageReferenceDate:reference.toISOString().slice(0,10)};
+      const outcomes=births.map(b=>ageAt(b,reference)>=minAge&&ageAt(b,reference)<=maxAge);
+      const expected=outcomes.every(Boolean)?'match':outcomes.some(Boolean)?'unknown':'no_match';
+      assert.equal(matchListing({title:'İlan',requirementGroups:[group]},{age,ageAsOf:asOfText},new Date(+asOf+12*3600000)),expected,JSON.stringify({asOfText,age,offset,minAge,maxAge}));
+    }
+  }
+});
+
 test('public taxonomy advertises stable education IDs, labels and accepted aliases',async()=>{
   const response=await fetchRequest(new Request('https://api/api/v2/taxonomy'),{DB:{prepare(){return {async all(){return {results:[]};}};}}},{});
   assert.equal(response.status,200);const body=await response.json();
@@ -51,6 +66,15 @@ test('criteria are AND within one position and OR across positions',()=>{
   assert.equal(matchListing(listing,{cities:['Ankara'],onlyKpss:true},now),'match');
   assert.equal(matchListing({title:'İlan',requirementGroups:[{}]},{kpssType:'P3'},now),'unknown');
 });
+test('v1 age projection never discards date-dependent restrictions into a simple maximum',async()=>{
+  const groups=[{ageStatus:'known',maxAge:35},{ageStatus:'known',maxAge:35,ageReferenceDate:'2026-10-01'},{ageStatus:'known',maxAge:35,bornOnOrAfter:'1991-01-01'},{ageStatus:'known',maxAge:35,bornOnOrBefore:'1991-09-30'},{ageStatus:'known',maxAge:35,ageCalculation:'year_start'}];
+  const DB={prepare(query){return {async all(){return {results:query.includes('FROM listings')?groups.map(g=>({payload:JSON.stringify({title:'İlan',requirementGroups:[g]})})):[]};},async first(){return {n:1};}};}};
+  const response=await fetchRequest(new Request('https://api/v1/listings.json'),{DB},{});
+  assert.equal(response.status,200);const payload=await response.json();
+  assert.deepEqual(payload.listings.map(x=>x.maxAge),[35,null,null,null,null]);
+  assert.deepEqual(payload.listings.map(x=>x.requirementGroups[0]),groups);
+});
+
 test('quiet hours wrap midnight in Istanbul',()=>{
   assert.equal(nextAllowed({quietStart:22,quietEnd:8},new Date('2026-09-30T20:15:00Z')),'2026-10-01T05:00:00.000Z');
   assert.equal(nextAllowed({quietStart:22,quietEnd:8},now),now.toISOString());

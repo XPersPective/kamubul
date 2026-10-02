@@ -221,17 +221,11 @@ class SearchCriteria {
       }
       final age = c['age'] as num?;
       if (age != null) {
-        final asOf = DateTime.parse('${c['ageAsOf']}T00:00:00Z');
-        if (now.difference(asOf).inMilliseconds > 366 * 86400000 ||
-            asOf.isAfter(now) ||
-            !['known', 'no_restriction'].contains(raw['ageStatus']) ||
-            (raw['ageStatus'] == 'known' &&
-                raw['minAge'] == null &&
-                raw['maxAge'] == null)) {
+        final result = _matchAge(raw, c, now);
+        if (result == CriteriaMatch.noMatch) {
+          status = result;
+        } else if (result == CriteriaMatch.unknown) {
           uncertain();
-        } else if ((raw['maxAge'] is num && age > (raw['maxAge'] as num)) ||
-            (raw['minAge'] is num && age < (raw['minAge'] as num))) {
-          status = CriteriaMatch.noMatch;
         }
       }
       if ('${c['kpssType'] ?? ''}'.isNotEmpty || c['onlyKpss'] == true) {
@@ -265,6 +259,105 @@ class SearchCriteria {
     }
     return unknown ? CriteriaMatch.unknown : CriteriaMatch.noMatch;
   }
+}
+
+CriteriaMatch _matchAge(
+  Map group,
+  Map<String, Object?> criteria,
+  DateTime now,
+) {
+  DateTime? date(Object? value) {
+    if (value is! String || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
+      return null;
+    }
+    final parsed = DateTime.tryParse('${value}T00:00:00Z');
+    return parsed != null && parsed.toIso8601String().substring(0, 10) == value
+        ? parsed
+        : null;
+  }
+
+  final asOf = date(criteria['ageAsOf']);
+  if (asOf == null ||
+      now.difference(asOf).inMilliseconds > 366 * 86400000 ||
+      asOf.isAfter(now)) {
+    return CriteriaMatch.unknown;
+  }
+  const fields = [
+    'minAge',
+    'maxAge',
+    'ageReferenceDate',
+    'bornOnOrAfter',
+    'bornOnOrBefore',
+  ];
+  if (group['ageStatus'] == 'no_restriction') {
+    return fields.any((k) => group[k] != null)
+        ? CriteriaMatch.unknown
+        : CriteriaMatch.match;
+  }
+  if (group['ageStatus'] != 'known' ||
+      ![
+        'minAge',
+        'maxAge',
+        'bornOnOrAfter',
+        'bornOnOrBefore',
+      ].any((k) => group[k] != null)) {
+    return CriteriaMatch.unknown;
+  }
+  if (group['ageCalculation'] != null &&
+      group['ageCalculation'] != 'completed_years') {
+    return CriteriaMatch.unknown;
+  }
+  for (final k in ['minAge', 'maxAge']) {
+    final value = group[k];
+    if (value != null &&
+        (value is! num ||
+            !value.isFinite ||
+            value != value.truncate() ||
+            value < 0 ||
+            value > 130)) {
+      return CriteriaMatch.unknown;
+    }
+  }
+  final reference = group['ageReferenceDate'] == null
+      ? asOf
+      : date(group['ageReferenceDate']);
+  final lower = date(group['bornOnOrAfter']),
+      upper = date(group['bornOnOrBefore']);
+  if (reference == null ||
+      (group['bornOnOrAfter'] != null && lower == null) ||
+      (group['bornOnOrBefore'] != null && upper == null)) {
+    return CriteriaMatch.unknown;
+  }
+  // Same inverse completed-year boundaries as the Worker; Feb29 rolls to March1.
+  int yearsBack(DateTime day, int years) {
+    final year = day.year - years,
+        lastDay = DateTime.utc(year, day.month + 1, 0).day;
+    return DateTime.utc(
+      year,
+      day.month,
+      day.day > lastDay ? lastDay : day.day,
+    ).millisecondsSinceEpoch;
+  }
+
+  final age = (criteria['age'] as num).toInt();
+  final first = yearsBack(asOf, age + 1) + 86400000,
+      last = yearsBack(asOf, age);
+  num allowedFirst = lower?.millisecondsSinceEpoch ?? double.negativeInfinity;
+  num allowedLast = upper?.millisecondsSinceEpoch ?? double.infinity;
+  if (group['maxAge'] != null) {
+    final bound =
+        yearsBack(reference, (group['maxAge'] as num).toInt() + 1) + 86400000;
+    if (bound > allowedFirst) allowedFirst = bound;
+  }
+  if (group['minAge'] != null) {
+    final bound = yearsBack(reference, (group['minAge'] as num).toInt());
+    if (bound < allowedLast) allowedLast = bound;
+  }
+  if (allowedFirst > allowedLast) return CriteriaMatch.unknown;
+  if (last < allowedFirst || first > allowedLast) return CriteriaMatch.noMatch;
+  return first >= allowedFirst && last <= allowedLast
+      ? CriteriaMatch.match
+      : CriteriaMatch.unknown;
 }
 
 List<Object?> _list(Object? value) =>

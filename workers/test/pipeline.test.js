@@ -576,7 +576,7 @@ test('candidate anchors retain every exact match in shared Dart corpus and group
   const corpus=JSON.parse(readFileSync(new URL('../../contracts/criteria-v2.json',import.meta.url),'utf8'));
   for(const row of corpus) {
     const criteria=row.legacy?migrateFilters(row.legacy):validateCriteria(row.criteria);
-    if(matchListing(row.listing,criteria,now)==='match')assert.ok(searchAnchorKeys(criteria).some(key=>listingAnchorKeys(row.listing).includes(key)),row.name);
+    if(matchListing(row.listing,criteria,row.now?new Date(row.now):now)==='match')assert.ok(searchAnchorKeys(criteria).some(key=>listingAnchorKeys(row.listing).includes(key)),row.name);
   }
   for(const groups of [undefined,[{cities:[],education:['Lisans'],occupations:['Mühendis']}],[{cities:['Ankara'],education:['Lisans']},{cities:['İstanbul'],education:['Lise']}]] ) {
     const listing={title:'Memur',institution:'Kurum',places:['Ankara'],occupations:['Mühendis'],requirementGroups:groups};

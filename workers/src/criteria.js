@@ -56,6 +56,28 @@ export function migrateFilters(filters, now = new Date()) {
   if(filters.son30==='1') result.last30=true;
   return validateCriteria(result);
 }
+function matchAge(group,criteria,now){
+  const date=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value?new Date(value):null;
+  const asOf=date(criteria.ageAsOf);
+  if(!asOf||now-asOf>366*86400000||asOf>now)return 'unknown';
+  const fields=['minAge','maxAge','ageReferenceDate','bornOnOrAfter','bornOnOrBefore'];
+  if(group.ageStatus==='no_restriction')return fields.some(k=>group[k]!=null)?'unknown':'match';
+  if(group.ageStatus!=='known'||!['minAge','maxAge','bornOnOrAfter','bornOnOrBefore'].some(k=>group[k]!=null))return 'unknown';
+  if(group.ageCalculation!=null&&group.ageCalculation!=='completed_years')return 'unknown';
+  for(const k of ['minAge','maxAge'])if(group[k]!=null&&(!Number.isInteger(group[k])||group[k]<0||group[k]>130))return 'unknown';
+  const reference=group.ageReferenceDate==null?asOf:date(group.ageReferenceDate);
+  const lower=group.bornOnOrAfter==null?null:date(group.bornOnOrAfter),upper=group.bornOnOrBefore==null?null:date(group.bornOnOrBefore);
+  if(!reference||(group.bornOnOrAfter!=null&&!lower)||(group.bornOnOrBefore!=null&&!upper))return 'unknown';
+  // Completed years: Feb29 anniversaries occur March1 in a non-leap year.
+  // Clamp inverse calendar boundaries; never guess an exact birthday from an age.
+  const yearsBack=(day,years)=>{const result=new Date(+day);result.setUTCFullYear(day.getUTCFullYear()-years,day.getUTCMonth(),1);const monthEnd=new Date(+result);monthEnd.setUTCMonth(monthEnd.getUTCMonth()+1,0);result.setUTCDate(Math.min(day.getUTCDate(),monthEnd.getUTCDate()));return +result;};
+  const first=yearsBack(asOf,criteria.age+1)+86400000,last=yearsBack(asOf,criteria.age);
+  const allowedFirst=Math.max(lower?+lower:-Infinity,group.maxAge==null?-Infinity:yearsBack(reference,group.maxAge+1)+86400000);
+  const allowedLast=Math.min(upper?+upper:Infinity,group.minAge==null?Infinity:yearsBack(reference,group.minAge));
+  if(allowedFirst>allowedLast)return 'unknown'; // Conflicting source conditions need correction, not a rejection of every candidate.
+  if(last<allowedFirst||first>allowedLast)return 'no_match';
+  return first>=allowedFirst&&last<=allowedLast?'match':'unknown';
+}
 export function matchListing(listing, criteria, now = new Date()) {
   if(listing.active===false || (listing.deadline && new Date(listing.deadline)<now) || (listing.publishedAt && new Date(listing.publishedAt)>now)) return 'no_match';
   const words=criteria.keywordScope==='title' ? listing.title : [listing.title,listing.institution,...(listing.occupations??[])].join(' ');
@@ -80,9 +102,8 @@ export function matchListing(listing, criteria, now = new Date()) {
     check(criteria.occupations,group.occupations);
     check(criteria.education,group.education,'education');
     if(criteria.age!==undefined) {
-      const ageDate=new Date(criteria.ageAsOf+'T00:00:00Z');
-      if(!Number.isFinite(+ageDate) || now-ageDate>366*86400000 || ageDate>now || !['known','no_restriction'].includes(group.ageStatus) || (group.ageStatus==='known'&&group.minAge==null&&group.maxAge==null)) {if(status!=='no_match')status='unknown';}
-      else if((group.maxAge!==null && group.maxAge!==undefined && criteria.age>group.maxAge) || (group.minAge!==null && group.minAge!==undefined && criteria.age<group.minAge)) status='no_match';
+      const age=matchAge(group,criteria,now);
+      if(age==='no_match')status=age;else if(age==='unknown'&&status!=='no_match')status=age;
     }
     if(criteria.kpssType || criteria.onlyKpss) {
       if(group.kpssStatus==='not_required') {if(criteria.onlyKpss)status='no_match';}
