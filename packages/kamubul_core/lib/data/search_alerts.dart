@@ -2,67 +2,35 @@ import '../notifications/alert_history.dart';
 import 'listing_models.dart';
 import 'search_criteria.dart';
 
-/// Kaydedilmemiş hızlı süzgeçlerin legacy eşleştiricisi.
-/// Kayıtlı arama ve bildirimler SavedSearch.matchListing kullanır.
-bool matchesFilters(
+/// Hızlı filtre ve kayıtlı arama aynı kadro bazlı v2 eşleştiriciyi kullanır.
+CriteriaMatch matchFilters(
   ListingRecord record,
   Map<String, String> filters, {
   DateTime? now,
   bool forSaved = false,
 }) {
-  final today = now ?? DateTime.now();
-  final tomorrow = DateTime(today.year, today.month, today.day + 1);
   if (!forSaved && record.category == 'Yurt Dışı Eğitim İlanları') {
-    return false;
+    return CriteriaMatch.noMatch;
   }
-  if (!forSaved &&
-      record.publishedAt != null &&
-      !record.publishedAt!.isBefore(tomorrow)) {
-    return false;
+  try {
+    return SearchCriteria.fromLegacy(filters).match(
+      record.matchingData,
+      now: now ?? DateTime.now(),
+      forSaved: forSaved,
+    );
+  } on FormatException {
+    return CriteriaMatch.unknown;
   }
-  final q = (filters['q'] ?? '').toLowerCase();
-  if (q.isNotEmpty && !record.title.toLowerCase().contains(q)) return false;
-
-  final kategori = int.tryParse(filters['kategori'] ?? '') ?? 0;
-  if (kategori == 1 && !record.category.toLowerCase().contains('işçi')) {
-    return false;
-  }
-  if (kategori == 2 && !record.category.toLowerCase().contains('personel')) {
-    return false;
-  }
-  if (kategori == 3 && !record.title.toLowerCase().contains('belediye')) {
-    return false;
-  }
-
-  if (filters['son30'] == '1') {
-    // Yayın tarihi bilinmeyen satırda (SBB) yakınlık göstergesi başvuru
-    // penceresinin bitişidir; o da yoksa "son 30 gün" karşılanamaz.
-    final evidence = record.publishedAt ?? record.deadline;
-    if (evidence == null ||
-        evidence.isBefore(today.subtract(const Duration(days: 30)))) {
-      return false;
-    }
-  }
-
-  final sehir = filters['sehir'] ?? '';
-  if (sehir.isNotEmpty &&
-      !record.places.any((place) => placeMatchesCity(place, sehir))) {
-    return false;
-  }
-
-  // Yaş/eğitim/KPSS süzgeçleri yalnızca alıntı kanıtlı çıkarılmış alanlarda
-  // uygulanır; bilinmeyen değerli ilan bu etikette gösterilmez.
-  final yas = int.tryParse(filters['yas'] ?? '');
-  if (yas != null && (record.maxAge == null || record.maxAge! < yas)) {
-    return false;
-  }
-  final egitim = filters['egitim'] ?? '';
-  if (egitim.isNotEmpty && record.education != egitim) return false;
-  final kpss = filters['kpss'] ?? '';
-  if (kpss.isNotEmpty && record.kpss != kpss) return false;
-
-  return true;
 }
+
+bool matchesFilters(
+  ListingRecord record,
+  Map<String, String> filters, {
+  DateTime? now,
+  bool forSaved = false,
+}) =>
+    matchFilters(record, filters, now: now, forSaved: forSaved) ==
+    CriteriaMatch.match;
 
 /// Kayıtlı aramanın bildirim modu.
 enum SearchAlertMode { instant, digest, off }

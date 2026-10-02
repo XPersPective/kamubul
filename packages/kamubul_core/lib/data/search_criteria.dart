@@ -129,13 +129,18 @@ class SearchCriteria {
     return SearchCriteria._(Map.unmodifiable(result));
   }
 
-  CriteriaMatch match(Map<String, Object?> listing, {required DateTime now}) {
+  CriteriaMatch match(
+    Map<String, Object?> listing, {
+    required DateTime now,
+    bool forSaved = false,
+  }) {
     final c = values;
     final deadline = DateTime.tryParse('${listing['deadline'] ?? ''}');
     final published = DateTime.tryParse('${listing['publishedAt'] ?? ''}');
-    if (listing['active'] == false ||
-        (deadline != null && deadline.isBefore(now)) ||
-        (published != null && published.isAfter(now))) {
+    if (!forSaved &&
+        (listing['active'] == false ||
+            (deadline != null && deadline.isBefore(now)) ||
+            (published != null && published.isAfter(now)))) {
       return CriteriaMatch.noMatch;
     }
     final words = c['keywordScope'] == 'title'

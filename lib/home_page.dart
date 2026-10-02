@@ -81,6 +81,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
   bool _last30 = false;
   String? _place;
   int? _ageFilter;
+  String? _ageAsOf;
+  SearchCriteria? _quickCriteria;
   String? _educationFilter;
   String? _kpssFilter;
   int? _activeSearchId;
@@ -403,17 +405,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
   }
 
   List<ListingRecord> get _visibleRecords {
-    final filters = _currentFilters;
-    final active = _activeSearch;
-    if (_tab == 1) filters['kategori'] = '0';
     return _records.where((record) {
       if (_tab == 1 && !record.saved) return false;
-      if (active != null) {
-        final match = active.matchListing(record, now: DateTime.now());
-        return match == CriteriaMatch.match ||
-            (_includeUnknown && match == CriteriaMatch.unknown);
-      }
-      return matchesFilters(record, filters, forSaved: _tab == 1);
+      final match = _matchVisible(record);
+      return match == CriteriaMatch.match ||
+          (_includeUnknown && match == CriteriaMatch.unknown);
     }).toList();
   }
 
@@ -436,6 +432,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ? null
           : search.filters['sehir'];
       _ageFilter = int.tryParse(search.filters['yas'] ?? '');
+      _ageAsOf = search.effectiveCriteria.values['ageAsOf'] as String?;
+      _quickCriteria = search.effectiveCriteria;
       _educationFilter = (search.filters['egitim'] ?? '').isEmpty
           ? null
           : search.filters['egitim'];
@@ -543,6 +541,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
     if (!mounted || chosen == null) return;
     setState(() {
       _place = chosen;
+      _patchQuickCriteria(['cities']);
       _activeSearchId = null;
       _includeUnknown = false;
     });
@@ -557,6 +556,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _last30 = false;
       _place = null;
       _ageFilter = null;
+      _ageAsOf = null;
+      _quickCriteria = null;
       _educationFilter = null;
       _kpssFilter = null;
       _activeSearchId = null;
@@ -572,9 +573,47 @@ class _KamuHomePageState extends State<KamuHomePage> {
     'son30': _last30 ? '1' : '0',
     'sehir': ?_place,
     'yas': ?_ageFilter?.toString(),
+    'yasTarih': ?_ageAsOf,
     'egitim': ?_educationFilter,
     'kpss': ?_kpssFilter,
   };
+
+  // Yalnız değiştirilen hızlı alanı yenile; çoklu seçim/puan/yıl kaybolmasın.
+  void _patchQuickCriteria(List<String> keys) {
+    final previous = _quickCriteria;
+    if (previous == null) return;
+    final replacement = SearchCriteria.fromLegacy(_currentFilters).values;
+    final values = {...previous.values};
+    for (final key in keys) {
+      values.remove(key);
+      if (replacement.containsKey(key)) values[key] = replacement[key];
+    }
+    _quickCriteria = SearchCriteria.parse(values);
+  }
+
+  CriteriaMatch _matchVisible(ListingRecord record) {
+    final active = _activeSearch;
+    if (active != null) return active.matchListing(record, now: DateTime.now());
+    final quick = _quickCriteria;
+    if (quick != null) {
+      if (_tab != 1 && record.category == 'Yurt Dışı Eğitim İlanları') {
+        return CriteriaMatch.noMatch;
+      }
+      final criteria = _tab == 1
+          ? SearchCriteria.parse({...quick.values}..remove('categories'))
+          : quick;
+      return criteria.match(
+        record.matchingData,
+        now: DateTime.now(),
+        forSaved: _tab == 1,
+      );
+    }
+    return matchFilters(
+      record,
+      _tab == 1 ? {..._currentFilters, 'kategori': '0'} : _currentFilters,
+      forSaved: _tab == 1,
+    );
+  }
 
   @override
   void dispose() {
@@ -594,6 +633,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
           id: null,
           name: '',
           filters: _currentFilters,
+          criteria: _quickCriteria,
           createdAt: DateTime.now(),
         );
     var saved = await _promptEditSearch(seed, creating: existing == null);
@@ -604,7 +644,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       saved = await _store.addSavedSearch(saved);
     }
     await _loadLocal();
-    if (mounted) setState(() => _activeSearchId = saved!.id);
+    if (mounted) _applySearch(saved);
     if (existing == null) await _maybeAskNotificationPermission();
   }
 
@@ -1398,6 +1438,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
       children: [
         TextField(
           controller: _searchController,
+          maxLength: 100,
+          buildCounter: (
+            context, {
+            required currentLength,
+            required isFocused,
+            maxLength,
+          }) => null,
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.search),
             hintText: 'Kurum veya meslek ara',
@@ -1408,6 +1455,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ),
           onChanged: (value) => setState(() {
             _search = value;
+            _patchQuickCriteria(['keyword']);
             _activeSearchId = null;
             _includeUnknown = false;
           }),
@@ -1424,6 +1472,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     label: Text(_place!),
                     onDeleted: () => setState(() {
                       _place = null;
+                      _patchQuickCriteria(['cities']);
                       _activeSearchId = null;
                       _includeUnknown = false;
                     }),
@@ -1438,7 +1487,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     onPressed: _chooseCity,
                   ),
                 ),
-              if (_activeSearch != null)
+              if (_quickCriteria != null ||
+                  _activeSearch != null ||
+                  _place != null ||
+                  _ageFilter != null ||
+                  _educationFilter != null ||
+                  _kpssFilter != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
@@ -1458,6 +1512,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       HapticFeedback.selectionClick();
                       setState(() {
                         _category = index;
+                        _patchQuickCriteria(['categories']);
                         _activeSearchId = null;
                         _includeUnknown = false;
                       });
@@ -1473,6 +1528,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     HapticFeedback.selectionClick();
                     setState(() {
                       _last30 = value;
+                      _patchQuickCriteria(['last30']);
                       _activeSearchId = null;
                       _includeUnknown = false;
                     });
@@ -1486,6 +1542,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     label: Text('Yaş uyarı: $_ageFilter'),
                     onDeleted: () => setState(() {
                       _ageFilter = null;
+                      _ageAsOf = null;
+                      _patchQuickCriteria(['age', 'ageAsOf']);
                       _activeSearchId = null;
                       _includeUnknown = false;
                     }),
@@ -1498,6 +1556,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     label: Text(_educationFilter!),
                     onDeleted: () => setState(() {
                       _educationFilter = null;
+                      _patchQuickCriteria(['education']);
                       _activeSearchId = null;
                       _includeUnknown = false;
                     }),
@@ -1510,6 +1569,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     label: Text('KPSS $_kpssFilter'),
                     onDeleted: () => setState(() {
                       _kpssFilter = null;
+                      _patchQuickCriteria([
+                        'kpssType',
+                        'kpssScore',
+                        'kpssYear',
+                        'onlyKpss',
+                      ]);
                       _activeSearchId = null;
                       _includeUnknown = false;
                     }),
@@ -1519,6 +1584,18 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ),
         ),
         const SizedBox(height: 4),
+        if (_activeSearchId == null && _quickCriteria != null)
+          Text(
+            _filterSummary(
+              SavedSearch(
+                id: null,
+                name: '',
+                filters: _currentFilters,
+                createdAt: DateTime.now(),
+                criteria: _quickCriteria,
+              ),
+            ),
+          ),
         if (_cityLoading) const LinearProgressIndicator(),
         if (_cityError != null)
           Text(
@@ -1577,9 +1654,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   }
 
   Widget _listingCard(ListingRecord record) {
-    final unresolved =
-        _activeSearch?.matchListing(record, now: DateTime.now()) ==
-        CriteriaMatch.unknown;
+    final unresolved = _matchVisible(record) == CriteriaMatch.unknown;
     final expired = record.expired;
     final profileMatch = _searches.any(
       (search) =>

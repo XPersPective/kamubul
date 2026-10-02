@@ -1,6 +1,7 @@
 import 'package:test/test.dart';
 import 'package:kamubul_core/data/listing_models.dart';
 import 'package:kamubul_core/data/search_alerts.dart';
+import 'package:kamubul_core/data/search_criteria.dart';
 
 void main() {
   ListingRecord record(
@@ -13,6 +14,7 @@ void main() {
     String? kpss,
     DateTime? deadline,
     bool saved = false,
+    Map<String, Object?>? criteriaListing,
   }) => ListingRecord(
     url: url,
     sourceId: 'kariyerkapisi',
@@ -25,6 +27,7 @@ void main() {
     kpss: kpss,
     deadline: deadline,
     saved: saved,
+    criteriaListing: criteriaListing,
   );
 
   SavedSearch savedSearch(
@@ -48,16 +51,37 @@ void main() {
       );
 
   test('eşleştirici temel ve kanıtlı süzgeçleri uygular', () {
-    final filters = {'kategori': '2', 'yas': '35', 'kpss': 'P3'};
+    final now = DateTime.utc(2026, 9, 27);
+    final filters = {
+      'kategori': '2',
+      'yas': '35',
+      'yasTarih': '2026-09-01',
+      'kpss': 'P3',
+    };
+    ListingRecord qualified(String type) => record(
+      type,
+      criteriaListing: {
+        'category': 'Sözleşmeli Personel',
+        'requirementGroups': [
+          {
+            'ageStatus': 'known',
+            'maxAge': 35,
+            'kpssStatus': 'required',
+            'kpssType': type,
+          },
+        ],
+      },
+    );
+    expect(matchesFilters(qualified('P3'), filters, now: now), isTrue);
     expect(
-      matchesFilters(record('a', maxAge: 35, kpss: 'P3'), filters),
-      isTrue,
+      matchFilters(record('legacy', maxAge: 35, kpss: 'P3'), filters, now: now),
+      CriteriaMatch.unknown,
     );
     // Bilinmeyen yaşlı ilan yaş süzgecinde gösterilmez.
     expect(matchesFilters(record('b'), filters), isFalse);
     expect(
-      matchesFilters(record('c', maxAge: 35, kpss: 'P94'), filters),
-      isFalse,
+      matchFilters(qualified('P94'), filters, now: now),
+      CriteriaMatch.noMatch,
     );
     expect(matchesFilters(record('d', category: 'İşçi'), filters), isFalse);
   });
@@ -282,15 +306,17 @@ void main() {
     );
   });
 
-  test('son30 süzgeci yayın tarihindeki SBB satırına başvuru bitişinden bakar', () {
-    // SBB satırı yayın tarihi vermez; yakınlık göstergesi başvuru penceresi
-    // bitişidir. Hem tarihi bilinmeyen hem penceresi eski satır dışarıda kalır.
-    ListingRecord sbbRecord(String url, {DateTime? deadline}) => ListingRecord(
+  test('son30 yayın tarihini kullanır; başvuru bitişi yerine geçmez', () {
+    ListingRecord sbbRecord(
+      String url, {
+      DateTime? deadline,
+      DateTime? publishedAt,
+    }) => ListingRecord(
       url: url,
       sourceId: 'kamuilan_sbb',
       title: 'Kurum — Personel Alımı',
       category: 'Kamu Personeli',
-      publishedAt: null,
+      publishedAt: publishedAt,
       fetchedAt: DateTime(2026, 9, 27),
       deadline: deadline,
     );
@@ -302,7 +328,7 @@ void main() {
         filters,
         now: now,
       ),
-      isTrue,
+      isFalse,
     );
     expect(
       matchesFilters(
@@ -310,7 +336,7 @@ void main() {
         filters,
         now: now,
       ),
-      isTrue,
+      isFalse,
     );
     expect(
       matchesFilters(
@@ -321,5 +347,48 @@ void main() {
       isFalse,
     );
     expect(matchesFilters(sbbRecord('belirsiz'), filters, now: now), isFalse);
+    expect(
+      matchesFilters(
+        sbbRecord('yeni', publishedAt: DateTime(2026, 9, 20)),
+        filters,
+        now: now,
+      ),
+      isTrue,
+    );
+    expect(
+      matchesFilters(
+        sbbRecord(
+          'eski-yayin',
+          publishedAt: DateTime(2026, 8, 1),
+          deadline: DateTime(2026, 10, 5),
+        ),
+        filters,
+        now: now,
+      ),
+      isFalse,
+    );
+  });
+
+  test('favori görünümü kapanmış ilanı korur ama kriterleri atlamaz', () {
+    final closed = record('closed', deadline: DateTime(2026, 9, 1));
+    final now = DateTime(2026, 9, 27);
+    expect(matchFilters(closed, {}, now: now), CriteriaMatch.noMatch);
+    expect(
+      matchFilters(closed, {}, now: now, forSaved: true),
+      CriteriaMatch.match,
+    );
+    expect(
+      matchFilters(closed, {'kategori': '1'}, now: now, forSaved: true),
+      CriteriaMatch.noMatch,
+    );
+    expect(
+      matchFilters(
+        closed,
+        {'yas': '30', 'yasTarih': '2026-09-01'},
+        now: now,
+        forSaved: true,
+      ),
+      CriteriaMatch.unknown,
+    );
   });
 }

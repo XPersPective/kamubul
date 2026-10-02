@@ -285,7 +285,11 @@ void main() {
     await tester.tap(
       find.descendant(of: dialog, matching: find.text('Kaydet')),
     );
-    await pumpRoute(tester);
+    // SQLite yazısı paralel suite yükünde daha geç dönebilir; route'u bekle.
+    for (var i = 0; i < 50 && dialog.evaluate().isNotEmpty; i++) {
+      await pumpRoute(tester);
+    }
+    expect(dialog, findsNothing);
     await pumpRoute(tester);
 
     // Düzenleme sonrası liste kapanır; yeniden açıldığında yeni değer görünür.
@@ -359,6 +363,60 @@ void main() {
       find.text('Şartları kontrol et • bazı kriterler doğrulanamadı.'),
       findsOneWidget,
     );
+    // Elle kelime değişince kayıtlı arama ayrılır; diğer typed kriterler kalır.
+    final quickSearch = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'Kurum veya meslek ara',
+    );
+    await tester.ensureVisible(quickSearch);
+    await tester.enterText(quickSearch, 'Personel');
+    await pumpRoute(tester);
+    expect(
+      find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
+      findsNothing,
+    );
+    expect(find.textContaining('ANKARA, İstanbul'), findsWidgets);
+    await tester.ensureVisible(uncertain);
+    await tester.tap(uncertain);
+    await pumpRoute(tester);
+    expect(
+      find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Şartları kontrol et • bazı kriterler doğrulanamadı.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('Bu aramayı kaydet'));
+    await pumpRoute(tester);
+    for (final value in [
+      'ANKARA',
+      'İstanbul',
+      'Lisans',
+      'Yüksek lisans',
+      'Mühendis',
+      'TEST KURUMU',
+    ]) {
+      expect(find.widgetWithText(InputChip, value), findsOneWidget);
+    }
+    final scoreField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.labelText == 'KPSS puanınız (0–100)',
+    );
+    expect(tester.widget<TextField>(scoreField).controller!.text, '78.25');
+    final ageDateField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.labelText == 'Yaş bilgisi tarihi (YYYY-AA-GG)',
+    );
+    expect(
+      tester.widget<TextField>(ageDateField).controller!.text,
+      '1970-01-01',
+    );
+    await tester.tap(find.text('Vazgeç'));
+    await pumpRoute(tester);
     expect(tester.takeException(), isNull);
   }
 
