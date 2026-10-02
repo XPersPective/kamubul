@@ -1,6 +1,7 @@
 # Hedef Mimari — KamuBul
 
 ## 1. Amaç ve kapsam
+2 Ekim kapsam güncellemesi — ADR-002 / PB-022: Cloudflare Free AI günlük kotası dolunca kullanıcının harici AI hesabıyla bounded fallback; uygulamada aynı sağlayıcı üzerinden doğal dille kriter ekleme/düzenleme/silme taslağı. Elle form korunur. Uygula sonrasında aynı SavedSearch hem Bana uygun ilanlar hem FCM eşleştirmesini besler. Aşağıdaki paid fallback yok/profile hiçbir model almaz/kullanıcı adına model çağrılmaz ifadeleri bu dar istisna dışında korunur. Sağlayıcı/model/bütçe henüz belirlenmedi; uygulanmış özellik değildir.
 
 Premium görünümlü, Türkçe Android/iOS uygulaması; hesap açmadan resmî kamu ilanlarını okuma, profil ve kişisel kayıtlı kriterlerle filtreleme, yeni uygun ilana FCM bildirimi. Resmî veriyi toplama/işleme ve push kararları Cloudflare'da; telefon UI, yerel cache, favori, profil, eşleşme görünümü ve OS bildirim entegrasyonudur. 30 Eylül 2026 kullanıcı yönü önce Brain/mimariyi temizleyip ayrıntılı devredilebilir yol haritası oluşturmak; bu belge hedef, current.md gerçek durumdur.
 

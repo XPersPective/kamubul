@@ -3,6 +3,7 @@
 30 Eylül 2026 geçiş başlangıç noktası. Bu belge çalışan/depo içinde bulunan durumu anlatır; hedef mimari target.md, uygulama sırası tasks/ içindedir. Eski mimari anlatımları Git geçmişindedir.
 
 ## 1. Gerçek durum ve sınır
+2 Ekim yeni kullanıcı hedefi ADR-002 ve PB-022'de kayıtlı: harici AI fallback ve kriter asistanı henüz uygulanmadı; provider/key/bütçe yok. Mevcut elle SavedSearch düzenleme/matcher var, _assistantView gerçek sohbet değil kaynak cümlesi rehberi. Canlı AI hâlâ yalnız Workers AI binding, günlük provider kotasında quota_wait.
 
 2 Ekim kaynak CPU kontrol noktası: slot başına bir pending_batch girdisi işleniyor; imleç kalıcı,127 native Worker testi geçti. Önceki dört ilanlı kaynak Cron aşaması20ms CPU gösterdi; yeni tek girişli aşamanın CPU değeri henüz doğrulanmadı. Kaynak slotu3dk olduğundan21 giriş yaklaşık63dk ve tamamlanınca30dk bekleme gerektirebilir. Geçici%100 günlük örneklemesi%10'a geri alındı; deployment a2f92b43-b8d8-4ea1-9650-1afa6b4ef5ac. Ayrıntılı CPU/güncel kapasite kapıları PB-016 Resume içinde açık.
 

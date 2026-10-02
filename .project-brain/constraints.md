@@ -3,18 +3,21 @@
 30 Eylül 2026. Güncel kullanıcı isteği eski hedeflerin yerini alır. Mevcut davranış current.md, hedef target.md, görevler tasks/.
 
 ## C-001 Ücretsiz işletim
+2 Ekim kullanıcı istisnası ADR-002: Free AI kotası dolunca kendi harici sağlayıcısı ve ayrıca kriter asistanı kullanılabilir. Sağlayıcı/secret/açık ayrı bütçe sınırları netleşmeden çağrı açılmaz. Aşağıdaki eski ücretli AI/fallback yasağı bu dar kapsam dışında korunur; Cloudflare otomatik upgrade hâlâ yasak.
 Cloudflare Workers Free + D1 + Workers AI ücretsiz kotası; Firebase Spark yalnız FCM. Cloud Run, Firestore, Blaze, ücretli AI, ücretli VPS ve otomatik upgrade yok. Kota bitince iş dayanıklı biçimde bekler/cache sunulur; ücret doğuracak fallback açılmaz. 10.000 kurulum kapasitesi ölçüm hedefi, garanti değildir. Model yalnız Free erişimliyse seçilebilir.
 
 ## C-002 Sunucu sorumluluğu
 Resmî kaynak çekme, ayrıntı/PDF işleme, AI, normalizasyon, kanıtlı koşullar, katalog revizyonu, yeni ilan eşleştirme, instant/digest kararları ve push gönderimi Cloudflare'dadır. Telefon kaynaklara arka planda veya otomatik fallback olarak gitmez. Kaynak engeli açık gösterilir. Resmî başvuru/doküman linkini kullanıcının açması serbesttir.
 
 ## C-003 Hesapsız ve veri minimizasyonu
+ADR-002 istisnası: kullanıcı kriter asistanına kendi mesajını ve seçtiği aramanın gerekli alanlarını, sağlayıcı açıklanarak gönderebilir. Bütün profil/kurulum secret/FCM token gönderilmez. Ingestion AI kişisel veri almaz. Assistant erişimi FCM iznini zorunlu tutmaz.
 Kullanıcı girişi yok; kurulum başına güvenli ID+secret ve FCM token. Profil/favori yerelde; bildirim açılırsa yalnız gerekli kayıtlı kriterler/tercihler sunucuya gönderilir. Kullanıcı tanımlı arama adı kişisel etiket, public global taxonomy değildir. Hiçbir kullanıcı profili AI'ya gönderilmez. Silme/izin kapatma/token yenileme/reinstall davranışı açık; server kaydı 120 gün heartbeat yoksa temizlenir. Kimlik doğrulama secret'ı güvenli cihaz deposunda ve backup dışında.
 
 ## C-004 Resmî veri ve çıkarım doğruluğu
 Yalnız resmî kaynak; WAF/login/CAPTCHA aşma, arbitrary URL fetch ve gizli proxy yok. Source-native alanlarda type/range/origin; metin/AI alanlarında kaynak alıntısı, şema ve doğrulanmış değer desteği. Alan başına en az 50 örnek/kaynak değerlendirmesi, precision >=0.95 kapısı; recall ayrıca raporlanır. Alıntı tek başına doğruluk ispatı değildir. Unknown = unknown; AI kesin işe uygunluk kararı vermez. Çoklu kadro koşulları birbirine karıştırılmaz.
 
 ## C-005 Ekonomik AI
+ADR-002 kullanıcı kriter asistanı kullanıcı isteği başına ayrı sınırlı inference yapabilir; aşağıdaki notice-revision maliyet ilkesi ingestion içindir. Assistant ve ingestion fallback ayrı atomik bütçe/limit kullanır.
 AI yeni veya semantik içeriği değişmiş ilan revizyonu başına; kullanıcı/etiket/refresh başına değil. UI tarih/görüntülenme gürültüsü hash'e girmez. Başarılı sonuç kalıcı; aynı (contentHash, extractionVersion, modelRevision) yeniden çağrılmaz. Başarısız çağrı kontrollü retry yapabilir. Günlük rezervasyon/bütçe, request/input/output/attempt üst sınırı. Yarım işlem veri kaybetmez.
 
 ## C-006 Premium ve erişilebilir mobil
