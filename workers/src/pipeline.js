@@ -19,8 +19,8 @@ export async function readSource(env){
       batch=await(source.id==='kariyerkapisi'?fetchKariyerList():fetchSbbList());offset=0;
       await env.DB.prepare('UPDATE sources SET pending_batch=?,batch_offset=0,last_attempt=? WHERE id=?').bind(JSON.stringify(batch),now,source.id).run();
     }
-    // ponytail: four notices per invocation fit bounded work; measured CPU sets the upgrade ceiling.
-    for(const base of batch.slice(offset,offset+4)) {
+    // ponytail: a four-notice source stage used 20ms CPU; consume one entry to limit work, with slower batch completion. Split stages if measured CPU still exceeds 10ms.
+    for(const base of batch.slice(offset,offset+1)) {
       if(base.deadline&&new Date(base.deadline)<new Date())continue;
       const old=await env.DB.prepare('SELECT content_hash,recheck_at,payload,first_seen FROM listings WHERE id=?').bind(base.id).first();
       if(old&&old.recheck_at>now)continue;
@@ -53,7 +53,7 @@ export async function readSource(env){
         env.DB.prepare(`INSERT OR IGNORE INTO processing_jobs(id,listing_id,input_hash,input,due_at) VALUES(?,?,?,?,?)`).bind(base.id+':'+hash,base.id,hash,JSON.stringify(notice),now)
       ]);
     }
-    offset=Math.min(offset+4,batch.length);
+    offset=Math.min(offset+1,batch.length);
     const complete=offset===batch.length;
     const missing=complete?await env.DB.prepare("SELECT COUNT(*) n FROM listings WHERE source_id=? AND active=1 AND (json_extract(payload,'$.detailState')='unavailable' OR json_extract(payload,'$.text') IS NULL)").bind(source.id).first():null;
     await env.DB.prepare('UPDATE sources SET state=?,last_success=?,pending_batch=?,batch_offset=?,next_due=?,lease_until=NULL,note=? WHERE id=?')

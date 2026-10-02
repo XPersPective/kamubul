@@ -4,6 +4,8 @@
 
 ## 1. Gerçek durum ve sınır
 
+2 Ekim kaynak CPU kontrol noktası: slot başına bir pending_batch girdisi işleniyor; imleç kalıcı,127 native Worker testi geçti. Önceki dört ilanlı kaynak Cron aşaması20ms CPU gösterdi; yeni tek girişli aşamanın CPU değeri henüz doğrulanmadı. Kaynak slotu3dk olduğundan21 giriş yaklaşık63dk ve tamamlanınca30dk bekleme gerektirebilir. Geçici%100 günlük örneklemesi%10'a geri alındı; deployment a2f92b43-b8d8-4ea1-9650-1afa6b4ef5ac. Ayrıntılı CPU/güncel kapasite kapıları PB-016 Resume içinde açık.
+
 **Sunucuya geçiş tamamlanmadı.** Flutter hâlâ kaynakları telefondan çekiyor. Kalıcı Cloudflare Worker/D1 ve Cron yayında; API HTTP200 doğrulandı. Kariyer resmî RSS üzerinden21 gerçek ilan/42 immutable değişiklik var. Ayrıntı API522/SBB erişim engeli devam ediyor; AI özet/koşul çıkarımı ve gerçek cihaz FCM teslimi doğrulanmadı. FCM gönderici Secrets kalıcı Worker'a aktarıldı; Google OAuth gerçek anahtarla başarılı, canlı health fcmConfigured=true. Yayındaki altyapı tüm hedefin tamamlandığı anlamına gelmez.
 
 Mobil kaynaklar: `lib/main.dart`, `lib/home_page.dart`, `lib/data/catalogue_refresh.dart`, `lib/data/remote_sync.dart`, `lib/data/listing_store.dart`, `lib/notifications/`.
