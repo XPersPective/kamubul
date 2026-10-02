@@ -8,7 +8,7 @@ sonuçlar ayrı kanıttır; yerel erişim sunucunun erişebildiğini göstermez.
 
 | Kaynak | Merkezi getirme yöntemi | Canlı Cloudflare sonucu | Açık iş |
 | --- | --- | --- | --- |
-| Kariyer Kapısı | Public `ilan/GetIseAlimPage` JSON; başarısızsa resmî `/RSS`. Ayrıntı: `ilan/GetIlanPreviewPublic` ve `altilan/GetAltIlanInfoByIlanIdPublic` POST | RSS üzerinden21 gerçek ilan/42 immutable değişiklik. Kayıtlı ayrıntı hatası HTTP522; kaynak notu eksik ayrıntıyı belirtir | Kaynak ayrıntısına gerçek Worker erişimi, kullanım şartları, yeterli belge üzerinden model değerlendirmesi |
+| Kariyer Kapısı | Public `ilan/GetIseAlimPage` JSON; başarısızsa resmî `/RSS`. Ayrıntı: `ilan/GetIlanPreviewPublic` ve `altilan/GetAltIlanInfoByIlanIdPublic` POST | RSS üzerinden23 gerçek ilan/46 immutable değişiklik. Güncel Cloudflare remote preview ayrıntı HTTP522; kaynak notu eksik ayrıntıyı belirtir | Kaynak ayrıntısına gerçek Worker erişimi, kullanım şartları, yeterli belge üzerinden model değerlendirmesi |
 | Kamu İlanları SBB | `https://kamuilan.sbb.gov.tr/` GET WebForms token'ları + POST yıl; parser `parseSbbList` | Erişim engeli; `blocked` raporlanır. Kaynak başarıyla toplanmış kabul edilmez | Worker erişimi ve resmî belge/PDF okuyucu, kullanım şartları |
 | İŞKUR | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; oturum/CAPTCHA/WAF aşılmaz |
 | ilan.gov.tr | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; engel aşılmaz |
@@ -19,8 +19,8 @@ sonuçlar ayrı kanıttır; yerel erişim sunucunun erişebildiğini göstermez.
 
 - Tamamlanan kaynak turundan sonra30dk bekleme; tek kalıcı batch ve lease.
   Her source invocation en çok1 batch girdisi tüketir; üç-slot Cron'da
-  source/AI, matching, send ayrı çalışır. Source slotu3dk olduğundan21 girdi
-  yaklaşık63dk + tur sonu30dk bekleme gerektirebilir;30dk full-refresh SLA yok.
+  source/AI, matching, send ayrı çalışır. Source slotu3dk olduğundan23 girdi
+  yaklaşık69dk + tur sonu30dk bekleme gerektirebilir;30dk full-refresh SLA yok.
   Saatlik `:59` registry+katalog bakımına ayrılır. Bu sınırlar sağlayıcının
   ticari hız sınırı izni değildir; kullanım şartları doğrulaması açık kalır.
 - Yeniden kontrol süresi kayıt başına başarılı akışta6saat, geçici ayrıntı
@@ -49,6 +49,15 @@ yaş/KPSS/eğitim koşulu ya da sahte ayrıntı üretilmez. Yeni bir izinli kayn
 kanıtı olmadan alternatif host/proxy eklenmez.
 
 ## Mobil geçiş ve çıkarım kanıtı
+
+16:33UTC yeni diagnostic: binding'siz resmî Wrangler remote preview üzerinde
+aynı kaynak adaptörü/izinli adres çağrıldı. Kariyer detail20.240ms HTTP522,
+SBB579ms blocked. Yanıt HTTP200 diagnostic envelope'dir; kaynak başarı değildir.
+Preview process kapatıldı, production deploy/D1 write/AI/FCM yapılmadı. Aynı
+an production readonly Kariyer processing/last_attempt16:18:04.655Z,
+last_success15:45:04.670Z;23/23 unavailable. SELECT4+23rows,0write/changed=false.
+Resmî kullanım şartı araması hâlâ kaynak-specific izin doğrulamadı; arama
+sonucu yokluğu izin/yasak kanıtı değildir.
 
 2 Ekim son cloud readonly kontrol: canlı API23 ilan/46change/detail/missing404/
 meta304 başarılı. D1 Kariyer last_success2026-10-02T15:45:04.670Z, son not

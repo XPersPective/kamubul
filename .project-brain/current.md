@@ -222,6 +222,16 @@ Android native secure write/reopen/plaintext cleanup API36/x64 emulator'da
 
 ## 7. Doğrulama, geçiş kodu ve sonraki kapılar
 
+2 Ekim16:33UTC binding'siz remote preview aynı resmî Kariyer detail'de20.240ms
+HTTP522/SBB579ms blocked; session kapalı, prod write/deploy/AI/FCM yok.
+Production readonly23/23 unavailable; Kariyer yeni tur processing16:18attempt,
+last_success15:45;0write. Kaynak full-detail engeli güncel olarak doğrulandı.
+Yerel wide-match tool100/1000/10000 kurulumda11/101/1001 matching round,
+max34SQL/round ve eksiksiz/idempotent pending outbox doğrular. Scheduler480
+match/456send günlük slot üretir; tek kurulum/invocation nedeniyle10k eşleşmede
+ideal steady-state gönderim iş yükü21.93gün. Fast10k kabulü geçmedi; cloud
+CPU/D1 counter kanıtı değildir. docs/FANOUT_CAPACITY.md/PB-021 sonraki kapıdır.
+
 Son doğrulama:171 Flutter full,181 core full,149 Worker native; changed Dart
 analyze ve diff-check temiz. SQLite race tests:
 cross-owner initial registration bütün dependent rows'u korur; stale same-owner

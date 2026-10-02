@@ -14,6 +14,11 @@ npm run deploy
 Runtime bağımlılığı yok. Node24 native SQLite contract kontrolleri yalnız
 bellek içi DB kullanır. Bunlar gerçek FCM/AI/kaynak erişimi testi değildir.
 
+Yerel100/1000/10000 wide-match kapasite/cursor/dedupe kontrolü:
+`node tool/check-fanout.js`. Gerçek scheduler'ın günlük aşama sayısını da sayar;
+Cloudflare/D1 üretim/FCM çağrısı yok. Sonuç ve açık throughput sınırı
+`../docs/FANOUT_CAPACITY.md`; local wall cloud CPU kabulü değildir.
+
 `contracts/criteria-v2.json` Dart/Worker ortak corpus'tur. Saf Dart v2 paritesi
 `packages/kamubul_core/test/search_criteria_test.dart` içindedir. Canlı HTTP
 sözleşmesini üretime kayıt yazmadan doğrulamak için core dizininde:
