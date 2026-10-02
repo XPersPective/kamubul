@@ -16,6 +16,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0006_listing_first_seq.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0007_maintenance.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0008_notification_archive.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0009_terminal_payload_retention.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -80,7 +81,7 @@ test('hourly maintenance expires bounded counters while preserving current budge
   sql.exec("INSERT INTO rate_limits VALUES('active',2,'2999-01-01'); INSERT INTO daily_usage VALUES('2000-01-01',20),('2999-01-01',20)");
   const prepare=DB.prepare,queries=[];DB.prepare=query=>{queries.push(query);return prepare(query);};
   await runScheduled({DB},59*60000);
-  assert.equal(queries.length,4);
+  assert.equal(queries.length,5);
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM rate_limits').get().n,2);
   assert.deepEqual(sql.prepare('SELECT day,ai_jobs FROM daily_usage').all().map(x=>({...x})),[{day:'2999-01-01',ai_jobs:20}]);
   const plan=sql.prepare('EXPLAIN QUERY PLAN SELECT key FROM rate_limits WHERE expires_at<=? ORDER BY expires_at,key LIMIT 100').all('now');
@@ -394,6 +395,30 @@ test('history archival bounds payload writes, preserves dedupe and incomplete di
   assert.equal(sql.prepare('SELECT seq FROM notification_sequence').get().seq,22);
   const plan=sql.prepare("EXPLAIN QUERY PLAN SELECT id FROM notification_outbox INDEXED BY outbox_accepted_retention WHERE state='accepted' AND accepted_at<=? ORDER BY accepted_at,id LIMIT 20").all('now');
   assert.ok(plan.some(x=>x.detail.includes('outbox_accepted_retention')));
+});
+
+test('terminal payload retention is bounded, preserves status/dedupe and skips live digest groups',async t=>{
+  const {sql,env}=notifications(t,25),{DB}=env;
+  const now=new Date('2026-10-02T00:00:00Z'),cutoff=new Date(+now-90*86400000).toISOString();
+  sql.exec("UPDATE notification_outbox SET state='failed',created_at='2000-01-01',fcm_id='provider',error_code='fixture_error'; UPDATE notification_outbox SET state='cancelled' WHERE id='event1'; UPDATE notification_outbox SET state='expired' WHERE id='event2'; UPDATE notification_outbox SET delivery_id='group' WHERE id IN ('event0','event24'); UPDATE notification_outbox SET state='pending' WHERE id IN ('event22','event24'); UPDATE notification_outbox SET state='leased',lease_until='2999-01-01' WHERE id='event23'");
+  sql.prepare("UPDATE notification_outbox SET created_at=? WHERE id='event20'").run(cutoff);
+  sql.prepare("UPDATE notification_outbox SET created_at=? WHERE id='event21'").run(new Date(Date.parse(cutoff)+1).toISOString());
+  await maintainRegistry({DB},now);
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE payload='{}'").get().n,20);
+  for(const id of ['event0','event21','event22','event23','event24'])assert.notEqual(sql.prepare('SELECT payload FROM notification_outbox WHERE id=?').get(id).payload,'{}',id);
+  assert.equal(sql.prepare("SELECT state FROM notification_outbox WHERE id='event1'").get().state,'cancelled');
+  assert.equal(sql.prepare("SELECT state FROM notification_outbox WHERE id='event2'").get().state,'expired');
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE payload='{}' AND fcm_id IS NULL AND error_code='fixture_error'").get().n,20);
+  sql.exec("INSERT OR IGNORE INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES('duplicate','device','notice01','{}','now','now')");
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE id='duplicate'").get().n,0);
+  await maintainRegistry({DB},now);
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE payload='{}'").get().n,20);
+  sql.exec("UPDATE notification_outbox SET state='cancelled' WHERE id='event24'");
+  await maintainRegistry({DB},now);
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE payload='{}'").get().n,22);
+  assert.equal(sql.prepare('SELECT seq FROM notification_sequence').get().seq,0);
+  const plan=sql.prepare("EXPLAIN QUERY PLAN SELECT id FROM notification_outbox INDEXED BY outbox_terminal_retention WHERE state IN ('failed','cancelled','expired') AND payload!='{}' AND created_at<=? ORDER BY created_at,id LIMIT 20").all(cutoff);
+  assert.ok(plan.some(x=>x.detail.includes('outbox_terminal_retention')));
 });
 
 test('history migration preserves accepted rows and skips pending rows',t=>{

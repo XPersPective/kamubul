@@ -140,3 +140,12 @@ History endpoint yalnız accepted satırları gösterir; archived sıraların ü
 boş son sayfa pinned watermark'a ilerleyebilir. Yerel bounded history cache bu
 işlemle zorla silinmez. Dedupe tombstone satırları stale-owner cleanup'a kadar
 kalır; çok uzun ömürlü kurulumlarda toplam satır kapasitesi hâlâ ölçüm konusudur.
+
+Migration0009 terminal payload partial indeksiyle aynı bakım slotu en çok20
+adet `failed`/`cancelled`/`expired` satırın oluşturulmasından90 gün sonra
+payload'u `{}` yapar ve FCM provider ID'sini temizler. Durum/hata kodu,
+kimlik/UNIQUE ve digest bağı korunur; history sequence değişmez. Pending/leased
+grup üyesi varsa terminal payload da korunur. Boşaltılmış satır partial indeksten
+çıkar, her pass tekrar yazılmaz. Bu politika tombstone toplam satır büyümesini
+çözmez; katalog pruning ve kapasite ölçümü ayrı açık işlerdir. Owner seçilmezse
+bakım5 SQL, seçilirse9 SQL çalıştırır; gerçek backlog CPU/read/write ölçümü gerekir.
