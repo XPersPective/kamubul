@@ -48,7 +48,19 @@ Kariyer Kapısı liste/API/RSS ve SBB WebForms/PDF Dart adaptörleri mevcut. Wor
 
 ## 5. Kalıcı bulut kaynakları — VERIFIED CLI/live HTTP, planlar OBSERVED konsol
 
-- Worker `kamubul-api`, `https://kamubul-api.devx8585.workers.dev`, Free $0; D1 `kamubul`, ID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB binding. Migration0001–0013 remote uygulandı. Deployment `7c0d9ad8-ce1e-46a5-823a-44ba47b55fe0`; live health status=ok/latestSeq40/fcmConfigured=true/aiConfigured=true. Cron her dakika; scheduledTime mod3 kaynak/AI/expiry, eşleştirme, gönderim slotlarını ayırır. Her aşama3dk, kaynak polling30dk. Üretime demo ilan/cihaz yazılmadı; son read-only installations/outbox/facets/pending_matches0/0/0/0 ve bu çalışmada registry/push çağrısı yok.
+AI kota/capacity kontrol noktası: provider3036 resmi binding mesajından tanınır;
+job quota_wait/sonraki UTC gün, lease bırakılır, attempt geri alınır, başarılı
+chunk input aynen kalır. Aynı transaction bugünün daily_usage bütçesini kapatır;
+diğer işler yeni inference yapmadan bekler. Bu kesici sonrası ai_jobs gerçek
+çağrı/Neuron sayısı değil application budget tavanıdır.3040 ai_busy, aynı parçada
+en çok5/backoff ardından explicit failed; ilerleme kalır. Worker97 full ve
+dry-run/deploy geçti; canlı health ok/20 ilan/40 değişiklik/applied40/meta304.
+Canlı quota tükenmesi yaratılmadı; hata yolları SQLite regression kanıtıdır.
+Pilot REST options.rejectIfBusy ve provider codes düzeltildi; eski18 çağrıda
+REST options iletilmemişti, production binding zaten gönderiyordu. Yeni AI
+çağrısı/migration/mobile değişimi yok; detay docs/AI_MODEL_PILOT.md.
+
+- Worker `kamubul-api`, `https://kamubul-api.devx8585.workers.dev`, Free $0; D1 `kamubul`, ID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB binding. Migration0001–0013 remote uygulandı. Deployment `fa535dad-8bf2-4915-b860-768606bc2983`; live health status=ok/latestSeq40/fcmConfigured=true/aiConfigured=true. Cron her dakika; scheduledTime mod3 kaynak/AI/expiry, eşleştirme, gönderim slotlarını ayırır. Her aşama3dk, kaynak polling30dk. Üretime demo ilan/cihaz yazılmadı; son read-only installations/outbox/facets/pending_matches0/0/0/0 ve bu çalışmada registry/push çağrısı yok.
 - Worker v2 meta/taxonomy/listings/changes/detail/installations/history ve v1 geçiş uçları var. Immutable seq/tombstone trigger, source lease/cursor/hash, durable AI processing, matching cursor/outbox/FCM HTTPv1 kodu bulunur; runtime dependency yok. Indexed candidate matching uygulandı; büyük kitle kapasitesi, eğitim dışı canonical/alias kimliği ve toplam server retention eksik; mobil retained-cursor bootstrap hazır.
 - Aday indeksi installation_facets(key,installation_id); şehir/meslek/eğitim/kurumdan en kısa arama listesi, broad/keyword/score-only `*`. Registry transaction'da set diff yapar (değişmeyen facet heartbeat yazımı0), eski abonelikler migration'da wildcard ile korunur. İlan kadro anahtarları superset, exact shared predicate son karar; unknown push yok. Slot başına10 aday/4 boş facet, kalıcı facet_index+ID cursor, kurulum+ilan outbox unique. Native fixture sorgu sayımı<=38; canlı EXPLAIN covering key+ID indeksi. Free50 sorgu/subrequest sınırı için slotlar ayrıldı; gerçek CPU/fanout/write kapasitesi henüz ölçülmedi.
 - Private history migration0005: FCM accepted commit trigger'ı notification_sequence tek-satır sayacından history_seq/accepted_at atar, eski accepted kayıtlar korunur; repeated acceptance yeni sıra üretmez. Authenticated own-record endpoint accepted-only, compact presentation fields, numeric after/pinned watermark/appliedThrough/hasMore/next; hash cursor400/ahead409. Live installation_history_seq range index doğrulandı; production accepted/outbox0 olduğundan gerçek gönderimle sequence doğrulanmadı. Native fixtures düşük hash/yeni acceptance/pinned pages/auth crossing/2MB source excluded/backfill kontrolü içerir. İki ek row mutation/acceptance+index maliyeti; accepted payload arşivi ve mobil feed/dedupe kodu mevcut, gerçek cihaz teslimi ve kalan retention açık.
@@ -106,7 +118,7 @@ ilerlemesini engeller. Mobil bounded1KB endpoint-specific409/tek no-cache metada
 +bootstrap retry önceki132 Flutter/136 core full kontrolünde ve actual-config
 APK'da doğrulandı. Son server değişiklikleri86 native full/dry-run/deploy;
 base/ilk yayın/latest/tombstone/recent+invalidtimestamp/partial resume/CAS/rollback
-ve page-read prune race kontrolü içerir. Üretim7c0d9ad8-ce1e-46a5-823a-44ba47b55fe0;
+ve page-read prune race kontrolü içerir. Üretimfa535dad-8bf2-4915-b860-768606bc2983;
 canlı floor0/gc0/listing20/change40 ve no-cache API20/40/latest40/oldest1+304 geçti.
 90day eski canlı kayıt olmadığı için üretim silme sonucu veya bakım CPU/yük
 kanıtı yok; sahte production veri yaratılmadı. Eski temel kayıt/ilan minimumu ve

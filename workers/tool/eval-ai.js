@@ -37,11 +37,11 @@ const calls=[],AI={async run(model,request,options){
   assert.ok(calls.length<callLimit,'Pilot call limit exceeded');assert.equal(options.rejectIfBusy,true);
   const call={number:calls.length+1,inputBytes:Buffer.byteLength(JSON.stringify(request)),startedAt:new Date().toISOString()};calls.push(call);
   let response;
-  try{response=await fetch(`https://api.cloudflare.com/client/v4/accounts/${config.account_id}/ai/run/${model}`,{method:'POST',headers:{Authorization:`Bearer ${auth.token}`,'Content-Type':'application/json'},body:JSON.stringify(request),signal:AbortSignal.timeout(45000)});}
+  try{response=await fetch(`https://api.cloudflare.com/client/v4/accounts/${config.account_id}/ai/run/${model}`,{method:'POST',headers:{Authorization:`Bearer ${auth.token}`,'Content-Type':'application/json'},body:JSON.stringify({...request,options}),signal:AbortSignal.timeout(45000)});}
   catch(e){call.failureCode=e.name==='TimeoutError'?'ai_timeout':'ai_transport_failed';call.finishedAt=new Date().toISOString();throw new Error(call.failureCode);}
   call.httpStatus=response.status;
   const envelope=await response.json();call.finishedAt=new Date().toISOString();
-  if(!response.ok||!envelope.success){call.errorCodes=(envelope.errors??[]).map(e=>e.code);throw new Error('ai_http_'+response.status);}
+  if(!response.ok||!envelope.success){call.errorCodes=(envelope.errors??[]).map(e=>e.code);const code=call.errorCodes[0];throw new Error([3036,3040].includes(code)?`${code}: ai_http_${response.status}`:'ai_http_'+response.status);}
   call.result=envelope.result;return envelope.result;
 }};
 try{

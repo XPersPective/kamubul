@@ -217,6 +217,50 @@ test('AI daily quota waits without discarding or repeating successful chunks',as
   assert.equal(calls.length,2);sql.close();
 });
 
+test('account AI quota preserves progress and retry allowance, and stops other jobs today',async()=>{
+  const {sql,DB}=database(),calls=[];insertNotice(sql,'Kaynakta belirtilen başvuru şartı. '.repeat(1000));
+  const env={DB,AI:model(calls),AI_MODEL:'model',AI_DAILY_JOBS:'20'};
+  await processNotice(env);
+  const input=sql.prepare("SELECT input FROM processing_jobs WHERE id='processing'").get().input;
+  sql.exec("UPDATE processing_jobs SET attempts=4");
+  let rejected=0;
+  await processNotice({...env,AI:{async run(){rejected++;throw new Error('3036: Account limited');}}});
+  const row=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get();
+  assert.equal(row.state,'quota_wait');assert.equal(row.attempts,4);assert.equal(row.lease_until,null);
+  assert.equal(row.error_code,'ai_account_quota');assert.equal(row.input,input);
+  assert.ok(Date.parse(row.due_at)>Date.now());assert.match(row.due_at,/T00:00:00\.000Z$/);
+  assert.equal(sql.prepare('SELECT ai_jobs FROM daily_usage').get().ai_jobs,20);
+  sql.prepare("INSERT INTO processing_jobs(id,listing_id,input_hash,input,due_at) VALUES('other','job','other',?,'1970-01-01')").run(input);
+  // Make this a current separate revision, so the hash guard cannot hide an extra provider call.
+  sql.exec("UPDATE listings SET content_hash='other'");
+  await processNotice({...env,AI:{async run(){rejected++;throw new Error('must_not_call');}}});
+  assert.equal(rejected,1);
+  const other=sql.prepare("SELECT * FROM processing_jobs WHERE id='other'").get();
+  assert.equal(other.state,'quota_wait');assert.equal(other.attempts,0);assert.equal(other.error_code,'ai_daily_budget');
+  // Simulate tomorrow's budget reset and resume the original chunk, never chunk zero.
+  sql.exec("DELETE FROM daily_usage; UPDATE listings SET content_hash='hash'; UPDATE processing_jobs SET due_at='1970-01-01' WHERE id='processing'");
+  await processNotice(env);
+  assert.equal(JSON.parse(sql.prepare("SELECT input FROM processing_jobs WHERE id='processing'").get().input).aiProgress.index,2);
+  assert.equal(calls.length,2);sql.close();
+});
+
+test('AI capacity errors use bounded retry without losing completed chunks',async()=>{
+  const {sql,DB}=database(),calls=[];insertNotice(sql,'Kaynakta belirtilen başvuru şartı. '.repeat(1000));
+  const env={DB,AI:model(calls),AI_MODEL:'model',AI_DAILY_JOBS:'20'};
+  await processNotice(env);
+  const input=sql.prepare("SELECT input FROM processing_jobs WHERE id='processing'").get().input;
+  for(let attempt=1;attempt<=5;attempt++){
+    sql.exec("UPDATE processing_jobs SET due_at='1970-01-01'");
+    await processNotice({...env,AI:{async run(){throw new Error('3040: Out of capacity');}}});
+    const row=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get();
+    assert.equal(row.state,attempt===5?'failed':'pending');assert.equal(row.attempts,attempt);
+    assert.equal(row.error_code,'ai_busy');assert.equal(row.input,input);assert.equal(row.lease_until,null);
+    assert.ok(Date.parse(row.due_at)>Date.now());
+  }
+  assert.equal(sql.prepare('SELECT ai_jobs FROM daily_usage').get().ai_jobs,6);
+  await processNotice(env);assert.equal(calls.length,1);sql.close();
+});
+
 test('temporary source detail failure preserves previously processed listing',async()=>{
   const {sql,DB}=database(),id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',listingId='kariyerkapisi:'+id;
   const payload={id:listingId,title:'Eski doğrulanmış ilan',text:'Doğrulanmış kaynak ayrıntısı.',summary:[{text:'Özet',quote:'Doğrulanmış kaynak ayrıntısı.'}]};

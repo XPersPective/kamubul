@@ -102,10 +102,10 @@ export async function processNotice(env){
   const consolidate=chunks.length>1&&progress.index===chunks.length;
   // ponytail: all source excerpts must fit the existing24KB request cap; larger consolidation needs bounded multi-pass reduction, never silent first-item loss.
   const inputText=consolidate?JSON.stringify(progress.summaries.flat().map(({quote})=>({quote}))):(chunks[progress.index]??'');
-  const day=now.slice(0,10),cap=Number(env.AI_DAILY_JOBS)||20;
+  const day=now.slice(0,10),cap=Number(env.AI_DAILY_JOBS)||20,nextDay=new Date(Date.parse(day+'T00:00:00.000Z')+86400000).toISOString();
   if(text.length){
     const budget=await env.DB.prepare('INSERT INTO daily_usage(day,ai_jobs) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET ai_jobs=ai_jobs+1 WHERE ai_jobs<? RETURNING ai_jobs').bind(day,cap).first();
-    if(!budget){await env.DB.prepare("UPDATE processing_jobs SET state='quota_wait',attempts=attempts-1,lease_until=NULL,due_at=? WHERE id=?").bind(new Date(Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),new Date().getUTCDate()+1)).toISOString(),job.id).run();return;}
+    if(!budget){await env.DB.prepare("UPDATE processing_jobs SET state='quota_wait',attempts=attempts-1,lease_until=NULL,due_at=?,error_code='ai_daily_budget' WHERE id=?").bind(nextDay,job.id).run();return;}
   }
   try {
     let summary=[],candidates=null;
@@ -135,7 +135,18 @@ export async function processNotice(env){
         .bind(JSON.stringify(summary),text.length?'summary_validated':'source_only',now,job.input_hash,now,job.listing_id,job.input_hash),
       env.DB.prepare("UPDATE processing_jobs SET state='completed',lease_until=NULL,error_code=NULL,input=json_set(input,'$.aiCandidates',json(?)) WHERE id=?").bind(JSON.stringify(candidates),job.id)
     ]);
-  }catch(e){await env.DB.prepare("UPDATE processing_jobs SET state=?,due_at=?,lease_until=NULL,error_code=? WHERE id=?").bind(job.attempts>=5?'failed':'pending',later(Math.min(360,2**job.attempts*5)),safeError(e),job.id).run();}
+  }catch(e){
+    // Workers binding formats provider failures as "internalCode: description".
+    if(/^3036:/.test(e?.message)){
+      await env.DB.batch([
+        // Close today's application budget too: other jobs must not repeatedly hit the exhausted account.
+        env.DB.prepare('UPDATE daily_usage SET ai_jobs=MAX(ai_jobs,?) WHERE day=?').bind(cap,day),
+        env.DB.prepare("UPDATE processing_jobs SET state='quota_wait',attempts=attempts-1,due_at=?,lease_until=NULL,error_code='ai_account_quota' WHERE id=?").bind(nextDay,job.id)
+      ]);
+      return;
+    }
+    await env.DB.prepare("UPDATE processing_jobs SET state=?,due_at=?,lease_until=NULL,error_code=? WHERE id=?").bind(job.attempts>=5?'failed':'pending',later(Math.min(360,2**job.attempts*5)),/^3040:/.test(e?.message)?'ai_busy':safeError(e),job.id).run();
+  }
 }
 export async function expireListings(env) {
   const now=nowISO();

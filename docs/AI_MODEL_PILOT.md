@@ -126,3 +126,22 @@ iki değişen Dart dosyası analyze temiz. Native regression later-source excerp
 final<3 unpublished, quote-only schema/object yanıt, kaynak kadro etiketleri ve
 cross-position quotation reddini kapsar. Mobil SQLite check label'ın kayıtta
 korunduğunu kanıtlar; gerçek cihaz/kapalı uygulama FCM veya release UX değildir.
+
+2 Ekim kota düzeltmesi: binding'in resmi hata biçimi `internalCode: description`
+olarak doğrulandı.3036 account quota, tamamlanan parçaları ve kalan retry hakkını
+koruyarak sonraki UTC güne quota_wait bırakır; aynı gün diğer işler application
+budget üzerinden yeni inference yapmadan bekler.3040 capacity, aynı parçanın
+mevcut en çok5 deneme/backoff yolundadır; ilerleme korunur, sonunda failed açıkça
+kaydedilir. daily_usage.ai_jobs bu kesici sonrası uygulama bütçe tavanıdır,
+gerçek çağrı/Neuron veya fatura sayacı olarak yorumlanmaz.97 native test geçti;
+canlı kotayı tüketerek hata oluşturulmadı, bu yollar SQLite regression kanıtıdır.
+
+Pilot REST aracı artık `options.rejectIfBusy=true` gönderir ve3036/3040 provider
+kodlarını pipeline'a koruyarak geçirir. Önceki18 gerçek girişimde bu seçenek
+adapter assertion'ında kontrol edilse de HTTP gövdesine eklenmemişti; production
+binding üçüncü argümanda zaten gönderiyordu. Önceki model/schema/quote sonuçları
+geçerlidir; rejectIfBusy kapasite/latency paritesi kanıtı olarak kullanılamaz.
+Bu düzeltmede yeni model çağrısı yoktur. Kaynaklar:
+[runtime hata ayrıştırma](https://github.com/cloudflare/workerd/blob/main/src/cloudflare/internal/ai-api.ts),
+[provider hata kodları](https://developers.cloudflare.com/workers-ai/platform/errors/),
+[REST ve binding rejectIfBusy](https://developers.cloudflare.com/workers-ai/features/reject-if-busy/).
