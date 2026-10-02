@@ -6,6 +6,7 @@ import {searchAnchorKeys,installationAnchorKeys,listingAnchorKeys,matchListing,v
 import {fcmMessage} from '../src/fcm.js';
 import {fetchRequest,sha256} from '../src/worker.js';
 import {aiExtractionRevision,splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled,maintainRegistry,maintainCatalogue} from '../src/pipeline.js';
+import {reprocessSql} from '../tool/reprocess-ai.js';
 
 function database(){
   const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
@@ -18,6 +19,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0008_notification_archive.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0009_terminal_payload_retention.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0010_education_alias_facets.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0011_catalogue_retention_floor.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0012_catalogue_sweep.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0014_processing_versions.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -258,6 +260,59 @@ test('partial AI jobs pin the model across configuration changes and publish pro
   assert.deepEqual(payload.aiProvenance,contract);assert.equal(payload.aiContract,undefined);assert.equal(payload.aiProgress,undefined);
 });
 
+test('explicit reprocess is versioned, bounded, idempotent and does not create duplicate new-listing pushes',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());const calls=[],first='@cf/meta/llama-3.1-8b-instruct',second='@cf/meta/llama-3.1-8b-instruct-fp8';
+  const text=['Başvurular yalnız Kariyer Kapısı üzerinden alınacaktır.','Son başvuru tarihi itibarıyla 35 yaşını doldurmamış olmak.','2024 KPSS (P94) puanı en az 60 puan ve üzeri olmak.'].join('\n');insertNotice(sql,text);
+  await processNotice({DB,AI_MODEL:first,AI:model(calls)});
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM match_events').get().n,1);
+  const before=sql.prepare("SELECT revision FROM listings WHERE id='job'").get().revision;
+  const same={ids:['job'],model:first};assert.equal(sql.prepare(reprocessSql(same)).get().reason,'already_processed');sql.exec(reprocessSql({...same,apply:true}));
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM processing_jobs').get().n,1);
+  const plan={ids:['job'],model:second};assert.equal(sql.prepare(reprocessSql(plan)).get().reason,'eligible');sql.exec(reprocessSql({...plan,apply:true}));
+  const queued=sql.prepare("SELECT * FROM processing_jobs WHERE purpose='reprocess'").get();
+  assert.equal(queued.contract_key,JSON.stringify(['cloudflare',second,aiExtractionRevision]));
+  assert.equal(JSON.parse(queued.input).aiProgress,undefined);assert.equal(JSON.parse(queued.input).summary,undefined);
+  assert.equal(sql.prepare(reprocessSql(plan)).get().reason,'job_exists');sql.exec(reprocessSql({...plan,apply:true}));
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM processing_jobs').get().n,2);
+  await processNotice({DB,AI_MODEL:first,AI:{async run(name,request,options){assert.equal(name,second);calls.push(name);return {response:{summary:text.split('\n').map(quote=>({quote})),conditions:[]}};}}});
+  const listing=sql.prepare("SELECT * FROM listings WHERE id='job'").get();assert.equal(listing.revision,before+1);assert.equal(listing.processed_hash,'hash');assert.equal(listing.processed_contract,queued.contract_key);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM match_events').get().n,1);
+  sql.prepare("UPDATE processing_jobs SET state='pending' WHERE id=?").run(queued.id);
+  await processNotice({DB,AI_MODEL:second,AI:{async run(){throw new Error('must_not_call');}}});
+  assert.equal(sql.prepare('SELECT state FROM processing_jobs WHERE id=?').get(queued.id).state,'superseded');
+  assert.throws(()=>reprocessSql({ids:Array.from({length:6},(_,i)=>String(i)),model:second}),/invalid_reprocess_plan/);
+  assert.throws(()=>reprocessSql({ids:['job','job'],model:second}),/invalid_reprocess_plan/);
+  assert.throws(()=>reprocessSql({ids:['job'],model:'unreviewed'}),/invalid_reprocess_plan/);
+});
+
+test('reprocess refuses missing source text/expired notices, and escapes operator IDs',t=>{
+  const {sql}=database();t.after(()=>sql.close());insertNotice(sql,'');
+  const plan={ids:['job'],model:'@cf/meta/llama-3.1-8b-instruct'};
+  assert.equal(sql.prepare(reprocessSql(plan)).get().reason,'source_text_missing');
+  sql.exec("UPDATE listings SET payload=json_set(payload,'$.text','Gerçek kaynak metni'),deadline='1970-01-01'");
+  assert.equal(sql.prepare(reprocessSql(plan)).get().reason,'inactive_or_expired');
+  const count=sql.prepare('SELECT COUNT(*) n FROM listings').get().n;
+  sql.exec(reprocessSql({...plan,ids:["job'); DELETE FROM listings; --"],apply:true}));
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM listings').get().n,count);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM processing_jobs').get().n,1);
+});
+
+test('two extraction versions cannot lease one listing simultaneously, and stale inference cannot commit',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());insertNotice(sql,'Başvuru koşulları kaynak metninde açıklanmaktadır. '.repeat(600));
+  sql.exec("UPDATE processing_jobs SET state='leased',lease_until='2999-01-01'");
+  sql.exec(reprocessSql({ids:['job'],model:'@cf/meta/llama-3.1-8b-instruct',apply:true}));
+  let calls=0;await processNotice({DB,AI_MODEL:'model',AI:{async run(){calls++;throw new Error('must_not_call');}}});assert.equal(calls,0);
+  assert.equal(sql.prepare("SELECT state FROM processing_jobs WHERE purpose='reprocess'").get().state,'pending');
+  sql.exec("UPDATE processing_jobs SET state='completed',lease_until=NULL WHERE id='processing'; UPDATE listings SET payload=json_set(payload,'$.text','Kaynak başvuru bilgisi yeterince uzun bir cümledir.')");
+  // Reprocess input remains the selected original source; a new semantic revision arrives during inference.
+  await processNotice({DB,AI_MODEL:'model',AI:{async run(){calls++;sql.exec("UPDATE listings SET content_hash='changed'");const quote='Başvuru koşulları kaynak metninde açıklanmaktadır.';return {response:{summary:[{quote}],conditions:[]}};}}});
+  const job=sql.prepare("SELECT * FROM processing_jobs WHERE purpose='reprocess'").get();
+  // This is a chunk checkpoint, so the next invocation must reject the superseded source before another call.
+  await processNotice({DB,AI:{async run(){calls++;throw new Error('must_not_call');}}});
+  assert.equal(calls,1);assert.equal(sql.prepare('SELECT state FROM processing_jobs WHERE id=?').get(job.id).state,'superseded');
+  assert.equal(sql.prepare("SELECT processed_hash FROM listings WHERE id='job'").get().processed_hash,null);
+});
+
 test('unknown or incompatible partial AI revisions preserve work without spending quota',async t=>{
   for(const incompatible of [false,true]){
     const {sql,DB}=database();t.after(()=>sql.close());insertNotice(sql,'Başvuru koşulları kaynak metninde açıklanmaktadır. '.repeat(600));
@@ -271,6 +326,45 @@ test('unknown or incompatible partial AI revisions preserve work without spendin
     assert.equal(job.input,before);assert.equal(calls,0);assert.equal(sql.prepare('SELECT COUNT(*) n FROM daily_usage').get().n,0);
     assert.equal(sql.prepare("SELECT processed_hash FROM listings WHERE id='job'").get().processed_hash,null);
   }
+});
+
+test('latest explicit reprocess intent supersedes old retries and in-flight results',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  const quotes=['Başvurular yalnız Kariyer Kapısı üzerinden alınacaktır.','Son başvuru tarihi itibarıyla 35 yaşını doldurmamış olmak.','2024 KPSS (P94) puanı en az 60 puan ve üzeri olmak.'];insertNotice(sql,quotes.join('\n'));
+  sql.exec("UPDATE processing_jobs SET state='completed'; UPDATE listings SET processed_hash='hash'");
+  const first='@cf/meta/llama-3.1-8b-instruct',second='@cf/meta/llama-3.1-8b-instruct-fp8';
+  sql.exec(reprocessSql({ids:['job'],model:first,apply:true}));const old=sql.prepare("SELECT id FROM processing_jobs WHERE purpose='reprocess'").get().id;
+  const before=sql.prepare("SELECT revision FROM listings WHERE id='job'").get().revision;
+  await processNotice({DB,AI_MODEL:first,AI:{async run(){sql.exec(reprocessSql({ids:['job'],model:second,apply:true}));return {response:{summary:quotes.map(quote=>({quote})),conditions:[]}};}}});
+  assert.equal(sql.prepare('SELECT state FROM processing_jobs WHERE id=?').get(old).state,'superseded');
+  assert.equal(sql.prepare("SELECT revision FROM listings WHERE id='job'").get().revision,before);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM match_events').get().n,1);
+  await processNotice({DB,AI_MODEL:first,AI:{async run(name){assert.equal(name,second);return {response:{summary:quotes.map(quote=>({quote})),conditions:[]}};}}});
+  assert.equal(JSON.parse(sql.prepare("SELECT payload FROM listings WHERE id='job'").get().payload).aiProvenance.model,second);
+  sql.prepare("UPDATE processing_jobs SET state='pending' WHERE id=?").run(old);
+  await processNotice({DB,AI:{async run(){throw new Error('must_not_call');}}});
+  assert.equal(sql.prepare('SELECT state FROM processing_jobs WHERE id=?').get(old).state,'superseded');
+  assert.equal(JSON.parse(sql.prepare("SELECT payload FROM listings WHERE id='job'").get().payload).aiProvenance.model,second);
+});
+
+test('processing version migration preserves jobs/checkpoints/leases and catalogue identity',t=>{
+  const sql=new DatabaseSync(':memory:');t.after(()=>sql.close());sql.exec('PRAGMA foreign_keys=ON');
+  sql.exec(readFileSync(new URL('../migrations/0001_catalogue.sql',import.meta.url),'utf8'));
+  const contract={provider:'cloudflare',model:'@cf/meta/llama-3.1-8b-instruct',extractionRevision:aiExtractionRevision};
+  const payload={id:'one',aiProvenance:contract},input={aiContract:contract,aiProgress:{index:2,summaries:[[]],conditions:[[]]}};
+  sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,processed_hash,first_seen,updated_at,recheck_at,payload) VALUES('one','sbb','one','hash','hash','first','now','later',?)").run(JSON.stringify(payload));
+  sql.prepare("INSERT INTO processing_jobs(id,listing_id,input_hash,input,state,attempts,due_at,lease_until,error_code) VALUES('old','one','hash',?,'leased',3,'due','future','last_error')").run(JSON.stringify(input));
+  const old=sql.prepare('SELECT * FROM processing_jobs').get(),seq=sql.prepare('SELECT MAX(seq) n FROM catalogue_changes').get().n;
+  sql.exec(readFileSync(new URL('../migrations/0014_processing_versions.sql',import.meta.url),'utf8'));
+  const migrated=sql.prepare('SELECT * FROM processing_jobs').get();
+  for(const field of Object.keys(old))assert.equal(migrated[field],old[field]);
+  const key=JSON.stringify([contract.provider,contract.model,contract.extractionRevision]);
+  assert.equal(migrated.contract_key,key);assert.equal(sql.prepare('SELECT processed_contract FROM listings').get().processed_contract,key);
+  assert.equal(sql.prepare('SELECT MAX(seq) n FROM catalogue_changes').get().n,seq);
+  assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[]);
+  assert.throws(()=>sql.prepare("INSERT INTO processing_jobs(id,listing_id,input_hash,input,due_at,contract_key) VALUES('duplicate','one','hash','{}','due',?)").run(key),/UNIQUE/);
+  assert.throws(()=>sql.exec("INSERT INTO processing_jobs(id,listing_id,input_hash,input,due_at) VALUES('orphan','missing','hash','{}','due')"),/FOREIGN KEY/);
+  assert.ok(sql.prepare("EXPLAIN QUERY PLAN SELECT 1 FROM processing_jobs WHERE listing_id='one' AND state='leased' AND lease_until>='now'").all().some(row=>row.detail.includes('processing_listing_lease')));
 });
 
 test('AI capacity errors use bounded retry without losing completed chunks',async()=>{

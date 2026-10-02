@@ -48,11 +48,14 @@ export async function readSource(env){
       // Structured source fields survive AI failures. Original detail remains available.
       notice.occupations=[...new Set((detail.positions??[]).map(p=>p.profession).filter(Boolean))];
       notice.requirementGroups=(detail.positions??[]).map(p=>({cities:p.places,occupations:p.profession?[p.profession]:[],education:[],ageStatus:'unknown',kpssStatus:'unknown'}));
+      const hasText=!!notice.text||(notice.positions??[]).some(p=>p.text);
+      const contract=hasText?{provider:'cloudflare',model:env.AI_MODEL??'',extractionRevision:aiExtractionRevision}:null;
+      const key=contract?JSON.stringify([contract.provider,contract.model,contract.extractionRevision]):'source-only';
       await env.DB.batch([
         env.DB.prepare(`INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,deadline,payload) VALUES(?,?,?,?,?,?,?,?,?)
           ON CONFLICT(id) DO UPDATE SET content_hash=excluded.content_hash,updated_at=excluded.updated_at,recheck_at=excluded.recheck_at,deadline=excluded.deadline,active=1,revision=listings.revision+1,payload=json_set(excluded.payload,'$.firstSeenAt',listings.first_seen)`)
           .bind(base.id,source.id,base.externalId,hash,now,now,later(360),notice.deadline,JSON.stringify(notice)),
-        env.DB.prepare(`INSERT OR IGNORE INTO processing_jobs(id,listing_id,input_hash,input,due_at) VALUES(?,?,?,?,?)`).bind(base.id+':'+hash,base.id,hash,JSON.stringify(notice),now)
+        env.DB.prepare(`INSERT OR IGNORE INTO processing_jobs(id,listing_id,input_hash,input,due_at,contract_key) VALUES(?,?,?,?,?,?)`).bind(JSON.stringify([base.id,hash,key]),base.id,hash,JSON.stringify({...notice,...(contract?{aiContract:contract}:{})}),now,key)
       ]);
     }
     offset=Math.min(offset+1,batch.length);
@@ -94,10 +97,10 @@ export function splitAiText(text){
 }
 export async function processNotice(env){
   if(!env.AI)return;
-  const now=nowISO();const job=await env.DB.prepare("UPDATE processing_jobs SET state='leased',lease_until=?,attempts=attempts+1 WHERE id=(SELECT id FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5 ORDER BY due_at LIMIT 1) RETURNING *").bind(later(4),now,now).first();
+  const now=nowISO();const job=await env.DB.prepare("UPDATE processing_jobs SET state='leased',lease_until=?,attempts=attempts+1 WHERE id=(SELECT j.id FROM processing_jobs j WHERE (j.state IN ('pending','quota_wait') OR (j.state='leased' AND j.lease_until<?)) AND j.due_at<=? AND j.attempts<5 AND NOT EXISTS(SELECT 1 FROM processing_jobs other WHERE other.listing_id=j.listing_id AND other.state='leased' AND other.lease_until>=?) ORDER BY j.due_at,j.id LIMIT 1) RETURNING *").bind(later(4),now,now,now).first();
   if(!job)return;
-  const current=await env.DB.prepare('SELECT content_hash,processed_hash,first_seen,active,deadline FROM listings WHERE id=?').bind(job.listing_id).first();
-  if(!current?.active||(current.deadline&&Date.parse(current.deadline)<=Date.now())||current.content_hash!==job.input_hash||current.processed_hash===job.input_hash){await env.DB.prepare("UPDATE processing_jobs SET state='superseded',lease_until=NULL WHERE id=?").bind(job.id).run();return;}
+  const current=await env.DB.prepare('SELECT content_hash,processed_hash,processed_contract,reprocess_contract,first_seen,active,deadline FROM listings WHERE id=?').bind(job.listing_id).first();
+  if(!current?.active||(current.deadline&&Date.parse(current.deadline)<=Date.now())||current.content_hash!==job.input_hash||(job.purpose==='reprocess'&&current.reprocess_contract!==job.contract_key)||(current.processed_hash===job.input_hash&&(job.purpose!=='reprocess'||current.processed_contract===job.contract_key))){await env.DB.prepare("UPDATE processing_jobs SET state='superseded',lease_until=NULL WHERE id=?").bind(job.id).run();return;}
   const {aiProgress,aiContract:storedContract,...notice}=JSON.parse(job.input),text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');
   let chunks;try{chunks=splitAiText(text);}catch(e){await env.DB.prepare("UPDATE processing_jobs SET state='failed',error_code=?,lease_until=NULL WHERE id=?").bind(safeError(e),job.id).run();return;}
   let contract=storedContract;
@@ -108,6 +111,9 @@ export async function processNotice(env){
       if(typeof env.AI_MODEL!=='string'||!env.AI_MODEL){await env.DB.prepare("UPDATE processing_jobs SET state='failed',lease_until=NULL,error_code='ai_model_not_configured' WHERE id=?").bind(job.id).run();return;}
       contract={provider:'cloudflare',model:env.AI_MODEL,extractionRevision:aiExtractionRevision};
       await env.DB.prepare("UPDATE processing_jobs SET input=json_set(input,'$.aiContract',json(?)) WHERE id=?").bind(JSON.stringify(contract),job.id).run();
+    }
+    if(job.contract_key!=='legacy'&&job.contract_key!==JSON.stringify([contract.provider,contract.model,contract.extractionRevision])){
+      await env.DB.prepare("UPDATE processing_jobs SET state='failed',lease_until=NULL,error_code='ai_revision_mismatch' WHERE id=?").bind(job.id).run();return;
     }
   }
   const progress=aiProgress??{index:0,summaries:[],conditions:[]};
@@ -143,9 +149,10 @@ export async function processNotice(env){
     // Candidate eligibility fields stay gated until the model/corpus evaluation is verified.
     await env.DB.batch([
       // Patch only AI fields: metadata refreshed during inference must not be overwritten.
-      env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.summary',json(?),'$.aiStatus',?,'$.aiProvenance',json(?),'$.updatedAt',?,'$.firstSeenAt',first_seen),processed_hash=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=?")
-        .bind(JSON.stringify(summary),text.length?'summary_validated':'source_only',JSON.stringify(text.length?contract:null),now,job.input_hash,now,job.listing_id,job.input_hash),
-      env.DB.prepare("UPDATE processing_jobs SET state='completed',lease_until=NULL,error_code=NULL,input=json_set(input,'$.aiCandidates',json(?)) WHERE id=?").bind(JSON.stringify(candidates),job.id)
+      env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.summary',json(?),'$.aiStatus',?,'$.aiProvenance',json(?),'$.updatedAt',?,'$.firstSeenAt',first_seen),processed_hash=?,processed_contract=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=? AND active=1 AND (deadline IS NULL OR deadline>?) AND (?!='reprocess' OR reprocess_contract=?)")
+        .bind(JSON.stringify(summary),text.length?'summary_validated':'source_only',JSON.stringify(text.length?contract:null),now,job.input_hash,contract?JSON.stringify([contract.provider,contract.model,contract.extractionRevision]):job.contract_key,now,job.listing_id,job.input_hash,now,job.purpose,job.contract_key),
+      env.DB.prepare("UPDATE processing_jobs SET state=CASE WHEN EXISTS(SELECT 1 FROM listings WHERE id=? AND content_hash=? AND processed_hash=? AND processed_contract=? AND active=1 AND (deadline IS NULL OR deadline>?) AND (?!='reprocess' OR reprocess_contract=?)) THEN 'completed' ELSE 'superseded' END,lease_until=NULL,error_code=NULL,input=json_set(input,'$.aiCandidates',json(?)) WHERE id=?")
+        .bind(job.listing_id,job.input_hash,job.input_hash,contract?JSON.stringify([contract.provider,contract.model,contract.extractionRevision]):job.contract_key,now,job.purpose,job.contract_key,JSON.stringify(candidates),job.id)
     ]);
   }catch(e){
     // Workers binding formats provider failures as "internalCode: description".

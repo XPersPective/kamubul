@@ -133,8 +133,34 @@ kopyalanmaz. Source-only sonuçta provenance null'dır, inference yapılmış sa
 Eski provenance'sız tamamlanan ilanlar geriye dönük model tahminiyle doldurulmaz.
 Sürümü bilinmeyen eski partial iş ai_revision_unknown, mevcut kodla uyumsuz sürüm
 ai_revision_mismatch durumuyla failed olur; input/chunk korunur, quota harcanmaz.
-Yeni sürüm aynı hash arşivini otomatik tekrar okutmaz. Unique job hâlâ listing+hash;
-versioned job identity ve açık bounded reprocess aracı PB-017'de kalan iştir.
+Yeni sürüm aynı hash arşivini otomatik tekrar okutmaz. Migration0014 unique job'u
+listing+hash+contract_key olarak korur; contract_key=[provider,model,extractionRevision].
+Eski ID/input/state/attempt/due/lease korunur, bilinmeyen eski sözleşme legacy'dir.
+processed_contract başarılı sürümü, reprocess_contract son açık planı tutar.
+Bir ilanın iki sürümü aynı anda lease alamaz. Son açık plan eski retry/in-flight
+sonucunu superseded yapar; semantic hash inference sırasında değişirse sonuç
+kataloğa yazılmaz. İlk ingestion successful hash'i model değişti diye yeniden
+okumaz. Aynı hash için özet reprocess'i yeni-ilan match event'i üretmez; ilan
+revision/change seq güncellenir. Eligibility extraction hâlâ kapalıdır; ileride
+eligibility değişimi ayrı politika/test gerektirir.
+
+Operatör aracı yalnız onaylı Wrangler/D1 erişimiyle, en çok5 açık ID için:
+
+```powershell
+# Önce salt okunur plan, inference yapmaz:
+node tool/reprocess-ai.js 'kariyerkapisi:<gerçek-ilan-id>'
+# Gerekli ve uygun gerçek metin varsa kalıcı işi kuyruğa al:
+node tool/reprocess-ai.js --apply 'kariyerkapisi:<gerçek-ilan-id>'
+# Yalnız aracın doğrulanmış Free model allowlist'inden açık sürüm seçimi:
+node tool/reprocess-ai.js --model '@cf/meta/llama-3.1-8b-instruct-fp8' 'kariyerkapisi:<gerçek-ilan-id>'
+```
+
+Plan reason: eligible/already_processed/job_exists/source_text_missing/inactive_or_expired.
+Eksik ID plan çıktısında ayrı gösterilir, apply eksik ID varsa bütün işlemi reddeder.
+Apply seçim/uygunluğu yazma anında tekrar kontrol eder. Aynı tuple yeniden kuyruk
+açmaz; eski failed işi silently reset etmez. Apply model çağırmaz, Cron mevcut
+günlük bütçe/chunk/backoff ile işi yürütür. Public admin endpoint/ek API key yok.
+Arşiv toplu taraması, otomatik reprocess ve ücretli modele geçiş bu araçta yok.
 [rejectIfBusy](https://developers.cloudflare.com/workers-ai/features/reject-if-busy/)
 kapasite doluyken kuyruğa kabulü engeller.45 saniyelik uygulama timeout'u
 sağlayıcı inference işleminin iptal edildiğini garanti etmez; retry de kotaya sayılır.
