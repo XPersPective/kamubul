@@ -9,6 +9,7 @@ import 'package:kamubul/home_page.dart';
 import 'package:kamubul/listings/kariyer_detail_page.dart';
 import 'package:kamubul/listings/official_listing_page.dart';
 import 'package:kamubul/notifications/alert_service.dart';
+import 'package:kamubul/notifications/notification_center_page.dart';
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -16,6 +17,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:kamubul_core/kamubul_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/isolate_db.dart';
 
@@ -44,6 +46,19 @@ class _FakeStore implements StoreAdapter {
   Stream<List<StorePurchaseUpdate>> get updates => const Stream.empty();
 }
 
+class _Routes extends NavigatorObserver {
+  final routes = <Route<dynamic>>[];
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      routes.add(route);
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      routes.remove(route);
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      routes.remove(route);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
@@ -57,6 +72,7 @@ void main() {
   });
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     alertTapUrl.value = null;
     await databaseFactory.deleteDatabase(dbPath);
     final store = ListingStore();
@@ -88,6 +104,7 @@ void main() {
   Future<void> pumpHome(
     WidgetTester tester, {
     RemoteCatalogueClient? client,
+    NavigatorObserver? observer,
   }) async {
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = const Size(390, 844) * 2;
@@ -101,6 +118,7 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
+        navigatorObservers: [?observer],
         debugShowCheckedModeBanner: false,
         home: KamuHomePage(
           identity: AppIdentity(
@@ -148,6 +166,202 @@ void main() {
       if (finder.evaluate().isNotEmpty) return;
     }
   }
+
+  http.Response detailResponse(String id, {int revision = 1}) =>
+      http.Response.bytes(
+        utf8.encode(
+          jsonEncode({
+            'id': id,
+            'revision': revision,
+            'active': true,
+            'sourceId': 'kariyerkapisi',
+            'title': 'DETAIL $id',
+            'category': 'Personel',
+            'url': 'https://kariyerkapisi.gov.tr/$id',
+            'updatedAt': '2026-10-02T07:00:00Z',
+          }),
+        ),
+        200,
+      );
+
+  Future<void> waitForRequest(
+    WidgetTester tester,
+    bool Function() requested,
+  ) async {
+    for (var i = 0; i < 50 && !requested(); i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+    expect(requested(), isTrue);
+  }
+
+  testWidgets(
+    'repeated pending/open tap makes one request and one route; back allows reopen',
+    (tester) async {
+      final pending = Completer<http.Response>();
+      var calls = 0;
+      final routes = _Routes();
+      final client = RemoteCatalogueClient(
+        baseUrl: Uri.parse('https://api.example.com'),
+        client: MockClient((request) {
+          calls++;
+          return calls == 1
+              ? pending.future
+              : Future.value(detailResponse('repeat', revision: 2));
+        }),
+      );
+      await pumpHome(tester, client: client, observer: routes);
+      final payload = alertTapPayload(
+        'https://kariyerkapisi.gov.tr/repeat',
+        listingId: 'repeat',
+        revision: 1,
+      );
+      openAlertUrl(payload);
+      await waitForRequest(tester, () => calls == 1);
+      openAlertUrl(payload);
+      pending.complete(detailResponse('repeat'));
+      await settleUntil(tester, find.byType(OfficialListingPage));
+      openAlertUrl(payload);
+      await tester.pump();
+      expect(calls, 1);
+      expect(routes.routes, hasLength(2));
+      openAlertUrl(
+        alertTapPayload(
+          'https://kariyerkapisi.gov.tr/alias',
+          listingId: 'repeat',
+          revision: 2,
+        ),
+      );
+      await settleUntil(
+        tester,
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is OfficialListingPage &&
+              widget.listing.criteriaListing?['revision'] == 2,
+        ),
+      );
+      expect(calls, 2);
+      expect(routes.routes, hasLength(2));
+      Navigator.of(tester.element(find.byType(OfficialListingPage))).pop();
+      await tester.pumpAndSettle();
+      openAlertUrl(payload);
+      await settleUntil(tester, find.byType(OfficialListingPage));
+      expect(routes.routes, hasLength(2));
+      expect(calls, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'newer tap wins a late HTTP response and replaces an open notification route',
+    (tester) async {
+      final old = Completer<http.Response>();
+      final paused = Completer<http.Response>();
+      final requests = <String>[];
+      final routes = _Routes();
+      final client = RemoteCatalogueClient(
+        baseUrl: Uri.parse('https://api.example.com'),
+        client: MockClient((request) {
+          final id = request.url.pathSegments.last;
+          requests.add(id);
+          if (id == 'paused') return paused.future;
+          return id == 'old' ? old.future : Future.value(detailResponse(id));
+        }),
+      );
+      await pumpHome(tester, client: client, observer: routes);
+      openAlertUrl(
+        alertTapPayload('https://kariyerkapisi.gov.tr/old', listingId: 'old'),
+      );
+      await waitForRequest(tester, () => requests.contains('old'));
+      openAlertUrl(
+        alertTapPayload('https://kariyerkapisi.gov.tr/new', listingId: 'new'),
+      );
+      await settleUntil(tester, find.text('DETAIL new'));
+      old.complete(detailResponse('old'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('DETAIL old'), findsNothing);
+      expect(routes.routes, hasLength(2));
+      openAlertUrl(
+        alertTapPayload(
+          'https://kariyerkapisi.gov.tr/third',
+          listingId: 'third',
+        ),
+      );
+      await settleUntil(tester, find.text('DETAIL third'));
+      expect(routes.routes, hasLength(2));
+      expect(find.text('DETAIL new', skipOffstage: false), findsNothing);
+      openAlertUrl(
+        alertTapPayload(
+          'https://kariyerkapisi.gov.tr/paused',
+          listingId: 'paused',
+        ),
+      );
+      await waitForRequest(tester, () => requests.contains('paused'));
+      openAlertUrl(
+        alertTapPayload(
+          'https://kariyerkapisi.gov.tr/third',
+          listingId: 'third',
+        ),
+      );
+      paused.complete(detailResponse('paused'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('DETAIL third'), findsOneWidget);
+      expect(find.text('DETAIL paused'), findsNothing);
+      expect(routes.routes, hasLength(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('history tile closes center and opens canonical API detail', (
+    tester,
+  ) async {
+    final routes = _Routes();
+    final requests = <Uri>[];
+    final client = RemoteCatalogueClient(
+      baseUrl: Uri.parse('https://api.example.com'),
+      client: MockClient((request) async {
+        requests.add(request.url);
+        return detailResponse('history');
+      }),
+    );
+    SharedPreferences.setMockInitialValues({
+      'kamubul.alerts.history': encodeAlerts([
+        AlertRecord.create(
+          kind: AlertKind.instant,
+          searchName: '',
+          title: 'HISTORY TILE',
+          body: '',
+          listingUrl: 'https://kariyerkapisi.gov.tr/old-alias',
+          listingId: 'history',
+          listingRevision: 1,
+        ),
+      ]),
+    });
+    await pumpHome(tester, client: client, observer: routes);
+    unawaited(
+      Navigator.of(tester.element(find.byType(KamuHomePage))).push(
+        MaterialPageRoute<void>(builder: (_) => const NotificationCenterPage()),
+      ),
+    );
+    await settleUntil(tester, find.text('HISTORY TILE'));
+    await tester.tap(find.text('HISTORY TILE'));
+    await settleUntil(tester, find.text('DETAIL history'));
+    expect(requests.single.pathSegments.last, 'history');
+    expect(
+      find.byType(NotificationCenterPage, skipOffstage: false),
+      findsNothing,
+    );
+    expect(routes.routes, hasLength(2));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Kariyer bildirimi yerel ayrıntıyı açar', (tester) async {
     await pumpHome(tester);

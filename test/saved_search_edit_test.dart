@@ -290,7 +290,17 @@ void main() {
       await pumpRoute(tester);
     }
     expect(dialog, findsNothing);
-    await pumpRoute(tester);
+    // Dialog closes before the asynchronous write and management-sheet pop.
+    // Wait for that real completion, then let the modal barrier animate away.
+    for (
+      var i = 0;
+      i < 50 && find.byType(BottomSheet).evaluate().isNotEmpty;
+      i++
+    ) {
+      await pumpRoute(tester);
+    }
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.pumpAndSettle();
 
     // Düzenleme sonrası liste kapanır; yeniden açıldığında yeni değer görünür.
     await tester.tap(find.byTooltip('Kayıtlı aramaları yönet'));

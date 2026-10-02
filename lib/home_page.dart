@@ -95,6 +95,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
   int? _activeSearchId;
   bool _includeUnknown = false;
   int _alertTapGeneration = 0;
+  ({String key, int revision})? _pendingAlert;
+  ({String key, int revision})? _activeAlert;
+  Route<void>? _alertRoute;
 
   SavedSearch? get _activeSearch =>
       _searches.where((s) => s.id == _activeSearchId).firstOrNull;
@@ -141,8 +144,36 @@ class _KamuHomePageState extends State<KamuHomePage> {
     alertTapUrl.value = null;
     final target = decodeAlertTap(payload);
     if (target == null) return;
-    final url = target.url;
+    final key = _alertKey(target);
+    final revision = target.revision ?? 1;
+    if (_activeAlert?.key == key && _activeAlert!.revision >= revision) {
+      // Returning to the visible target cancels a different pending tap as well.
+      if (_pendingAlert != null) {
+        ++_alertTapGeneration;
+        _pendingAlert = null;
+      }
+      return;
+    }
+    if (_pendingAlert?.key == key && _pendingAlert!.revision >= revision) {
+      return;
+    }
     final tapGeneration = ++_alertTapGeneration;
+    _pendingAlert = (key: key, revision: revision);
+    try {
+      await _resolveAlertTarget(target, tapGeneration);
+    } finally {
+      if (tapGeneration == _alertTapGeneration) _pendingAlert = null;
+    }
+  }
+
+  String _alertKey(({String url, String? listingId, int? revision}) target) =>
+      target.listingId == null ? 'url:${target.url}' : 'id:${target.listingId}';
+
+  Future<void> _resolveAlertTarget(
+    ({String url, String? listingId, int? revision}) target,
+    int tapGeneration,
+  ) async {
+    final url = target.url;
     await _loadLocal();
     if (!mounted || tapGeneration != _alertTapGeneration) return;
     ListingRecord? record;
@@ -205,18 +236,18 @@ class _KamuHomePageState extends State<KamuHomePage> {
         if (!mounted || tapGeneration != _alertTapGeneration) return;
         final detail = ListingStore.projectRemoteListing(item);
         if (detail == null) throw const FormatException('invalid detail');
-        Navigator.of(context).push(
-          sharedAxisRoute<void>(
-            OfficialListingPage(
-              listing: detail,
-              unavailable: item['active'] == false,
-              cacheNotice: (item['revision'] as int) < (target.revision ?? 1)
-                  ? 'Güncel ayrıntı alınamadı. Önbellekteki eski bilgiler gösteriliyor.'
-                  : fromCache
-                  ? 'Önbellekteki ilan bilgileri gösteriliyor.'
-                  : null,
-            ),
+        _pushAlertPage(
+          OfficialListingPage(
+            listing: detail,
+            unavailable: item['active'] == false,
+            cacheNotice: (item['revision'] as int) < (target.revision ?? 1)
+                ? 'Güncel ayrıntı alınamadı. Önbellekteki eski bilgiler gösteriliyor.'
+                : fromCache
+                ? 'Önbellekteki ilan bilgileri gösteriliyor.'
+                : null,
           ),
+          target,
+          item['revision'] as int,
         );
       } on Exception {
         if (mounted && tapGeneration == _alertTapGeneration) {
@@ -242,7 +273,30 @@ class _KamuHomePageState extends State<KamuHomePage> {
       }
       return;
     }
-    _showListing(record);
+    _pushAlertPage(_listingPage(record), target, target.revision ?? 1);
+  }
+
+  void _pushAlertPage(
+    Widget page,
+    ({String url, String? listingId, int? revision}) target,
+    int revision,
+  ) {
+    final navigator = Navigator.of(context);
+    final previous = _alertRoute;
+    if (previous?.navigator == navigator) navigator.removeRoute(previous!);
+    final route = sharedAxisRoute<void>(page);
+    _alertRoute = route;
+    _activeAlert = (key: _alertKey(target), revision: revision);
+    _pendingAlert = null;
+    // Opening a cold-tap page must not wait for Back before startup sync proceeds.
+    unawaited(
+      navigator.push(route).whenComplete(() {
+        if (identical(_alertRoute, route)) {
+          _alertRoute = null;
+          _activeAlert = null;
+        }
+      }),
+    );
   }
 
   /// PB-002 öncesi URL listesiyle kaydedilen yer imlerini veritabanına taşır.
@@ -1944,18 +1998,17 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   void _showListing(ListingRecord record) {
     HapticFeedback.selectionClick();
-    Navigator.of(context).push(
-      sharedAxisRoute<void>(
-        record.sourceId == 'kariyerkapisi'
-            ? KariyerDetailPage(
-                listing: _asPublicListing(record),
-                summary: record.summary,
-                onLoaded: (detail) => _cacheDetail(record.url, detail),
-              )
-            : OfficialListingPage(listing: record),
-      ),
-    );
+    Navigator.of(context).push(sharedAxisRoute<void>(_listingPage(record)));
   }
+
+  Widget _listingPage(ListingRecord record) =>
+      record.sourceId == 'kariyerkapisi'
+      ? KariyerDetailPage(
+          listing: _asPublicListing(record),
+          summary: record.summary,
+          onLoaded: (detail) => _cacheDetail(record.url, detail),
+        )
+      : OfficialListingPage(listing: record);
 
   PublicListing _asPublicListing(ListingRecord record) => PublicListing(
     title: record.title,
