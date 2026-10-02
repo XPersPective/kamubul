@@ -4,6 +4,21 @@
 
 ## 1. Gerçek durum ve sınır
 
+Canonical detail presentation2 Ekim: OfficialListingPage requirementGroups
+alanlarını ayrı kadro kartlarında gösterir; şehir/eğitim ortak label'ları, KPSS
+type/score/year ve min/max age/reference/birth-date sınırları ayrıdır. Unknown
+alanlar uygunluk vaadi değildir; malformed veya çelişen not_required/no_restriction
+alanları koşulsuz gösterilmez. İlk100 grup render sınırı ve daha büyük ilanda
+resmî belge yönlendirmesi açık. Özet varlığında AI provenance varsa AI başlığı,
+aksi durumda ilan özeti başlığı; source-only açıklaması sürer. Yeni quote/evidence
+schema veya AI koşul çıkarımı eklenmedi; production source-only veriyi yapay
+koşullarla doldurma yok. Sticky52dp official CTA korunur.320px1.3x light/dark
+ayrı kadro/known/unknown/malformed test ve152 Flutter full geçti, changed3
+analyze/diff-check temiz. İlk full koşu history route observer animasyon
+tamamlanmadan assert etti; aynı testte pumpAndSettle+visible detail kontrolü
+eklenip targeted ve full tekrar geçti. Actual API/Firebase debug APK
+223534217bytes/27.8s; fiziksel cihaz/release kanıtı yok.
+
 Template uyumu2 Ekim: napp_app_template master7101480 GitHub fetch/fast-forward
 kontrolünde güncel. KamuBul mevcut core-v1.0.0 OtherAppsPage/Repository ile
 beşinci Keşfet menüsü ve Ayarlar→Diğer uygulamalarımız erişimini kullanır;

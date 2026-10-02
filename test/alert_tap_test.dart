@@ -440,6 +440,8 @@ void main() {
     await settleUntil(tester, find.text('HISTORY TILE'));
     await tester.tap(find.text('HISTORY TILE'));
     await settleUntil(tester, find.text('DETAIL history'));
+    await tester.pumpAndSettle();
+    expect(find.text('DETAIL history'), findsOneWidget);
     expect(requests.single.pathSegments.last, 'history');
     expect(
       find.byType(NotificationCenterPage, skipOffstage: false),

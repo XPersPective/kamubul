@@ -41,6 +41,95 @@ class _PushStore implements PushStateStore {
 /// büyük başlık çökmesi ve yapışkan CTA davranışı.
 void main() {
   testWidgets(
+    'canonical detail keeps separate positions and unknown conditions at 1.3x',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(320, 844);
+      addTearDown(tester.view.reset);
+      final listing = ListingRecord(
+        url: 'https://kariyerkapisi.gov.tr/IlanDetay?i=one',
+        sourceId: 'kariyerkapisi',
+        title: 'Kurum personel alımı',
+        category: 'Personel',
+        publishedAt: null,
+        fetchedAt: DateTime(2026, 10, 2),
+        summary: ['Başvurular resmî başvuru sistemi üzerinden yapılır.'],
+        criteriaListing: {
+          'aiProvenance': {'provider': 'cloudflare'},
+          'requirementGroups': [
+            {
+              'occupations': ['Mühendis'],
+              'cities': ['city:ankara'],
+              'education': ['bachelor'],
+              'kpssStatus': 'required',
+              'kpssType': 'P3',
+              'kpssScore': 70,
+              'ageStatus': 'known',
+              'maxAge': 35,
+              'ageReferenceDate': '2026-10-01',
+            },
+            {
+              'occupations': ['Destek personeli'],
+              'kpssStatus': 'unknown',
+              'ageStatus': 'unknown',
+            },
+            {
+              'kpssStatus': 'not_required',
+              'kpssScore': 'broken',
+              'ageStatus': 'no_restriction',
+              'maxAge': 'broken',
+            },
+          ],
+        },
+      );
+      for (final brightness in Brightness.values) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(brightness: brightness),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(1.3)),
+              child: child!,
+            ),
+            home: OfficialListingPage(listing: listing),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final scroll = find.byType(Scrollable).first;
+        // Scroll each card into view: lazy list rendering preserves group boundaries.
+        await tester.scrollUntilVisible(
+          find.text('Kadro 1'),
+          180,
+          scrollable: scroll,
+        );
+        expect(find.text('Mühendis'), findsOneWidget);
+        expect(find.text('KPSS gerekli · P3 · en az 70 puan'), findsOneWidget);
+        expect(
+          find.text('En fazla 35 yaş · Yaş hesabı tarihi: 01.10.2026'),
+          findsOneWidget,
+        );
+        await tester.scrollUntilVisible(
+          find.text('Kadro 2'),
+          180,
+          scrollable: scroll,
+        );
+        expect(find.text('Destek personeli'), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text('Kadro 3'),
+          180,
+          scrollable: scroll,
+        );
+        expect(find.text('KPSS şartı yok'), findsNothing);
+        expect(find.text('Yaş sınırı yok'), findsNothing);
+        expect(find.text('Yaş şartı: henüz belirlenemedi'), findsWidgets);
+        expect(find.text('Resmî belgeyi aç'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      }
+    },
+  );
+
+  testWidgets(
     'sunucu geçmişi erişilemezken alınan kayıt ve uyarı 1.3x dar ekranda korunur',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
