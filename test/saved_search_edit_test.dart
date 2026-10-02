@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/home_page.dart';
+import 'package:kamubul_core/remote/catalogue_delta.dart';
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -91,6 +92,33 @@ void main() {
         deadline: now.add(const Duration(days: 3)),
       ),
     ], pruneBefore: DateTime(2000));
+    await store.applyDeltaPage(
+      CatalogueDeltaPage(1, 1, false, [
+        CatalogueChange(1, 'notice', 1, false, {
+          'id': 'notice',
+          'revision': 1,
+          'url': 'https://kariyerkapisi.gov.tr/ilan/1',
+          'title': 'TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)',
+          'sourceId': 'kariyerkapisi',
+          'category': 'Sözleşmeli Personel',
+          'updatedAt': now.toUtc().toIso8601String(),
+          'deadline': now
+              .add(const Duration(days: 3))
+              .toUtc()
+              .toIso8601String(),
+          'institution': 'TEST KURUMU',
+          'requirementGroups': [
+            {
+              'cities': ['Ankara'],
+              'occupations': ['Mühendis'],
+              'education': ['Lisans'],
+              'kpssStatus': 'unknown',
+            },
+          ],
+        }),
+      ]),
+      after: 0,
+    );
     await store.addSavedSearch(
       SavedSearch(
         id: null,
@@ -106,12 +134,20 @@ void main() {
     );
   });
 
-  testWidgets('profil alanları yönet listesinden düzenlenebilir', (
-    tester,
-  ) async {
+  Future<void> editSearch(WidgetTester tester, {required bool compact}) async {
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = const Size(390, 844) * 2;
     addTearDown(tester.view.reset);
+    if (compact) {
+      tester.view.physicalSize = const Size(320, 1000);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+      });
+    }
     final settings = SettingsStore();
     final theme = ThemeModeController(store: settings)..load();
     final policy = AdPolicy();
@@ -196,6 +232,56 @@ void main() {
     await tester.enterText(fields.at(3), kpss);
     await tester.enterText(fields.at(4), '78,25');
     await tester.enterText(fields.at(5), '2024');
+    final cities = find.byKey(const ValueKey('criteria-cities'));
+    await tester.ensureVisible(cities);
+    await tester.enterText(cities, 'Listede olmayan');
+    await tester.tap(
+      find.descendant(of: dialog, matching: find.text('Kaydet')),
+    );
+    await tester.pump();
+    expect(find.textContaining('Listeden bir seçenek seçin'), findsOneWidget);
+    await tester.enterText(cities, 'Istan');
+    await tester.pump();
+    await tester.tap(find.text('İstanbul').last);
+    await pumpRoute(tester);
+    expect(find.widgetWithText(InputChip, 'İstanbul'), findsOneWidget);
+    expect(find.widgetWithText(InputChip, 'ANKARA'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byTooltip('Şehirler: İstanbul seçimini kaldır'),
+    );
+    await pumpRoute(tester);
+    await tester.tap(
+      find
+          .descendant(
+            of: find.widgetWithText(InputChip, 'İstanbul'),
+            matching: find.byType(Icon),
+          )
+          .last,
+    );
+    await tester.pump();
+    expect(find.widgetWithText(InputChip, 'İstanbul'), findsNothing);
+    await tester.ensureVisible(cities);
+    await tester.enterText(cities, 'Istan');
+    await tester.pump();
+    await tester.tap(find.text('İstanbul').last);
+    await tester.pump();
+    final keyword = find.byKey(const ValueKey('criteria-keyword'));
+    await tester.ensureVisible(keyword);
+    await tester.enterText(keyword, 'Sözleşmeli');
+    for (final choice in [
+      ('education', 'lisan', 'Lisans'),
+      ('education', 'lisan', 'Yüksek lisans'),
+      ('categories', 'pers', 'personel'),
+      ('occupations', 'muh', 'Mühendis'),
+      ('institutions', 'TEST', 'TEST KURUMU'),
+    ]) {
+      final field = find.byKey(ValueKey('criteria-${choice.$1}'));
+      await tester.ensureVisible(field);
+      await tester.enterText(field, choice.$2);
+      await tester.pump();
+      await tester.tap(find.text(choice.$3).last);
+      await pumpRoute(tester);
+    }
     await tester.tap(
       find.descendant(of: dialog, matching: find.text('Kaydet')),
     );
@@ -219,6 +305,13 @@ void main() {
       find.descendant(of: sheet, matching: find.textContaining('yaş $age')),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+        of: sheet,
+        matching: find.textContaining('ANKARA, İstanbul'),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
     await tester.runAsync(() async {
       final search = (await ListingStore().savedSearches()).single;
@@ -229,9 +322,23 @@ void main() {
         '1970-01-01',
         reason: 'Eski yaş otomatik güncel varsayılmaz',
       );
-      expect(search.filters['sehir'], 'ANKARA');
+      expect(search.effectiveCriteria.values['cities'], ['ANKARA', 'İstanbul']);
+      expect(search.effectiveCriteria.values['keyword'], 'Sözleşmeli');
+      expect(search.effectiveCriteria.values['categories'], ['personel']);
+      expect(search.effectiveCriteria.values['occupations'], ['Mühendis']);
+      expect(search.effectiveCriteria.values['institutions'], ['TEST KURUMU']);
+      expect(search.effectiveCriteria.values['education'], [
+        'Lisans',
+        'Yüksek lisans',
+      ]);
+      expect(search.filters['egitim'], isNull);
+      expect(
+        search.filters['sehir'],
+        isNull,
+        reason: 'Çoklu şehir tek legacy filtreye indirgenmez',
+      );
     });
-    // Canonical koşul bulunmayan eski kayıt kesin eşleşme sayılmaz.
+    // Yaş/KPSS koşulları bilinmeyen kayıt kesin eşleşme sayılmaz.
     await tester.tap(
       find.descendant(of: sheet, matching: find.text(updatedName)),
     );
@@ -253,5 +360,14 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
-  });
+  }
+
+  testWidgets(
+    'profil ve seçimler yönet listesinden düzenlenebilir',
+    (tester) => editSearch(tester, compact: false),
+  );
+  testWidgets(
+    'seçimler 320px ve 1.3x metinde taşmadan çalışır',
+    (tester) => editSearch(tester, compact: true),
+  );
 }

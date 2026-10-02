@@ -758,15 +758,119 @@ class _KamuHomePageState extends State<KamuHomePage> {
     );
     final score = TextEditingController(text: '${values['kpssScore'] ?? ''}');
     final year = TextEditingController(text: '${values['kpssYear'] ?? ''}');
+    final keyword = TextEditingController(text: '${values['keyword'] ?? ''}');
+    var keywordScope = values['keywordScope'] == 'title' ? 'title' : 'full';
     final ageDate = TextEditingController(
       text:
           '${values['ageAsOf'] ?? DateTime.now().toIso8601String().substring(0, 10)}',
     );
-    final educationValues =
-        (values['education'] as List?)?.cast<String>() ?? <String>[];
-    var education = educationValues.length == 1 ? educationValues.single : null;
-    var educationChanged = false;
     String? error;
+    final pendingChoices = <String, TextEditingController>{};
+    final occupations = <String>{}, institutions = <String>{};
+    for (final record in _records) {
+      final listing = record.criteriaListing;
+      if (listing == null || listing['active'] == false) continue;
+      if (listing['institution'] case final String institution) {
+        if (institution.trim().isNotEmpty && institution.length <= 100) {
+          institutions.add(institution.trim());
+        }
+      }
+      final groups = listing['requirementGroups'];
+      for (final source in [
+        listing,
+        if (groups is List) ...groups.whereType<Map>(),
+      ]) {
+        final raw = source['occupations'];
+        if (raw is List) {
+          occupations.addAll(
+            raw
+                .whereType<String>()
+                .where((s) => s.trim().isNotEmpty && s.length <= 100)
+                .map((s) => s.trim()),
+          );
+        }
+      }
+    }
+    Widget criteriaSelector(
+      String key,
+      String label,
+      Iterable<String> options,
+      StateSetter update,
+    ) {
+      final selected = (values[key] as List?)?.cast<String>() ?? <String>[];
+      final available = {...options, ...selected}.toList()
+        ..sort((a, b) => foldTurkish(a).compareTo(foldTurkish(b)));
+      TextEditingController? editor;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Autocomplete<String>(
+            optionsBuilder: (text) => text.text.trim().isEmpty
+                ? const Iterable<String>.empty()
+                : available
+                      .where(
+                        (option) =>
+                            foldTurkish(option)
+                                .contains(foldTurkish(text.text)) &&
+                            !selected.any(
+                              (s) => foldTurkish(s) == foldTurkish(option),
+                            ),
+                      )
+                      .take(20),
+            fieldViewBuilder: (context, controller, focus, submit) {
+              editor = controller;
+              pendingChoices[key] = controller;
+              return TextFormField(
+                key: ValueKey('criteria-$key'),
+                controller: controller,
+                focusNode: focus,
+                onFieldSubmitted: (_) => submit(),
+                decoration: InputDecoration(
+                  labelText: label,
+                  hintText: 'Seçmek için yazın',
+                  helperText: available.isEmpty
+                      ? 'Katalogda henüz seçenek yok.'
+                      : 'En çok 10 seçim; boş bırakmak filtreyi kaldırır.',
+                  helperMaxLines: 3,
+                ),
+              );
+            },
+            onSelected: (option) {
+              update(() {
+                if (selected.length >= 10) {
+                  error = '$label için en çok 10 seçim yapabilirsiniz.';
+                } else {
+                  values[key] = [...selected, option];
+                  error = null;
+                }
+              });
+              editor?.clear();
+            },
+          ),
+          Wrap(
+            spacing: 6,
+            children: [
+              for (final option in selected)
+                InputChip(
+                  deleteButtonTooltipMessage: '$label: $option seçimini kaldır',
+                  label: Text(
+                    option,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onDeleted: () => update(
+                    () => values[key] = selected
+                        .where((s) => s != option)
+                        .toList(),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
+      );
+    }
+
     try {
       return await showDialog<SavedSearch>(
         context: context,
@@ -808,36 +912,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
                         .substring(0, 10),
                     child: const Text('Yaşımı bugün doğrula'),
                   ),
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    initialValue: education,
-                    decoration: const InputDecoration(
-                      labelText: 'Eğitim düzeyi (isteğe bağlı)',
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('Eğitim filtresi yok'),
-                      ),
-                      for (final value in {
-                        'Lise',
-                        'Ön lisans',
-                        'Lisans',
-                        'Yüksek lisans',
-                        'Doktora',
-                        ...educationValues,
-                      })
-                        DropdownMenuItem(value: value, child: Text(value)),
-                    ],
-                    onChanged: (value) => update(() {
-                      education = value;
-                      educationChanged = true;
-                    }),
-                  ),
-                  if (educationValues.length > 1)
-                    Text(
-                      'Kayıtlı eğitimler: ${educationValues.join(', ')}. Yeni seçim yapmazsanız hepsi korunur.',
-                    ),
                   TextField(
                     controller: type,
                     maxLength: 4,
@@ -863,6 +937,62 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       labelText: 'KPSS sınav yılı (isteğe bağlı)',
                     ),
                   ),
+                  TextField(
+                    key: const ValueKey('criteria-keyword'),
+                    controller: keyword,
+                    maxLength: 100,
+                    decoration: const InputDecoration(
+                      labelText: 'Anahtar kelime (isteğe bağlı)',
+                      helperText: 'Arama adınız kişisel etikettir; ilanı bu kelimeyle süzebilirsiniz.',
+                    ),
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: keywordScope,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Kelimenin aranacağı alan',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'title',
+                        child: Text('İlan başlığı'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'full',
+                        child: Text('Başlık, kurum ve meslek'),
+                      ),
+                    ],
+                    onChanged: (value) => update(() => keywordScope = value!),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Aynı alandaki seçimler alternatiftir. Farklı alanların koşulları birlikte aranır.',
+                  ),
+                  criteriaSelector('cities', 'Şehirler', turkishCities, update),
+                  criteriaSelector('education', 'Eğitim düzeyleri', const [
+                    'Lise',
+                    'Ön lisans',
+                    'Lisans',
+                    'Yüksek lisans',
+                    'Doktora',
+                  ], update),
+                  criteriaSelector('categories', 'İlan türleri', const [
+                    'işçi',
+                    'personel',
+                    'belediye',
+                  ], update),
+                  criteriaSelector(
+                    'occupations',
+                    'Meslekler',
+                    occupations,
+                    update,
+                  ),
+                  criteriaSelector(
+                    'institutions',
+                    'Kurumlar',
+                    institutions,
+                    update,
+                  ),
                   if (error != null)
                     Text(
                       error!,
@@ -880,6 +1010,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
               ),
               FilledButton(
                 onPressed: () {
+                  if (pendingChoices.values.any(
+                    (c) => c.text.trim().isNotEmpty,
+                  )) {
+                    update(
+                      () => error = 'Listeden bir seçenek seçin veya yazdığınız seçim metnini temizleyin. Serbest metin için Anahtar kelime alanını kullanın.',
+                    );
+                    return;
+                  }
                   try {
                     if (name.text.trim().isEmpty ||
                         name.text.trim().length > 80) {
@@ -888,6 +1026,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       );
                     }
                     final criteria = <String, Object?>{...values};
+                    criteria.remove('keyword');
+                    criteria.remove('keywordScope');
+                    if (keyword.text.trim().isNotEmpty) {
+                      criteria['keyword'] = keyword.text.trim();
+                      criteria['keywordScope'] = keywordScope;
+                    }
                     criteria.remove('age');
                     criteria.remove('ageAsOf');
                     criteria.remove('kpssType');
@@ -908,14 +1052,27 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     if (year.text.trim().isNotEmpty) {
                       criteria['kpssYear'] = int.parse(year.text.trim());
                     }
-                    if (educationChanged) {
-                      criteria.remove('education');
-                      if (education != null) {
-                        criteria['education'] = [education!];
-                      }
-                    }
                     final validated = SearchCriteria.parse(criteria);
                     final filters = <String, String>{...search.filters};
+                    filters.remove('q');
+                    filters.remove('sehir');
+                    filters.remove('kategori');
+                    if (keyword.text.trim().isNotEmpty) {
+                      filters['q'] = keyword.text.trim();
+                    }
+                    final cities = validated.values['cities'] as List?;
+                    if (cities?.length == 1) {
+                      filters['sehir'] = cities!.single as String;
+                    }
+                    final categories = validated.values['categories'] as List?;
+                    if (categories?.length == 1) {
+                      final index = const [
+                        'işçi',
+                        'personel',
+                        'belediye',
+                      ].indexOf(categories!.single as String);
+                      if (index >= 0) filters['kategori'] = '${index + 1}';
+                    }
                     for (final key in [
                       'yas',
                       'yasTarih',
@@ -929,7 +1086,10 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       filters['yas'] = '${validated.values['age']}';
                       filters['yasTarih'] = ageDate.text.trim();
                     }
-                    if (education != null) filters['egitim'] = education!;
+                    final education = validated.values['education'] as List?;
+                    if (education?.length == 1) {
+                      filters['egitim'] = education!.single as String;
+                    }
                     if (validated.values['kpssType'] != null) {
                       filters['kpss'] = '${validated.values['kpssType']}';
                     }
@@ -959,7 +1119,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
     } finally {
       // Dialog route çıkış animasyonu bitmeden TextField controller'ını dispose etme.
       await Future<void>.delayed(const Duration(milliseconds: 300));
-      for (final controller in [name, age, ageDate, type, score, year]) {
+      for (final controller in [
+        name,
+        age,
+        ageDate,
+        type,
+        score,
+        year,
+        keyword,
+      ]) {
         controller.dispose();
       }
     }
@@ -1024,23 +1192,28 @@ class _KamuHomePageState extends State<KamuHomePage> {
       return 'Kriterler okunamadı • Düzenle ile onarın';
     }
     final parts = <String>[];
-    final q = search.filters['q'];
+    final criteria = search.effectiveCriteria.values;
+    final q = criteria['keyword'] as String?;
     if (q != null && q.isNotEmpty) parts.add('"$q"');
-    final kategori = int.tryParse(search.filters['kategori'] ?? '') ?? 0;
-    if (kategori > 0 && kategori < _kategoriAdlari.length) {
-      parts.add(_kategoriAdlari[kategori]);
+    for (final key in [
+      'categories',
+      'cities',
+      'occupations',
+      'institutions',
+      'education',
+    ]) {
+      final selected = criteria[key] as List?;
+      if (selected != null && selected.isNotEmpty) {
+        parts.add(selected.join(', '));
+      }
     }
-    if (search.filters['son30'] == '1') parts.add('son 30 gün');
-    final sehir = search.filters['sehir'];
-    if (sehir != null && sehir.isNotEmpty) parts.add(sehir);
-    final yas = search.filters['yas'];
-    if (yas != null && yas.isNotEmpty) parts.add('yaş $yas');
-    final egitim = search.filters['egitim'];
-    if (egitim != null && egitim.isNotEmpty) parts.add(egitim);
-    final kpss = search.filters['kpss'];
+    if (criteria['last30'] == true) parts.add('son 30 gün');
+    final yas = criteria['age'];
+    if (yas != null) parts.add('yaş $yas');
+    final kpss = criteria['kpssType'] as String?;
     if (kpss != null && kpss.isNotEmpty) parts.add('KPSS $kpss');
-    final score = search.criteria?.values['kpssScore'];
-    final year = search.criteria?.values['kpssYear'];
+    final score = criteria['kpssScore'];
+    final year = criteria['kpssYear'];
     if (score != null) parts.add('$score puan');
     if (year != null) parts.add('$year sınavı');
     return parts.isEmpty ? 'Süzgeç yok' : parts.join(' • ');
@@ -1062,7 +1235,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
               ),
             ),
             const SizedBox(width: 10),
-            const Text('KamuBul'),
+            const Expanded(
+              child: Text(
+                'KamuBul',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [
