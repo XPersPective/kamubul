@@ -128,4 +128,15 @@ tarihini tekrar kontrol eder; arada başarılı heartbeat varsa kayıtlar korunu
 Rate-limit expiry indeksiyle/pass 100 süresi dolmuş sayaç, 30 günden eski günlük
 AI bütçesinden/pass 30 satır temizlenir; bugünkü bütçe korunur. Büyük backlog'un
 temizlenme süresi ve CPU/row-write kapasitesi ölçüm bekler. Aktif kurulumların
-bildirim geçmişi ve katalog log'u henüz budanmaz; pinned cursor politikası açık.
+bildirim geçmişinin sunum payload'u aşağıdaki arşiv politikasıyla küçültülür;
+katalog log'u henüz budanmaz, pinned katalog cursor politikası açık.
+
+Migration0008 accepted_at/id partial indeksi ile bakım slotu en çok20 adet
+90 günü geçmiş accepted bildirimi archived yapar. Payload `{}` olur; FCM
+provider ID/hata içeriği kaldırılır. Kimlik, installation+listing UNIQUE,
+history_seq ve digest bağı korunur: eski bir ilan tekrar push kuyruğuna girmez,
+imleç gerilemez. Pending/leased digest üyeleri varsa o gruba dokunulmaz.
+History endpoint yalnız accepted satırları gösterir; archived sıraların üzerinden
+boş son sayfa pinned watermark'a ilerleyebilir. Yerel bounded history cache bu
+işlemle zorla silinmez. Dedupe tombstone satırları stale-owner cleanup'a kadar
+kalır; çok uzun ömürlü kurulumlarda toplam satır kapasitesi hâlâ ölçüm konusudur.

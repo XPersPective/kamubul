@@ -261,6 +261,11 @@ export async function maintainRegistry(env,now=new Date()){
     ]);
   }
   await env.DB.batch([
+    // Keep identity/sequence tombstones for dedupe and stable cursors; source/preferences payloads expire after 90 days.
+    env.DB.prepare(`UPDATE notification_outbox SET state='archived',payload='{}',fcm_id=NULL,error_code=NULL WHERE id IN (
+      SELECT o.id FROM notification_outbox o INDEXED BY outbox_accepted_retention WHERE o.state='accepted' AND o.accepted_at<=?
+      AND NOT EXISTS(SELECT 1 FROM notification_outbox p WHERE p.delivery_id=COALESCE(o.delivery_id,o.id) AND p.state IN ('pending','leased'))
+      ORDER BY o.accepted_at,o.id LIMIT 20)`).bind(new Date(+now-90*86400000).toISOString()),
     env.DB.prepare('DELETE FROM rate_limits WHERE key IN (SELECT key FROM rate_limits WHERE expires_at<=? ORDER BY expires_at,key LIMIT 100)').bind(timestamp),
     env.DB.prepare('DELETE FROM daily_usage WHERE day IN (SELECT day FROM daily_usage WHERE day<? ORDER BY day LIMIT 30)').bind(new Date(+now-30*86400000).toISOString().slice(0,10))
   ]);

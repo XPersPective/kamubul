@@ -158,6 +158,24 @@ void main() {
     );
   });
 
+  test('archived server rows allow an empty final page to advance the pinned cursor', () {
+    final page = NotificationHistoryPage.decode(
+      {
+        'schemaVersion': 2,
+        'watermark': 20,
+        'appliedThrough': 20,
+        'hasMore': false,
+        'next': null,
+        'items': [],
+      },
+      after: 10,
+      expectedWatermark: 20,
+    );
+    expect(page.records, isEmpty);
+    expect(page.appliedThrough, 20);
+    expect(page.hasMore, isFalse);
+  });
+
   test('history pages persist cursor and cache together; restart resumes frozen failed page', () async {
     identity();
     var fail = true;

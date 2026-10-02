@@ -135,7 +135,7 @@ export async function fetchRequest(request,env,ctx){
         json_object('title',substr(json_extract(payload,'$.title'),1,300),'url',substr(json_extract(payload,'$.url'),1,2048),
           'revision',json_extract(payload,'$.revision'),'searchIds',json_extract(payload,'$.searchIds'),
           'mode',json_extract(payload,'$.mode'),'digestCount',json_extract(payload,'$.digestCount')) payload
-        FROM notification_outbox WHERE installation_id=? AND history_seq>? AND history_seq<=? ORDER BY history_seq LIMIT ?`).bind(record.id,after,watermark,limit+1).all()).results;
+        FROM notification_outbox WHERE installation_id=? AND state='accepted' AND history_seq>? AND history_seq<=? ORDER BY history_seq LIMIT ?`).bind(record.id,after,watermark,limit+1).all()).results;
       const visible=rows.slice(0,limit),hasMore=rows.length>limit,appliedThrough=hasMore?visible.at(-1).history_seq:watermark;
       return json({schemaVersion:2,watermark,appliedThrough,hasMore,items:visible.map(r=>({...JSON.parse(r.payload),id:r.listing_id,eventId:r.id,deliveryId:r.delivery_id??r.id,state:'accepted',seq:r.history_seq,createdAt:r.created_at,acceptedAt:r.accepted_at})),next:hasMore?String(appliedThrough):null});
     }

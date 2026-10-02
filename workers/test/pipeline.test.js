@@ -15,6 +15,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0005_notification_sequence.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0006_listing_first_seq.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0007_maintenance.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0008_notification_archive.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -79,7 +80,7 @@ test('hourly maintenance expires bounded counters while preserving current budge
   sql.exec("INSERT INTO rate_limits VALUES('active',2,'2999-01-01'); INSERT INTO daily_usage VALUES('2000-01-01',20),('2999-01-01',20)");
   const prepare=DB.prepare,queries=[];DB.prepare=query=>{queries.push(query);return prepare(query);};
   await runScheduled({DB},59*60000);
-  assert.equal(queries.length,3);
+  assert.equal(queries.length,4);
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM rate_limits').get().n,2);
   assert.deepEqual(sql.prepare('SELECT day,ai_jobs FROM daily_usage').all().map(x=>({...x})),[{day:'2999-01-01',ai_jobs:20}]);
   const plan=sql.prepare('EXPLAIN QUERY PLAN SELECT key FROM rate_limits WHERE expires_at<=? ORDER BY expires_at,key LIMIT 100').all('now');
@@ -360,6 +361,39 @@ test('accepted history follows acceptance order, pins pages and bounds source pa
   assert.ok(plan.some(x=>x.detail.includes('installation_history_seq')));
   sql.prepare('DELETE FROM installations WHERE id=?').run(id);
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM notification_outbox WHERE installation_id=?').get(id).n,0);
+});
+
+test('archived history preserves pinned cursors and later acceptances',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());const id='a'.repeat(32),secret='b'.repeat(64);
+  sql.prepare("INSERT INTO installations(id,secret_hash,token,platform,preferences,updated_at) VALUES(?,?,'token','android','{}','2999-01-01')").run(id,await sha256(secret));
+  const add=key=>sql.prepare("INSERT INTO notification_outbox(id,installation_id,listing_id,payload,state,due_at,created_at) VALUES(?,?,?,?,'accepted','now','now')").run(key,id,key,JSON.stringify({title:'Memur',url:'https://example.gov.tr/'+key,mode:'instant',searchIds:['s'],revision:1}));
+  const get=query=>fetchRequest(new Request('https://api/api/v2/installations/'+id+'/notifications'+query,{headers:{Authorization:'Bearer '+secret}}),{DB},{});
+  add('first');add('second');
+  const first=await(await get('?limit=1')).json();assert.equal(first.watermark,2);assert.equal(first.next,'1');
+  sql.exec("UPDATE notification_outbox SET accepted_at='2000-01-01' WHERE history_seq<=2");
+  add('new');
+  await maintainRegistry({DB},new Date());
+  const pinnedResponse=await get('?after=1&watermark=2&limit=1');assert.equal(pinnedResponse.status,200);
+  const pinned=await pinnedResponse.json();assert.deepEqual(pinned.items,[]);assert.equal(pinned.appliedThrough,2);assert.equal(pinned.hasMore,false);
+  const newer=await(await get('?after=2')).json();assert.deepEqual(newer.items.map(x=>x.eventId),['new']);assert.equal(newer.appliedThrough,3);
+  assert.equal((await get('?after=3')).status,200);
+  assert.equal(sql.prepare('SELECT seq FROM notification_sequence').get().seq,3);
+});
+
+test('history archival bounds payload writes, preserves dedupe and incomplete digest members',async t=>{
+  const {sql,env}=notifications(t,22),{DB}=env;
+  sql.exec("UPDATE notification_outbox SET state='accepted'; UPDATE notification_outbox SET accepted_at='2000-01-01',fcm_id='provider'; UPDATE notification_outbox SET delivery_id='group' WHERE id='event0'; INSERT INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at,delivery_id) VALUES('pending','device','pending','{}','now','now','group')");
+  await maintainRegistry({DB},new Date());
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE state='archived'").get().n,20);
+  assert.equal(sql.prepare("SELECT state FROM notification_outbox WHERE id='event0'").get().state,'accepted');
+  await maintainRegistry({DB},new Date());
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE state='archived' AND payload='{}' AND fcm_id IS NULL").get().n,21);
+  sql.exec("INSERT OR IGNORE INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES('duplicate','device','notice01','{}','now','now')");
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE id='duplicate'").get().n,0);
+  assert.equal(sql.prepare("SELECT state FROM notification_outbox WHERE id='pending'").get().state,'pending');
+  assert.equal(sql.prepare('SELECT seq FROM notification_sequence').get().seq,22);
+  const plan=sql.prepare("EXPLAIN QUERY PLAN SELECT id FROM notification_outbox INDEXED BY outbox_accepted_retention WHERE state='accepted' AND accepted_at<=? ORDER BY accepted_at,id LIMIT 20").all('now');
+  assert.ok(plan.some(x=>x.detail.includes('outbox_accepted_retention')));
 });
 
 test('history migration preserves accepted rows and skips pending rows',t=>{

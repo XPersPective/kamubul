@@ -94,6 +94,13 @@ V1 mevcut referans; v2 ayrı schema. İlk compatibility snapshot pilotu v1'i kı
 | PUT/DELETE /api/v2/installations/{id} | anonymous bearer own-record only, registry version, criteria limits/validation; private no-store |
 | GET /api/v2/installations/{id}/notifications | auth, bounded retained event history/cursor; private no-store |
 
+Bildirim geçmişinin başlangıç sunucu saklama penceresi90 gündür. Süresi geçen
+accepted içerik bounded bakımda kaldırılır; tekrar gönderimi önleyen kimlik ve
+monoton sıra tombstone'u korunur. Yarım digest grubu atılmaz; geçmişte boş kalan
+sıralar imleci geriletmez. Yerel en çok100 kayıt cache ayrıca yönetilir. Dedupe
+tombstone toplam kapasitesi ve terminal failed/cancelled payload saklama sınırı
+ölçümle tamamlanmalıdır; yalnız içerik arşivi tüm retention'ın tamamlanması değildir.
+
 Timestamp sourcePublishedAt/firstSeenAt/sourceUpdatedAt/fetchedAt farklı; yalnız timestamp ile sync yok. Monoton seq authoritative. Change log immutable payload; canlı listings tablosundan son değeri çekip watermark sonrası değişiklikleri eski sayfaya sızdırma yok. Full snapshot ilk sayfada frozen watermark/revision; tüm sayfalar aynı snapshot (materialized veya eşdeğer revision store). Yarıda sync aynı snapshot'tan sürer veya baştan; stable paginate sadece id/time ile güncellemeyi kaçırmaz.
 
 SQLite upsert ve cursor tek transaction; explicit null eskiden çıkarılmış koşulu temizler; kişisel favori/arama flags değiştirilmez. Tombstone ilanı current listeden kaldırır, favoriyi unavailable yapar. Min retained seq'den eski cursor full snapshot gerekir; yerel bookmark/profile/arama durur. Full snapshot bittiğinde görünmeyen unsaved remote records reconcile edilir. Per-page ETag key watermark/cursor ile; bütün meta latestSeq ileri diye tamamlanmamış sayfayı atlama yok.
