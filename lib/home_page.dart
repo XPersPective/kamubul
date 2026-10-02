@@ -57,6 +57,7 @@ class KamuHomePage extends StatefulWidget {
     this.reviewService,
     this.ratePolicy,
     this.catalogueClient,
+    this.otherAppsRepository,
   });
 
   final AppIdentity identity;
@@ -73,6 +74,7 @@ class KamuHomePage extends StatefulWidget {
   final ReviewService? reviewService;
   final RatePromptPolicy? ratePolicy;
   final RemoteCatalogueClient? catalogueClient;
+  final OtherAppsRepository? otherAppsRepository;
 
   @override
   State<KamuHomePage> createState() => _KamuHomePageState();
@@ -119,6 +121,52 @@ class _KamuHomePageState extends State<KamuHomePage> {
   late final ReviewService _review = widget.reviewService ?? ReviewService();
   late final RatePromptPolicy _ratePolicy =
       widget.ratePolicy ?? RatePromptPolicy();
+  late final OtherAppsRepository? _otherApps = _otherAppsRepository();
+
+  OtherAppsRepository? _otherAppsRepository() {
+    final injected = widget.otherAppsRepository;
+    if (injected != null) return injected;
+    final raw = widget.identity.otherAppsUrl;
+    final uri = raw == null ? null : Uri.tryParse(raw);
+    if (raw == null ||
+        raw.length > 2048 ||
+        uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty) {
+      return null;
+    }
+    return OtherAppsRepository(
+      appsUrl: raw,
+      cacheStore: widget.store,
+      // Real napp_apps catalogue snapshot; first offline launch also has content.
+      embedded: const [
+        OtherApp(
+          id: 'doctorfilter',
+          androidPackage: 'com.crazypenguin.doctorfilter',
+          iconUrl: 'https://raw.githubusercontent.com/XPersPective/napp_apps/HEAD/icons/doctorfilter.png',
+          name: {
+            'tr': 'DoctorFilter: Mavi Işık Filtre',
+            'en': 'DoctorFilter Blue Light Filter',
+          },
+          description: {
+            'tr': 'Mavi ışık filtresi ve ekran karartma: Kelvin ile gece modu, zamanlayıcı',
+            'en': 'Blue light filter & screen dimmer: warm night mode in Kelvin, extra dim, timer',
+          },
+        ),
+      ],
+    );
+  }
+
+  void _openOtherApps() {
+    final repository = _otherApps;
+    if (repository == null) return;
+    Navigator.of(context).push(
+      sharedAxisRoute<void>(
+        OtherAppsPage(identity: widget.identity, repository: repository),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -1491,24 +1539,36 @@ class _KamuHomePageState extends State<KamuHomePage> {
           if (!widget.pro.isPro) BannerAdWidget(controller: widget.banner),
           NavigationBar(
             selectedIndex: _tab,
-            onDestinationSelected: (value) => setState(() => _tab = value),
-            destinations: const [
-              NavigationDestination(
+            onDestinationSelected: (value) {
+              if (value == 4) {
+                _openOtherApps();
+              } else {
+                setState(() => _tab = value);
+              }
+            },
+            destinations: [
+              const NavigationDestination(
                 icon: Icon(Icons.view_list_outlined),
                 label: 'İlanlar',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.bookmark_outline),
                 label: 'Kaydedilen',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.auto_awesome_outlined),
                 label: 'Rehber',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.tune_outlined),
                 label: 'Ayarlar',
               ),
+              if (_otherApps != null)
+                const NavigationDestination(
+                  icon: Icon(Icons.explore_outlined),
+                  selectedIcon: Icon(Icons.explore),
+                  label: 'Keşfet',
+                ),
             ],
           ),
         ],
@@ -2095,6 +2155,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   Widget _settingsView() => ListView(
     children: [
+      if (_otherApps != null)
+        ListTile(
+          leading: const Icon(Icons.explore_outlined),
+          title: const Text('Diğer uygulamalarımız'),
+          subtitle: const Text('Uygulamalarımızı keşfedin.'),
+          onTap: _openOtherApps,
+        ),
       const ListTile(
         title: Text('Görünüm ve üyelik'),
         subtitle: Text('Tercihler bu cihazda tutulur.'),

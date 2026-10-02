@@ -20,7 +20,11 @@ const privacyUrl = String.fromEnvironment(
       'https://github.com/XPersPective/kamubul/blob/master/PRIVACY.md',
 );
 const sourceUrl = 'https://github.com/XPersPective/kamubul';
-const otherAppsUrl = String.fromEnvironment('OTHER_APPS_URL');
+const otherAppsUrl = String.fromEnvironment(
+  'OTHER_APPS_URL',
+  defaultValue:
+      'https://raw.githubusercontent.com/XPersPective/napp_apps/HEAD/apps.json',
+);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

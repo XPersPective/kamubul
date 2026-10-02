@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/home_page.dart';
@@ -61,6 +62,7 @@ class _Routes extends NavigatorObserver {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  final widgetHttpOverride = HttpOverrides.current;
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
   HttpOverrides.global = _NoNetwork();
@@ -105,6 +107,8 @@ void main() {
     WidgetTester tester, {
     RemoteCatalogueClient? client,
     NavigatorObserver? observer,
+    OtherAppsRepository? otherApps,
+    String? otherAppsUrl,
   }) async {
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = const Size(390, 844) * 2;
@@ -118,6 +122,14 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: [
+          NappLocalizationsDelegate(NappTranslations({})),
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        locale: const Locale('tr'),
+        supportedLocales: const [Locale('tr')],
         navigatorObservers: [?observer],
         debugShowCheckedModeBanner: false,
         home: KamuHomePage(
@@ -129,6 +141,7 @@ void main() {
             contactEmail: 'test@example.com',
             iconAsset: 'assets/brand/kamubul_icon.png',
             brandColor: Color(0xFF17659C),
+            otherAppsUrl: otherAppsUrl,
           ),
           store: settings,
           theme: theme,
@@ -139,6 +152,7 @@ void main() {
           rewarded: RewardedAdManager(policy: policy),
           saveAdState: () {},
           catalogueClient: client,
+          otherAppsRepository: otherApps,
         ),
       ),
     );
@@ -166,6 +180,78 @@ void main() {
       if (finder.evaluate().isNotEmpty) return;
     }
   }
+
+  testWidgets(
+    'Keşfet and settings share cached catalogue and exclude own app',
+    (tester) async {
+      var requests = 0;
+      final repository = OtherAppsRepository(
+        appsUrl: 'https://catalogue.example/apps.json',
+        cacheStore: SettingsStore(),
+        client: MockClient((_) async {
+          requests++;
+          return http.Response(
+            jsonEncode({
+              'schema': 1,
+              'apps': [
+                for (final package in [
+                  'com.crazypenguin.kamubul',
+                  'com.crazypenguin.doctorfilter',
+                ])
+                  {
+                    'id': package,
+                    'androidPackage': package,
+                    'name': {'tr': package},
+                    'description': {'tr': 'Uygulama'},
+                  },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      await pumpHome(tester, otherApps: repository);
+      tester.view.physicalSize = const Size(320, 844) * 2;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pump();
+      await tester.tap(find.text('Keşfet'));
+      await settleUntil(tester, find.text('com.crazypenguin.doctorfilter'));
+      await tester.pumpAndSettle();
+      expect(find.byType(OtherAppsPage), findsOneWidget);
+      expect(find.text('com.crazypenguin.kamubul'), findsNothing);
+      expect(requests, 1);
+      expect(tester.takeException(), isNull);
+      Navigator.of(tester.element(find.byType(OtherAppsPage))).pop();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ayarlar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Diğer uygulamalarımız'));
+      await settleUntil(tester, find.text('com.crazypenguin.doctorfilter'));
+      await tester.pumpAndSettle();
+      expect(find.byType(OtherAppsPage), findsOneWidget);
+      expect(requests, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('first offline discovery uses real bundled catalogue', (
+    tester,
+  ) async {
+    // Flutter's HTTP override returns 400, allowing client construction but
+    // denying requests (the source override throws at construction instead).
+    HttpOverrides.global = widgetHttpOverride;
+    addTearDown(() => HttpOverrides.global = _NoNetwork());
+    await pumpHome(
+      tester,
+      otherAppsUrl: 'https://raw.githubusercontent.com/XPersPective/napp_apps/HEAD/apps.json',
+    );
+    await tester.tap(find.text('Keşfet'));
+    await settleUntil(tester, find.text('DoctorFilter: Mavi Işık Filtre'));
+    await tester.pumpAndSettle();
+    expect(find.text('DoctorFilter: Mavi Işık Filtre'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   http.Response detailResponse(String id, {int revision = 1}) =>
       http.Response.bytes(

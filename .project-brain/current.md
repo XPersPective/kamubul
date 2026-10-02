@@ -3,6 +3,19 @@
 30 Eylül 2026 geçiş başlangıç noktası. Bu belge çalışan/depo içinde bulunan durumu anlatır; hedef mimari target.md, uygulama sırası tasks/ içindedir. Eski mimari anlatımları Git geçmişindedir.
 
 ## 1. Gerçek durum ve sınır
+
+Template uyumu2 Ekim: napp_app_template master7101480 GitHub fetch/fast-forward
+kontrolünde güncel. KamuBul mevcut core-v1.0.0 OtherAppsPage/Repository ile
+beşinci Keşfet menüsü ve Ayarlar→Diğer uygulamalarımız erişimini kullanır;
+diğer dört sekmenin indeksleri korunur. OTHER_APPS_URL varsayılanı gerçek
+napp_apps/HEAD/apps.json, explicit empty disable. HTTPS URL sınırı, uygulama
+ömründe tek repository, SettingsStore24h cache ve ilk offline açılış için gerçek
+DoctorFilter tr/en embedded kaydı var; kendi package listeden çıkarılır.
+Canlı public catalogue200/schema1/1 DoctorFilter kaydı doğrulandı. Ortak
+repository ağ cevabı boyut/redirect sınırı bu değişiklikte sertleştirilmedi;
+tam üretim trust-boundary denetimi açık.151 Flutter full/14 tap+discovery,
+changed3 analyze ve diff-check geçti; actual Firebase/API debug APK
+223528691bytes/30.6s. Fiziksel cihaz kurulumu/release görsel kanıtı yok.
 Mobil bildirim dokunuşu: FCM listingId+revision foreground/background/initial message, local plugin payload ve secure/history kaydında korunur; accepted history mevcut id/revision alanlarını okur. Version1 bounded JSON ve eski URL payload uyumlu; HTTPS/host/no-userinfo,ID<=200,payload16KB,optional revision safe positive integer. Home canonical ID+gereken revizyon cache-first okur; eksik/eski kayıtta bounded API fetch→aynı UTC/scoped-summary projection→OfficialListingPage, otomatik resmî detail fetch yok. Ağ hatasında eski önbellek açık stale uyarısıyla kullanılabilir; inactive/404/hata ayrı. Legacy URL-only taps eski yerel/external yolu korur.
 SQLite schema9 remote_details son20/8MiB public ayrıntı cache'idir, main catalogue/cursor/favori/arama yazmaz. Origin switch cache'i temizler; snapshot detail_epoch eski in-flight response'u reddeder, normal interrupted bootstrap cache'i korur, confirmed seq reset cache'i temizler. Snapshot öncesi cache'te olup tamamlanmış active snapshot'ta eksik ID unavailable görünür; snapshot sonrası detail daha yeni revision ise frozen snapshot/delta tarafından geriletilmez. Tamamlanmış aynı-origin metadata altında daha yeni canonical delta/tombstone üstün gelir.
 Home pending/active target ayrı tutulur: aynı ID/revision pending veya açıkken tekrar istek/route yok; daha yeni revision yeniden okunur ve eski bildirim route'u değiştirilir. Başka pending tap sırasında açık hedefe geri dokunmak bekleyen response açılışını iptal eder. Route kapanınca tekrar açılabilir; history tile merkezden çıkarak aynı canonical yolu kullanır. Navigation lifetime cold-start refresh'i ve HTTP client kapanışını bekletmez.149 Flutter full/12 tap checks ve changed analyze temiz; APK223525897bytes/46.7s gerçek Firebase/API ayarlarıyla rebuilt. Son readonly live21/42/applied42/detail/missing404/meta304.174 core önceki cache checkpoint'inde geçti, bu turn core değişmedi. Fiziksel ADB cihazı yok,5554/5556 emulators; OS delivery/closed app kabulü ve detail structured conditions/premium visual açık.
