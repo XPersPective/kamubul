@@ -824,9 +824,14 @@ test('indexed matching skips unrelated installations, resumes pages and dedupes 
   const prepare=DB.prepare,seen=[];let queries=0;
   DB.prepare=query=>{
     queries++;
-    if(query==='SELECT * FROM installations WHERE id=? AND enabled=1') {
-      const statement=prepare(query),bind=statement.bind;
-      statement.bind=function(id){seen.push(id);return bind.call(this,id);};return statement;
+    if(query.startsWith('SELECT s.*,i.version FROM installations')) {
+      const statement=prepare(query),all=statement.all,bind=statement.bind;let args=[];
+      statement.bind=function(...values){args=values;return bind.call(this,...values);};
+      statement.all=async function(){
+        const plan=sql.prepare('EXPLAIN QUERY PLAN '+query).all(...args).map(row=>row.detail);
+        assert.ok(!plan.some(detail=>/SCAN (?:i|s)(?:\s|$)/.test(detail)),JSON.stringify(plan));
+        const result=await all.call(this);seen.push(...result.results.map(s=>s.installation_id));return result;
+      };return statement;
     }
     assert.ok(!query.includes('FROM installations WHERE enabled=1 AND id>'));
     return prepare(query);
@@ -834,11 +839,12 @@ test('indexed matching skips unrelated installations, resumes pages and dedupes 
   for(let n=0;n<10;n++) {
     queries=0;
     await matchEvents({DB});
-    assert.ok(queries<=38,`matching query budget: ${queries}`);
+    assert.ok(queries<=20,`matching query budget: ${queries}`);
     if(sql.prepare('SELECT state FROM match_events').get().state==='completed')break;
   }
   assert.equal(sql.prepare('SELECT state FROM match_events').get().state,'completed');
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM notification_outbox').get().n,17);
+  assert.ok(seen.includes('matching00')&&seen.includes('matching14')&&seen.includes('double'));
   assert.ok(!seen.some(id=>id.startsWith('unrelated')));
   assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE installation_id IN ('unknown','new')").get().n,0);
   const double=JSON.parse(sql.prepare("SELECT payload FROM notification_outbox WHERE installation_id='double'").get().payload);

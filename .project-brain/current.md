@@ -24,7 +24,7 @@ Transient D1 7403 retry ile geçti; sonraki readonly state sorguları başarıl�
 ## 2. Kalıcı bulut ve güvenli yapılandırma
 
 - Worker `kamubul-api`: https://kamubul-api.devx8585.workers.dev;
-  son CLI deployment version `5dbc7649-f310-4ea9-8975-de3b3edbf765`,100%.
+  son CLI deployment version `cdc82483-b04b-4405-bfc8-9719298cd16c`,100%.
   D1 `kamubul`, UUID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB;
   migration0001–0015 remote. Free $0 plan önce konsolda gözlendi, upgrade yok.
 - `workers/wrangler.jsonc`: AI binding `@cf/meta/llama-3.1-8b-instruct`,
@@ -227,10 +227,16 @@ HTTP522/SBB579ms blocked; session kapalı, prod write/deploy/AI/FCM yok.
 Production readonly23/23 unavailable; Kariyer yeni tur processing16:18attempt,
 last_success15:45;0write. Kaynak full-detail engeli güncel olarak doğrulandı.
 Yerel wide-match tool100/1000/10000 kurulumda11/101/1001 matching round,
-max34SQL/round ve eksiksiz/idempotent pending outbox doğrular. Scheduler480
+max15SQL/round ve eksiksiz/idempotent pending outbox doğrular.10k SQL sayısı
+34004→15004; ten-owner indexed JOIN enabled/search/version/baseline birlikte
+okur. EXPLAIN full owner/search scan yok; unrelated/unknown/new-subscription/
+multi-facet regresyonu geçti.149 native/dry-run/deploy doğrulandı. Scheduler480
 match/456send günlük slot üretir; tek kurulum/invocation nedeniyle10k eşleşmede
 ideal steady-state gönderim iş yükü21.93gün. Fast10k kabulü geçmedi; cloud
 CPU/D1 counter kanıtı değildir. docs/FANOUT_CAPACITY.md/PB-021 sonraki kapıdır.
+cdc82483 sonrası live readonly watermark46/catalogue23/applied46/detail/missing404/
+meta304 geçti; sources Kariyerok ve diğer3blocked. Nonempty cloud fanout/
+OAuth send CPU/gerçek teslim ölçülmedi; yeni Queue kaynağı yok.
 
 Son doğrulama:171 Flutter full,181 core full,149 Worker native; changed Dart
 analyze ve diff-check temiz. SQLite race tests:

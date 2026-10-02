@@ -6,9 +6,15 @@ tüm migration'lar ve gerçek `matchEvents` kullanılır. Veritabanı yalnız be
 
 | Tek yeni ilan için eşleşen kurulum | Matching invocation | SQL execution | En büyük invocation SQL | Yerel wall p95/p99 ms |
 | --- | ---: | ---: | ---: | ---: |
-| 100 | 11 | 344 | 34 | 16.41 / 16.41 |
-| 1.000 | 101 | 3.404 | 34 | 4.31 / 6.06 |
-| 10.000 | 1.001 | 34.004 | 34 | 4.91 / 6.32 |
+| 100 | 11 | 154 | 15 | 6.11 / 6.11 |
+| 1.000 | 101 | 1.504 | 15 | 2.36 / 3.04 |
+| 10.000 | 1.001 | 15.004 | 15 | 2.39 / 3.03 |
+
+Eşleştirici sayfanın on kurulum/kriterini tek parametrik JOIN ile okur; enabled,
+mode ve abonelik başlangıç seq koşulları aynı snapshot'ta uygulanır. Önceki
+ayrı kurulum+arama okumalarında10k34.004 SQL/max34 vardı; şimdi15.004/max15.
+Native EXPLAIN kontrolü installations/saved_searches tam taramasını reddeder;
+unrelated/unknown/new subscription ve duplicate-facet regresyonları geçer.
 
 Her kurulum wildcard/instant arama taşır. Her biri için tam bir pending outbox
 oluştuğu, cursor'ın tamamlandığı, replay'de duplicate olmadığı ve invocation
@@ -34,3 +40,10 @@ send batch; gerçek Worker CPU, subrequest/D1 maliyeti, OAuth ve FCM ile kabul.
 Kapasiteyi artırmak için limitsiz loop/paid upgrade açılmaz. Mevcut resmi
 [Workers limits](https://developers.cloudflare.com/workers/platform/limits/)
 Free Cron CPU10ms ve50 subrequest sınırını bildirir; local wall bu CPU değildir.
+
+Queues'ın [güncel fiyatlandırması](https://developers.cloudflare.com/queues/platform/pricing/)
+Free günlük10.000 operasyon/24h retention gösterir; write/read/delete normalde
+3operasyon ve retry ek read tüketir. Alıcı başına Queue mesajı10k push için
+30k normal operasyon oluşturur. Bu yüzden yalnız Queue ekleyerek kapasite
+kanıtlanamaz; bounded batch/dispatch bütçesi ve D1 authoritative recovery gerekir.
+Queues altyapısı henüz oluşturulmadı/etkin değil, ücretli upgrade yok.

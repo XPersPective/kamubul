@@ -208,12 +208,16 @@ export async function matchEvents(env){
   // ponytail: ten indexed recipients / up to four empty facets per Cron; wide matches still need measured Free fanout capacity.
   for(let step=0;step<4&&facet<keys.length;step++) {
     const candidates=(await env.DB.prepare('SELECT installation_id FROM installation_facets WHERE key=? AND installation_id>? ORDER BY installation_id LIMIT 10').bind(keys[facet],cursor).all()).results;
+    const searchesByOwner=new Map();
+    if(candidates.length){
+      const searches=(await env.DB.prepare(`SELECT s.*,i.version FROM installations i JOIN saved_searches s ON s.installation_id=i.id WHERE i.enabled=1 AND i.id IN (${candidates.map(()=>'?').join(',')}) AND s.mode!='off' AND s.effective_after<?`).bind(...candidates.map(c=>c.installation_id),eventSeq).all()).results;
+      for(const search of searches){const owner=searchesByOwner.get(search.installation_id)??[];owner.push(search);searchesByOwner.set(search.installation_id,owner);}
+    }
     for(const candidate of candidates) {
-      const device=await env.DB.prepare('SELECT * FROM installations WHERE id=? AND enabled=1').bind(candidate.installation_id).first();
-      if(!device)continue;
-      const searches=(await env.DB.prepare("SELECT * FROM saved_searches WHERE installation_id=? AND mode!='off' AND effective_after<?").bind(device.id,eventSeq).all()).results;
+      const searches=searchesByOwner.get(candidate.installation_id)??[];
       const matching=searches.filter(s=>matchListing(listing,JSON.parse(s.criteria))==='match');
       if(!matching.length)continue;
+      const device={id:candidate.installation_id,version:matching[0].version};
       const payload={...listing,eventId:event.id,searchIds:matching.map(s=>s.id),mode:matching.some(s=>s.mode==='instant')?'instant':'digest',preferencesVersion:device.version};
       await env.DB.prepare('INSERT OR IGNORE INTO notification_outbox(id,installation_id,listing_id,payload,due_at,created_at) VALUES(?,?,?,?,?,?)')
         .bind(await sha256(device.id+':'+listing.id),device.id,listing.id,JSON.stringify(payload),payload.mode==='digest'?digestDue(new Date(now)):now,now).run();
