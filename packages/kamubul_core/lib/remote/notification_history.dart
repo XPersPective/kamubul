@@ -79,6 +79,14 @@ class NotificationHistoryPage {
         throw const FormatException('notification history identity');
       }
       final listingId = row['id'];
+      final revision = row['revision'];
+      if (revision != null &&
+          (listingId == null ||
+              revision is! int ||
+              revision < 1 ||
+              revision > 9007199254740991)) {
+        throw const FormatException('notification listing revision');
+      }
       if (listingId != null &&
           (listingId is! String ||
               listingId.isEmpty ||
@@ -96,6 +104,7 @@ class NotificationHistoryPage {
               : 'Sunucu bildirimi',
           listingUrl: url,
           listingId: listingId as String?,
+          listingRevision: revision as int?,
           createdAt: DateTime.parse(date).toLocal(),
           delivery: AlertDelivery.accepted,
         ),

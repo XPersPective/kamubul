@@ -12,6 +12,7 @@ import 'package:kamubul_core/kamubul_core.dart'
         SearchCriteria,
         educationLabel,
         RemoteCatalogueClient,
+        RemoteCatalogueException,
         decodeAlertTap,
         CriteriaMatch;
 import 'package:napp_ads/napp_ads.dart';
@@ -156,25 +157,64 @@ class _KamuHomePageState extends State<KamuHomePage> {
         final generation = await _store.bindRemoteOrigin(
           catalogueOrigin(client),
         );
-        final item = await client.fetchListing(target.listingId!);
-        // An A→B→A switch or newer tap must not open an obsolete response.
-        await _store.remoteCursor(expectedGeneration: generation);
-        if (!mounted || tapGeneration != _alertTapGeneration) return;
-        if (item == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bu ilan artık sunucuda bulunmuyor.')),
-          );
-          return;
+        final epoch = await _store.remoteDetailEpoch(
+          expectedGeneration: generation,
+        );
+        var item = await _store.cachedRemoteDetail(
+          target.listingId!,
+          expectedGeneration: generation,
+          expectedEpoch: epoch,
+        );
+        var fromCache =
+            item != null && (item['revision'] as int) >= (target.revision ?? 1);
+        if (!fromCache) {
+          try {
+            final fetched = await client.fetchListing(target.listingId!);
+            if (fetched == null) {
+              await _store.cachedRemoteDetail(
+                target.listingId!,
+                expectedGeneration: generation,
+                expectedEpoch: epoch,
+              );
+              if (mounted && tapGeneration == _alertTapGeneration) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Bu ilan artık sunucuda bulunmuyor.'),
+                  ),
+                );
+              }
+              return;
+            }
+            item = await _store.cacheRemoteDetail(
+              target.listingId!,
+              fetched,
+              expectedGeneration: generation,
+              expectedEpoch: epoch,
+            );
+          } on RemoteCatalogueException {
+            // Network failure retains cached data; a newer delta/tombstone wins.
+            item = await _store.cachedRemoteDetail(
+              target.listingId!,
+              expectedGeneration: generation,
+              expectedEpoch: epoch,
+            );
+            if (item == null) rethrow;
+            fromCache = true;
+          }
         }
+        if (!mounted || tapGeneration != _alertTapGeneration) return;
         final detail = ListingStore.projectRemoteListing(item);
         if (detail == null) throw const FormatException('invalid detail');
-        // ponytail: detail is transient until an isolated revision/generation-safe
-        // cache write is implemented; never publish it into a frozen bootstrap.
         Navigator.of(context).push(
           sharedAxisRoute<void>(
             OfficialListingPage(
               listing: detail,
               unavailable: item['active'] == false,
+              cacheNotice: (item['revision'] as int) < (target.revision ?? 1)
+                  ? 'Güncel ayrıntı alınamadı. Önbellekteki eski bilgiler gösteriliyor.'
+                  : fromCache
+                  ? 'Önbellekteki ilan bilgileri gösteriliyor.'
+                  : null,
             ),
           ),
         );

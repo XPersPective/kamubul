@@ -1,22 +1,30 @@
 import 'dart:convert';
 
 /// Local plugin payload and FCM tap use the same bounded target; old URLs still read.
-({String url, String? listingId})? decodeAlertTap(String? payload) {
+({String url, String? listingId, int? revision})? decodeAlertTap(
+  String? payload,
+) {
   if (payload == null || payload.length > 16384) return null;
-  Object? url = payload, id;
+  Object? url = payload, id, revision;
   if (payload.startsWith('{')) {
     try {
       final raw = jsonDecode(payload);
       if (raw is! Map || raw['version'] != 1) return null;
       url = raw['url'];
       id = raw['listingId'];
+      revision = raw['revision'];
     } on FormatException {
       return null;
     }
   }
   if (url is! String ||
       url.length > 2048 ||
-      (id != null && (id is! String || id.isEmpty || id.length > 200))) {
+      (id != null && (id is! String || id.isEmpty || id.length > 200)) ||
+      (revision != null &&
+          (id == null ||
+              revision is! int ||
+              revision < 1 ||
+              revision > 9007199254740991))) {
     return null;
   }
   final uri = Uri.tryParse(url);
@@ -26,12 +34,22 @@ import 'dart:convert';
       uri.userInfo.isNotEmpty) {
     return null;
   }
-  return (url: uri.toString(), listingId: id as String?);
+  return (
+    url: uri.toString(),
+    listingId: id as String?,
+    revision: revision as int?,
+  );
 }
 
-String alertTapPayload(String url, {String? listingId}) => listingId == null
+String alertTapPayload(String url, {String? listingId, int? revision}) =>
+    listingId == null
     ? url
-    : jsonEncode({'version': 1, 'url': url, 'listingId': listingId});
+    : jsonEncode({
+        'version': 1,
+        'url': url,
+        'listingId': listingId,
+        'revision': ?revision,
+      });
 
 int _alertIdSeed = 0;
 
@@ -90,6 +108,7 @@ class AlertRecord {
     required this.listingUrl,
     required this.createdAt,
     this.listingId,
+    this.listingRevision,
     this.delivery = AlertDelivery.held,
     this.deliveredAt,
   });
@@ -102,6 +121,7 @@ class AlertRecord {
     required String body,
     required String listingUrl,
     String? listingId,
+    int? listingRevision,
     DateTime? createdAt,
     AlertDelivery delivery = AlertDelivery.held,
     DateTime? deliveredAt,
@@ -115,6 +135,7 @@ class AlertRecord {
       body: body,
       listingUrl: listingUrl,
       listingId: listingId,
+      listingRevision: listingRevision,
       createdAt: created,
       delivery: delivery,
       deliveredAt: deliveredAt,
@@ -130,7 +151,12 @@ class AlertRecord {
   /// İlanın resmî bağlantısı; yalnızca https açılır.
   final String listingUrl;
   final String? listingId;
-  String get tapPayload => alertTapPayload(listingUrl, listingId: listingId);
+  final int? listingRevision;
+  String get tapPayload => alertTapPayload(
+    listingUrl,
+    listingId: listingId,
+    revision: listingRevision,
+  );
   final DateTime createdAt;
   AlertDelivery delivery;
   DateTime? deliveredAt;
@@ -143,6 +169,7 @@ class AlertRecord {
     'body': body,
     'listingUrl': listingUrl,
     if (listingId != null) 'listingId': listingId,
+    if (listingRevision != null) 'listingRevision': listingRevision,
     'createdAt': createdAt.millisecondsSinceEpoch,
     'delivery': delivery.name,
     'deliveredAt': deliveredAt?.millisecondsSinceEpoch,
@@ -155,11 +182,19 @@ class AlertRecord {
     final createdAt = raw['createdAt'];
     if (id is! String || createdAt is! int) return null;
     final listingId = raw['listingId'];
+    final listingRevision = raw['listingRevision'];
     if (listingId != null &&
         (listingId is! String || listingId.isEmpty || listingId.length > 200)) {
       return null;
     }
     String text(Object? value) => value is String ? value : '';
+    if (listingRevision != null &&
+        (listingId == null ||
+            listingRevision is! int ||
+            listingRevision < 1 ||
+            listingRevision > 9007199254740991)) {
+      return null;
+    }
     return AlertRecord(
       id: id,
       kind: AlertKind.parse(text(raw['kind'])),
@@ -168,6 +203,7 @@ class AlertRecord {
       body: text(raw['body']),
       listingUrl: text(raw['listingUrl']),
       listingId: listingId as String?,
+      listingRevision: listingRevision as int?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(createdAt),
       delivery: AlertDelivery.parse(text(raw['delivery'])),
       deliveredAt: raw['deliveredAt'] is int

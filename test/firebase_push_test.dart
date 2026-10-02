@@ -12,6 +12,7 @@ void main() {
           'url': 'https://kariyerkapisi.gov.tr/ilan',
           'kind': 'digest',
           'listingId': 'kariyer:opaque/with?#ü',
+          'revision': '7',
           'eventId': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         },
       ),
@@ -21,6 +22,7 @@ void main() {
     expect(notification?.listingUrl, 'https://kariyerkapisi.gov.tr/ilan');
     expect(notification?.digest, isTrue);
     expect(notification?.listingId, 'kariyer:opaque/with?#ü');
+    expect(notification?.listingRevision, 7);
     expect(
       decodeAlertTap(notification?.tapPayload)?.listingId,
       notification?.listingId,
@@ -40,6 +42,7 @@ void main() {
     expect(decodeAlertTap(target), (
       url: 'https://kariyerkapisi.gov.tr/ilan',
       listingId: 'kariyer:one',
+      revision: null,
     ));
     for (final id in ['', 'x' * 201, 1]) {
       expect(
@@ -57,6 +60,20 @@ void main() {
       ),
       'https://example.com/ilan',
     );
+    for (final revision in ['0', '-1', 'bad', '9007199254740992', 2]) {
+      expect(
+        notificationTapPayload(
+          RemoteMessage(
+            data: {
+              'url': 'https://example.com/ilan',
+              'listingId': 'one',
+              'revision': revision,
+            },
+          ),
+        ),
+        isNull,
+      );
+    }
   });
   test('sessiz veri mesajı ve geçersiz bağlantı bildirim üretmez', () {
     expect(

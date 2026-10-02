@@ -515,6 +515,7 @@ void main() {
       await store.saveRemoteMetadata('{"schemaVersion":2}', '"kept"', now);
       final db = await store.database;
       await db.execute('DROP TABLE remote_bootstrap');
+      await db.execute('DROP TABLE remote_details');
       await db.execute('ALTER TABLE remote_sync_state RENAME TO old_sync');
       await db.execute(
         'CREATE TABLE remote_sync_state (id INTEGER PRIMARY KEY CHECK(id=1), cursor INTEGER NOT NULL, metadata TEXT, metadata_etag TEXT, last_success INTEGER)',
@@ -529,6 +530,7 @@ void main() {
       expect((await store.remoteMetadata()).pendingBootstrap, false);
       expect((await store.allListings()).where((x) => x.saved), hasLength(1));
       expect(await store.savedSearches(), hasLength(1));
+      await ListingStore.upgradeSchema(db, 7, 9);
       await store.beginBootstrap(latest: 4, oldest: 3);
       await store.stageCataloguePage(
         const CataloguePage(4, [], null),

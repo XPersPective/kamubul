@@ -262,6 +262,65 @@ void main() {
       },
     );
   }
+  for (final requiredRevision in [1, 2]) {
+    testWidgets(
+      'cold cached detail revision $requiredRevision supports offline API without source fetch',
+      (tester) async {
+        var calls = 0;
+        final client = RemoteCatalogueClient(
+          baseUrl: Uri.parse('https://api.example.com'),
+          client: MockClient((request) async {
+            calls++;
+            expect(request.url.host, 'api.example.com');
+            return http.Response('', 503);
+          }),
+        );
+        await tester.runAsync(() async {
+          final store = ListingStore();
+          final generation = await store.bindRemoteOrigin(
+            'https://api.example.com',
+          );
+          final epoch = await store.remoteDetailEpoch(
+            expectedGeneration: generation,
+          );
+          await store.cacheRemoteDetail(
+            'kariyer:cached',
+            {
+              'id': 'kariyer:cached',
+              'revision': 1,
+              'active': true,
+              'sourceId': 'kariyerkapisi',
+              'title': 'OFFLINE AYRINTI',
+              'category': 'Personel',
+              'url': 'https://kariyerkapisi.gov.tr/current-alias',
+              'updatedAt': '2026-10-02T07:00:00Z',
+            },
+            expectedGeneration: generation,
+            expectedEpoch: epoch,
+          );
+        });
+        alertTapUrl.value = alertTapPayload(
+          'https://kariyerkapisi.gov.tr/old-alias',
+          listingId: 'kariyer:cached',
+          revision: requiredRevision,
+        );
+        await pumpHome(tester, client: client);
+        await settleUntil(tester, find.byType(OfficialListingPage));
+        expect(find.text('OFFLINE AYRINTI'), findsOneWidget);
+        expect(calls, requiredRevision == 1 ? 0 : 1);
+        expect(
+          find.text(
+            requiredRevision == 1
+                ? 'Önbellekteki ilan bilgileri gösteriliyor.'
+                : 'Güncel ayrıntı alınamadı. Önbellekteki eski bilgiler gösteriliyor.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.byType(KariyerDetailPage), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   testWidgets('old origin detail response cannot open after server switches', (
     tester,
   ) async {

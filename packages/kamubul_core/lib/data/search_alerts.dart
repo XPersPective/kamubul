@@ -53,6 +53,7 @@ class PendingNotification {
     this.digest = false,
     this.eventId,
     this.listingId,
+    this.listingRevision,
   });
 
   final String searchName;
@@ -60,7 +61,12 @@ class PendingNotification {
   final String body;
   final String listingUrl;
   final String? listingId;
-  String get tapPayload => alertTapPayload(listingUrl, listingId: listingId);
+  final int? listingRevision;
+  String get tapPayload => alertTapPayload(
+    listingUrl,
+    listingId: listingId,
+    revision: listingRevision,
+  );
 
   /// Günlük özet bildirimi mi (anlık günlük tavana sayılmaz).
   final bool digest;

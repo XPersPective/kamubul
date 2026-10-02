@@ -12,14 +12,16 @@ void main() {
       body: '',
       listingUrl: url,
       listingId: listingId,
+      listingRevision: 7,
     );
     final restored = decodeAlerts(encodeAlerts([record])).single;
     expect(restored.listingId, listingId);
     expect(decodeAlertTap(restored.tapPayload), (
       url: url,
       listingId: listingId,
+      revision: 7,
     ));
-    expect(decodeAlertTap(url), (url: url, listingId: null));
+    expect(decodeAlertTap(url), (url: url, listingId: null, revision: null));
     for (final payload in [
       'https:',
       'https://user:secret@example.com',
@@ -28,6 +30,8 @@ void main() {
       '{"version":2,"url":"$url"}',
       alertTapPayload(url, listingId: ''),
       alertTapPayload(url, listingId: 'x' * 201),
+      alertTapPayload(url, listingId: listingId, revision: 0),
+      alertTapPayload(url, listingId: listingId, revision: 9007199254740992),
       'x' * 16385,
     ]) {
       expect(decodeAlertTap(payload), isNull);

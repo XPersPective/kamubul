@@ -30,8 +30,15 @@ bool get firebaseConfigured =>
 String? notificationTapPayload(RemoteMessage message) {
   final url = message.data['url'];
   final id = message.data['listingId'];
+  final rawRevision = message.data['revision'];
+  final revision = rawRevision is String ? int.tryParse(rawRevision) : null;
+  if (rawRevision != null && (revision == null || id == null)) return null;
   if (url is! String || (id != null && id is! String)) return null;
-  final payload = alertTapPayload(url, listingId: id as String?);
+  final payload = alertTapPayload(
+    url,
+    listingId: id as String?,
+    revision: revision,
+  );
   return decodeAlertTap(payload) == null ? null : payload;
 }
 
@@ -55,6 +62,7 @@ PendingNotification? foregroundNotification(RemoteMessage message) {
     body: body,
     listingUrl: target.url,
     listingId: target.listingId,
+    listingRevision: target.revision,
     digest: message.data['kind'] == 'digest',
     eventId: eventId,
   );

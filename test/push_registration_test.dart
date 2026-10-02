@@ -101,6 +101,7 @@ void main() {
         {
           'seq': more ? 1 : watermark,
           'id': 'kariyer:stable',
+          'revision': 7,
           'eventId': (more ? 'a' : 'b') * 64,
           'deliveryId': (more ? 'a' : 'b') * 64,
           'state': 'accepted',
@@ -132,6 +133,9 @@ void main() {
       {'seq': 0},
       {'id': ''},
       {'id': 1},
+      {'revision': 0},
+      {'revision': '7'},
+      {'revision': 9007199254740992},
       {'id': 'x' * 201},
       {'eventId': 'invalid'},
       {'url': 'https://user:pass@example.com'},
@@ -238,6 +242,7 @@ void main() {
       listingUrl: 'https://example.gov.tr',
       eventId: 'a' * 64,
       listingId: 'kariyer:stable',
+      listingRevision: 7,
     );
     expect(
       await Future.wait([
@@ -249,6 +254,7 @@ void main() {
     expect(first.notificationHistory.single.delivery, AlertDelivery.received);
     final restarted = registrar();
     expect(restarted.notificationHistory.single.listingId, 'kariyer:stable');
+    expect(restarted.notificationHistory.single.listingRevision, 7);
     expect(await restarted.recordForeground(message), isFalse);
     await restarted.clearNotificationHistory();
     expect(restarted.notificationHistory, isEmpty);

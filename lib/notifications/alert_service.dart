@@ -28,6 +28,7 @@ void _setAlertTap(String? payload) {
     alertTapUrl.value = alertTapPayload(
       target.url,
       listingId: target.listingId,
+      revision: target.revision,
     );
   }
 }
@@ -260,6 +261,7 @@ Future<int> runAlertCheckOnce() async {
         body: record.body,
         listingUrl: record.listingUrl,
         listingId: record.listingId,
+        listingRevision: record.listingRevision,
       ),
     );
     await settings.markHistoryDelivered(record, now);

@@ -10,10 +10,12 @@ class OfficialListingPage extends StatelessWidget {
     super.key,
     required this.listing,
     this.unavailable = false,
+    this.cacheNotice,
   });
 
   final ListingRecord listing;
   final bool unavailable;
+  final String? cacheNotice;
 
   String _date(DateTime? value) => value == null
       ? 'Belirtilmemiş'
@@ -65,6 +67,10 @@ class OfficialListingPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(listing.title, style: theme.textTheme.headlineSmall),
+          if (cacheNotice != null) ...[
+            const SizedBox(height: 12),
+            Text(cacheNotice!),
+          ],
           if (unavailable) ...[
             const SizedBox(height: 12),
             const Text(

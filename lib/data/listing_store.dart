@@ -35,7 +35,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 8;
+  static const int _schemaVersion = 9;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -78,6 +78,7 @@ class ListingStore {
     await _addRemoteMetadata(db);
     await _addRemoteBootstrap(db);
     await _addRemoteOrigin(db);
+    await _addRemoteDetails(db);
   }
 
   static Future<void> _createRemoteTables(DatabaseExecutor db) async {
@@ -117,6 +118,16 @@ class ListingStore {
     if (oldVersion < 6 && newVersion >= 6) await _addRemoteMetadata(db);
     if (oldVersion < 7 && newVersion >= 7) await _addRemoteBootstrap(db);
     if (oldVersion < 8 && newVersion >= 8) await _addRemoteOrigin(db);
+    if (oldVersion < 9 && newVersion >= 9) await _addRemoteDetails(db);
+  }
+
+  static Future<void> _addRemoteDetails(Database db) async {
+    await db.execute(
+      'CREATE TABLE remote_details (id TEXT PRIMARY KEY, revision INTEGER NOT NULL, payload TEXT NOT NULL, touched INTEGER NOT NULL, epoch INTEGER NOT NULL)',
+    );
+    await db.execute(
+      'ALTER TABLE remote_sync_state ADD COLUMN detail_epoch INTEGER NOT NULL DEFAULT 0',
+    );
   }
 
   static Future<void> _addRemoteOrigin(Database db) async {
@@ -133,9 +144,11 @@ class ListingStore {
         final generation = row['generation'] as int;
         if (row['origin'] == origin) return generation;
         await txn.delete('remote_bootstrap');
+        await txn.delete('remote_details');
         await txn.update('remote_sync_state', {
           'origin': origin,
           'generation': generation + 1,
+          'detail_epoch': (row['detail_epoch'] as int) + 1,
           'cursor': 0,
           'metadata': null,
           'metadata_etag': null,
@@ -242,7 +255,13 @@ class ListingStore {
         );
       }
       await txn.delete('remote_bootstrap');
+      // A new snapshot may represent a reset server. Reject old in-flight details;
+      // details read after this pin remain separate from the frozen catalogue.
+      if ((state['cursor'] as int) > latest) {
+        await txn.delete('remote_details');
+      }
       await txn.update('remote_sync_state', {
+        'detail_epoch': (state['detail_epoch'] as int) + 1,
         'bootstrap_watermark': latest,
         'bootstrap_after': '',
         'bootstrap_base_cursor': state['cursor'],
@@ -330,6 +349,145 @@ class ListingStore {
     final state = (await db.query('remote_sync_state')).single;
     _checkRemoteGeneration(state, expectedGeneration);
     return state['cursor'] as int;
+  }
+
+  Future<int> remoteDetailEpoch({required int expectedGeneration}) async {
+    final state = (await (await database).query('remote_sync_state')).single;
+    _checkRemoteGeneration(state, expectedGeneration);
+    return state['detail_epoch'] as int;
+  }
+
+  static void _checkDetailEpoch(Map<String, Object?> state, int epoch) {
+    if (state['detail_epoch'] != epoch) {
+      throw const FormatException('remote detail snapshot changed');
+    }
+  }
+
+  Future<Map<String, Object?>?> cachedRemoteDetail(
+    String id, {
+    required int expectedGeneration,
+    required int expectedEpoch,
+  }) async => (await database).transaction((txn) async {
+    final state = (await txn.query('remote_sync_state')).single;
+    _checkRemoteGeneration(state, expectedGeneration);
+    _checkDetailEpoch(state, expectedEpoch);
+    return _cachedRemoteDetail(txn, state, id);
+  });
+
+  static Future<Map<String, Object?>?> _cachedRemoteDetail(
+    DatabaseExecutor txn,
+    Map<String, Object?> state,
+    String id,
+  ) async {
+    final details = await txn.query(
+      'remote_details',
+      where: 'id=?',
+      whereArgs: [id],
+    );
+    final detail = details.isEmpty
+        ? null
+        : Map<String, Object?>.from(
+            jsonDecode(details.single['payload'] as String) as Map,
+          );
+    // Visible cache can still belong to the prior origin or a resetting snapshot.
+    if (state['metadata'] == null || state['bootstrap_watermark'] != null) {
+      return detail;
+    }
+    final rows = await txn.query(
+      'remote_catalogue',
+      where: 'id=? AND revision>0',
+      whereArgs: [id],
+    );
+    if (rows.isEmpty) {
+      // A prior-pin detail missing from the completed active snapshot is unavailable.
+      return detail != null &&
+              (details.single['epoch'] as int) < (state['detail_epoch'] as int)
+          ? {...detail, 'active': false}
+          : detail;
+    }
+    final row = rows.single;
+    if (detail != null &&
+        (detail['revision'] as int) >= (row['revision'] as int)) {
+      return detail;
+    }
+    final item = Map<String, Object?>.from(
+      jsonDecode(row['payload'] as String) as Map,
+    );
+    if (projectRemoteListing(item) == null) {
+      // A minimal tombstone still overrides availability of an older full detail.
+      return detail == null
+          ? null
+          : {...detail, 'active': false, 'revision': row['revision']};
+    }
+    return {
+      ...item,
+      'id': id,
+      'revision': row['revision'],
+      'active': row['active'] == 1,
+    };
+  }
+
+  /// Isolated detail cache: never advances catalogue cursor or mutates favorites.
+  Future<Map<String, Object?>> cacheRemoteDetail(
+    String id,
+    Map<String, Object?> item, {
+    required int expectedGeneration,
+    required int expectedEpoch,
+  }) async {
+    if (id.isEmpty ||
+        id.length > 200 ||
+        item['id'] != id ||
+        item['active'] is! bool) {
+      throw const FormatException('remote detail identity');
+    }
+    final validated = CataloguePage.decode({
+      'watermark': 0,
+      'items': [item],
+      'next': null,
+    }, watermark: 0).items.single;
+    final payload = jsonEncode(validated);
+    if (utf8.encode(payload).length > 2 * 1024 * 1024) {
+      throw const FormatException('remote detail size');
+    }
+    return (await database).transaction((txn) async {
+      final state = (await txn.query('remote_sync_state')).single;
+      _checkRemoteGeneration(state, expectedGeneration);
+      _checkDetailEpoch(state, expectedEpoch);
+      final cached = await _cachedRemoteDetail(txn, state, id);
+      if (cached != null &&
+          (cached['revision'] as int) > (validated['revision'] as int)) {
+        return cached;
+      }
+      final order = Sqflite.firstIntValue(
+        await txn.rawQuery(
+          'SELECT COALESCE(MAX(touched),0)+1 FROM remote_details',
+        ),
+      )!;
+      await txn.insert('remote_details', {
+        'id': id,
+        'revision': validated['revision'],
+        'payload': payload,
+        'touched': order,
+        'epoch': expectedEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      // ponytail: newest 20 details / 8MiB; catalogue and bookmarks are retained
+      // independently. Increase only after measuring phone storage/JSON costs.
+      final rows = await txn.rawQuery(
+        'SELECT id,length(CAST(payload AS BLOB)) bytes FROM remote_details ORDER BY touched DESC,id',
+      );
+      var bytes = 0;
+      for (var i = 0; i < rows.length; i++) {
+        bytes += rows[i]['bytes'] as int;
+        if (i >= 20 || bytes > 8 * 1024 * 1024) {
+          await txn.delete(
+            'remote_details',
+            where: 'id=?',
+            whereArgs: [rows[i]['id']],
+          );
+        }
+      }
+      return (await _cachedRemoteDetail(txn, state, id))!;
+    });
   }
 
   /// Upsert/tombstone ve cursor birlikte commit olur; kesilen sayfa tekrar okunabilir.
