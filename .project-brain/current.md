@@ -198,8 +198,15 @@ files/apps veya kullanıcı verisi silinmedi. Profile actual-config x64 APK
 tekrar da storage355687827bytes gereksinimiyle reddedildi.5556 old codePath/
 lastUpdateTime04:30:14 korunur, yeni sürüm kurulmuş sayılmaz. Ayrı geçici
 kamubul_pilot AVD, mevcut API36/Google Play/x64 imajıyla C: task tmp altında
-oluşturuldu; headless5558 booting/offline gözlendi. Existing5554/5556 ve app
-verilerine dokunulmadı; fiziksel cihaz yok. Emulator release proof değildir.
+oluşturuldu;5558 boot tamamlandı/profile install Success, MainActivity önde ve
+onboarding gerçek glyph screenshot alındı. Android system ANR dialogu var;
+host free RAM812712KB/total16471276KB ölçüldü, temiz visual/latency kabulü yok.
+Yalnız owned5558 emu kill ile kapatıldı; resmi avdmanager delete kamubul_pilot
+başarılı, exact task AVD directory/ini yok ve owned PIDs yok.5554/5556 veya
+unrelated files/apps silinmedi.5556 kendi KamuBul debug süreci veri silmeden
+restart edildi; flutter attach actual defines ile sync41.9s yaptı, sonra
+VM connection lost/CLI terminal. App process alive/no sampled AndroidRuntime
+FATAL; yeni Dart UI/hot-restart doğrulaması değildir. Fiziksel cihaz yok.
 
 `refreshCatalogue` source failure/stale36h/no API için hâlâ phone fallback;
 refreshKariyerCity ve local-only guide/detail automatic source paths kalır.
