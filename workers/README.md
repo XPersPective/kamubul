@@ -125,6 +125,24 @@ Her tamamlanan parçanın sonucu kalıcı processing job'da tutulur; son özet
 birleştirilmeden yayımlanmaz. `AI_DAILY_JOBS=20` ilan sayısını değil, parça,
 birleştirme ve başarısız denemeler dahil günlük model isteklerini sınırlar.
 Her isteğin serialized girdisi24KB, çıktısı1024 token ile sınırlıdır.
+Extraction revision2'de birleştirme de kalıcı adımlara ayrılır: ilk parça
+özetleri aiProgress.summaries içinde korunur, reduction.quotes/offset/summaries/
+round mevcut küçük grubu ve azaltma turunu tutar. Her çağrı en çok8 alıntı alır;
+fully escaped request24KB'ı aşarsa grup küçülür. Ara çıktı grubun en çok yarısı,
+en az1 alıntı; böylece sonraki tur sonlu biçimde küçülür. Son havuzun3–5
+kanıtlı alıntısı oluşmadan yayın yok. Her adım aynı günlük20-request bütçesi ve
+retry kullanır; kota/hata başarılı parçaları tekrar okutmaz. Model çıktısı
+yalnız o gruba verilen kaynak alıntıdan gelebilir, bütün belgedeki başka cümle
+tesadüfen geçiyor diye kabul edilmez. Title sadece model bağlamında200 karakter;
+orijinal ilan başlığı/metni değişmez.
+Ara model seçimi yararlı ayrıntıları dışarıda bırakabilir; tüm ilk alıntıların
+bir kez modele verilmesi, semantik coverage/gerçek model kalitesi kanıtı değildir.
+Gerçek long-document inference/CPU/precision değerlendirmesi açık kalır.
+Eski revision1 tamamlanmış işler yeniden açılmaz, provenance tahmini yok;
+revision1 partial varsa veri korunarak explicit reprocess gerektiren hata olur.
+Manuel eval-ai pilotundaki en çok3 çağrı tavanı tamamlanma tahmini değildir;
+reduction fazla çağrı gerektirirse rapor pending/başarısız kontrol olur, kota
+sessizce genişletilmez. Yeni rapor extractionRevision/aiProvenance taşır.
 İlk metin inference öncesi job.input.aiContract provider/model/extractionRevision
 olarak kalıcı sabitlenir. Sonraki parça, retry ve consolidation env model değişse
 bile aynı modeli kullanır; revision prompt ve validator sözleşmesini kapsar.

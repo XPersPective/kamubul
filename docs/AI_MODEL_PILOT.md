@@ -1,5 +1,12 @@
 # Gerçek Workers AI pilotu — 2 Ekim 2026
 
+Sürüm sınırı: aşağıdaki gerçek model çağrıları revision2 kalıcı grup azaltması
+eklenmeden önce yapıldı. Son pipeline extractionRevision=2; onun büyük, kaçış
+karakterli reduction akışı136 native kontrolde doğrulandı, fakat bu belge o
+akışın gerçek model/Worker CPU veya coverage ölçümü değildir. Yeni pilot raporu
+extractionRevision ve aiProvenance alanlarını taşır; en çok3 manuel çağrı
+tavanı bazı çok aşamalı işlerde tamamlanmaya yetmeyebilir, sessizce artırılmaz.
+
 Cloudflare dashboard Workers Plans ekranında Workers Free `$0`, Current plan
 doğrulandı. Ücretli upgrade/fallback açılmadı. Account subscriptions REST okuması
 mevcut OAuth kapsamıyla403/code10000 verdi; kapsam genişletilmedi. Model

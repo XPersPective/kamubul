@@ -197,7 +197,7 @@ test('long AI job resumes stored chunks and publishes only after consolidation',
     await processNotice({...env,AI:model(calls)});job=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get();
   }
   assert.equal(job.state,'completed');
-  assert.equal(calls.slice(0,-1).join(''),text);
+  assert.equal(calls.filter(input=>!input.startsWith('[{')).join(''),text);
   const listing=sql.prepare("SELECT * FROM listings WHERE id='job'").get(),payload=JSON.parse(listing.payload);
   assert.equal(listing.processed_hash,'hash');assert.equal(payload.aiProgress,undefined);assert.equal(payload.firstSeenAt,'first');
   assert.equal(payload.aiStatus,'summary_validated');assert.ok(text.includes(payload.summary[0].quote));
@@ -244,6 +244,54 @@ test('account AI quota preserves progress and retry allowance, and stops other j
   await processNotice(env);
   assert.equal(JSON.parse(sql.prepare("SELECT input FROM processing_jobs WHERE id='processing'").get().input).aiProgress.index,2);
   assert.equal(calls.length,2);sql.close();
+});
+
+test('escaped large consolidation resumes reduction after quota and failure without rereading original chunks',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  const quotes=Array.from({length:50},(_,i)=>('Madde '+String(i).padStart(3,'0')+' için başvuru şartları ğ😀: '+('"\\'.repeat(400))).slice(0,590));
+  const text=quotes.join('\n');insertNotice(sql,text);
+  const contract={provider:'cloudflare',model:'@cf/meta/llama-3.1-8b-instruct',extractionRevision:aiExtractionRevision};
+  const progress={index:splitAiText(text).length,summaries:[quotes.map(quote=>({text:quote.slice(0,200),quote}))],conditions:[[]]};
+  sql.prepare("UPDATE processing_jobs SET input=json_set(input,'$.aiProgress',json(?),'$.aiContract',json(?)) WHERE id='processing'").run(JSON.stringify(progress),JSON.stringify(contract));
+  const seen=new Set(),inputs=[];const AI={async run(_,request){
+    assert.ok(new TextEncoder().encode(JSON.stringify(request)).length<=24000);
+    const input=JSON.parse(request.messages[1].content).text;assert.ok(input.startsWith('[{'),'Original document chunks must not be inferred again');inputs.push(input);
+    const supplied=JSON.parse(input).map(s=>s.quote);supplied.forEach(q=>{if(quotes.includes(q))seen.add(q);});
+    const schema=request.response_format.json_schema.properties.summary;
+    // This controlled model prioritizes the final source clause when supplied, exercising retention across levels.
+    const chosen=[...new Set([...supplied.filter(q=>q.startsWith('Madde 049')),supplied.at(-1),...supplied.slice(0,-1)])].slice(0,schema.maxItems);
+    return {response:{summary:chosen.map(quote=>({quote:quote.slice(0,200)})),conditions:[]}};
+  }};
+  const env={DB,AI,AI_MODEL:contract.model,AI_DAILY_JOBS:'1'};
+  await processNotice(env);
+  let row=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get(),stored=JSON.parse(row.input).aiProgress;
+  assert.equal(row.state,'pending');assert.ok(stored.reduction.offset>0);assert.ok(stored.reduction.offset<8,'Fully escaped requests require a smaller first group');
+  assert.deepEqual(stored.summaries,progress.summaries);assert.equal(sql.prepare("SELECT processed_hash FROM listings WHERE id='job'").get().processed_hash,null);
+  const checkpoint=row.input,count=inputs.length;await processNotice(env);
+  row=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get();assert.equal(row.state,'quota_wait');assert.equal(row.input,checkpoint);assert.equal(inputs.length,count);
+  sql.exec("DELETE FROM daily_usage; UPDATE processing_jobs SET due_at='1970-01-01'");
+  let failingInput;await processNotice({...env,AI_DAILY_JOBS:'100',AI:{async run(_,request){failingInput=JSON.parse(request.messages[1].content).text;throw new Error('model_unavailable');}}});
+  row=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get();assert.equal(row.input,checkpoint);assert.equal(row.error_code,'model_unavailable');
+  sql.exec("UPDATE processing_jobs SET due_at='1970-01-01'");await processNotice({...env,AI_DAILY_JOBS:'100'});assert.equal(inputs.at(-1),failingInput);
+  for(let step=0;step<60&&sql.prepare("SELECT state FROM processing_jobs WHERE id='processing'").get().state==='pending';step++)await processNotice({...env,AI_DAILY_JOBS:'100'});
+  row=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get();assert.equal(row.state,'completed');assert.equal(row.error_code,null);
+  assert.equal(seen.size,quotes.length);stored=JSON.parse(row.input).aiProgress;assert.ok(stored.reduction.round>=1);assert.deepEqual(stored.summaries,progress.summaries);
+  const payload=JSON.parse(sql.prepare("SELECT payload FROM listings WHERE id='job'").get().payload);
+  assert.ok(payload.summary.length>=3&&payload.summary.length<=5);assert.ok(payload.summary.some(s=>s.quote.startsWith('Madde 049')));
+  assert.equal(payload.aiProgress,undefined);assert.equal(payload.aiProvenance.extractionRevision,aiExtractionRevision);
+  assert.equal(sql.prepare('SELECT ai_jobs FROM daily_usage').get().ai_jobs,inputs.length-count+1);
+});
+
+test('consolidation rejects native source quotes that were not supplied to the current reduction group',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());
+  const quotes=Array.from({length:12},(_,i)=>'Kadronun '+i+' numaralı başvuru şartı kaynakta açıkça belirtilmiştir.');const text=quotes.join('\n');insertNotice(sql,text);
+  const progress={index:splitAiText(text.repeat(100)).length,summaries:[quotes.map(quote=>({text:quote,quote}))],conditions:[[]]};
+  // Keep a multi-chunk source and a real native quotation outside the first group.
+  sql.prepare("UPDATE processing_jobs SET input=json_set(input,'$.text',?,'$.aiProgress',json(?),'$.aiContract',json(?)) WHERE id='processing'").run(text.repeat(100),JSON.stringify(progress),JSON.stringify({provider:'cloudflare',model:'model',extractionRevision:aiExtractionRevision}));
+  const before=sql.prepare("SELECT input FROM processing_jobs WHERE id='processing'").get().input;
+  await processNotice({DB,AI_MODEL:'model',AI:{async run(_,request){assert.ok(!JSON.parse(JSON.parse(request.messages[1].content).text).some(s=>s.quote===quotes[11]));return {response:{summary:[{quote:quotes[11]}],conditions:[]}};}}});
+  const job=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get();assert.equal(job.state,'pending');assert.equal(job.error_code,'ai_no_grounded_summary');assert.equal(job.input,before);
+  assert.equal(sql.prepare("SELECT processed_hash FROM listings WHERE id='job'").get().processed_hash,null);
 });
 
 test('partial AI jobs pin the model across configuration changes and publish provenance',async t=>{

@@ -4,7 +4,7 @@ import {readFileSync,readdirSync,writeFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {DatabaseSync} from 'node:sqlite';
 import {fileURLToPath} from 'node:url';
-import {processNotice,semanticInput,splitAiText} from '../src/pipeline.js';
+import {aiExtractionRevision,processNotice,semanticInput,splitAiText} from '../src/pipeline.js';
 import {sha256} from '../src/worker.js';
 
 const [inputPath,reportPath,modelOverride]=process.argv.slice(2);
@@ -18,6 +18,7 @@ assert.ok(!notice.deadline||Date.parse(notice.deadline)>Date.now(),'Use an activ
 const text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');
 const chunks=splitAiText(text),callLimit=chunks.length+(chunks.length>1?1:0);
 // ponytail: three paid-in-compute calls maximum per manual pilot; larger documents need a reviewed evaluation budget.
+// This is a spend ceiling, not a completion estimate: revision2 reduction can require additional calls.
 assert.ok(callLimit<=3,'Pilot permits at most three model calls');
 const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
 const aiModel=modelOverride??config.vars.AI_MODEL;
@@ -53,12 +54,14 @@ try{
   const job=sql.prepare("SELECT * FROM processing_jobs WHERE id='pilot'").get();
   const payload=JSON.parse(sql.prepare('SELECT payload FROM listings WHERE id=?').get(notice.id).payload);
   // Replay the completed hash as pending, so the hash guard itself is exercised.
-  if(job.state==='completed')sql.prepare("UPDATE processing_jobs SET state='pending',lease_until=NULL,due_at=? WHERE id='pilot'").run(new Date().toISOString());
-  const before=calls.length;await processNotice({DB,AI,AI_MODEL:aiModel});
-  assert.equal(calls.length,before,'Completed hash must not be inferred again');
-  const replayState=sql.prepare("SELECT state FROM processing_jobs WHERE id='pilot'").get().state;
-  if(job.state==='completed')assert.equal(replayState,'superseded');
-  const report={sourceUrl:notice.url,listingId:notice.id,inputHash:hash,model:aiModel,textBytes:Buffer.byteLength(text),chunks:chunks.length,calls,reportedNeurons:calls.reduce((sum,c)=>sum+(c.result?.usage?.neurons??0),0),state:job.state,errorCode:job.error_code,summary:payload.summary??[],aiCandidates:JSON.parse(job.input).aiCandidates??null,completedHashDedupChecked:job.state==='completed',replayState,scope:'Actual REST inference and production pipeline with in-memory SQLite; API-reported neurons, not invoice, Worker CPU, production D1, or field precision'};
+  let replayState=null;
+  if(job.state==='completed'){
+    sql.prepare("UPDATE processing_jobs SET state='pending',lease_until=NULL,due_at=? WHERE id='pilot'").run(new Date().toISOString());
+    const before=calls.length;await processNotice({DB,AI,AI_MODEL:aiModel});
+    assert.equal(calls.length,before,'Completed hash must not be inferred again');
+    replayState=sql.prepare("SELECT state FROM processing_jobs WHERE id='pilot'").get().state;assert.equal(replayState,'superseded');
+  }
+  const report={sourceUrl:notice.url,listingId:notice.id,inputHash:hash,model:aiModel,extractionRevision:aiExtractionRevision,aiProvenance:payload.aiProvenance??null,textBytes:Buffer.byteLength(text),chunks:chunks.length,calls,reportedNeurons:calls.reduce((sum,c)=>sum+(c.result?.usage?.neurons??0),0),state:job.state,errorCode:job.error_code,summary:payload.summary??[],aiCandidates:JSON.parse(job.input).aiCandidates??null,completedHashDedupChecked:job.state==='completed',replayState,scope:'Actual REST inference and production pipeline with in-memory SQLite; API-reported neurons, not invoice, Worker CPU, production D1, or field precision'};
   writeFileSync(reportPath,JSON.stringify(report,null,2));
   console.log(JSON.stringify({state:report.state,errorCode:report.errorCode,calls:calls.length,summaryItems:report.summary.length,reportPath}));
   if(job.state!=='completed')process.exitCode=1;
