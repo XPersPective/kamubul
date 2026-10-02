@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:kamubul_core/data/search_criteria.dart';
+import 'package:kamubul_core/data/turkish_cities.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -44,4 +45,26 @@ void main() {
     expect(educationLabel('education:master'), 'Yüksek lisans');
     expect(educationLabel('Üniversite mezunu'), 'Üniversite mezunu');
   });
+  test(
+    'all city identities resolve without treating districts as provinces',
+    () {
+      for (final city in turkishCities) {
+        final id = 'city:${foldTurkish(city).toLowerCase()}';
+        expect(cityLabel(id), city);
+        expect(
+          SearchCriteria.parse({
+            'version': 2,
+            'cities': [id],
+          }).match({
+            'title': 'İlan',
+            'places': [city],
+          }, now: DateTime.utc(2026, 9, 30)),
+          CriteriaMatch.match,
+        );
+      }
+      expect(cityLabel('city:unknown'), 'city:unknown');
+      expect(cityLabel('ANKARA'), 'ANKARA');
+      expect(canonicalCity('Çankaya'), isNull);
+    },
+  );
 }

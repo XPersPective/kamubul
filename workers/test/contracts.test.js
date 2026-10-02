@@ -25,6 +25,10 @@ test('public taxonomy advertises stable education IDs, labels and accepted alias
   assert.deepEqual(body.education,['Lise','Ön lisans','Lisans','Yüksek lisans','Doktora']);
   assert.deepEqual(body.educationValues.map(x=>x.id),['education:secondary','education:associate','education:bachelor','education:master','education:doctorate']);
   for(const value of body.educationValues)for(const alias of [value.label,...value.aliases])assert.equal(matchListing({title:'İlan',requirementGroups:[{education:[alias]}]},validateCriteria({version:2,education:[value.id]}),now),'match');
+  const dartCities=readFileSync(new URL('../../packages/kamubul_core/lib/data/turkish_cities.dart',import.meta.url),'utf8').split('];')[0];
+  assert.deepEqual(body.cities,[...dartCities.matchAll(/  '([^']+)',/g)].map(m=>m[1]));
+  assert.equal(body.cityValues.length,81);assert.equal(new Set(body.cityValues.map(x=>x.id)).size,81);
+  for(const value of body.cityValues)assert.equal(matchListing({title:'İlan',places:[value.label]},validateCriteria({version:2,cities:[value.id]}),now),'match');
 });
 
 test('typed criteria rejects ambiguous and invalid dates',()=>{

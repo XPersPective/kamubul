@@ -123,7 +123,7 @@ void main() {
       SavedSearch(
         id: null,
         name: searchName,
-        filters: const {'sehir': 'ANKARA', 'yas': '30', 'kpss': 'P93'},
+        filters: const {'sehir': 'city:ankara', 'yas': '30', 'kpss': 'P93'},
         createdAt: now,
       ),
     );
@@ -245,7 +245,7 @@ void main() {
     await tester.tap(find.text('İstanbul').last);
     await pumpRoute(tester);
     expect(find.widgetWithText(InputChip, 'İstanbul'), findsOneWidget);
-    expect(find.widgetWithText(InputChip, 'ANKARA'), findsOneWidget);
+    expect(find.widgetWithText(InputChip, 'Ankara'), findsOneWidget);
     await tester.ensureVisible(
       find.byTooltip('Şehirler: İstanbul seçimini kaldır'),
     );
@@ -312,7 +312,7 @@ void main() {
     expect(
       find.descendant(
         of: sheet,
-        matching: find.textContaining('ANKARA, İstanbul'),
+        matching: find.textContaining('Ankara, İstanbul'),
       ),
       findsOneWidget,
     );
@@ -326,7 +326,7 @@ void main() {
         '1970-01-01',
         reason: 'Eski yaş otomatik güncel varsayılmaz',
       );
-      expect(search.effectiveCriteria.values['cities'], ['ANKARA', 'İstanbul']);
+      expect(search.effectiveCriteria.values['cities'], ['Ankara', 'İstanbul']);
       expect(search.effectiveCriteria.values['keyword'], 'Sözleşmeli');
       expect(search.effectiveCriteria.values['categories'], ['personel']);
       expect(search.effectiveCriteria.values['occupations'], ['Mühendis']);
@@ -376,7 +376,7 @@ void main() {
       find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
       findsNothing,
     );
-    expect(find.textContaining('ANKARA, İstanbul'), findsWidgets);
+    expect(find.textContaining('Ankara, İstanbul'), findsWidgets);
     await tester.ensureVisible(uncertain);
     await tester.tap(uncertain);
     await pumpRoute(tester);
@@ -391,7 +391,7 @@ void main() {
     await tester.tap(find.byTooltip('Bu aramayı kaydet'));
     await pumpRoute(tester);
     for (final value in [
-      'ANKARA',
+      'Ankara',
       'İstanbul',
       'Lisans',
       'Yüksek lisans',

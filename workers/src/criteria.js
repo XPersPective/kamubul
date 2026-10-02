@@ -1,3 +1,4 @@
+const cityLabels = ['Adana', 'Adıyaman', 'Afyonkarahisar', 'Ağrı', 'Aksaray', 'Amasya', 'Ankara', 'Antalya', 'Ardahan', 'Artvin', 'Aydın', 'Balıkesir', 'Bartın', 'Batman', 'Bayburt', 'Bilecik', 'Bingöl', 'Bitlis', 'Bolu', 'Burdur', 'Bursa', 'Çanakkale', 'Çankırı', 'Çorum', 'Denizli', 'Diyarbakır', 'Düzce', 'Edirne', 'Elazığ', 'Erzincan', 'Erzurum', 'Eskişehir', 'Gaziantep', 'Giresun', 'Gümüşhane', 'Hakkari', 'Hatay', 'Iğdır', 'Isparta', 'İstanbul', 'İzmir', 'Kahramanmaraş', 'Karabük', 'Karaman', 'Kars', 'Kastamonu', 'Kayseri', 'Kilis', 'Kırıkkale', 'Kırklareli', 'Kırşehir', 'Kocaeli', 'Konya', 'Kütahya', 'Malatya', 'Manisa', 'Mardin', 'Mersin', 'Muğla', 'Muş', 'Nevşehir', 'Niğde', 'Ordu', 'Osmaniye', 'Rize', 'Sakarya', 'Samsun', 'Siirt', 'Sinop', 'Sivas', 'Şanlıurfa', 'Şırnak', 'Tekirdağ', 'Tokat', 'Trabzon', 'Tunceli', 'Uşak', 'Van', 'Yalova', 'Yozgat', 'Zonguldak'];
 export const fold = value => String(value ?? '').toUpperCase().replaceAll('İ','I').replaceAll('Ç','C').replaceAll('Ğ','G').replaceAll('Ö','O').replaceAll('Ş','S').replaceAll('Ü','U').replaceAll('Â','A').replaceAll('Î','I').replaceAll('Û','U').toLowerCase().replace(/\s+/g,' ').trim();
 export const educationValues = [
   {id:'education:secondary',label:'Lise',aliases:[]},
@@ -7,7 +8,10 @@ export const educationValues = [
   {id:'education:doctorate',label:'Doktora',aliases:[]}
 ];
 const educationAliases = new Map(educationValues.flatMap(entry=>[entry.id,entry.label,...entry.aliases].map(value=>[fold(value),entry.id.split(':')[1]])));
-const criterionKey = (field,value) => field==='education' ? educationAliases.get(fold(value))??fold(value) : fold(value);
+export const cityValues = cityLabels.map(label=>({id:'city:'+fold(label),label,aliases:[]}));
+const cityAliases = new Map(cityValues.flatMap(entry=>[entry.id,entry.label].map(value=>[fold(value),fold(entry.label)])));
+const criterionAliases = {education:educationAliases,cities:cityAliases};
+const criterionKey = (field,value) => criterionAliases[field]?.get(fold(value))??fold(value);
 const oneOf = (wanted, actual, field) => !wanted?.length || wanted.some(value => actual.map(v=>criterionKey(field,v)).includes(criterionKey(field,value)));
 export function validateCriteria(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('criteria');
@@ -66,13 +70,13 @@ export function matchListing(listing, criteria, now = new Date()) {
     const check=(wanted,actual,field)=>{
       if(!wanted?.length) return;
       if(!actual?.length) {if(status!=='no_match') status='unknown';}
-      else if(field==='education' && !wanted.some(v=>educationAliases.has(fold(v)) && actual.some(a=>educationAliases.has(fold(a)) && criterionKey(field,v)===criterionKey(field,a)))) {
-        if(wanted.some(v=>!educationAliases.has(fold(v))) || actual.some(v=>!educationAliases.has(fold(v)))) {if(status!=='no_match')status='unknown';}
+      else if(criterionAliases[field] && !wanted.some(v=>criterionAliases[field].has(fold(v)) && actual.some(a=>criterionAliases[field].has(fold(a)) && criterionKey(field,v)===criterionKey(field,a)))) {
+        if(wanted.some(v=>!criterionAliases[field].has(fold(v))) || actual.some(v=>!criterionAliases[field].has(fold(v)))) {if(status!=='no_match')status='unknown';}
         else status='no_match';
       }
       else if(!oneOf(wanted,actual,field)) status='no_match';
     };
-    check(criteria.cities,group.cities?.length?group.cities:(groups.length===1?listing.places:[]));
+    check(criteria.cities,group.cities?.length?group.cities:(groups.length===1?listing.places:[]),'cities');
     check(criteria.occupations,group.occupations);
     check(criteria.education,group.education,'education');
     if(criteria.age!==undefined) {

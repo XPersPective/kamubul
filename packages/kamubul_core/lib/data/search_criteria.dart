@@ -199,18 +199,18 @@ class SearchCriteria {
             : _list(raw[key]);
         if (actual.isEmpty) {
           uncertain();
-        } else if (key == 'education' &&
+        } else if ((key == 'education' || key == 'cities') &&
             !wanted.any(
               (w) =>
-                  _educationAliases.containsKey(_fold(w)) &&
+                  _knownCriterion(key, w) &&
                   actual.any(
                     (a) =>
-                        _educationAliases.containsKey(_fold(a)) &&
+                        _knownCriterion(key, a) &&
                         _criterionKey(key, a) == _criterionKey(key, w),
                   ),
             )) {
-          if (wanted.any((w) => !_educationAliases.containsKey(_fold(w))) ||
-              actual.any((a) => !_educationAliases.containsKey(_fold(a)))) {
+          if (wanted.any((w) => !_knownCriterion(key, w)) ||
+              actual.any((a) => !_knownCriterion(key, a))) {
             uncertain();
           } else {
             status = CriteriaMatch.noMatch;
@@ -292,8 +292,13 @@ const _educationAliases = {
 };
 String _criterionKey(String? field, Object? value) {
   final key = _fold(value);
+  if (field == 'cities') return _fold(canonicalCity('$value') ?? value);
   return field == 'education' ? _educationAliases[key] ?? key : key;
 }
+
+bool _knownCriterion(String field, Object? value) => field == 'cities'
+    ? canonicalCity('$value') != null
+    : _educationAliases.containsKey(_fold(value));
 
 String educationLabel(String value) =>
     const {

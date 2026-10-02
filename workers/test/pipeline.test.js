@@ -668,3 +668,19 @@ test('invalid token removes candidate facets but preserves saved preferences',as
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,1);
   assert.equal(sql.prepare('SELECT enabled FROM installations').get().enabled,0);
 });
+
+test('city identity migration protects old anchors until authenticated heartbeat rebuilds them',async t=>{
+  const {sql,DB}=database();t.after(()=>sql.close());const id='a'.repeat(32),secret='b'.repeat(64);
+  const search={id:'s',name:'Şehir',mode:'instant',criteria:{version:2,cities:['city:istanbul']}};
+  const put=()=>fetchRequest(new Request('https://api/api/v2/installations/'+id,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret},body:JSON.stringify({fcmToken:'token'.repeat(8),platform:'android',searches:[search]})}),{DB},{});
+  await put();const version=sql.prepare('SELECT version FROM installations').get().version;
+  sql.prepare("UPDATE installation_facets SET key='cities:city:istanbul' WHERE installation_id=?").run(id);
+  sql.exec("INSERT INTO match_events(id,listing_id,revision,payload,created_at,cursor,state,lease_until,facet_index) VALUES('old','listing',1,'{}','now','last','leased','future',4),('done','listing',2,'{}','now','last','completed',NULL,9)");
+  sql.exec(readFileSync(new URL('../migrations/0013_city_alias_facets.sql',import.meta.url),'utf8'));
+  assert.deepEqual(sql.prepare('SELECT key FROM installation_facets ORDER BY key').all().map(x=>x.key),['*','cities:city:istanbul']);
+  assert.deepEqual({...sql.prepare("SELECT cursor,state,lease_until,facet_index FROM match_events WHERE id='old'").get()},{cursor:'',state:'pending',lease_until:null,facet_index:0});
+  assert.equal(sql.prepare("SELECT state FROM match_events WHERE id='done'").get().state,'completed');
+  await put();assert.deepEqual(sql.prepare('SELECT key FROM installation_facets').all().map(x=>x.key),['cities:istanbul']);
+  assert.equal(sql.prepare('SELECT version FROM installations').get().version,version);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,1);
+});

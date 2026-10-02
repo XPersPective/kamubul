@@ -431,7 +431,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _last30 = search.filters['son30'] == '1';
       _place = (search.filters['sehir'] ?? '').isEmpty
           ? null
-          : search.filters['sehir'];
+          : cityLabel(search.filters['sehir']!);
       _ageFilter = int.tryParse(search.filters['yas'] ?? '');
       _ageAsOf = search.effectiveCriteria.values['ageAsOf'] as String?;
       _quickCriteria = search.effectiveCriteria;
@@ -444,7 +444,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _activeSearchId = search.id;
       _includeUnknown = false;
     });
-    if (city != null && city.isNotEmpty) _refreshCity(city);
+    if (city != null && city.isNotEmpty) _refreshCity(cityLabel(city));
   }
 
   Future<void> _refreshCity(String city) async {
@@ -791,6 +791,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
         values['education'] = education
             .cast<String>()
             .map(educationLabel)
+            .toSet()
+            .toList();
+      }
+      if (values['cities'] case final List cities) {
+        values['cities'] = cities
+            .cast<String>()
+            .map(cityLabel)
             .toSet()
             .toList();
       }
@@ -1256,7 +1263,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
           selected
               .cast<String>()
               .map(
-                (value) => key == 'education' ? educationLabel(value) : value,
+                (value) => key == 'education'
+                    ? educationLabel(value)
+                    : key == 'cities'
+                    ? cityLabel(value)
+                    : value,
               )
               .join(', '),
         );

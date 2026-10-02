@@ -23,5 +23,11 @@
   {"name":"eğitim düzeyleri birbirine yükseltilmez","criteria":{"version":2,"education":["Lisans"]},"listing":{"title":"Memur","requirementGroups":[{"education":["Önlisans"]}]},"expected":"no_match"},
   {"name":"belirsiz üniversite ifadesinden lisans tahmin edilmez","criteria":{"version":2,"education":["Lisans"]},"listing":{"title":"Memur","requirementGroups":[{"education":["Üniversite mezunu"]}]},"expected":"unknown"},
   {"name":"bilinmeyen eğitim adı kesin eşleşmez","criteria":{"version":2,"education":["Belirsiz"]},"listing":{"title":"Memur","requirementGroups":[{"education":["Belirsiz"]}]},"expected":"unknown"},
-  {"name":"kanıtlı alternatif eğitim belirsiz ifadeyle elenmez","criteria":{"version":2,"education":["Lisans"]},"listing":{"title":"Memur","requirementGroups":[{"education":["Üniversite mezunu","Lisans"]}]},"expected":"match"}
+  {"name":"kanıtlı alternatif eğitim belirsiz ifadeyle elenmez","criteria":{"version":2,"education":["Lisans"]},"listing":{"title":"Memur","requirementGroups":[{"education":["Üniversite mezunu","Lisans"]}]},"expected":"match"},
+  {"name":"şehir kimliği Türkçe etiketle eşleşir","criteria":{"version":2,"cities":["city:istanbul"]},"listing":{"title":"Memur","requirementGroups":[{"cities":["İSTANBUL"]}]},"expected":"match"},
+  {"name":"şehir etiketi kaynak kimliğiyle eşleşir","criteria":{"version":2,"cities":["Iğdır"]},"listing":{"title":"Memur","requirementGroups":[{"cities":["city:igdir"]}]},"expected":"match"},
+  {"name":"iki farklı il birbirine eşit değildir","criteria":{"version":2,"cities":["city:ankara"]},"listing":{"title":"Memur","requirementGroups":[{"cities":["İstanbul"]}]},"expected":"no_match"},
+  {"name":"belirsiz yer il gibi eşleşmez","criteria":{"version":2,"cities":["Merkez"]},"listing":{"title":"Memur","requirementGroups":[{"cities":["Merkez"]}]},"expected":"unknown"},
+  {"name":"kaynakta il yerine ilçe varsa belirsiz","criteria":{"version":2,"cities":["Ankara"]},"listing":{"title":"Memur","requirementGroups":[{"cities":["Çankaya"]}]},"expected":"unknown"},
+  {"name":"kanıtlı il alternatifi bilinmeyen yerle elenmez","criteria":{"version":2,"cities":["city:ankara"]},"listing":{"title":"Memur","requirementGroups":[{"cities":["Merkez","Ankara"]}]},"expected":"match"}
 ]

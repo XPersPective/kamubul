@@ -27,7 +27,7 @@ Eski sunucu referansı: `backend/lib/src/`, `backend/bin/`, `backend/test/`; nat
 - `PushRegistrar` authenticated accepted history GET'i aynı FIFO'ya bağlar: token/izin/yeni kimlik istemez, redirects kapalı,256KB/20s/5page bounded, after+pinned watermark+records atomik secure blob'da saklanır; origin+installation scoped. Kesilen sayfa resume;401/redirect/oversize kimlik/cursor'u değiştirmez,409 bir kez reset/reconcile. Cache en çok100 kayıt/200 receivedID, tüm secure state120KB hedefinde UTF8 trim; registry payload büyümesi ack+cache trim ile aynı batch. Android Keystore/no-backup/iOS ThisDeviceOnly kullanır, yeni dependency/schema yok. Açılış/resume/notification center sync; feed eski OS mesajını yeniden göstermez. Foreground receipt concurrent/restart dedupes; geçmişi temizlemek cursor/receivedIDs tutar, disable tüm server cache'i siler. NotificationCenter cache-first/live stream, accepted=Servise iletildi, received=Alındı, network failure yerel kayıt uyarısı. Pencere dışındaki çok eski retry ve gerçek native/sunucu teslimi kanıtı açık.
 - `PushRegistrar`: rastgele kurulum ID/secret, opt-in token+kriter kaydı, PUT/DELETE. Push state (ID/secret/token içeren lastPayload dahil) SecurePushStore üzerinden Android Keystore AES-GCM/noBackupFilesDir ve iOS ThisDeviceOnly Keychain koduna taşındı. Android API36/x64 native yazma/reopen/plaintext temizliği emulator kontrolünde geçti; süreç restart/iOS build/backup-restore kanıtı eksik. Bir hesap/kullanıcı kimliği değildir, yeniden kurulum ayrı cihaz kaydıdır.
 
-Eğitim taxonomy kontrol noktası: beş sabit education:* kimliği, Ön lisans/Önlisans ve Yüksek lisans/Yükseklisans aynı düzeydir; diğer düzeylerin yerine geçmez. Bilinmeyen eğitim unknown, aynı kadroda bilinen uygun alternatif varsa match. Worker predicate/aday anchor aynı kimlik kullanır; Dart matcher aynı25 corpus'u (SQLite dahil) geçirir. API taxonomy eski label listesini koruyup educationValues id/label/aliases ekler; canlı5 değer doğrulandı. Mobil form/chip/özet kimlikleri Türkçe label gösterir. Eski label wire/persist değerleri topluca değişmez. Migration0010 eski aktif education facet sahiplerine wildcard ekler; heartbeat yeni anahtarlarla indeksi kurar, preference version/baseline korunur; pending/leased fanout cursor reset, completed aynen. Büyük wildcard geçiş kapasitesi ve diğer şehir/meslek/kurum/kategori kodları/sözlük sürüm göçü açık. Worker78/core135 full, Flutter131 full + sonUI/SQLite9, changed analyze/diff-check geçti.
+Eğitim taxonomy kontrol noktası: beş sabit education:* kimliği, Ön lisans/Önlisans ve Yüksek lisans/Yükseklisans aynı düzeydir; diğer düzeylerin yerine geçmez. Bilinmeyen eğitim unknown, aynı kadroda bilinen uygun alternatif varsa match. Worker predicate/aday anchor aynı kimlik kullanır; Dart matcher aynı25 corpus'u (SQLite dahil) geçirir. API taxonomy eski label listesini koruyup educationValues id/label/aliases ekler; canlı5 değer doğrulandı. Mobil form/chip/özet kimlikleri Türkçe label gösterir. Eski label wire/persist değerleri topluca değişmez. Migration0010 eski aktif education facet sahiplerine wildcard ekler; heartbeat yeni anahtarlarla indeksi kurar, preference version/baseline korunur; pending/leased fanout cursor reset, completed aynen. Büyük wildcard geçiş kapasitesi ve diğer meslek/kurum/kategori kodları/sözlük sürüm göçü açık. Worker78/core135 full, Flutter131 full + sonUI/SQLite9, changed analyze/diff-check geçti.
 
 Katalog API strict after/watermark validasyonu korundu: malformed400/future409,
 metadata ETag saklama sınırını kapsar; public cache v2. Migration0011 kalıcı floor
@@ -48,7 +48,7 @@ Kariyer Kapısı liste/API/RSS ve SBB WebForms/PDF Dart adaptörleri mevcut. Wor
 
 ## 5. Kalıcı bulut kaynakları — VERIFIED CLI/live HTTP, planlar OBSERVED konsol
 
-- Worker `kamubul-api`, `https://kamubul-api.devx8585.workers.dev`, Free $0; D1 `kamubul`, ID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB binding. Migration0001–0012 remote uygulandı. Deployment `7e082188-63dc-4dfb-b8bb-05aff99e123e`; live health status=ok/latestSeq40/fcmConfigured=true/aiConfigured=true. Cron her dakika; scheduledTime mod3 kaynak/AI/expiry, eşleştirme, gönderim slotlarını ayırır. Her aşama3dk, kaynak polling30dk. Üretime demo ilan/cihaz yazılmadı; son read-only installations/outbox/facets/pending_matches0/0/0/0 ve bu çalışmada registry/push çağrısı yok.
+- Worker `kamubul-api`, `https://kamubul-api.devx8585.workers.dev`, Free $0; D1 `kamubul`, ID `371092dd-2cc7-487f-b971-84c2499bbc7d`, EEUR/DB binding. Migration0001–0013 remote uygulandı. Deployment `0f0ba3ce-8b40-443e-ba2b-b708799badfb`; live health status=ok/latestSeq40/fcmConfigured=true/aiConfigured=true. Cron her dakika; scheduledTime mod3 kaynak/AI/expiry, eşleştirme, gönderim slotlarını ayırır. Her aşama3dk, kaynak polling30dk. Üretime demo ilan/cihaz yazılmadı; son read-only installations/outbox/facets/pending_matches0/0/0/0 ve bu çalışmada registry/push çağrısı yok.
 - Worker v2 meta/taxonomy/listings/changes/detail/installations/history ve v1 geçiş uçları var. Immutable seq/tombstone trigger, source lease/cursor/hash, durable AI processing, matching cursor/outbox/FCM HTTPv1 kodu bulunur; runtime dependency yok. Indexed candidate matching uygulandı; büyük kitle kapasitesi, eğitim dışı canonical/alias kimliği ve toplam server retention eksik; mobil retained-cursor bootstrap hazır.
 - Aday indeksi installation_facets(key,installation_id); şehir/meslek/eğitim/kurumdan en kısa arama listesi, broad/keyword/score-only `*`. Registry transaction'da set diff yapar (değişmeyen facet heartbeat yazımı0), eski abonelikler migration'da wildcard ile korunur. İlan kadro anahtarları superset, exact shared predicate son karar; unknown push yok. Slot başına10 aday/4 boş facet, kalıcı facet_index+ID cursor, kurulum+ilan outbox unique. Native fixture sorgu sayımı<=38; canlı EXPLAIN covering key+ID indeksi. Free50 sorgu/subrequest sınırı için slotlar ayrıldı; gerçek CPU/fanout/write kapasitesi henüz ölçülmedi.
 - Private history migration0005: FCM accepted commit trigger'ı notification_sequence tek-satır sayacından history_seq/accepted_at atar, eski accepted kayıtlar korunur; repeated acceptance yeni sıra üretmez. Authenticated own-record endpoint accepted-only, compact presentation fields, numeric after/pinned watermark/appliedThrough/hasMore/next; hash cursor400/ahead409. Live installation_history_seq range index doğrulandı; production accepted/outbox0 olduğundan gerçek gönderimle sequence doğrulanmadı. Native fixtures düşük hash/yeni acceptance/pinned pages/auth crossing/2MB source excluded/backfill kontrolü içerir. İki ek row mutation/acceptance+index maliyeti; accepted payload arşivi ve mobil feed/dedupe kodu mevcut, gerçek cihaz teslimi ve kalan retention açık.
@@ -73,10 +73,10 @@ Migration0006 kalıcı listings.first_seq ekledi; mevcut20 ilan en erken change 
 
 | Kapsam | Son doğrulanmış kanıt | Kanıtın sınırı |
 |---|---|---|
-| Worker |86 native Node/SQLite test, dry-run/deploy; remote migration0004 ve covering index planı, üç-slot timestamp kontrolü; canlı Dart watermark40/catalogue20/applied40/changes40/metadata304 | Gerçek model, source detail erişimi, OAuth/FCM/great-page CPU ve load değil |
+| Worker |93 native Node/SQLite test, dry-run/deploy; remote migration0004 ve covering index planı, üç-slot timestamp kontrolü; canlı Dart watermark40/catalogue20/applied40/changes40/metadata304 | Gerçek model, source detail erişimi, OAuth/FCM/great-page CPU ve load değil |
 | Core/backend referansı | Core127 full; backend37 önceki hizalama kontrolü | Canlı cloud/backend release kanıtı değil |
-| Flutter |131 full; selectors390px/320px1.3x ve önceki history32 targeted+8 UI/2FG; core135 full; pinned history resume/receipt FIFO/native budget/HTTP auth/redirect/size ve320px1.3x offline/live UI; analyze temiz | Keychain/gerçek kapalı-app teslimi veya release cihaz UX değil; Android native-store kanıtı ayrı satırda |
-| Android build | Main app debug + Firebase defines/kalıcı API ile başarılı, Gradle115.2s; build/app/outputs/flutter-apk/app-debug.apk223496834bytes | Debug signing/AdMob test fallback; production release değildir. Schema8 origin/generation, notification/history ve typed multi-select/header/quick-matching/eğitim aliases değişiklikleri main debug build içinde. Universal update emulator depolamasına sığmadı, eski app korundu;151513370byte actual-config x64 APK install-r başarılı. Normal universal223496834byte APK restore edilip build çıktısında korundu. Kurulum startup/FCM kanıtı değil |
+| Flutter |132 full; selectors390px/320px1.3x ve önceki history32 targeted+8 UI/2FG; core143 full; pinned history resume/receipt FIFO/native budget/HTTP auth/redirect/size ve320px1.3x offline/live UI; analyze temiz | Keychain/gerçek kapalı-app teslimi veya release cihaz UX değil; Android native-store kanıtı ayrı satırda |
+| Android build | Main debug actual Firebase/API build47.7s, app-debug.apk223499557bytes; city ID labels+shared predicates ve önceki retention recovery içinde | Debug signing/AdMob test fallback; bu build cihazda kurulup çalıştırılmadı. Mevcut emulator x64 APK önceki eğitim alias checkpoint'idir; physical FCM/iOS/release kanıtı değil |
 | Native store integration | API36/x64 emulator-5556:124588634byte tek-ABI APK manuel adb install-r başarılı; flutter drive prebuilt binary ile native write/reopen/plaintext temizliği geçti. Normal actual-config223494589byte APK sonrasında install-r ile geri kuruldu | Süreç restart/backup restore/fiziksel FCM/iOS kanıtı değil. Eski Workmanager callback test binary'sinde yok; test sırasında ayrı engine entrypoint hatası loglandı, normal APK geri kuruldu. README tekrar komutlarını içerir |
 | Free runtime | Önceki canlı source-only idle Cron4–6ms CPU/outcome ok | Source+model+OAuth+fanout yükünü veya10k ücretsiz kullanıcıyı kanıtlamaz |
 
@@ -103,7 +103,7 @@ ilerlemesini engeller. Mobil bounded1KB endpoint-specific409/tek no-cache metada
 +bootstrap retry önceki132 Flutter/136 core full kontrolünde ve actual-config
 APK'da doğrulandı. Son server değişiklikleri86 native full/dry-run/deploy;
 base/ilk yayın/latest/tombstone/recent+invalidtimestamp/partial resume/CAS/rollback
-ve page-read prune race kontrolü içerir. Üretim7e082188-63dc-4dfb-b8bb-05aff99e123e;
+ve page-read prune race kontrolü içerir. Üretim0f0ba3ce-8b40-443e-ba2b-b708799badfb;
 canlı floor0/gc0/listing20/change40 ve no-cache API20/40/latest40/oldest1+304 geçti.
 90day eski canlı kayıt olmadığı için üretim silme sonucu veya bakım CPU/yük
 kanıtı yok; sahte production veri yaratılmadı. Eski temel kayıt/ilan minimumu ve
@@ -121,3 +121,28 @@ kontrol doğru rotaya işaret eder, Worker522 nedeni/egress başarısı kanıtı
 docs/SOURCE_REGISTRY.md Cloudflare/30dk/legacy pilot durumuna hizalandı; eski
 Google backend zamanlaması işletim mimarisi diye sunulmaz. Terms/robots/model
 örnek kalite ve Worker detail erişimi hâlâ açık; bypass/proxy/fake detail yok.
+
+Şehir kimlikleri: aynı Dart81 şehir havuzu Worker'da city:<folded-name> ID/label
+olarak API taxonomy cities/cityValues içine eklendi (version1 additive). Node
+contract tüm listenin Dart const kaynakla eşitliğini ve81 ID/label predicate'i
+kontrol eder; shared corpus31 case'de city code/case/Türkçe, farklı il, district,
+unknown ve bilinen alternatif durumları Dart/Worker ve SQLite'da aynı sonucu verir.
+Known city key coarse anchors+exact matcher aynı; ilçe/"Merkez" kaynak konumu il
+olarak tahmin edilmez, unknown strict push üretmez. `canonicalCity` bütün
+caller'larda ID/diacritics kabul eder; UI cityLabel kodları Türkçe isim gösterir,
+eski düz text label'ı korur. Create/edit/summary/quick chip ve city-loading
+aynı görünen değeri kullanır; kriter payload'ları topluca yeniden yazılmaz.
+Migration0013 eski literal cities:city:* anchor'larına wildcard koruması ekler;
+heartbeat aynı normal cities:* anahtarını kurar, preference version/baseline ve
+saved search korur. Partial fanout reset, completed events/outbox UNIQUE korunur.
+Native93/full core143 ve son34core/2UI kodlu şehir akışı geçti; normal390px ve
+320px1.3x form ve SQLite kriter korunması doğrulandı. Live81 city/5 education
+sözlüğü ve20/40/meta304 geçti. Diğer meslek/kurum/kategori kimlikleri, dictionary
+major/wire version migration ve gerçek kaynak/FCM/capacity kapıları açık.
+
+Şehir kontrol noktası tamamlandı: son Flutter132 full, core143 full (+son34core),
+Worker93 full; changed5 analyze/diff-check temiz. Actual API/Firebase debug APK
+223499557bytes/47.7s derlendi; cihaz kurulumu veya FCM teslimi bu build'de yok.
+İlk UI koşusunda düz label normalizasyonu eski yazımı değiştirmişti; cityLabel
+şimdi yalnız kodu label'a açar ve plain legacy yazımı korur. Coded-city UI
+akışı ardından2targeted+tam132 tekrar geçti; atlanan assertion/test yok.

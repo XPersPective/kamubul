@@ -1,4 +1,4 @@
-import {validateCriteria,migrateFilters,fold,installationAnchorKeys,educationValues} from './criteria.js';
+import {validateCriteria,migrateFilters,fold,installationAnchorKeys,educationValues,cityValues} from './criteria.js';
 import {runScheduled} from './pipeline.js';
 
 export const nowISO=()=>new Date().toISOString();
@@ -103,7 +103,7 @@ export async function fetchRequest(request,env,ctx){
     }
     if(path==='/api/v2/taxonomy') {
       const occupations=(await env.DB.prepare("SELECT DISTINCT value FROM listings,json_each(payload,'$.occupations') WHERE active=1 LIMIT 200").all()).results.map(x=>x.value);
-      return json({version:1,education:educationValues.map(x=>x.label),educationValues,kpssTypes:['P3','P93','P94'],categories:['işçi','personel','belediye'],occupations},200,{'Cache-Control':'public, max-age=300'});
+      return json({version:1,education:educationValues.map(x=>x.label),educationValues,cities:cityValues.map(x=>x.label),cityValues,kpssTypes:['P3','P93','P94'],categories:['işçi','personel','belediye'],occupations},200,{'Cache-Control':'public, max-age=300'});
     }
     if(path==='/api/v2/changes') {
       const {n:latest,floor}=await catalogueBounds(env.DB),after=int(url.searchParams.get('after'),0,Number.MAX_SAFE_INTEGER,0,true),watermark=int(url.searchParams.get('watermark'),0,Number.MAX_SAFE_INTEGER,latest,true),limit=int(url.searchParams.get('limit'),1,50,30);

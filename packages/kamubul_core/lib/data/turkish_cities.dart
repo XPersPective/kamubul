@@ -95,9 +95,17 @@ String foldTurkish(String value) => value
     .replaceAll('Ü', 'U');
 
 String? canonicalCity(String value) {
-  final folded = foldTurkish(value);
+  final folded = foldTurkish(value)
+      .replaceAll('Â', 'A')
+      .replaceAll('Î', 'I')
+      .replaceAll('Û', 'U')
+      .replaceFirst(RegExp(r'^CITY:'), '');
   for (final city in turkishCities) {
     if (foldTurkish(city) == folded) return city;
   }
   return null;
 }
+
+String cityLabel(String value) => value.trim().toUpperCase().startsWith('CITY:')
+    ? canonicalCity(value) ?? value
+    : value;

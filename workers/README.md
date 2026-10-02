@@ -30,7 +30,7 @@ korur; ek `educationValues` kimlik/label/alias kayıtlarını yayımlar. Kriter 
 katalogdaki eski label değerleri hâlâ kabul edilir; saklanan değerler topluca
 yeniden yazılmaz. Tanınmayan eğitim düzeyi unknown olur, strict push üretmez;
 aynı kadroda bilinen uygun eğitim alternatifi varsa eşleşir. Üst öğrenim düzeyi
-alt düzeyin yerine otomatik geçmez. Şehir/meslek/kurum/kategori kimlikleri ve
+alt düzeyin yerine otomatik geçmez. Meslek/kurum/kategori kimlikleri ve
 genel sözlük-version migration henüz tamamlanmadı.
 
 Migration0010 eski eğitim facet'li aktif kurulumlara `*` koruma anahtarı ekler;
@@ -39,6 +39,24 @@ Tercih sürümü/effective_after değiştirilmez, abonelik kaybolmaz. Pending/le
 match cursor'ları yeni sıralama için başa alınır; tamamlanmış event'ler tekrar
 açılmaz, outbox UNIQUE tekrar kuyruğa almayı önler. Geniş koruma grubunun geçici
 ek okuma yükü heartbeat'e kadar sürer; büyük geçişte kapasite ölçülmelidir.
+
+Şehir sözlüğü mevcut Dart81 il listesiyle aynı label'ları kullanır; native
+contract kontrolü iki listenin birebir eşitliğini doğrular. `city:istanbul`,
+`city:ankara`, `city:igdir` gibi ID'ler ve Türkçe/ASCII/case label'ları aynı il
+anahtarına gider. İlçe/"Merkez"/bilinmeyen konumdan il tahmin edilmez; bilinen
+uygun alternatif yoksa unknown, strict push yok. Aynı kadroda kanıtlı uygun il
+alternatifi varsa match; başka kadronun ili taşınmaz. UI kodları label gösterir,
+eski düz metin yazımlarını değiştirmez; kayıtta toplu wire rewrite yapılmaz.
+Taxonomy version1 yanıtına additive `cities` ve `cityValues` eklenir; diğer
+alanlar uyumlu kalır, yeni dictionary major/wire migration hâlâ ayrı iştir.
+
+Migration0013 yalnız eski `cities:city:*` facet sahiplerini wildcard ile korur;
+authenticated heartbeat label/ID için aynı eski `cities:istanbul` anahtarını
+kurar. Düz label anchor'ları değişmez. Tercih version/baseline ve saved searches
+korunur; partial fanout reset, completed event'ler ve outbox dedupe değişmez.
+Shared Dart/Worker corpus31 case; bütün81 ID/label ve unknown/district durumları
+kontrol edilir. Dictionary/coded-city matching çalışması actual source city
+coverage, AI/model kalitesi veya gerçek cihaz push kanıtı değildir.
 
 Model `@cf/meta/llama-3.1-8b-instruct-fp8`, güncel official catalogue'da doğrulandı:
 [model](https://developers.cloudflare.com/workers-ai/models/llama-3.1-8b-instruct-fp8/),
