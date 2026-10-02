@@ -120,7 +120,9 @@ class OfficialListingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final source = switch (listing.sourceId) {
-      'kamuilan_sbb' => 'Strateji ve Bütçe Başkanlığı',
+      'sbb' || 'kamuilan_sbb' => 'Strateji ve Bütçe Başkanlığı',
+      'iskur' => 'İŞKUR',
+      'ilangov' => 'ilan.gov.tr',
       'kariyerkapisi' => 'Kariyer Kapısı',
       'resmigazete' => 'Resmî Gazete',
       _ => 'Resmî kaynak',

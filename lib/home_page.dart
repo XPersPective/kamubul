@@ -2322,9 +2322,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
       );
 
   String _sourceLabel(String sourceId) => switch (sourceId) {
-    'kamuilan_sbb' => 'Kamu İlanları (SBB)',
+    'sbb' || 'kamuilan_sbb' => 'Kamu İlanları (SBB)',
+    'kariyerkapisi' => 'Kariyer Kapısı',
+    'iskur' => 'İŞKUR',
+    'ilangov' => 'ilan.gov.tr',
     'resmigazete' => 'Resmî Gazete',
-    _ => 'Kariyer Kapısı',
+    _ => 'Resmî kaynak',
   };
 
   String _date(DateTime? value) => value == null
@@ -2347,7 +2350,10 @@ class _SourcesPage extends StatelessWidget {
   final List<SourceStatus> sourceStatuses;
 
   SourceStatus? _serverStatus(String id) =>
-      sourceStatuses.where((s) => s.id == id).firstOrNull;
+      sourceStatuses.where((s) => s.id == id).firstOrNull ??
+      (id == 'sbb'
+          ? sourceStatuses.where((s) => s.id == 'kamuilan_sbb').firstOrNull
+          : null);
   String? _serverNote(String id) => _serverStatus(id)?.note;
   String _serverLabel(String id) => switch (_serverStatus(id)?.state) {
     SourceState.ok => 'Listeye erişildi',

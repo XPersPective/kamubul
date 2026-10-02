@@ -40,6 +40,28 @@ class _PushStore implements PushStateStore {
 /// PB-008: 1.3x metin ölçeği ve tablet genişliğinde taşma olmadan düzen;
 /// büyük başlık çökmesi ve yapışkan CTA davranışı.
 void main() {
+  testWidgets(
+    'live and legacy SBB detail labels identify the official source',
+    (tester) async {
+      for (final source in ['sbb', 'kamuilan_sbb']) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: OfficialListingPage(
+              listing: ListingRecord(
+                url: 'https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod=1',
+                sourceId: source,
+                title: 'Memur alımı',
+                category: 'Personel',
+                publishedAt: null,
+                fetchedAt: DateTime(2026, 10, 2),
+              ),
+            ),
+          ),
+        );
+        expect(find.text('Strateji ve Bütçe Başkanlığı'), findsOneWidget);
+      }
+    },
+  );
   testWidgets('canonical guide reads cache and opens position detail offline', (
     tester,
   ) async {

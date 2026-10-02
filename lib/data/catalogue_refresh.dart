@@ -86,7 +86,10 @@ Future<CatalogueRefreshResult> refreshCatalogue(
       statuses = metadata.sources;
       remoteLastSuccess = now;
       bool available(String id) {
-        final source = statuses.where((s) => s.id == id).firstOrNull;
+        final wireId = id == kSbbSourceId ? 'sbb' : id;
+        final source =
+            statuses.where((s) => s.id == wireId).firstOrNull ??
+            statuses.where((s) => s.id == id).firstOrNull;
         final success = source?.lastSuccessAt;
         return source?.state == SourceState.ok &&
             success != null &&

@@ -28,6 +28,7 @@ const int kUserDataSchemaVersion = 2;
 const Set<String> kUserDataSourceIds = {
   'kariyerkapisi',
   'kamuilan_sbb',
+  'sbb',
   'resmigazete',
 };
 

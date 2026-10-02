@@ -4,6 +4,22 @@
 
 ## 1. Gerçek durum ve sınır
 
+SBB wire uyumu: live metadata/listing sourceId=sbb, legacy mobile=kamuilan_sbb.
+refreshCatalogue iki kimliği tanır, varsa canonical sbb durumu eski alias'a
+üstündür; healthy/fresh v2 SBB gereksiz phone fallback üretmez. Home/detail
+kaynak label ve source-status alias düzeltildi; unknown source artık Kariyer
+diye sunulmaz. Backup valid IDs sbb'yi de içerir; mevcut kayıt/URL/ID yeniden
+yazılmaz. Fresh source, çelişen alias, source label ve backup roundtrip
+kontrolleri +159 Flutter full/changed7 analyze/diff-check geçti. Actual
+Firebase/API debug APK223536538bytes/25.7s; fiziksel teslim kanıtı değil.
+Son readonly live42seq/21catalogue/detail/missing404/meta304; D1 sources
+kariyer last_success11:12:04.668Z ve detail-renewal failure note, sbb blocked
+11:15:04.689Z;21 unavailable/full_text0/completed21. Queries rows_written0,
+4/21/21 rows_read. İlk transient7403 retry sonraki access ile geçti; yanlış
+status column sorgusu readonly7500, state düzeltmesi başarılı. Fake prod veri
+veya yeni AI inference yok. ADB hâlâ yalnız5554/5556;5556 data353476KB boş,
+app kurulu. Kaynak/physical/release/budget kapıları değişmedi.
+
 Canonical kart/rehber kontrol noktası: Home _listingPage bütün normal/saved ve
 legacy URL-tap caller'larında criteriaListing varsa OfficialListingPage cache
 yolunu kullanır; active=false unavailable gösterir. Legacy Kariyer kayıtları

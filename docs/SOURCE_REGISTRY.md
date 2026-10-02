@@ -50,7 +50,14 @@ kanıtı olmadan alternatif host/proxy eklenmez.
 
 ## Mobil geçiş ve çıkarım kanıtı
 
-Son readonly kontrol: Windows aynı resmî detail adaptörü ile
+2 Ekim son cloud readonly kontrol: canlı API21 ilan/42change/detail/missing404/
+meta304 başarılı. D1 Kariyer last_success2026-10-02T11:12:04.668Z, son not
+ayrıntı yenilemesi başarısız/eski veri korunuyor; SBB blocked11:15:04.689Z.
+21 ilanın tamamı detailState unavailable, full source text0;21 completed
+processing işi source-only, AI koşul/özet başarısı sayılmaz. Sorgular yazma0.
+Cloud success list toplama başarısıdır, tam detail başarısı değildir.
+
+Son Windows readonly kontrol: aynı resmî detail adaptörü ile
 12c5b0ac-cd05-4316-9d7c-39ed4d06a358 için273ms'de main7113 karakter/11 kadro
 ve2026-10-19T14:00:00Z deadline alabildi. D1 aynı ilanda eski kayıtlı
 detail_error=source_http_522 /detail_state=unavailable taşıyor; son source

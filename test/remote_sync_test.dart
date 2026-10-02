@@ -32,6 +32,7 @@ void main() {
     DateTime? generatedAt,
     SourceState kariyer = SourceState.ok,
     SourceState sbb = SourceState.ok,
+    String sbbId = kSbbSourceId,
   }) => jsonEncode({
     'schemaVersion': 2,
     'taxonomyVersion': 1,
@@ -40,7 +41,7 @@ void main() {
     'sources': [
       for (final entry in [
         (kKariyerSourceId, 'Kariyer Kapısı', kariyer),
-        (kSbbSourceId, 'Kamu İlanları (SBB)', sbb),
+        (sbbId, 'Kamu İlanları (SBB)', sbb),
         ('iskur', 'İŞKUR', SourceState.blocked),
       ])
         {
@@ -130,6 +131,46 @@ void main() {
   setUp(() {
     kariyerCalls = 0;
     sbbCalls = 0;
+  });
+
+  test(
+    'live sbb source ID prevents fallback while fresh and healthy',
+    () async {
+      final store = await freshStore();
+      addTearDown(store.close);
+      final result = await refreshCatalogue(
+        store,
+        remote: client(metadataBody(sbbId: 'sbb')),
+        kariyer: kariyerLoader,
+        sbb: sbbLoader,
+        at: now,
+      );
+      expect(kariyerCalls, 0);
+      expect(sbbCalls, 0);
+      expect(result.sourceStatuses[1].id, 'sbb');
+    },
+  );
+
+  test('current wire SBB status wins conflicting legacy alias', () async {
+    final body =
+        jsonDecode(metadataBody(sbbId: 'sbb', sbb: SourceState.blocked)) as Map;
+    (body['sources'] as List).insert(0, {
+      'id': kSbbSourceId,
+      'name': 'Eski SBB',
+      'state': 'ok',
+      'last_success': DateTime(2026, 9, 29, 8).toUtc().toIso8601String(),
+    });
+    final store = await freshStore();
+    addTearDown(store.close);
+    await refreshCatalogue(
+      store,
+      remote: client(jsonEncode(body)),
+      kariyer: kariyerLoader,
+      sbb: sbbLoader,
+      at: now,
+    );
+    expect(kariyerCalls, 0);
+    expect(sbbCalls, 1);
   });
 
   test('expired delta or staged snapshot retries once with fresh metadata and keeps favorites', () async {

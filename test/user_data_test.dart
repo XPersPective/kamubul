@@ -43,6 +43,23 @@ String _envelope(Object? data, {String packageName = kUserDataPackageName}) =>
     });
 
 void main() {
+  test('live and legacy SBB bookmark source IDs survive backup round trip', () {
+    for (final source in ['sbb', 'kamuilan_sbb']) {
+      final record = ListingRecord(
+        url: 'https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod=1',
+        sourceId: source,
+        title: 'Memur alımı',
+        category: 'Personel',
+        publishedAt: null,
+        fetchedAt: DateTime(2026, 10, 2),
+      );
+      final imported = parseUserDataJson(
+        exportUserDataJson(searches: [], bookmarks: [record]),
+      );
+      expect(imported.bookmarks.single.sourceId, source);
+      expect(imported.bookmarks.single.url, record.url);
+    }
+  });
   test('dışa aktarma → içe aktarma turu tüm alanları korur', () {
     final exportedAt = DateTime(2026, 9, 28, 12);
     final json = exportUserDataJson(
