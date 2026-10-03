@@ -125,7 +125,7 @@ class OfficialListingPage extends StatelessWidget {
         : 'Yaş şartı: henüz belirlenemedi';
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -175,7 +175,12 @@ class OfficialListingPage extends StatelessWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.symmetric(
+          vertical: 20,
+          horizontal: MediaQuery.sizeOf(context).width > 800
+              ? (MediaQuery.sizeOf(context).width - 760) / 2
+              : 20,
+        ),
         children: [
           Text(
             source,
@@ -211,6 +216,7 @@ class OfficialListingPage extends StatelessWidget {
             child: Column(
               children: [
                 ListTile(
+                  leading: const Icon(Icons.account_balance_outlined),
                   title: const Text('Alım türü'),
                   subtitle: Text(
                     listing.category.isEmpty
@@ -219,6 +225,7 @@ class OfficialListingPage extends StatelessWidget {
                   ),
                 ),
                 ListTile(
+                  leading: const Icon(Icons.groups_outlined),
                   title: const Text('Kontenjan'),
                   subtitle: Text(
                     listing.quota == null
@@ -227,14 +234,17 @@ class OfficialListingPage extends StatelessWidget {
                   ),
                 ),
                 ListTile(
+                  leading: const Icon(Icons.event_outlined),
                   title: const Text('Son başvuru'),
                   subtitle: Text(_date(listing.deadline)),
                 ),
                 ListTile(
+                  leading: const Icon(Icons.schedule_outlined),
                   title: const Text('Yayın tarihi'),
                   subtitle: Text(_date(listing.publishedAt)),
                 ),
                 ListTile(
+                  leading: const Icon(Icons.place_outlined),
                   title: const Text('Yerler'),
                   subtitle: Text(
                     listing.places.isEmpty

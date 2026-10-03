@@ -24,8 +24,8 @@ void main() {
       Color.alphaBlend(status.withValues(alpha: 0.12), surface);
 
   final themes = [
-    ('açık', AppTheme.light(brandColor: brand)),
-    ('koyu', AppTheme.dark(brandColor: brand)),
+    ('açık', premiumTheme(AppTheme.light(brandColor: brand))),
+    ('koyu', premiumTheme(AppTheme.dark(brandColor: brand))),
   ];
 
   for (final (name, theme) in themes) {
@@ -42,7 +42,11 @@ void main() {
           ('ikincil düğme', scheme.onSecondary, scheme.secondary),
           ('hata metni', scheme.onError, scheme.error),
           ('birincil kap', scheme.onPrimaryContainer, scheme.primaryContainer),
-          ('ikincil kap', scheme.onSecondaryContainer, scheme.secondaryContainer),
+          (
+            'ikincil kap',
+            scheme.onSecondaryContainer,
+            scheme.secondaryContainer,
+          ),
           ('hata kap', scheme.onErrorContainer, scheme.errorContainer),
           ('üçüncül kap', scheme.onTertiaryContainer, scheme.tertiaryContainer),
         ];
@@ -76,16 +80,12 @@ void main() {
           ('Beklemede', PremiumStatus.held(brightness)),
           ('Gönderilmedi', PremiumStatus.dropped(brightness)),
         ];
-        for (final surface in [
-          scheme.surface,
-          scheme.surfaceContainerLow,
-        ]) {
+        for (final surface in [scheme.surface, scheme.surfaceContainerLow]) {
           for (final (label, status) in statuses) {
             expect(
               contrast(status, badgeBase(status, surface)),
               greaterThanOrEqualTo(4.5),
-              reason:
-                  '$name temada "$label" rozeti %12 zemininde AA altında',
+              reason: '$name temada "$label" rozeti %12 zemininde AA altında',
             );
           }
         }

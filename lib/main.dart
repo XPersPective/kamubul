@@ -12,6 +12,7 @@ import 'ads_state.dart';
 import 'notifications/alert_service.dart';
 import 'notifications/push_setup.dart';
 import 'ui/onboarding_page.dart';
+import 'ui/premium.dart';
 
 const contactEmail = String.fromEnvironment('CONTACT_EMAIL');
 const privacyUrl = String.fromEnvironment(
@@ -126,8 +127,8 @@ class KamuBulApp extends StatelessWidget {
     animation: Listenable.merge([theme, pro]),
     builder: (context, _) => MaterialApp(
       title: identity.appName,
-      theme: AppTheme.light(brandColor: identity.brandColor),
-      darkTheme: AppTheme.dark(brandColor: identity.brandColor),
+      theme: premiumTheme(AppTheme.light(brandColor: identity.brandColor)),
+      darkTheme: premiumTheme(AppTheme.dark(brandColor: identity.brandColor)),
       themeMode: theme.mode,
       localizationsDelegates: [
         NappLocalizationsDelegate(translations),

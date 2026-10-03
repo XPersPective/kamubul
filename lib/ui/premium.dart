@@ -1,10 +1,103 @@
 import 'package:flutter/material.dart';
 
+/// KamuBul görsel katmanı; ortak kitin davranışlarını ve marka rengini korur.
+ThemeData premiumTheme(ThemeData base) {
+  final dark = base.brightness == Brightness.dark;
+  final colors = base.colorScheme.copyWith(
+    surface: Color(dark ? 0xFF0B1520 : 0xFFF6F8FB),
+    surfaceContainerLow: Color(dark ? 0xFF132330 : 0xFFFFFFFF),
+    surfaceContainerHighest: Color(dark ? 0xFF203242 : 0xFFE8EEF5),
+    onSurface: Color(dark ? 0xFFEAF0F6 : 0xFF172638),
+    onSurfaceVariant: Color(dark ? 0xFFB5C4D3 : 0xFF506176),
+    primaryContainer: Color(dark ? 0xFF173C53 : 0xFF18394B),
+    onPrimaryContainer: const Color(0xFFEAF5FF),
+  );
+  final shape = RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(PremiumShape.cardRadius),
+    side: BorderSide(color: colors.outlineVariant),
+  );
+  return base.copyWith(
+    colorScheme: colors,
+    scaffoldBackgroundColor: colors.surface,
+    textTheme: base.textTheme
+        .copyWith(
+          headlineSmall: base.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            height: 1.2,
+          ),
+          titleLarge: base.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          titleMedium: base.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+          bodyLarge: base.textTheme.bodyLarge?.copyWith(height: 1.5),
+          bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.5),
+        )
+        .apply(bodyColor: colors.onSurface, displayColor: colors.onSurface),
+    appBarTheme: base.appBarTheme.copyWith(
+      backgroundColor: colors.surface,
+      surfaceTintColor: Colors.transparent,
+      foregroundColor: colors.onSurface,
+      elevation: 0,
+      titleTextStyle: base.textTheme.titleLarge?.copyWith(
+        color: colors.onSurface,
+        fontSize: 21,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.5,
+      ),
+    ),
+    cardTheme: base.cardTheme.copyWith(
+      color: colors.surfaceContainerLow,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+      shape: shape,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+    ),
+    inputDecorationTheme: base.inputDecorationTheme.copyWith(
+      filled: true,
+      fillColor: colors.surfaceContainerLow,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colors.outline),
+      ),
+    ),
+    navigationBarTheme: base.navigationBarTheme.copyWith(
+      backgroundColor: colors.surfaceContainerLow,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: colors.primaryContainer,
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected)
+              ? colors.onPrimaryContainer
+              : colors.onSurfaceVariant,
+        ),
+      ),
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => TextStyle(
+          color: colors.onSurfaceVariant,
+          fontSize: 12,
+          fontWeight: states.contains(WidgetState.selected)
+              ? FontWeight.w700
+              : FontWeight.w500,
+        ),
+      ),
+    ),
+  );
+}
+
 /// PB-008 premium şekil tokenları: kart, çip, düğme ve sayfa altı yarıçapları.
 abstract final class PremiumShape {
-  static const cardRadius = 16.0;
+  static const cardRadius = 22.0;
   static const chipRadius = 999.0;
-  static const buttonRadius = 14.0;
+  static const buttonRadius = 16.0;
   static const barRadius = 24.0;
 }
 
@@ -60,7 +153,18 @@ class _SkeletonBoxState extends State<SkeletonBox>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: PremiumMotion.shimmerDuration,
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 0.5;
+    } else {
+      _controller.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -122,13 +226,14 @@ PageRouteBuilder<T> sharedAxisRoute<T>(Widget page) => PageRouteBuilder<T>(
   reverseTransitionDuration: PremiumMotion.settleDuration,
   pageBuilder: (_, _, _) => page,
   transitionsBuilder: (context, animation, secondaryAnimation, child) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
     final curved = CurvedAnimation(
       parent: animation,
       curve: PremiumMotion.springCurve,
       reverseCurve: PremiumMotion.settleCurve,
     );
     return FadeTransition(
-      opacity: curved,
+      opacity: animation,
       child: SlideTransition(
         position: Tween<Offset>(
           begin: const Offset(0, 0.04),

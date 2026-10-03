@@ -304,6 +304,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Düzenleme sonrası liste kapanır; yeniden açıldığında yeni değer görünür.
+    await tester.ensureVisible(find.byTooltip('Kayıtlı aramaları yönet'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Kayıtlı aramaları yönet'));
     await pumpRoute(tester);
     sheet = find.byType(BottomSheet);

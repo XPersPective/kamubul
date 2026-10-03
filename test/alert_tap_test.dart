@@ -264,6 +264,8 @@ void main() {
           await tester.pumpAndSettle();
         }
         await settleUntil(tester, find.text('CANONICAL CARD'));
+        await tester.ensureVisible(find.text('CANONICAL CARD'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('CANONICAL CARD'));
         await tester.pumpAndSettle();
         expect(find.byType(OfficialListingPage), findsOneWidget);

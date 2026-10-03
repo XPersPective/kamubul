@@ -10,6 +10,7 @@ import 'package:kamubul/listings/kariyer_feed.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/listings/official_listing_page.dart';
 import 'package:napp_core/napp_core.dart';
+import 'package:kamubul/ui/premium.dart';
 
 /// PB-008 altın görüntüler: telefon, 1.3x metin ölçeği ve tablet düzenleri.
 ///
@@ -91,8 +92,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(brandColor: brand),
-          darkTheme: AppTheme.dark(brandColor: brand),
+          theme: premiumTheme(AppTheme.light(brandColor: brand)),
+          darkTheme: premiumTheme(AppTheme.dark(brandColor: brand)),
           themeMode: dark ? ThemeMode.dark : ThemeMode.light,
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context)
@@ -175,6 +176,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
+        theme: premiumTheme(
+          AppTheme.light(brandColor: const Color(0xFF17659C)),
+        ),
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(textScale)),

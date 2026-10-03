@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/home_page.dart';
+import 'package:kamubul/ui/premium.dart';
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -85,9 +86,14 @@ void main() {
     );
   });
 
-  Future<void> pumpHome(WidgetTester tester, {double textScale = 1.0}) async {
+  Future<void> pumpHome(
+    WidgetTester tester, {
+    double textScale = 1.0,
+    Size size = const Size(390, 844),
+    bool dark = false,
+  }) async {
     tester.view.devicePixelRatio = 2;
-    tester.view.physicalSize = const Size(390, 844) * 2;
+    tester.view.physicalSize = size * 2;
     addTearDown(tester.view.reset);
     final settings = SettingsStore();
     final theme = ThemeModeController(store: settings)..load();
@@ -99,10 +105,16 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
+        theme: premiumTheme(
+          AppTheme.light(brandColor: const Color(0xFF17659C)),
+        ),
+        darkTheme: premiumTheme(
+          AppTheme.dark(brandColor: const Color(0xFF17659C)),
+        ),
+        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
         home: KamuHomePage(
@@ -142,6 +154,36 @@ void main() {
       }
     }
   }
+
+  for (final (size, scale, dark) in [
+    (const Size(320, 700), 1.3, true),
+    (const Size(844, 390), 1.3, false),
+    (const Size(390, 844), 2.0, true),
+  ]) {
+    testWidgets('premium liste $size / $scale / dark=$dark taşmaz', (
+      tester,
+    ) async {
+      await pumpHome(tester, size: size, textScale: scale, dark: dark);
+      expect(find.text('Güncel kamu ilanları'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('azaltılmış hareket iskelet animasyonunu durdurur', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: SkeletonBox(width: 120),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('liste 1.3x metin ölçeğinde taşmasız yerleşir', (tester) async {
     await pumpHome(tester, textScale: 1.3);

@@ -1489,12 +1489,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
       appBar: AppBar(
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Icon(
                 Icons.account_balance_outlined,
-                size: 18,
+                size: 22,
                 color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
             ),
@@ -1553,18 +1556,22 @@ class _KamuHomePageState extends State<KamuHomePage> {
             destinations: [
               const NavigationDestination(
                 icon: Icon(Icons.view_list_outlined),
+                selectedIcon: Icon(Icons.view_list_rounded),
                 label: 'İlanlar',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.bookmark_outline),
+                selectedIcon: Icon(Icons.bookmark_rounded),
                 label: 'Kaydedilen',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.auto_awesome_outlined),
+                selectedIcon: Icon(Icons.auto_awesome_rounded),
                 label: 'Rehber',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.tune_outlined),
+                selectedIcon: Icon(Icons.tune_rounded),
                 label: 'Ayarlar',
               ),
               if (_otherApps != null)
@@ -1608,7 +1615,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
     child: Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(PremiumShape.barRadius),
@@ -1629,6 +1636,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               color: Theme.of(context).colorScheme.onPrimaryContainer,
               fontWeight: FontWeight.w700,
+              fontSize: 30,
             ),
           ),
           const SizedBox(height: 8),
@@ -1921,7 +1929,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       child: InkWell(
         onTap: () => _showListing(record),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1934,10 +1942,19 @@ class _KamuHomePageState extends State<KamuHomePage> {
                 ),
               Row(
                 children: [
-                  Icon(
-                    Icons.account_balance_outlined,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.primary,
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.account_balance_outlined,
+                      size: 22,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -1959,18 +1976,20 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 12),
               Text(
                 record.title,
                 style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                    ?.copyWith(fontWeight: FontWeight.w700, fontSize: 18),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 10),
               Text(
                 '${_sourceLabel(record.sourceId)} • Yayın ${_date(record.publishedAt)}',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               if (_tab == 1 &&
                   record.publishedAt != null &&

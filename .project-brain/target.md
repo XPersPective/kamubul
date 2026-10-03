@@ -1,6 +1,13 @@
 # Hedef Mimari — KamuBul
 
 ## 1. Amaç ve kapsam
+3 Ekim tasarım yönü: kullanıcı premium arayüz skill'i aranıp kullanıcı
+skills klasörüne kurulmasını ve gerçek Flutter arayüzüne uygulanmasını istedi.
+UI/UX Pro Max (nextlevelbuilder/ui-ux-pro-max-skill) kuruldu; iş ilanı için
+sade/okunaklı, profesyonel mavi ve nötr yüzeyler seçildi. Mevcut ortak napp
+tema/davranışı korunur; yeni runtime UI/font bağımlılığı eklenmez. Türkçe,
+açık/koyu, küçük/yatay ekran, büyük metin ve azaltılmış hareket desteklenir.
+Test görselleri canlı ilan veya mağaza ekran görüntüsü olarak sunulmaz.
 3 Ekim son kullanıcı yönü: dağıtım yalnız Türkiye, mağaza ve uygulama dili yalnız
 Türkçe. Mevcut oturumlarla Cloudflare/Google ayarlarını tamamlama, gerçek reklam
 ve kamubul_pro_lifetime satın alma ürünü, Türkçe gerçek ekran görüntülerini Play'e

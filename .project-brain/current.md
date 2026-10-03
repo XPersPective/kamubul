@@ -5,6 +5,22 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 
 ## 1. Üretim durumu ve gerçek sınır
 
+Premium görsel katman artık lib/ui/premium.dart premiumTheme üzerinden root
+MaterialApp light/dark temasına uygulanır. Navy hero/marka yüzeyi, açık beyaz
+ve koyu slate kartlar, ortak tipografi/22dp kart/16dp düğme tokenları, input
+ve navigation görünümü; ilan kartı hierarchy/ikon yüzeyi ve ayrıntı field
+ikonları/tablet760dp okunabilir ölçüsü. Veri/matcher/Pro/ad policy değişmedi.
+İskelet reduced-motion'da ticker durdurur; route fade overshoot opaklığına
+bağlanmaz, reduced-motion route transformunu atlar. UI/UX Pro Max kullanıcı
+C:/Users/rubicon/.codex/skills/ui-ux-pro-max yolunda; yeni runtime dependency yok.
+179 Flutter full PASS, changed8 analyze temiz; 26 focused kontrast/48dp
+onboarding/responsive/reduced-motion/golden pass ve11 gerçek SDK-font golden
+görsel incelendi. İlk full2 failure yeni layout'ta offscreen tester tap idi;
+testler ensureVisible kullanır, işlevsel assertion silinmedi. .tmp/previews
+light/dark home görselleri test fixture render, native/Play screenshot değildir.
+Önceki APK/AAB/native mağaza görselleri bu yeni UI'nin kanıtı değildir;
+yeni signed x64 APK build devam eder, AAB bu tasarımdan önceki sürümdür.
+
 3 Ekim son yön: yalnız Türkiye/Türkçe dağıtımı; gerçek reklam, tek seferlik
 Pro ürünü, ekran görüntüsü yükleme ve bir sürüm gönderme yetkilidir. Play yeni
 kayıt formu hâlâ politika/ABD ihracat beyanlarını bekler; kayıt veya sürüm

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/ui/onboarding_page.dart';
 import 'package:kamubul_core/kamubul_core.dart';
 import 'package:napp_core/napp_core.dart';
+import 'package:kamubul/ui/premium.dart';
 
 Future<void> press(WidgetTester tester, String label) async {
   final button = find.text(label);
@@ -34,8 +35,8 @@ void main() {
     const brand = Color(0xFF17659C);
     try {
       for (final theme in [
-        AppTheme.light(brandColor: brand),
-        AppTheme.dark(brandColor: brand),
+        premiumTheme(AppTheme.light(brandColor: brand)),
+        premiumTheme(AppTheme.dark(brandColor: brand)),
       ]) {
         await tester.pumpWidget(
           MaterialApp(
