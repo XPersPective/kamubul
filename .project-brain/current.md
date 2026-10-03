@@ -18,8 +18,14 @@ onboarding/responsive/reduced-motion/golden pass ve11 gerçek SDK-font golden
 görsel incelendi. İlk full2 failure yeni layout'ta offscreen tester tap idi;
 testler ensureVisible kullanır, işlevsel assertion silinmedi. .tmp/previews
 light/dark home görselleri test fixture render, native/Play screenshot değildir.
-Önceki APK/AAB/native mağaza görselleri bu yeni UI'nin kanıtı değildir;
-yeni signed x64 APK build devam eder, AAB bu tasarımdan önceki sürümdür.
+Önceki native mağaza PNG'leri AppPublishing images/review-previous-ui altında
+korunur; yeni store screenshot değildir. Yeni signed x64 APK303.8s/24.6MB
+build başarıyla tamamlandı; check-android-release.ps1 kalıcı DER/cert eşleşmesi,
+paket/debuggable=false/16KB ZIP hizalama PASS. Semboller repo dışında premium-ui
+klasöründe; Android/.kotlin oturum dosyaları gitignored. Önizleme testiyle ilk
+build'in generated plugin race'i görüldü; test/pub/build ardışık olmalıdır.
+Yeni APK henüz native kurulmadı; emülatör ANR kapısı sürer. AAB bu tasarımdan
+önceki sürümdür, yeni UI ile store upload öncesi yeniden üretilmelidir.
 
 3 Ekim son yön: yalnız Türkiye/Türkçe dağıtımı; gerçek reklam, tek seferlik
 Pro ürünü, ekran görüntüsü yükleme ve bir sürüm gönderme yetkilidir. Play yeni

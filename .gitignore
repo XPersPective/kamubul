@@ -34,6 +34,7 @@ coverage/
 # --- Flutter / Dart derleme çıktıları (1.1'i zayıflatmayan ekler) ---
 .flutter-plugins
 .flutter-plugins-dependencies
+android/.kotlin/
 .packages
 .pub-cache/
 .pub/
