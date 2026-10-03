@@ -7,13 +7,16 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:usesCleartextTraffic="false"
-        android:label="kamubul"
+        android:label="KamuBul"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <!-- Sunucu (FCM) bildirimleri yerel uyarılarla aynı kanalda görünür. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="kamubul_alerts" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_kamubul" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

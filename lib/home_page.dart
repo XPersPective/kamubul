@@ -2297,7 +2297,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
         title: const Text('Bildirim geçmişi'),
         subtitle: const Text(
           'Gönderilen, bekleyen ve gönderilmeyen tüm uyarılar. '
-          'Veriler yalnızca bu cihazda tutulur.',
+          'Yerel kayıtlar ve sunucu bildirim geçmişiniz.',
         ),
         onTap: () =>
             Navigator.of(context)
