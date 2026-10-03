@@ -11,8 +11,17 @@ true yapar. Eligible eski oturumlarda bile eksik onboarding reklamı engeller;
 marker sonrası izin ve Pro koruması native-free üç Flutter unit check ile
 doğrulandı, changed3 analyze temiz. Bu Google Play Games ekranının nedenini
 kanıtlamaz; native ad teslimi/store release veya revenue kabulü değildir.
-173 full Flutter checks passed; no live test/build handle. Bu son ad-policy
-değişikliği emülatördeki03f80a8 profile APK'ya henüz derlenip yüklenmedi.
+173 full Flutter checks passed; no live test/build handle.201cbe2 actual API/
+Firebase profile55637541bytes/79.2s rebuilt, package identity checked and
+installed on existing5554 (5558 no longer connected, not restarted).5554
+had4339540KB data available and no previous KamuBul package. MainActivity
+started, pid12370 alive; native onboarding rendered but ANR dialog observed.
+events am_anr03:23:13.676 reports "failed to complete startup" for this process;
+dumpsys lastanr misleadingly says none. exit-info has only isolated WebView
+process kills, not main exit. Host free RAM~1.1GB. No source/FCM/release/latency
+success claim; next diagnose actual native startup ANR, do not attribute it
+to Dart/Ads without trace. Own temporary /sdcard screenshot removed; emulator,
+app/data preserved. No privilege escalation or system/app deletion.
 
 Canonical mobil ayrıntı mevcut cache'teki summary text/quote/scopeLabel için
 açılır kaynak alıntısı gösterir. Eşleşmeyen veya600 karakteri aşan alıntı
@@ -54,6 +63,9 @@ Fake üretim ilanı/kurulumu/push yok; harici ücretli AI etkin değil.
 Son readonly kanıt: canlı watermark46/catalogue23/appliedThrough46/detail GET,
 missing detail404/conditional meta304. D1 son readonly Kariyer last_success
 2026-10-02T17:21:08.812Z/ayrıntı hata notu; SBB blocked last_attempt17:24:08.873Z.
+3Oct new readonly D1 SELECT4+23rows/0write/changed=false:23 listings/full_text0;
+Kariyer processing last_attempt03:18:08.804Z,last_success02:45:08.812Z,detail
+failure note. SBB blocked02:48:08.805Z/last_successnull; other sources blocked.
 Migrations0001–0016; ownership triggerları önce installation0 ile doğrulandı.
 Son queue deployment readonly installation1/outbox0, dispatch match/send
 idle generation0 ve queue_jobs0. Bu kurulumun kaynağı/cihaz teslimi doğrulanmadı;
