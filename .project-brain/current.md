@@ -3,6 +3,27 @@
 3 Ekim 2026. Yalnız çalışan kod ve doğrulanmış dış durum; hedef `target.md`,
 uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları Git'tedir.
 
+## 3 Ekim — güncel AdMob durumu (önceki giriş engellerinin yerine geçer)
+Kullanıcı mevcut yayıncı hesabına giriş yapıp tüm AdMob formlarının doldurulmasını
+istedi. KamuBul Android mağaza bağlantısız kalıcı kayıt; banner, interstitial,
+rewarded ve app_open dört birim UI başarı mesajları ve son dört satırlı listeyle
+kanıtlandı. Ödül miktarı1/24 saat Pro mevcut GiftFlow ile aynı. Yeni sözleşme,
+ödeme veya yeni hesap kurulumu yapılmadı. Gerçek IDs Git dışında yalnız
+D:/AppPublishing/apps/kamubul/app-ids.env ve credentials/firebase/android.defines.json;
+native app ID credentials/android/key.properties içinde. Beş define ve native
+app ID eşitliği PASS; imza alanları korundu. Kanıt .tmp/admob-kamubul-units.jpg.
+Play mağaza bağlantısı/app doğrulaması ve AdMob onayı tamamlanmadı; birim
+oluşturma canlı reklam sunumu veya reklamlı native kabulü değildir. Yeni gerçek
+reklam config AAB yeniden derleme disk-full IOException ile başarısız oldu.
+D: Free106496 bytes; mevcut AAB çıktı dosyası yok. Yeni APK derlenmedi;
+önceki APK Google test IDs içerir. Guarded yalnız build/app/intermediates
+cleanup automatic review tarafından gerekçesiz reddedildi; silme/bypass yok.
+Yer açılmadan gerçek reklam config paket doğrulaması tamamlanamaz.
+Qwen Token Plan kullanıcı tarafından seçildi ama official personal terms/team
+FAQ custom backend/automation kullanımını yasaklar; key kaydedilmedi/çağrılmadı.
+Standard API key/ayrı bütçeler olmadan PB-022 disabled kalır. Qwen3.8-Flash
+fiyatı0.15/M input0.47/M output ekonomi adayı; deployed/mutlak en ucuz değil.
+
 ## 1. Üretim durumu ve gerçek sınır
 
 Kullanıcı önceki theme/köşe değişikliğini premium kabul etmedi. Güncel ana
@@ -30,13 +51,13 @@ detail revalidation failure; SBB/İŞKUR/ilan.gov blocked. Source gate kapanmad�
 3 Ekim son yön: yalnız Türkiye/Türkçe dağıtımı; gerçek reklam, tek seferlik
 Pro ürünü, ekran görüntüsü yükleme ve bir sürüm gönderme yetkilidir. Play yeni
 kayıt formu hâlâ politika/ABD ihracat beyanlarını bekler; kayıt veya sürüm
-yüklemesi yapılmadı. İki gerçek 1080x2400 PNG, AppPublishing kamubul mağaza
-tr-TR/images/phoneScreenshots altında hazır (ilan ayrıntısı/koyu ayarlar).
+yüklemesi yapılmadı. Önceki gerçek 1080x2400 PNG kayıtları images/review-previous-ui altında
+arşivlidir; yeni UI native mağaza ekranları henüz hazır değil.
 176 Worker testi yeniden geçti. Canlı yetkisiz private history GET ve
 installation DELETE 401/no-store/nosniff; public meta200/cache60s. Bu sınırlı
 kontroller kapsamlı zafiyetsizlik veya cloud load kabulü değildir.
-AdMob mevcut oturumu signup sayfasına yönlendi; tab kontrolünde tekrarlanan
-zaman aşımı, gerçek app/unit IDs edinilmedi. Pro fiyatı ve harici AI sağlayıcı/
+AdMob erişimi kullanıcı girişi sonrası çözüldü; dört gerçek Android birimi
+kalıcı oluşturuldu ve dış yayın config dosyalarına bağlandı. Pro fiyatı ve harici AI sağlayıcı/
 model/bütçeleri için kullanıcı bilgisi beklenir. API anahtarı sohbete istenmez.
 Birleşik emulator/network komutu otomatik incelemede gerekçesiz reddedildi;
 ayrı dar kapsamlı SDK başlatma ve auth kontrolleri sonra başarıyla çalıştı.
