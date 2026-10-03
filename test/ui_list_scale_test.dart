@@ -155,6 +155,18 @@ void main() {
     }
   }
 
+  testWidgets('kişiselleştirme ilk aramada doğrudan kriter editörünü açar', (
+    tester,
+  ) async {
+    await pumpHome(tester);
+    await tester.tap(find.text('Kriterlerinize göre keşfedin'));
+    await tester.pumpAndSettle();
+    expect(find.text('Aramayı kaydet'), findsOneWidget);
+    expect(find.text('Arama adı'), findsOneWidget);
+    expect(find.text('KPSS puanınız (0–100)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final (size, scale, dark) in [
     (const Size(320, 700), 1.3, true),
     (const Size(844, 390), 1.3, false),

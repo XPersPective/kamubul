@@ -562,3 +562,19 @@ force-stop/off/token/delete/digest/history/reinstall/backup; iOS Mac/APNs;
 release signing/AdMob/store purchase/restore/accessibility+visual response.
 Kanıt dosyaları: docs/SOURCE_REGISTRY.md, AI_MODEL_PILOT.md,
 WORKER_FREE_PILOT.md, CLOUDFLARE_FCM_YOL_HARITASI.md. Tüm hedef tamamlanmadı.
+
+
+### 3 Ekim — kullanıcı görsel reddi sonrası ana ekran düzenlemesi
+Kullanıcı önceki theme/köşe değişikliğini premium kabul etmedi; o tasarım ürün
+kabulü değildir. Ana ekran artık koyu büyük hero yerine editoryal başlık,
+kısa cache durumu ve kompakt kişiselleştirme eylemi kullanır. İlk aramada eylem
+mevcut typed kriter editörünü doğrudan açar; kayıt varsa mevcut yönetim açılır.
+Kartta tekrar eden kurum simgesi kaldırıldı, başlık hiyerarşisi güçlendirildi,
+metadata ve alt eylemler ayrıldı; kaynak/unknown/eşleşme/favori davranışı korunur.
+Yeni dependency, AI çağrısı veya üretim verisi yok. Gerçek Flutter widget
+render açık/koyu görsel kontrolü `.tmp/previews/redesign-light.png` ve
+`redesign-dark.png`; izole TEST KURUMU fixture'ı, native/Play ekran görüntüsü
+ve kullanıcı görsel kabulü değildir. Mevcut APK/AAB bu yeni değişikliği içermez.
+Doğrulama: 180 tam Flutter testi PASS; değişen iki dosya analyze temiz.
+İlk kayıtlı arama kişiselleştirme → gerçek KPSS/isim editörü regresyonu PASS;
+320px/1.3x, yatay ve 2.0x koyu tema taşma kontrolleri PASS.

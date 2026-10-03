@@ -1612,72 +1612,104 @@ class _KamuHomePageState extends State<KamuHomePage> {
   );
 
   Widget _intro() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-    child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(PremiumShape.barRadius),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _tab == 1 ? 'KİŞİSEL LİSTE' : 'RESMÎ KAYNAKLAR',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-              letterSpacing: 1.2,
-            ),
+    padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _tab == 1 ? 'KİŞİSEL ARŞİVİNİZ' : 'RESMÎ KAYNAKLARDAN, TEK YERDE',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
           ),
-          const SizedBox(height: 8),
-          Text(
-            _tab == 1 ? 'Kaydettiğiniz ilanlar' : 'Güncel kamu ilanları',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.w700,
-              fontSize: 30,
-            ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _tab == 1 ? 'Kaydettiğiniz ilanlar' : 'Güncel kamu ilanları',
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.9,
+            fontSize: 28,
+            height: 1.15,
           ),
-          const SizedBox(height: 8),
-          Text(
-            _tab == 1
-                ? '${_visibleRecords.length} kayıt • çevrimdışı erişim'
-                : _remoteLastSuccess != null
-                ? 'Son eşitleme ${_date(_remoteLastSuccess)} ${_remoteLastSuccess!.hour.toString().padLeft(2, '0')}:${_remoteLastSuccess!.minute.toString().padLeft(2, '0')} • ${_records.where((record) => matchesFilters(record, const {})).length} ilan${_remoteFailed || DateTime.now().difference(_remoteLastSuccess!) > remoteSnapshotMaxAge ? ' • Önbellek' : ''}'
-                : _lastRefresh == null
-                ? _records.isEmpty
-                      ? 'Katalog cihazdan yükleniyor.'
-                      : 'Kaydedilmiş katalog gösteriliyor • kaynaklar kontrol ediliyor'
-                : 'Son kontrol ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')} • ${_records.where((record) => matchesFilters(record, const {})).length} ilan',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          if (_tab == 0 && _error != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _error!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onErrorContainer,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          _tab == 1
+              ? '${_visibleRecords.length} kayıt • çevrimdışı erişim'
+              : _remoteLastSuccess != null
+              ? 'Son eşitleme ${_date(_remoteLastSuccess)} ${_remoteLastSuccess!.hour.toString().padLeft(2, '0')}:${_remoteLastSuccess!.minute.toString().padLeft(2, '0')}${_remoteFailed || DateTime.now().difference(_remoteLastSuccess!) > remoteSnapshotMaxAge ? ' • Önbellek' : ''}'
+              : _lastRefresh == null
+              ? _records.isEmpty
+                    ? 'Katalog cihazdan yükleniyor.'
+                    : 'Kaydedilmiş katalog • kaynaklar kontrol ediliyor'
+              : 'Son kontrol ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')}',
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+        if (_tab == 0) ...[
+          const SizedBox(height: 14),
+          Material(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: _searches.isEmpty ? _saveCurrentSearch : _manageSearches,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.tune_rounded,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Kriterlerinize göre keşfedin',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
         ],
-      ),
+        if (_tab == 0 && _error != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+      ],
     ),
   );
 
   Widget _filters() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
     child: Column(
       children: [
         TextField(
@@ -1875,7 +1907,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   Widget _savedSearchChips() {
     if (_searches.isEmpty) {
       return Text(
-        'Süzgeçleri kaydedip tek dokunuşla uygulayın.',
+        'Kayıtlı aramalarınız',
         style: Theme.of(context).textTheme.bodySmall,
       );
     }
@@ -1918,7 +1950,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
               CriteriaMatch.match,
     );
     return Card(
-      margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
+      margin: const EdgeInsets.fromLTRB(20, 5, 20, 11),
       clipBehavior: Clip.antiAlias,
       elevation: 0,
       color: Theme.of(context).colorScheme.surfaceContainerLow,
@@ -1929,7 +1961,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       child: InkWell(
         onTap: () => _showListing(record),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1942,26 +1974,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
                 ),
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.account_balance_outlined,
-                      size: 22,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       record.category.isEmpty ? 'Kamu ilanı' : record.category,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1976,17 +1995,21 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
               Text(
                 record.title,
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700, fontSize: 18),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                  letterSpacing: -0.4,
+                  height: 1.3,
+                ),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 10),
               Text(
-                '${_sourceLabel(record.sourceId)} • Yayın ${_date(record.publishedAt)}',
+                '${_sourceLabel(record.sourceId)}  ·  ${_date(record.publishedAt)}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -2031,14 +2054,19 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     _factChip(Icons.place_outlined, record.places.join(', ')),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              Divider(
+                height: 1,
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+              const SizedBox(height: 4),
               Wrap(
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  FilledButton.tonalIcon(
+                  TextButton.icon(
                     onPressed: () => _showListing(record),
-                    icon: const Icon(Icons.article_outlined),
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                     label: const Text('İlanı incele'),
                   ),
                   TextButton.icon(
@@ -2060,12 +2088,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   Widget _factChip(IconData icon, String label, {bool urgent = false}) =>
       Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
         decoration: BoxDecoration(
           color: urgent
               ? Theme.of(context).colorScheme.errorContainer
               : Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
