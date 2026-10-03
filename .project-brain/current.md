@@ -5,6 +5,23 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 
 ## 1. Üretim durumu ve gerçek sınır
 
+3Oct execution checkpoint: three consecutive continuation audits yielded no
+implementation progress after08159ee. Remaining production critical path is
+blocked by official-source detail access/terms, physical Android and Apple/APNs
+release evidence, real signing/support/store configuration and external AI
+provider/model/secure key/separate ingestion-assistant budgets. Latest readonly
+meta still46: Kariyer list ok but detail failure; SBB/İŞKUR/ilan.gov blocked.
+ADB only5554 emulator; android/key.properties absent. No live process/tool
+handle is being waited on. Full goal is unachieved; resume on those inputs or
+external-state change, then reconcile task acceptance before cutover. Retained
+phone fallback/scheduler cannot be removed to pretend server cutover passed.
+Taxonomy/typed extraction/quality/cloud capacity and release gates remain
+unfinished; existing tests do not substitute for permitted real data/device
+evidence. Do not repeatedly recreate emulators, seed production or rerun
+unchanged suites as progress. Firebase client defines intentionally exclude
+KAMUBUL_API (provided separately in build); absence in that file is not proof
+the installed profile lacks the real API.
+
 Onboarding dört adımın başlığını Semantics header/liveRegion olarak sunar;
 erişilebilir ad "Adım N / 4: başlık" taşır, görünen tasarım değişmez.
 Gerçek AppTheme light/dark ile dört adımda labelled tap target ve Android48dp
