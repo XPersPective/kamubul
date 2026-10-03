@@ -2,6 +2,7 @@ import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 
 void restoreAds(AdPolicy policy, SettingsStore store) {
+  policy.setOnboardingCompleted(store.getInt('kamubul.onboarded') != null);
   DateTime? date(String key) {
     final ms = store.getInt('kamubul.ads.$key');
     return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);

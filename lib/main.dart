@@ -51,7 +51,6 @@ Future<void> main() async {
   restoreAds(policy, store);
   policy
     ..setPro(pro.isPro)
-    ..setOnboardingCompleted(true)
     ..startSession(DateTime.now());
   saveAds(policy, store);
   pro.addListener(() => policy.setPro(pro.isPro));
@@ -211,6 +210,7 @@ class _AppHomeState extends State<_AppHome> {
           },
           onDone: () {
             widget.store.setInt('kamubul.onboarded', 1);
+            widget.policy.setOnboardingCompleted(true);
             setState(() => _onboarded = true);
           },
         );

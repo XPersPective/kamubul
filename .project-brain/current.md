@@ -5,6 +5,15 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 
 ## 1. Üretim durumu ve gerçek sınır
 
+App-open reklam onboarding guard'ı artık gerçek kamubul.onboarded kaydından
+restoreAds ile yüklenir; main'de unconditional true yok. OnDone aynı policy'yi
+true yapar. Eligible eski oturumlarda bile eksik onboarding reklamı engeller;
+marker sonrası izin ve Pro koruması native-free üç Flutter unit check ile
+doğrulandı, changed3 analyze temiz. Bu Google Play Games ekranının nedenini
+kanıtlamaz; native ad teslimi/store release veya revenue kabulü değildir.
+173 full Flutter checks passed; no live test/build handle. Bu son ad-policy
+değişikliği emülatördeki03f80a8 profile APK'ya henüz derlenip yüklenmedi.
+
 Canonical mobil ayrıntı mevcut cache'teki summary text/quote/scopeLabel için
 açılır kaynak alıntısı gösterir. Eşleşmeyen veya600 karakteri aşan alıntı
 sunulmaz; kadro etiketi korunur, alıntısız özet düz metin kalır. Bu yeni
