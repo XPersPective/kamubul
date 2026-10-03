@@ -1,5 +1,7 @@
 param([string]$Apk = "$PSScriptRoot/../build/app/outputs/flutter-apk/app-release.apk")
 $ErrorActionPreference = 'Stop'
+$studioJdk = Join-Path $env:ProgramFiles 'Android/Android Studio/jbr'
+if (!$env:JAVA_HOME -and (Test-Path "$studioJdk/bin/java.exe")) { $env:JAVA_HOME = $studioJdk }
 $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { "$env:LOCALAPPDATA/Android/sdk" }
 $publishingRoot = if ($env:APP_PUBLISHING_ROOT) { $env:APP_PUBLISHING_ROOT } else { 'D:/AppPublishing' }
 $certificate = "$publishingRoot/apps/kamubul/credentials/android/upload-certificate.der"

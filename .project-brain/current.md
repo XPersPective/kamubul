@@ -5,27 +5,27 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 
 ## 1. Üretim durumu ve gerçek sınır
 
-Premium görsel katman artık lib/ui/premium.dart premiumTheme üzerinden root
-MaterialApp light/dark temasına uygulanır. Navy hero/marka yüzeyi, açık beyaz
-ve koyu slate kartlar, ortak tipografi/22dp kart/16dp düğme tokenları, input
-ve navigation görünümü; ilan kartı hierarchy/ikon yüzeyi ve ayrıntı field
-ikonları/tablet760dp okunabilir ölçüsü. Veri/matcher/Pro/ad policy değişmedi.
-İskelet reduced-motion'da ticker durdurur; route fade overshoot opaklığına
-bağlanmaz, reduced-motion route transformunu atlar. UI/UX Pro Max kullanıcı
-C:/Users/rubicon/.codex/skills/ui-ux-pro-max yolunda; yeni runtime dependency yok.
-179 Flutter full PASS, changed8 analyze temiz; 26 focused kontrast/48dp
-onboarding/responsive/reduced-motion/golden pass ve11 gerçek SDK-font golden
-görsel incelendi. İlk full2 failure yeni layout'ta offscreen tester tap idi;
-testler ensureVisible kullanır, işlevsel assertion silinmedi. .tmp/previews
-light/dark home görselleri test fixture render, native/Play screenshot değildir.
-Önceki native mağaza PNG'leri AppPublishing images/review-previous-ui altında
-korunur; yeni store screenshot değildir. Yeni signed x64 APK303.8s/24.6MB
-build başarıyla tamamlandı; check-android-release.ps1 kalıcı DER/cert eşleşmesi,
-paket/debuggable=false/16KB ZIP hizalama PASS. Semboller repo dışında premium-ui
-klasöründe; Android/.kotlin oturum dosyaları gitignored. Önizleme testiyle ilk
-build'in generated plugin race'i görüldü; test/pub/build ardışık olmalıdır.
-Yeni APK henüz native kurulmadı; emülatör ANR kapısı sürer. AAB bu tasarımdan
-önceki sürümdür, yeni UI ile store upload öncesi yeniden üretilmelidir.
+Kullanıcı önceki theme/köşe değişikliğini premium kabul etmedi. Güncel ana
+sayfa editoryal başlık, kısa cache durumu, kompakt kişiselleştirme eylemi ve
+hiyerarşik ilan kartları kullanır. İlk aramada eylem typed kriter editörünü,
+kayıt varsa yönetimi açar. Root premiumTheme, light/dark/accessibility,
+reduced-motion ve detay/tablet düzeni korunur.180 full Flutter testi PASS;
+değişen iki dosya analyze temiz. .tmp/previews/redesign-light.png ve dark.png
+SDK-font widget render test fixture'ıdır; native/mağaza veya kullanıcı kabulü
+kanıtı değildir. UI/UX Pro Max kurulu, yeni runtime dependency yok.
+
+Yeni güncel release AAB271.7s/58.1MB ve x64 APK129.6s/24.6MB derlendi.
+AAB jarsigner ve kalıcı DER fingerprint eşleşmesi, üç ABI12 ELF LOAD>=16KB
+kontrolü PASS; APK permanent cert/package/non-debuggable/ZIP16KB PASS.
+Semboller D:/repositories/kamubul-symbols/2026-10-03-editorial-ui dış dizininde.
+Native kurulumu ve kabulü ayrıca bekler. Eski APK/AAB uyarısı bu çıktı için
+geçersiz; gerçek reklam/store/FCM/source kapıları derleme başarısıyla kapanmaz.
+Önceki native mağaza PNG'leri images/review-previous-ui altında korunur.
+Release verifier artık JAVA_HOME boşsa kurulu Android Studio JBR'yi çözer;
+temiz terminalde çalıştırılıp gerçek imzalı APK ile PASS doğrulandı.
+Template origin/master fresh fetch7101480/0behind/clean; Keşfet+OtherApps
+GitHub catalogue entegrasyonu korunur. Public live meta3Oct: Kariyer list ok,
+detail revalidation failure; SBB/İŞKUR/ilan.gov blocked. Source gate kapanmadı.
 
 3 Ekim son yön: yalnız Türkiye/Türkçe dağıtımı; gerçek reklam, tek seferlik
 Pro ürünü, ekran görüntüsü yükleme ve bir sürüm gönderme yetkilidir. Play yeni
@@ -578,3 +578,15 @@ ve kullanıcı görsel kabulü değildir. Mevcut APK/AAB bu yeni değişikliği 
 Doğrulama: 180 tam Flutter testi PASS; değişen iki dosya analyze temiz.
 İlk kayıtlı arama kişiselleştirme → gerçek KPSS/isim editörü regresyonu PASS;
 320px/1.3x, yatay ve 2.0x koyu tema taşma kontrolleri PASS.
+
+Native attempt result: own5560 boot_completed1; updated signed APK install-r
+Success, lastUpdateTime3Oct14:21:47 deviceUTC, actual onboarding rendered.
+System/systemUI ANR overlays recur; phone/permissioncontroller/keyboard startup
+ANRs sampled. Skip/home action blocked by overlay, no clean new home/performance/
+push/store proof. Screenshot .tmp/editorial-native-first.png and native-home.png
+show ANR, not store candidates. WHPX accelerator installed/usable; host freeRAM
+~552040KB measured after boot, correlation only (root cause unproven). Owned
+5560 killed through official adb emu kill; AVD/app data preserved. No live
+build/test/install command. Shared5554 absent from latest adb inventory; no
+command targeted it in this turn. Future native work must re-inventory rather
+than assume shared device still active. New AAB/APK remain valid signed outputs.
