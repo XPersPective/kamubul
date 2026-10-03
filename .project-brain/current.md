@@ -17,7 +17,7 @@ there; no debug fallback. Firebase service-account/client copies hash-verified
 in app credentials/firebase, original Downloads preserved. Client-only
 android.defines.json includes actual API and existing publisher contact;
 server key never goes into APK. Publishing README app record/tr-TR draft
-title/short description/privacy copy exist; Play app/certificate and real
+title/short/full description/privacy copy exist; Play app/certificate and real
 AdMob IDs remain unverified, no store submission. Real obfuscated x64 release
 APK built405.6s/24.6MB; check-android-release.ps1 verified signature against
 exported public upload DER, expected package and debuggable=false. Permanent
@@ -40,8 +40,7 @@ notes match server metadata; catalogue includes retained device fetch fallback,
 so135 is not D1-only coverage. Server readonly meta46 unchanged. Offline
 airplane-mode1+force-stop/relaunch preserved135 cache with honest failure note;
 airplane-mode returned0. am-W still timeout11.8s, not performance pass.
-Server push remainedoff, no registry/fake production push. Own AVD stopped for
-build memory; registered test AVD kept pending final updated release recheck.
+Server push remainedoff, no registry/fake production push.
 Native Pro page exposed untranslated paywall keys. Startup now merges existing
 ProLocalization with core via loadAppTranslations; focused regression1 and
 full Flutter175 checks passed, changed2 analyze no issues.
@@ -68,7 +67,7 @@ delete attempted; residual C:/Users/rubicon/.android/avd/kamubul_release_check.a
 remains open cleanup. Shared5554/other apps/AVDs preserved; no production test
 registration, fixture, inferred condition or push was written.
 ZIP archive16KB alignment check added to same runnable script and passed;
-ELF alignment/16KB device support remains a separate unverified gate.
+All-ABI AAB ELF alignment passed as above;16KB device runtime remains unverified.
 AdMob current browser account opens signup/terms, not an existing app console;
 no account/financial contract accepted and no IDs fabricated or reused.
 Fresh Cloudflare-only no-binding preview: Kariyer detail HTTP522/20115ms,
