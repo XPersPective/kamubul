@@ -1130,6 +1130,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                spacing: 12,
                 children: [
                   if (search.hasInvalidCriteria)
                     const Text(
@@ -1147,6 +1148,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       labelText: 'Yaşınız (uyum için, isteğe bağlı)',
                       helperText:
                           '16–80; boş bırakırsanız yaş filtresi uygulanmaz.',
+                      helperMaxLines: 3,
                     ),
                   ),
                   TextField(
@@ -1179,6 +1181,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     decoration: const InputDecoration(
                       labelText: 'KPSS puanınız (0–100)',
                       helperText: 'İlanın taban puanıyla karşılaştırılır.',
+                      helperMaxLines: 3,
                     ),
                   ),
                   TextField(
@@ -1195,6 +1198,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     decoration: const InputDecoration(
                       labelText: 'Anahtar kelime (isteğe bağlı)',
                       helperText: 'Arama adınız kişisel etikettir; ilanı bu kelimeyle süzebilirsiniz.',
+                      helperMaxLines: 3,
                     ),
                   ),
                   DropdownButtonFormField<String>(

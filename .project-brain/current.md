@@ -3,32 +3,14 @@
 3 Ekim 2026. Yalnız çalışan kod ve doğrulanmış dış durum; hedef `target.md`,
 uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları Git'tedir.
 
-## 3 Ekim — güncel Play ve public gizlilik durumu (önceki blocker kayıtlarını geçersiz kılar)
-Kullanıcı Play uygulamasını oluşturdu; app ID4972638851198617225. UI dashboard6/11: reklam var, government/health/finance yok, İş kategorisi+destek e-postası, gizlilik URL kaydedildi. Kalan access/content rating/target audience/data safety/listing; upload/yayın yok. Target audience access beyanını bekler; ücretli Pro yalnız reklam kaldırsa da UI tek seferlik ödeme için Yes diyor ve tam premium reviewer access istiyor. Gerçek erişim yok; sahte credentials/tam erişim checkbox işaretlenmedi. Kullanıcıya mevcut erişim yöntemi soruldu.
-Private GitHub PRIVACY URL404 bulundu. Canonical PRIVACY.md gerçek Ads SDK verileri/contact/geçişte local fetch ile düzeltildi. Native PowerShell Markdown generator ve source hash testi;177 Worker PASS. Static assets yalnız public privacy; Worker sürüm8a7c13ba-0638-4cc3-b5cf-4108f881e4a7 deploy PASS, /privacy/200HTML/Türkçe/contact PASS. Mobil default ve dış client define yeni public URL. API auth/DB/secrets değiştirilmedi.
-D disk full silmeden C:/Users/rubicon/.codex/builds/kamubul-af71602 source snapshot ile aşıldı. Gerçek AdMob AAB60,901,424bytes ve x64 APK25,813,785bytes build PASS; AAB kalıcı cert/native appID/3ABI dört gerçek unitID PASS; APK kalıcı cert/package/nondebuggable/ZIP16KB PASS. Bunlar eski privacy URL içerir; yeni privacy AAB build session12284 log C:/Users/rubicon/.codex/builds/kamubul-privacy-aab.log devam ediyor. Sonrası yeni APK/build verification/native kabul/Play upload. C snapshot Git checkout değildir; HEADaf71602+bu privacy diff. Aşağıdaki eski D build/disk/Play-create blocker notları tarihsel.
-
-## AdMob doğrulanmış durumu
-Kullanıcı mevcut yayıncı hesabına giriş yapıp tüm AdMob formlarının doldurulmasını
-istedi. KamuBul Android mağaza bağlantısız kalıcı kayıt; banner, interstitial,
-rewarded ve app_open dört birim UI başarı mesajları ve son dört satırlı listeyle
-kanıtlandı. Ödül miktarı1/24 saat Pro mevcut GiftFlow ile aynı. Yeni sözleşme,
-ödeme veya yeni hesap kurulumu yapılmadı. Gerçek IDs Git dışında yalnız
-D:/AppPublishing/apps/kamubul/app-ids.env ve credentials/firebase/android.defines.json;
-native app ID credentials/android/key.properties içinde. Beş define ve native
-app ID eşitliği PASS; imza alanları korundu. Kanıt .tmp/admob-kamubul-units.jpg.
-Play mağaza bağlantısı/app doğrulaması ve AdMob onayı tamamlanmadı; birim
-oluşturma canlı reklam sunumu veya reklamlı native kabulü değildir. Yeni gerçek
-reklam config AAB yeniden derleme disk-full IOException ile başarısız oldu.
-D: Free106496 bytes; mevcut AAB çıktı dosyası yok. Yeni APK derlenmedi;
-önceki APK Google test IDs içerir. Guarded yalnız build/app/intermediates
-cleanup automatic review tarafından gerekçesiz reddedildi; silme/bypass yok.
-Yer açılmadan gerçek reklam config paket doğrulaması tamamlanamaz.
-Qwen Token Plan kullanıcı tarafından seçildi ama official personal terms/team
-FAQ custom backend/automation kullanımını yasaklar; key kaydedilmedi/çağrılmadı.
-Standard API key/ayrı bütçeler olmadan PB-022 disabled kalır. Qwen3.8-Flash
-fiyatı0.15/M input0.47/M output ekonomi adayı; deployed/mutlak en ucuz değil.
-
+## 3 Ekim — doğrulanmış güncel durum ve devam kökü
+D:/repositories/kamubul disk0; temizleme automatic review reddi aşılmadı. Aktif Git/derleme çalışma kopyası C:/Users/rubicon/.codex/builds/kamubul-af71602. Git geçmişi --bare --local --no-hardlinks kopyalandı, core.bare false/mixed index ve aynı GitHub origin; kaynak/build silinmedi. D'deki iki bekleyen Brain diff korundu; D HEAD eski kalabilir, C commit/push authoritative devam noktasıdır. Yeni çalışma C üzerinden, D yayıncı/kimlik dosyaları yalnız dış config.
+Play kullanıcı tarafından oluşturuldu: app4972638851198617225, dashboard6/11 kaydedildi. Ads yes, government/health/finance no, İş+support, privacy. DataSafety8 types/details5/5 önizleme taslak kaydedildi; final Save Target audience yüzünden disabled. Access gerçek reviewerPro yöntemi bekler, Target audience access'e bağlı. IARC anketi sözleşme kabulü, insan action-time onayı bekler. Upload/yayın/Pro ürünü henüz yok.
+Public privacy Worker8a7c13ba-0638-4cc3-b5cf-4108f881e4a7 deploy, /privacy/200HTML/Türkçe/contact/CSP/nosniff PASS. Source PRIVACY.md canonical; PowerShell generator/source hash check.177 Worker PASS. Mobil default/dış client define public URL. Canlı health/meta/listings200, private notifications no-credentials401/no-store/nosniff; mutasyon/DB/secret değiştirilmedi, zero-vulnerability claim yok.
+Gerçek AdMob kalıcı app+4units, beş client define ve native appID dış AppPublishing kimlik dosyalarında eşleşir. Reward1/24h Pro; store link/Google approval açık. C release AAB352.8s/60,901,725bytes ve x64APK353.6s/25,813,785bytes privacyURL içerir. AAB cert fingerprint/jarsigner/3ABI privacyURL/12ELF LOAD16KB PASS; APK kalıcı cert/package/nondebuggable/ZIP16KB PASS. Son kriter-layout diff bu paketlerde henüz yok.
+Mevcut flutter_emulator5560 no-snapshot boot1; install-r Success, gerçek cold launch9441ms. Native home135 local/fallback ilan (server-only değil), Keşfet Türkçe DoctorFilter catalogue/own-app excluded doğrulandı. SystemUI/phone/GMS ANR nedeniyle native hız/push/fullacceptance yok. Shared5554 başka uygulama, untouched. Kaynak/fulltext/50örnek/AI doğruluğu/Free cloud10kkapasite ve Pro purchase/restore/FCM kapıları açık.
+Kriter dialog gerçek screenshot age helper tek satırda kesilip sonraki label ile yaklaşır: contentColumn12gap ve age/score/keyword3helperlines düzeltildi (4satır). Kayıtlı kriter2 test PASS; 12 responsive PASS,2 saved-search PASS, changed-file analyze clean. Önceki komutta responsive dosyaadı yanlış, missing-file failure; başarı sayılmadı. Sonraki newAPK/AAB build ve native dialog yeniden kontrol. Fake kullanıcı/kriter/ilan kaydı eklenmedi.
+Qwen Token Plan official terms backend/automation kullanımını yasaklar; key kaydedilmedi/çağrılmadı. Standard key+ayrı budget PB022 pending; free Workers AI sürer. iOS/Mac bu çalışmada deferred. Proof C builds release-home-current/other-apps/criteria.png ve Playsetup/data-safety/iarc jpg; son SourceD/Brain snapshot C checkpoint dosyalarında korunur.
 ## 1. Üretim durumu ve gerçek sınır
 
 Kullanıcı önceki theme/köşe değişikliğini premium kabul etmedi. Güncel ana
