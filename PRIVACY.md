@@ -1,12 +1,14 @@
 # KamuBul gizlilik açıklaması
 
-Son güncelleme: 2 Ekim 2026. KamuBul hesap veya giriş istemez. Kayıtlı aramalar, yaş/KPSS gibi kriterler, yer imleri ve tema tercihi cihazda saklanır. Sunucu bildirimlerini açmadığınız sürece kayıtlı aramalarınız KamuBul sunucusuna yüklenmez. Bu açıklama mevcut Cloudflare/FCM sürümünü anlatır; mağaza beyanlarının tamamlandığı anlamına gelmez.
+Son güncelleme: 3 Ekim 2026. KamuBul, crazypenguin tarafından geliştirilen bağımsız bir ilan uygulamasıdır; hesap veya giriş istemez. Kayıtlı aramalar, yaş/KPSS gibi kriterler, yer imleri ve tema tercihi cihazda saklanır. Sunucu bildirimlerini açmadığınız sürece kayıtlı aramalarınız KamuBul sunucusuna yüklenmez. Bu açıklama mevcut Cloudflare/FCM sürümünü anlatır; mağaza beyanlarının tamamlandığı anlamına gelmez.
 
 ## İlan kataloğu
 
 Uygulama ortak ilan kataloğunu Cloudflare üzerindeki KamuBul API'sinden okur. Katalog isteğine kişisel arama kriterleri eklenmez; eşleştirme cihazdaki önbellekte de yapılır. Cloudflare bağlantıyı sağlarken IP adresi ve istek zamanı/URL/durum gibi teknik verileri işleyebilir. Kurulum kayıt isteklerinde kötüye kullanımı sınırlamak için IP ve saatten üretilen hash sayacı kullanılır; süresi dolan sayaçlar sınırlı bakımda temizlenir. Uygulama günlüklerine gizli anahtar, bildirim jetonu veya kişisel kriter yazılmaz. Bu sürüm Firebase Analytics veya Crashlytics kullanmaz.
 
 Sunucu resmî ilan kaynaklarını merkezi olarak kontrol eder. Kaynağın başvuru bağlantısını açtığınızda ilgili sitenin uygulamaları geçerlidir. Erişilemeyen ayrıntılar kesin bilgi gibi gösterilmez.
+
+Bu geçiş sürümünde cihazdaki kaynak kontrolü de korunmaktadır; telefon resmî ilan sitelerine doğrudan bağlanabilir. Bu bağlantılarda ilgili kaynak IP adresinizi ve teknik istek bilgilerini işleyebilir. Kaynak kontrolüne kişisel arama kriterleri eklenmez.
 
 ## Sunucu bildirimleri (isteğe bağlı, varsayılan kapalı)
 
@@ -38,6 +40,8 @@ Harici AI hesabıyla kota sonrası fallback ve doğal dille kriter asistanı pla
 
 Ücretsiz sürüm Google Mobile Ads ve onay bileşenlerini içerir; bunlar reklam/izin amaçlı veri işleyebilir. Pro reklam akışını kapatır. Satın alma mağaza altyapısından geçer; KamuBul kart bilgisi saklamaz. Gerçek reklam yapılandırmasıyla Google Play Veri Güvenliği ve Apple gizlilik formları yayın öncesinde ayrıca doğrulanmalıdır.
 
+Google Mobile Ads SDK, reklam sunumu, ölçüm ve kötüye kullanım önleme için IP adresi (yaklaşık konum çıkarılabilir), uygulama/reklam etkileşimleri, performans ve tanılama bilgileri ile reklam kimliği/uygulama kümesi kimliği gibi cihaz kimliklerini toplayıp paylaşabilir. Bu, uygulamada Firebase Analytics bulunmadığı açıklamasından ayrıdır. SDK veri aktarımı TLS ile şifrelenir. Android reklam kimliğinizi cihaz ayarlarından sıfırlayabilir veya silebilirsiniz. [Google Mobile Ads veri açıklaması](https://developers.google.com/admob/android/privacy/play-data-disclosure) ve [Google gizlilik politikası](https://policies.google.com/privacy) sağlayıcının uygulamalarını açıklar.
+
 “Diğer uygulamalarım” GitHub'daki ortak uygulama kataloğunu indirir ve cihazda önbelleğe alır. İsteğe kişisel kriter veya kurulum anahtarı eklenmez. Mağaza bağlantısını açarsanız mağazanın uygulamaları geçerlidir.
 
-Kaynak kodu ve gizlilik soruları için [KamuBul GitHub projesi](https://github.com/XPersPective/kamubul) kullanılabilir. Mağaza yayını için doğrulanmış destek iletişimi ve mağaza beyanları henüz tamamlanmamıştır.
+Gizlilik, destek ve veri silme soruları için [devcrazypenguin@gmail.com](mailto:devcrazypenguin@gmail.com) adresinden crazypenguin ile iletişime geçebilirsiniz. Sunucu kurulumunuzu uygulamadaki sunucu bildirimi ayarını kapatarak silebilirsiniz; sağlayıcıların teknik kayıtları ayrı saklama kurallarına tabidir.

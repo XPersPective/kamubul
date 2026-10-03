@@ -3,6 +3,10 @@
 Kalıcı kaynaklar: Worker `kamubul-api`, D1 `kamubul`. Üretim veritabanına demo
 ilan/cihaz yazılmaz. Yapılandırma `wrangler.jsonc`, migration `migrations/`.
 
+Public gizlilik sayfası `/privacy/`, canonical kaynak `../PRIVACY.md`.
+Metin değişince repo kökünde `./tool/build-privacy-page.ps1` çalıştır;
+`npm test` HTML/source hash eşitliğini doğrular. Static assets API auth'ını değiştirmez.
+
 ```powershell
 npm ci
 npm test

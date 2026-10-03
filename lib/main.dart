@@ -18,7 +18,7 @@ const contactEmail = String.fromEnvironment('CONTACT_EMAIL');
 const privacyUrl = String.fromEnvironment(
   'PRIVACY_URL',
   defaultValue:
-      'https://github.com/XPersPective/kamubul/blob/master/PRIVACY.md',
+      'https://kamubul-api.devx8585.workers.dev/privacy/',
 );
 const sourceUrl = 'https://github.com/XPersPective/kamubul';
 const otherAppsUrl = String.fromEnvironment(

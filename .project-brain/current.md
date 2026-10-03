@@ -3,7 +3,12 @@
 3 Ekim 2026. Yalnız çalışan kod ve doğrulanmış dış durum; hedef `target.md`,
 uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları Git'tedir.
 
-## 3 Ekim — güncel AdMob durumu (önceki giriş engellerinin yerine geçer)
+## 3 Ekim — güncel Play ve public gizlilik durumu (önceki blocker kayıtlarını geçersiz kılar)
+Kullanıcı Play uygulamasını oluşturdu; app ID4972638851198617225. UI dashboard6/11: reklam var, government/health/finance yok, İş kategorisi+destek e-postası, gizlilik URL kaydedildi. Kalan access/content rating/target audience/data safety/listing; upload/yayın yok. Target audience access beyanını bekler; ücretli Pro yalnız reklam kaldırsa da UI tek seferlik ödeme için Yes diyor ve tam premium reviewer access istiyor. Gerçek erişim yok; sahte credentials/tam erişim checkbox işaretlenmedi. Kullanıcıya mevcut erişim yöntemi soruldu.
+Private GitHub PRIVACY URL404 bulundu. Canonical PRIVACY.md gerçek Ads SDK verileri/contact/geçişte local fetch ile düzeltildi. Native PowerShell Markdown generator ve source hash testi;177 Worker PASS. Static assets yalnız public privacy; Worker sürüm8a7c13ba-0638-4cc3-b5cf-4108f881e4a7 deploy PASS, /privacy/200HTML/Türkçe/contact PASS. Mobil default ve dış client define yeni public URL. API auth/DB/secrets değiştirilmedi.
+D disk full silmeden C:/Users/rubicon/.codex/builds/kamubul-af71602 source snapshot ile aşıldı. Gerçek AdMob AAB60,901,424bytes ve x64 APK25,813,785bytes build PASS; AAB kalıcı cert/native appID/3ABI dört gerçek unitID PASS; APK kalıcı cert/package/nondebuggable/ZIP16KB PASS. Bunlar eski privacy URL içerir; yeni privacy AAB build session12284 log C:/Users/rubicon/.codex/builds/kamubul-privacy-aab.log devam ediyor. Sonrası yeni APK/build verification/native kabul/Play upload. C snapshot Git checkout değildir; HEADaf71602+bu privacy diff. Aşağıdaki eski D build/disk/Play-create blocker notları tarihsel.
+
+## AdMob doğrulanmış durumu
 Kullanıcı mevcut yayıncı hesabına giriş yapıp tüm AdMob formlarının doldurulmasını
 istedi. KamuBul Android mağaza bağlantısız kalıcı kayıt; banner, interstitial,
 rewarded ve app_open dört birim UI başarı mesajları ve son dört satırlı listeyle
