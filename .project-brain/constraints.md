@@ -46,4 +46,7 @@ FCM/OS teslimi best effort; kapalı uygulama bildirim payload'u foreground/data-
 Eski local fetch yeni backend doğrulanmadan sökülmez; yalnız geçişte tutulur, hedef değildir. Pilot→mobil cutover→eski kod/Workmanager/Google referansı silme. Yeni bağımlılık/abstraction zorunlu değilse eklenmez. Nontrivial logic bir çalıştırılabilir kontrol bırakır. Brain gerçeği hedefmiş gibi anlatmaz; completed/superseded görevler Git'te kalır, aktif ağaçta tutulmaz. Store signing/publishing ve güvenlik erişimi insan sınırıdır.
 
 ## C-041 Kalıcı canlı kurulum — 30 Eylül 2026 son istek
+3 Ekim son yön: yalnız Türkiye/tr-TR dağıtımı; reklam ve gerçek satın alma
+ürünü, Türkçe gerçek ekran görüntüleri ve bir sürüm gönderme kapsamda. Mağaza
+yükleme yetkisi vardır; sözleşme/export beyanı action-time onayını kaldırmaz.
 Backend/frontend tüm uygulama ve canlı kurulum yetkilendirildi. Son kaynaklar kalıcı üretim Worker/D1 ve gerçek resmî veridir; Hello World/dev kaynakları güvenli cutover sonrası kaldırılır. Demo/fake ilan veya pretend-success sender üretimde yok. Deterministik test fixture'ları yalnız otomatik kontrol içindir. Credential/access grants, geri alınamaz silme ve mağaza işlemlerinde yürürlükteki insan/onay sınırları korunur; tamamlanmayan canlı adımlar açık raporlanır.

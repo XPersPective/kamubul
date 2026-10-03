@@ -1,6 +1,12 @@
 # Hedef Mimari — KamuBul
 
 ## 1. Amaç ve kapsam
+3 Ekim son kullanıcı yönü: dağıtım yalnız Türkiye, mağaza ve uygulama dili yalnız
+Türkçe. Mevcut oturumlarla Cloudflare/Google ayarlarını tamamlama, gerçek reklam
+ve kamubul_pro_lifetime satın alma ürünü, Türkçe gerçek ekran görüntülerini Play'e
+yükleme ve en az bir sürümü gönderme yetkilidir. Üretim güvenlik kapıları açık
+raporlanır; hukuki beyanlar için action-time onay korunur. İngilizce mağaza
+girişi/diğer ülke dağıtımı hazırlanmaz.
 3 Ekim kullanıcı yönü: bu uygulama/yayın hazırlığı Android'e odaklanır;
 iOS/Mac/APNs bu çalışmanın kabul kapsamı dışında ertelenir. Android uçtan
 uca kontroller mevcut emülatörde yapılabilir; fiziksel telefon yokluğu tek

@@ -5,6 +5,25 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 
 ## 1. Üretim durumu ve gerçek sınır
 
+3 Ekim son yön: yalnız Türkiye/Türkçe dağıtımı; gerçek reklam, tek seferlik
+Pro ürünü, ekran görüntüsü yükleme ve bir sürüm gönderme yetkilidir. Play yeni
+kayıt formu hâlâ politika/ABD ihracat beyanlarını bekler; kayıt veya sürüm
+yüklemesi yapılmadı. İki gerçek 1080x2400 PNG, AppPublishing kamubul mağaza
+tr-TR/images/phoneScreenshots altında hazır (ilan ayrıntısı/koyu ayarlar).
+176 Worker testi yeniden geçti. Canlı yetkisiz private history GET ve
+installation DELETE 401/no-store/nosniff; public meta200/cache60s. Bu sınırlı
+kontroller kapsamlı zafiyetsizlik veya cloud load kabulü değildir.
+AdMob mevcut oturumu signup sayfasına yönlendi; tab kontrolünde tekrarlanan
+zaman aşımı, gerçek app/unit IDs edinilmedi. Pro fiyatı ve harici AI sağlayıcı/
+model/bütçeleri için kullanıcı bilgisi beklenir. API anahtarı sohbete istenmez.
+Birleşik emulator/network komutu otomatik incelemede gerekçesiz reddedildi;
+ayrı dar kapsamlı SDK başlatma ve auth kontrolleri sonra başarıyla çalıştı.
+Mevcut flutter_emulator5560 signed release install Success/onboarding render,
+ancak system/SystemUI ANR; sağlam native kabulü değil. Snapshot açılışı
+gecikerek tamamlandı; ikinci launch same-AVD kontrolünde durdu. Yalnız kendi
+5560 oturumu resmi emu-kill ile kapatılıp no-snapshot-load ile yeniden açıldı;
+shared5554 ve diğer uygulamalar değiştirilmedi. Son cold-start kabulü bekler.
+
 3Oct user resumed: Android emulator acceptance authorized, iOS/Mac excluded
 from this work, production signing/publishing folder migration authorized.
 Target and C-042 reconciled; earlier physical/iOS-only blockers superseded.
