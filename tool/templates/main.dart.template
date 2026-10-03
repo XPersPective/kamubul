@@ -17,6 +17,7 @@ const otherAppsUrl = String.fromEnvironment('OTHER_APPS_URL');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final translations = await NappTranslations.loadCore();
   final store = await SettingsStore.load();
   final themeModeController = ThemeModeController(store: store)..load();
   final identity = AppIdentity(
@@ -54,6 +55,7 @@ Future<void> main() async {
   }());
 @@END@@  WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
   runApp(NappApp(
+    translations: translations,
     identity: identity,
     themeModeController: themeModeController,@@IF_PRO@@
     proController: proController,
@@ -68,6 +70,7 @@ Future<void> main() async {
 class NappApp extends StatelessWidget {
   const NappApp({
     super.key,
+    required this.translations,
     required this.identity,
     required this.themeModeController,@@IF_PRO@@
     required this.proController,
@@ -79,6 +82,7 @@ class NappApp extends StatelessWidget {
   });
 
   final AppIdentity identity;
+  final NappTranslations translations;
   final ThemeModeController themeModeController;@@IF_PRO@@
   final ProController proController;
   final PurchaseRepository repository;@@END@@@@IF_ADS@@
@@ -97,7 +101,7 @@ class NappApp extends StatelessWidget {
         darkTheme: AppTheme.dark(brandColor: identity.brandColor),
         themeMode: themeModeController.mode,
         localizationsDelegates: [
-          NappLocalizationsDelegate(NappTranslations({})),
+          NappLocalizationsDelegate(translations),
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,

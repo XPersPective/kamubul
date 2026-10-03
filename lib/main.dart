@@ -28,6 +28,7 @@ const otherAppsUrl = String.fromEnvironment(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final translations = await NappTranslations.loadCore();
   final store = await SettingsStore.load();
   final theme = ThemeModeController(store: store)..load();
   final identity = AppIdentity(
@@ -78,6 +79,7 @@ Future<void> main() async {
   await initPush(store);
   runApp(
     KamuBulApp(
+      translations: translations,
       identity: identity,
       store: store,
       theme: theme,
@@ -94,6 +96,7 @@ Future<void> main() async {
 class KamuBulApp extends StatelessWidget {
   const KamuBulApp({
     super.key,
+    required this.translations,
     required this.identity,
     required this.store,
     required this.theme,
@@ -106,6 +109,7 @@ class KamuBulApp extends StatelessWidget {
   });
 
   final AppIdentity identity;
+  final NappTranslations translations;
   final SettingsStore store;
   final ThemeModeController theme;
   final ProController pro;
@@ -124,7 +128,7 @@ class KamuBulApp extends StatelessWidget {
       darkTheme: AppTheme.dark(brandColor: identity.brandColor),
       themeMode: theme.mode,
       localizationsDelegates: [
-        NappLocalizationsDelegate(NappTranslations({})),
+        NappLocalizationsDelegate(translations),
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,

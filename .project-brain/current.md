@@ -1,6 +1,6 @@
 # Mevcut Mimari — KamuBul
 
-2 Ekim 2026. Yalnız çalışan kod ve doğrulanmış dış durum; hedef `target.md`,
+3 Ekim 2026. Yalnız çalışan kod ve doğrulanmış dış durum; hedef `target.md`,
 uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları Git'tedir.
 
 ## 1. Üretim durumu ve gerçek sınır
@@ -289,6 +289,24 @@ Android native secure write/reopen/plaintext cleanup API36/x64 emulator'da
 önce geçti; actual process restart/backup restore/iOS/physical FCM kanıtı yok.
 
 ## 7. Doğrulama, geçiş kodu ve sonraki kapılar
+
+3 Ekim mevcut emulator-5558 (flutter_emulator, kullanıcıya ait; kapatılmadı/
+silinmedi) başlangıçta682728KB data alanı ve yaklaşık1.7GB host free RAM
+taşıyordu. Latest API/Firebase profile x64 build ve install başarılı;
+onboarding Atla ve gerçek ilanlı home light/dark görüntüleri alındı. Home135
+kayıt gösterdi; bu retained phone fallback karışımıdır, remote-only proof değil.
+Keşfet native ekranında otherApps.title literal göründü: main boş sözlük
+kullanıyordu. Mevcut NappTranslations.loadCore startup+required app field ile
+bağlandı; yerel generator template aynı root fix'i aldı.16 navigation/widget
+test ve changed2 analyze temiz. Yeni profile55637541bytes/88.8s; package ID
+apkanalyzer ile doğrulandı, install-r başarılı, native dark Keşfet ekranı
+Türkçe başlık+gerçek DoctorFilter kartını gösterdi. Screenshot.tmp altında;
+ephemeral /sdcard dosyaları kaldırıldı, app/data/emulator korunur.
+172 full Flutter test geçti;3Oct template fetch master7101480/0 behind/clean.
+Google Play Games profile ekranı araya girdi; hesap oluşturulmadı, Back ve
+KamuBul resume ile geri dönüldü. Nedeni kanıtlanmadı. Host free RAM yaklaşık
+800MB'a indi; latency/physical release/FCM/Pro-store kabulü verilmez. Test
+AdMob kimlikleri profile içindir, production AdMob/signing gate'i hâlâ açık.
 
 2 Ekim16:33UTC binding'siz remote preview aynı resmî Kariyer detail'de20.240ms
 HTTP522/SBB579ms blocked; session kapalı, prod write/deploy/AI/FCM yok.

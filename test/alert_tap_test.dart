@@ -124,7 +124,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: [
-          NappLocalizationsDelegate(NappTranslations({})),
+          NappLocalizationsDelegate(await NappTranslations.loadCore()),
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
@@ -317,6 +317,8 @@ void main() {
       await settleUntil(tester, find.text('com.crazypenguin.doctorfilter'));
       await tester.pumpAndSettle();
       expect(find.byType(OtherAppsPage), findsOneWidget);
+      expect(find.text('Diğer Uygulamalarımızı Keşfedin'), findsOneWidget);
+      expect(find.text('otherApps.title'), findsNothing);
       expect(find.text('com.crazypenguin.kamubul'), findsNothing);
       expect(requests, 1);
       expect(tester.takeException(), isNull);
