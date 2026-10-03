@@ -1,5 +1,15 @@
 # KamuBul — Bağlayıcı Kısıtlar
 
+## C-042 Android ve yayın kökü — 3 Ekim son kullanıcı yönü
+Bu çalışma iOS/Mac işlerini erteler; Android emülatör doğrulaması yetkilidir.
+Önceki fiziksel Android zorunluluğu bu kapsamda emülatör kabulüyle değiştirilir;
+emülatör gerçek telefon/mağaza satın alma kanıtı olarak sunulmaz. AppPublishing
+yayıncısı crazypenguin; uygulama sırrı/imzası apps/kamubul/credentials altında,
+ortak Play API publisher altında. Kullanıcı kalıcı üretim imzası oluşturma ve
+anahtarların bu yapıya taşınmasını açıkça istedi; skill içindeki insan sınırı
+bu yetkilendirilmiş hazırlığı yeniden engellemez. Kaynak izin/ücretsiz bütçe,
+kişisel veri ve mevcut mağaza imzası koruması sürer; yayın izni varsayılmaz.
+
 30 Eylül 2026. Güncel kullanıcı isteği eski hedeflerin yerini alır. Mevcut davranış current.md, hedef target.md, görevler tasks/.
 
 ## C-001 Ücretsiz işletim

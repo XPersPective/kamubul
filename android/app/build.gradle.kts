@@ -7,9 +7,10 @@ plugins {
 import java.util.Properties
 import java.util.Base64
 
+val keystorePropertiesFile = file(System.getenv("KAMUBUL_SIGNING")
+    ?: "${System.getenv("APP_PUBLISHING_ROOT") ?: "D:/AppPublishing"}/apps/kamubul/credentials/android/key.properties")
 val keystoreProperties = Properties().apply {
-    val file = rootProject.file("key.properties")
-    if (file.exists()) file.inputStream().use { load(it) }
+    if (keystorePropertiesFile.exists()) keystorePropertiesFile.inputStream().use { load(it) }
 }
 val admobAppId = keystoreProperties.getProperty(
     "admobAppId",
@@ -45,7 +46,7 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = keystoreProperties.getProperty("storeFile")?.takeIf { it.isNotBlank() }?.let { rootProject.file(it) }
+            storeFile = keystoreProperties.getProperty("storeFile")?.takeIf { it.isNotBlank() }?.let { keystorePropertiesFile.parentFile.resolve(it) }
             storePassword = keystoreProperties.getProperty("storePassword")
             keyAlias = keystoreProperties.getProperty("keyAlias")
             keyPassword = keystoreProperties.getProperty("keyPassword")
@@ -69,11 +70,11 @@ val checkReleaseSigning = tasks.register("checkReleaseSigning") {
     doLast {
         check(listOf("storeFile", "storePassword", "keyAlias", "keyPassword").all {
             !keystoreProperties.getProperty(it).isNullOrBlank()
-        }) { "Production signing requires android/key.properties: storeFile, storePassword, keyAlias, keyPassword. No debug-key fallback." }
+        }) { "Production signing requires publishing key.properties: storeFile, storePassword, keyAlias, keyPassword. No debug-key fallback." }
         check(!keystoreProperties.getProperty("keyAlias").equals("androiddebugkey", ignoreCase = true)) {
             "Production signing cannot use the Android debug key."
         }
-        check(rootProject.file(keystoreProperties.getProperty("storeFile")).isFile) {
+        check(keystorePropertiesFile.parentFile.resolve(keystoreProperties.getProperty("storeFile")).isFile) {
             "Production signing keystore file is missing."
         }
     }

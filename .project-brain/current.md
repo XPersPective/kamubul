@@ -5,29 +5,51 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 
 ## 1. Üretim durumu ve gerçek sınır
 
-3Oct execution checkpoint: three consecutive continuation audits yielded no
-implementation progress after08159ee. Remaining production critical path is
-blocked by official-source detail access/terms, physical Android and Apple/APNs
-release evidence, real signing/support/store configuration and external AI
-provider/model/secure key/separate ingestion-assistant budgets. Latest readonly
-meta still46: Kariyer list ok but detail failure; SBB/İŞKUR/ilan.gov blocked.
-ADB only5554 emulator; android/key.properties absent. No live process/tool
-handle is being waited on. Full goal is unachieved; resume on those inputs or
-external-state change, then reconcile task acceptance before cutover. Retained
-phone fallback/scheduler cannot be removed to pretend server cutover passed.
-Taxonomy/typed extraction/quality/cloud capacity and release gates remain
-unfinished; existing tests do not substitute for permitted real data/device
-evidence. Do not repeatedly recreate emulators, seed production or rerun
-unchanged suites as progress. Firebase client defines intentionally exclude
-KAMUBUL_API (provided separately in build); absence in that file is not proof
-the installed profile lacks the real API.
+3Oct user resumed: Android emulator acceptance authorized, iOS/Mac excluded
+from this work, production signing/publishing folder migration authorized.
+Target and C-042 reconciled; earlier physical/iOS-only blockers superseded.
+Unique permanent RSA2048/JKS kamubul-upload and key.properties now live at
+D:/AppPublishing/apps/kamubul/credentials/android. User+SYSTEM ACL; second
+copy at user .codex/secure-backups/kamubul/android hash-equal, not independent
+encrypted/off-device backup proof. Gradle defaults to external publishing root,
+supports KAMUBUL_SIGNING/APP_PUBLISHING_ROOT and resolves relative storeFile
+there; no debug fallback. Firebase service-account/client copies hash-verified
+in app credentials/firebase, original Downloads preserved. Client-only
+android.defines.json includes actual API and existing publisher contact;
+server key never goes into APK. Publishing README app record/tr-TR draft
+title/short description/privacy copy exist; Play app/certificate and real
+AdMob IDs remain unverified, no store submission. Real obfuscated x64 release
+APK built405.6s/24.6MB; check-android-release.ps1 verified signature against
+exported public upload DER, expected package and debuggable=false. Permanent
+certificate SHA256 B413E49E38562FA7CC83A787491F0CC8B2E1305CEE554BE639F387F210D244DA.
+Profile with publishing client config built99.3s/53.1MB and installed-r5554
+without data loss. Native onboarding rendered; latest initial draw30s689ms,
+no new sampled app ANR, not a performance pass. Release-r was correctly
+rejected for existing debug-signature mismatch; no uninstall/data clear.
+Emulator foreground switched to unrelated app; package remained present but
+enabled=3 disabled-user, causing MainActivity unavailable. Only own package
+temporarily re-enabled for investigation; unrelated consent UI not accepted.
+Own package restored to prior disabled-user state; shared emulator/data preserved.
+Dedicated SDK AVD kamubul_release_check/emulator-5560 created without touching
+other AVDs. Real signed release installed Success and onboarding rendered;
+system UI/Google services also reported startup ANRs, so native flow not passed.
+Own AVD rebooted with4cores/2048MB/software graphics; boot_completed1 observed,
+next launch is under inspection. No push registration or fake production rows.
+ZIP archive16KB alignment check added to same runnable script and passed;
+ELF alignment/16KB device support remains a separate unverified gate.
+AdMob current browser account opens signup/terms, not an existing app console;
+no account/financial contract accepted and no IDs fabricated or reused.
+Fresh Cloudflare-only no-binding preview: Kariyer detail HTTP522/20115ms,
+SBB blocked/416ms. Preview closed; no production write/AI/push/proxy. Official
+source access/terms and typed extraction/quality still open. Free AI remains
+configured; external provider/key/budgets have not been supplied.
 
 Onboarding dört adımın başlığını Semantics header/liveRegion olarak sunar;
 erişilebilir ad "Adım N / 4: başlık" taşır, görünen tasarım değişmez.
 Gerçek AppTheme light/dark ile dört adımda labelled tap target ve Android48dp
 guideline geçti; altı onboarding widget kontrolü ve changed2 analyze temiz.
 Bu fiziksel TalkBack/VoiceOver veya açılış performansı kanıtı değildir;
-emülatördeki önceki profile APK henüz bu semantics değişikliğini içermez.
+bugünkü profile ve signed release bu semantics değişikliğini içerir.
 
 App-open reklam onboarding guard'ı artık gerçek kamubul.onboarded kaydından
 restoreAds ile yüklenir; main'de unconditional true yok. OnDone aynı policy'yi
@@ -71,7 +93,8 @@ kontrolü geçti; değiştirilmiş iki dosyanın Flutter analyze sonucu temizdir
 PRIVACY.md artık gerçek Cloudflare katalog/kriter upload/Queue/retention ve
 çevrimdışı silme davranışını açıklar. Server-push ayarı arama adları/kriterleri
 gönderildiğini ve offline silme retry'sini gösterir. Bu legal/store/privacy
-release kabulü değildir; gerçek destek iletişimi hâlâ eksiktir.
+release kabulü değildir; yayıncı destek ayarı dış derleme dosyasında mevcut,
+mağaza beyanları ve posta kutusu teslim testi hâlâ doğrulanmamıştır.
 Değişen Home açıklaması analyze ve16 alert/navigation widget kontrolünden
 geçti. Android Gradle release gerçek key.properties alanlarına bağlıdır;
 debug fallback yoktur. checkReleaseSigning APK/AAB paketleme yolunda eksik
@@ -79,7 +102,8 @@ ayar, standart debug alias ve eksik keystore'ı reddeder. Native eksik-ayar
 kontrolü beklenen hatayı verdi, debug/profile imza kontrolü up-to-date geçti.
 Native dry-run APK/AAB görev grafiği korumayı ve dört paketleme/sign hedefini
 doğruladı; gerçek imzalı release artefact üretilmedi.
-Gerçek key.properties yok; mağaza imzası ve yedek kanıtı hazır değildir.
+Önceki imza yokluğu artık dış yayın klasöründeki kalıcı anahtarla giderildi;
+mağaza sertifikası eşitliği ve bağımsız şifreli harici yedek henüz doğrulanmadı.
 Android checkReleaseContact release paketleme yolunda CONTACT_EMAIL zorunlu
 tutar; yanlış yazım/example.com-net-org (subdomain dahil)/test-invalid-localhost
 alanlarını reddeder. Native altı vaka geçti; syntax-only adres kabulü gerçek

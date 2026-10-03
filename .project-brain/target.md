@@ -1,6 +1,16 @@
 # Hedef Mimari — KamuBul
 
 ## 1. Amaç ve kapsam
+3 Ekim kullanıcı yönü: bu uygulama/yayın hazırlığı Android'e odaklanır;
+iOS/Mac/APNs bu çalışmanın kabul kapsamı dışında ertelenir. Android uçtan
+uca kontroller mevcut emülatörde yapılabilir; fiziksel telefon yokluğu tek
+başına çalışmayı engellemez, emülatör sonuçları fiziksel cihaz sonucu diye
+sunulmaz. Yayıncı crazypenguin ve D:/AppPublishing protokolü kullanılır;
+KamuBul imza/Firebase/yayın dosyaları apps/kamubul altında, ortak Play API
+kimliği publisher/crazypenguin altında tutulur. Kalıcı KamuBul upload anahtarı
+oluşturma ve bu düzene taşıma yetkilidir; gerçek mağaza kaydı/sertifikası
+doğrulanmadan mevcut uygulama imzası değiştirilmez veya yayın başlatılmaz.
+
 Template GitHub güncellemeleri mevcut uygulamaya seçilerek uyarlanır. Keşfet
 ve Ayarlar üzerinden gerçek diğer uygulama kataloğu; kendi uygulaması hariç,
 Türkçe isim/açıklama, HTTPS build-config URL,24h cache ve offline gerçek fallback.

@@ -55,6 +55,7 @@ test/failures/
 .project-brain/.cache/
 workers/node_modules/
 workers/.wrangler/
+.wrangler/
 workers/.dev.vars
 
 # --- Desteklenmeyen platform iskeletleri (ürün yalnız Android/iOS) ---

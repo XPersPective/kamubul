@@ -3,7 +3,7 @@
 Güncel işletim: kalıcı Cloudflare Worker `kamubul-api` + D1 `kamubul`.
 Kaynak kodu `workers/src/sources.js`, merkezi toplama `workers/src/pipeline.js`.
 Google Cloud Run veya eski `backend/` zamanlayıcısı işletim mimarisi değildir.
-Son kontrol: 2 Ekim 2026. Cloudflare çıkışı ile geliştirme bilgisayarından alınan
+Son kontrol: 3 Ekim 2026. Cloudflare çıkışı ile geliştirme bilgisayarından alınan
 sonuçlar ayrı kanıttır; yerel erişim sunucunun erişebildiğini göstermez.
 
 | Kaynak | Merkezi getirme yöntemi | Canlı Cloudflare sonucu | Açık iş |
@@ -49,6 +49,16 @@ yaş/KPSS/eğitim koşulu ya da sahte ayrıntı üretilmez. Yeni bir izinli kayn
 kanıtı olmadan alternatif host/proxy eklenmez.
 
 ## Mobil geçiş ve çıkarım kanıtı
+
+3 Ekim yeniden kontrolünde aynı resmî adaptörün Cloudflare çıkışında Kariyer
+ayrıntısı HTTP522/20115ms, SBB `blocked`/416ms verdi. TKGM'nin
+[28 Eylül tarihli resmî duyurusundaki](https://www.tkgm.gov.tr/duyurular/tapu-ve-kadastro-genel-mudurlugu-sozlesmeli-bilisim-personel-alim-ilani)
+[orijinal PDF](https://cms-api.tkgm.gov.tr/media/101807/view) geliştirme
+bilgisayarında HTTP200/application/pdf/215635 byte ile açıldı; aynı sabit URL
+Cloudflare no-binding preview'da HTTP522/19476ms verdi. Preview kapatıldı,
+üretim verisi/AI/FCM değişmedi. Bu aday çalışan sunucu adaptörü veya yeniden
+yayınlama izni sayılmaz; yerel PDF üretime yüklenmedi. Engelin IP/coğrafya
+nedeni doğrulanmadı; üçüncü taraf proxy/WAF aşma eklenmedi.
 
 Son kalıcı Workere284e590;162 native/dry-run/deploy ve canlı46change/23catalogue/
 applied46/detail/missing404/meta304 geçti. SBB native PDF okuyucusu binary

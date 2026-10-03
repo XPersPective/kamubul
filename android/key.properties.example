@@ -1,5 +1,6 @@
-# Copy to ignored android/key.properties; never commit the real values.
-# Absolute path outside the repository, or a path relative to android/.
+# Store outside Git in apps/kamubul/credentials/android/key.properties.
+# APP_PUBLISHING_ROOT selects the root; KAMUBUL_SIGNING overrides the file.
+# storeFile is relative to this properties file, not the source repository.
 # Windows paths use / or escaped backslashes (\\).
 storeFile=PLACEHOLDER-upload-key.jks
 storePassword=PLACEHOLDER-store-password

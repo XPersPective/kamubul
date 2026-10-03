@@ -26,13 +26,14 @@ Firebase client ayarları Git dışında. Yerel Android build için `--dart-defi
 
 ### Android üretim imzası
 
-Release APK/AAB `android/key.properties` içindeki `storeFile`, `storePassword`,
+Release APK/AAB yayın klasöründeki `key.properties` içindeki `storeFile`, `storePassword`,
 `keyAlias`, `keyPassword` ile imzalanır; debug anahtarına fallback yoktur.
 Eksik/boş alan veya standart `androiddebugkey` alias'ı release doğrulamasını
 durdurur. Debug/profile geliştirme derlemeleri kendi debug imzasını kullanır.
-Gerçek değerler yalnız gitignore'daki dosyaya girilir; örnek dosya
-`android/key.properties.example`dir. `storeFile` mutlak yol veya `android/`
-dizinine göre relatif yoldur. Windows'ta `/` ya da kaçışlı `\\` kullanılır.
+Varsayılan yol `D:/AppPublishing/apps/kamubul/credentials/android/key.properties`;
+`APP_PUBLISHING_ROOT` kökü veya `KAMUBUL_SIGNING` dosyayı değiştirebilir.
+`storeFile` imza ayar dosyasının klasörüne göre çözülür. Gerçek anahtar ve
+parolalar kaynak depoda tutulmaz; örnek `android/key.properties.example`dir.
 
 İmza doğrulaması (JDK ayarlı terminal, `android/` içinde):
 
@@ -55,7 +56,34 @@ release sahibi doğrulamalıdır. JDK ayarlı PowerShell'de artefact/anahtar
 
 [Flutter Android yayın rehberi](https://docs.flutter.dev/deployment/android)
 anahtar oluşturma ve Play App Signing ayrımını açıklar. Bu yapılandırma gerçek
-anahtarın sağlandığı, yedeklendiği veya mağaza yayınının tamamlandığı kanıtı değildir.
+mağaza yayınının tamamlandığı kanıtı değildir.
+
+Yayın kökünün protokolü `D:/AppPublishing/README.md`dir. KamuBul'a özgü kalıcı
+upload anahtarı ve ikinci kopyası repo dışında oluşturuldu; bağımsız şifreli
+harici yedek ayrıca gerekir. Firebase sunucu kimliği `credentials/firebase/`
+altındadır ve APK'ya dahil edilmez. Aynı klasördeki `android.defines.json`
+yalnız client config, API ve yayıncı destek ayarını taşır. Android derleme:
+
+```sh
+flutter build apk --release --obfuscate --split-debug-info=D:/repositories/kamubul-symbols --dart-define-from-file=D:/AppPublishing/apps/kamubul/credentials/firebase/android.defines.json
+```
+
+Mağaza paketi için `apk` yerine `appbundle` kullanılır. Yayıncı Play servis
+hesabı Firebase kimliğinden ayrıdır; mevcut Play paket/sertifika, gerçek AdMob
+kimlikleri ve mağaza beyanları doğrulanmadan yükleme yapılmaz. Emülatör QA
+Google test reklam kimliklerini kullanır; bunun üretim reklam kabulü olduğu
+iddia edilmez. iOS/Mac bu çalışma kapsamında ertelenmiştir.
+
+Üretilen APK'nın kalıcı upload sertifikası, paket kimliği ve debug bayrağı
+birlikte kontrol edilir (JDK/Android SDK ayarlı PowerShell):
+
+```powershell
+./tool/check-android-release.ps1
+```
+
+Bu kontrol imza/paket/debuggable ve [Android'in 16 KB ZIP hizalama
+kontrolünü](https://developer.android.com/tools/zipalign) doğrular; ELF
+hizalaması ve 16 KB cihaz testi ayrı kapılardır.
 
 Android güvenli depo kontrolü mevcut `integration_test/secure_push_store_test.dart` ve `test_driver/integration_test.dart` ile çalışır. Önce normal APK'yı ayrı yerde koruyun; integration build aynı çıktı yolunu kullanır. Dar depolamalı x64 emülatör için:
 
