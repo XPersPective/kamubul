@@ -22,6 +22,20 @@ process kills, not main exit. Host free RAM~1.1GB. No source/FCM/release/latency
 success claim; next diagnose actual native startup ANR, do not attribute it
 to Dart/Ads without trace. Own temporary /sdcard screenshot removed; emulator,
 app/data preserved. No privilege escalation or system/app deletion.
+3Oct startup diagnostic: ActivityManager reports CPU pressure avg10=80.14%,
+memory some/full avg10=16.44/5.87%; total CPU98%,85% kernel in ANR window.
+Its own primary-pid stack dump aborted on deadline; exact own ANR file read
+denied by normal ADB. No root/chmod or broad private bugreport used. Resource
+pressure correlates with the failure, but the app root cause is unproven.
+Own-app-only force-stop/relaunch preserved data: new pid13000, am start -W
+timed out21756ms; Android later reported Displayed/Fully drawn52s432ms.
+Native onboarding rendered without a new sampled am_anr entry; original
+launch107s297ms remains a failure, second launch is not a latency pass.
+Host free RAM~1.8GB on retry. Firebase native auto-init was unsuccessful;
+code explicitly initializes with Dart FirebaseOptions only after push opt-in,
+so that log alone is not proof of broken FCM configuration. No permission,
+account or push created. Next require adequate-device cold-start/thread
+evidence before changing startup code; physical release gate remains open.
 
 Canonical mobil ayrıntı mevcut cache'teki summary text/quote/scopeLabel için
 açılır kaynak alıntısı gösterir. Eşleşmeyen veya600 karakteri aşan alıntı
