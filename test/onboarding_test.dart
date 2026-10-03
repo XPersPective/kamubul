@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/ui/onboarding_page.dart';
 import 'package:kamubul_core/kamubul_core.dart';
+import 'package:napp_core/napp_core.dart';
 
 Future<void> press(WidgetTester tester, String label) async {
   final button = find.text(label);
@@ -20,6 +21,52 @@ Future<void> press(WidgetTester tester, String label) async {
 }
 
 void main() {
+  testWidgets('steps expose accessible headings and labelled 48dp targets', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    const titles = [
+      'Resmî kamu ilanları, tek yerde',
+      'Nerede iş arıyorsunuz?',
+      'Sizin şartlarınız',
+      'Hazırsınız',
+    ];
+    const brand = Color(0xFF17659C);
+    try {
+      for (final theme in [
+        AppTheme.light(brandColor: brand),
+        AppTheme.dark(brandColor: brand),
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            key: UniqueKey(),
+            theme: theme,
+            home: OnboardingPage(onCreate: (_) async {}, onDone: () {}),
+          ),
+        );
+        for (var step = 0; step < titles.length; step++) {
+          final heading = tester.getSemantics(find.text(titles[step]));
+          expect(
+            heading,
+            matchesSemantics(
+              label: 'Adım ${step + 1} / 4: ${titles[step]}',
+              isHeader: true,
+              isLiveRegion: true,
+            ),
+          );
+          final action = step == 3 ? 'İlanları bul' : 'Devam';
+          await tester.ensureVisible(find.text(action));
+          await tester.pumpAndSettle();
+          await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+          await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+          if (step < 3) await press(tester, action);
+        }
+      }
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets(
     'skip completes without creating a search or requesting permission',
     (tester) async {

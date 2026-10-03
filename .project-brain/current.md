@@ -5,6 +5,13 @@ uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları
 
 ## 1. Üretim durumu ve gerçek sınır
 
+Onboarding dört adımın başlığını Semantics header/liveRegion olarak sunar;
+erişilebilir ad "Adım N / 4: başlık" taşır, görünen tasarım değişmez.
+Gerçek AppTheme light/dark ile dört adımda labelled tap target ve Android48dp
+guideline geçti; altı onboarding widget kontrolü ve changed2 analyze temiz.
+Bu fiziksel TalkBack/VoiceOver veya açılış performansı kanıtı değildir;
+emülatördeki önceki profile APK henüz bu semantics değişikliğini içermez.
+
 App-open reklam onboarding guard'ı artık gerçek kamubul.onboarded kaydından
 restoreAds ile yüklenir; main'de unconditional true yok. OnDone aynı policy'yi
 true yapar. Eligible eski oturumlarda bile eksik onboarding reklamı engeller;

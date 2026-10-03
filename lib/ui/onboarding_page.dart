@@ -137,10 +137,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 semanticLabel: 'KamuBul',
               ),
               const SizedBox(height: 16),
-              Text(
-                _titles[_step],
-                style: Theme.of(context).textTheme.headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
+              Semantics(
+                header: true,
+                liveRegion: true,
+                child: Text(
+                  _titles[_step],
+                  semanticsLabel: 'Adım ${_step + 1} / 4: ${_titles[_step]}',
+                  style: Theme.of(context).textTheme.headlineMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
               ),
               const SizedBox(height: 8),
               Text(_body(_step), style: Theme.of(context).textTheme.bodyLarge),
