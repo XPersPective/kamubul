@@ -33,8 +33,19 @@ Own package restored to prior disabled-user state; shared emulator/data preserve
 Dedicated SDK AVD kamubul_release_check/emulator-5560 created without touching
 other AVDs. Real signed release installed Success and onboarding rendered;
 system UI/Google services also reported startup ANRs, so native flow not passed.
-Own AVD rebooted with4cores/2048MB/software graphics; boot_completed1 observed,
-next launch is under inspection. No push registration or fake production rows.
+Own AVD rebooted with4cores/2048MB/software graphics; boot_completed1 observed.
+SystemUI ANR persisted, Wait dismissed it; own native onboarding→home→detail→
+settings→official sources rendered. Catalogue135 records at07:05UTC, source
+notes match server metadata; catalogue includes retained device fetch fallback,
+so135 is not D1-only coverage. Server readonly meta46 unchanged. Offline
+airplane-mode1+force-stop/relaunch preserved135 cache with honest failure note;
+airplane-mode returned0. am-W still timeout11.8s, not performance pass.
+Server push remainedoff, no registry/fake production push. Own AVD stopped for
+build memory; registered test AVD kept pending final updated release recheck.
+Native Pro page exposed untranslated paywall keys. Startup now merges existing
+ProLocalization with core via loadAppTranslations; focused regression1 and
+full Flutter175 checks passed, changed2 analyze no issues.
+Updated APK/AAB/native Pro verification still pending, old APK precedes this fix.
 ZIP archive16KB alignment check added to same runnable script and passed;
 ELF alignment/16KB device support remains a separate unverified gate.
 AdMob current browser account opens signup/terms, not an existing app console;

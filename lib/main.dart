@@ -26,9 +26,12 @@ const otherAppsUrl = String.fromEnvironment(
       'https://raw.githubusercontent.com/XPersPective/napp_apps/HEAD/apps.json',
 );
 
+Future<NappTranslations> loadAppTranslations() async =>
+    ProLocalization.load(base: await NappTranslations.loadCore());
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final translations = await NappTranslations.loadCore();
+  final translations = await loadAppTranslations();
   final store = await SettingsStore.load();
   final theme = ThemeModeController(store: store)..load();
   final identity = AppIdentity(
