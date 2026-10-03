@@ -22,7 +22,13 @@ Mevcut flutter_emulator5560 signed release install Success/onboarding render,
 ancak system/SystemUI ANR; sağlam native kabulü değil. Snapshot açılışı
 gecikerek tamamlandı; ikinci launch same-AVD kontrolünde durdu. Yalnız kendi
 5560 oturumu resmi emu-kill ile kapatılıp no-snapshot-load ile yeniden açıldı;
-shared5554 ve diğer uygulamalar değiştirilmedi. Son cold-start kabulü bekler.
+shared5554 ve diğer uygulamalar değiştirilmedi. Son no-snapshot-load cold start
+boot1 verdi ancak UIAutomator splash ardından SystemUI ANR; events/am_anr
+telefon/klavye/Google/system startup hatalarını doğruladı. Native kabul açık.
+Yalnız kendi5560 resmi emu-kill ile kapatıldı; AVD ve app/data korunur.
+AdMob kontrolü sonra erişilebilir oldu: yalnız aynı Google hesabı seçilebilir,
+signup/sözleşme/payments kurulumu insan handoff; real IDs yok. Play/AdMob
+tabları açık handoff, async beyan/Pro fiyatı/provider bütçeleri cevap bekler.
 
 3Oct user resumed: Android emulator acceptance authorized, iOS/Mac excluded
 from this work, production signing/publishing folder migration authorized.
