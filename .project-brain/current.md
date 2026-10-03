@@ -45,7 +45,28 @@ build memory; registered test AVD kept pending final updated release recheck.
 Native Pro page exposed untranslated paywall keys. Startup now merges existing
 ProLocalization with core via loadAppTranslations; focused regression1 and
 full Flutter175 checks passed, changed2 analyze no issues.
-Updated APK/AAB/native Pro verification still pending, old APK precedes this fix.
+Updated signed APK install-r5560 Success; own home/settings/Pro Turkish copy
+and dark-theme/other-apps real catalogue native visuals verified. UIAutomator
+idle observations resolve immediate screenshot/event-delivery races; no app
+theme bug inferred from earlier mistap. Initial SystemUI/Google-service ANRs
+and am-W13.7s timeout persist, not performance pass. Server push stayedoff.
+Updated signed x64 APK built183.1s and same certificate/package/debuggable/
+ZIP16KB check passed. Signed all-ABI AAB built414.5s/58MB; jarsigner verified,
+public keytool certificate SHA256 equals permanent upload DER, llvm-readelf
+LOAD alignment>=16KB for12 .so across3ABIs. 16KB-device runtime not tested.
+Build Gradle daemon stopped before owned AVD restart; no build/test handle.
+Play Console crazypenguin app-list `kamubul` search no results; new-app form
+KamuBul/com.crazypenguin.kamubul/tr-TR/application/free prepared, package
+availability explicitly confirmed. Legal policy/export checkboxes untouched;
+action-time human approval pending, no app creation/upload/publish. Tab3 kept
+for review; no other app was modified. AdMob current account still needs setup.
+Own5560 emu-kill completed, owned launcher18188 and matching QEMU processes
+absent. Official avdmanager delete reported errors: registration.ini removed,
+owned .avd directory still present. Guarded PowerShell recursive cleanup was
+rejected by automatic policy (no detailed reason supplied), so no alternate
+delete attempted; residual C:/Users/rubicon/.android/avd/kamubul_release_check.avd
+remains open cleanup. Shared5554/other apps/AVDs preserved; no production test
+registration, fixture, inferred condition or push was written.
 ZIP archive16KB alignment check added to same runnable script and passed;
 ELF alignment/16KB device support remains a separate unverified gate.
 AdMob current browser account opens signup/terms, not an existing app console;
