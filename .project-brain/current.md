@@ -61,6 +61,10 @@ temiz terminalde çalıştırılıp gerçek imzalı APK ile PASS doğrulandı.
 Template origin/master fresh fetch7101480/0behind/clean; Keşfet+OtherApps
 GitHub catalogue entegrasyonu korunur. Public live meta3Oct: Kariyer list ok,
 detail revalidation failure; SBB/İŞKUR/ilan.gov blocked. Source gate kapanmadı.
+VERIFIED 4 Ekim: telefon (TR IP) ayrıca ilan.gov.tr PERSONEL ALIMI
+(`kamubul_core/listings/ilangov_feed.dart`, ~167) ve İŞKUR yalnız kamu
+(`iskur_feed.dart`, ~9) okur; `lib/data/catalogue_refresh.dart` her yenilemede
+Kariyer+ilan.gov+İŞKUR, SBB sunucu yoksa. Sunucu (Worker) bu ikisini okumaz.
 
 3 Ekim son yön: yalnız Türkiye/Türkçe dağıtımı; gerçek reklam, tek seferlik
 Pro ürünü, ekran görüntüsü yükleme ve bir sürüm gönderme yetkilidir. Play yeni
