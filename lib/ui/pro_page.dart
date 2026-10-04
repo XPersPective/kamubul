@@ -54,13 +54,20 @@ class _ProPageState extends State<ProPage> {
             _benefit(
               Icons.block_rounded,
               'Reklamsız ilan takibi',
-              'Banner ve tam ekran reklamlar kalıcı olarak kapanır.',
+              'Abonelik süresince banner ve tam ekran reklamlar kapanır.',
+            ),
+            _benefit(
+              Icons.auto_awesome_outlined,
+              'Asistan’a daha çok soru',
+              'KamuBul Asistan yapay zekâ kullanır ve her sorunun bir maliyeti '
+                  'vardır. Pro ile günde 100 soru (ücretsiz: 30).',
             ),
             _benefit(
               Icons.payments_outlined,
-              'Tek seferlik ödeme',
-              'Abonelik yok, yenileme yok. Satın alma Google Play hesabınıza '
-                  'bağlıdır; yeni telefonda geri yüklenir.',
+              'Aylık, cüzi ücret',
+              'Her ay otomatik yenilenir; Google Play > Abonelikler’den '
+                  'istediğiniz an iptal edersiniz, dönem sonuna kadar Pro sürer. '
+                  'Yeni telefonda geri yüklenir.',
             ),
             _benefit(
               Icons.lock_outline_rounded,
@@ -157,7 +164,7 @@ class _ProPageState extends State<ProPage> {
               padding: EdgeInsets.only(top: 10),
               child: Text(
                 'Deneme bitince küçük banner ve seyrek tam ekran reklamlar '
-                'başlar. Pro bunları kalıcı kaldırır.',
+                'başlar. Pro abonelik süresince bunları kaldırır.',
                 style: TextStyle(
                   color: Color(0xFFD3E6F6),
                   fontSize: 13,
@@ -250,10 +257,18 @@ class _ProPageState extends State<ProPage> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  '${product.price} • tek seferlik',
+                  '${product.price} / ay',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+            if (product != null)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'Otomatik yenilenir · İstediğiniz an iptal',
+                  textAlign: TextAlign.center,
                 ),
               ),
             const SizedBox(height: 8),
@@ -274,7 +289,7 @@ class _ProPageState extends State<ProPage> {
               onPressed: product == null ? null : () => _buy(product),
               child: Text(
                 product != null
-                    ? l10n.t('paywall.buy')
+                    ? 'Aylık aboneliği başlat'
                     : l10n.t(
                         loading
                             ? 'paywall.priceLoading'

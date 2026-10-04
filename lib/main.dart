@@ -7,6 +7,7 @@ import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 
 import 'data/listing_store.dart';
+import 'data/subscription_check.dart';
 import 'data/trial_sync.dart';
 import 'home_page.dart';
 import 'ads_state.dart';
@@ -49,12 +50,15 @@ Future<void> main() async {
     iconAsset: 'assets/brand/kamubul_icon.png',
     brandColor: const Color(0xFF17659C),
   );
+  final storeAdapter = InAppPurchaseAdapter();
   final purchase = PurchaseRepository(
-    adapter: InAppPurchaseAdapter(),
-    productId: 'kamubul_pro_lifetime',
+    adapter: storeAdapter,
+    productId: proMonthlyProductId,
   );
   final pro = ProController(store: store, repository: purchase)..load();
   pro.startListening();
+  // Aylık abonelik bitmişse Pro düşer; çevrimdışıysa önbellek korunur.
+  unawaited(verifySubscription(pro, storeAdapter, store));
   // Yeniden kurulum deneme süresini sıfırlamasın: sunucudaki ilk görülme.
   await syncTrialStart(store);
   final policy = AdPolicy();

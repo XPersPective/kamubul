@@ -44,7 +44,7 @@ Asistan sekmesinde yazdığınız mesaj, aynı sohbetteki son en fazla 4 mesaj v
 
 ## Reklam ve satın alma
 
-Ücretsiz sürüm Google Mobile Ads ve onay bileşenlerini içerir; bunlar reklam/izin amaçlı veri işleyebilir. Pro reklam akışını kapatır. Satın alma mağaza altyapısından geçer; KamuBul kart bilgisi saklamaz. Gerçek reklam yapılandırmasıyla Google Play Veri Güvenliği ve Apple gizlilik formları yayın öncesinde ayrıca doğrulanmalıdır.
+Ücretsiz sürüm Google Mobile Ads ve onay bileşenlerini içerir; bunlar reklam/izin amaçlı veri işleyebilir. Pro aylık bir abonelik olup abonelik süresince reklam akışını kapatır. Abonelik ve ödeme Google Play altyapısından geçer; KamuBul kart bilgisi saklamaz. Uygulama açılışta aboneliğin hâlâ etkin olup olmadığını yalnız cihazdaki Google Play'den sorar; iptal Google Play > Abonelikler'den yapılır. Gerçek reklam yapılandırmasıyla Google Play Veri Güvenliği ve Apple gizlilik formları yayın öncesinde ayrıca doğrulanmalıdır.
 
 Google Mobile Ads SDK, reklam sunumu, ölçüm ve kötüye kullanım önleme için IP adresi (yaklaşık konum çıkarılabilir), uygulama/reklam etkileşimleri, performans ve tanılama bilgileri ile reklam kimliği/uygulama kümesi kimliği gibi cihaz kimliklerini toplayıp paylaşabilir. Bu, uygulamada Firebase Analytics bulunmadığı açıklamasından ayrıdır. SDK veri aktarımı TLS ile şifrelenir. Android reklam kimliğinizi cihaz ayarlarından sıfırlayabilir veya silebilirsiniz. [Google Mobile Ads veri açıklaması](https://developers.google.com/admob/android/privacy/play-data-disclosure) ve [Google gizlilik politikası](https://policies.google.com/privacy) sağlayıcının uygulamalarını açıklar.
 
