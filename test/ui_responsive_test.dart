@@ -341,7 +341,7 @@ void main() {
   });
 
   testWidgets(
-    'rehber SBB için bilinen alanları ve belirsiz şartları gösterir',
+    'rehber SBB için yalnız bilinen alanları gösterir',
     (tester) async {
       final record = ListingRecord(
         url: 'https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod=1',
@@ -360,7 +360,9 @@ void main() {
         ),
       );
       expect(find.text('Kontenjan: 12 kişi'), findsOneWidget);
-      expect(find.text('Yaş sınırı: belirtilmemiş'), findsOneWidget);
+      // Bilinmeyen şart satırı gösterilmez; Asistan'a sorma önerilir.
+      expect(find.text('Yaş sınırı: belirtilmemiş'), findsNothing);
+      expect(find.textContaining('Asistan’a sorabilirsiniz'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

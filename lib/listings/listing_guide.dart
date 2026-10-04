@@ -182,21 +182,20 @@ class ListingGuideView extends StatelessWidget {
           'Kaynakta doğrulanan bilgiler. Yaş, eğitim ve KPSS şartlarını '
           'Asistan’a sorabilirsiniz; ilan metnini okuyarak yanıtlar.',
         ),
-        _GuideField(
-          label: 'Kontenjan',
-          value: listing.quota == null ? null : '${listing.quota} kişi',
-          quote: null,
-        ),
-        _GuideField(
-          label: 'Son başvuru',
-          value: listing.deadline == null
-              ? null
-              : '${listing.deadline!.day}.${listing.deadline!.month}.${listing.deadline!.year}',
-          quote: null,
-        ),
-        const _GuideField(label: 'Yaş sınırı', value: null, quote: null),
-        const _GuideField(label: 'Eğitim şartı', value: null, quote: null),
-        const _GuideField(label: 'KPSS şartı', value: null, quote: null),
+        // Yalnız kaynakta bilinen alanlar; "belirtilmemiş" satırları kalabalık yapar.
+        if (listing.quota != null)
+          _GuideField(
+            label: 'Kontenjan',
+            value: '${listing.quota} kişi',
+            quote: null,
+          ),
+        if (listing.deadline != null)
+          _GuideField(
+            label: 'Son başvuru',
+            value:
+                '${listing.deadline!.day}.${listing.deadline!.month}.${listing.deadline!.year}',
+            quote: null,
+          ),
       ],
     ),
   );
@@ -235,7 +234,7 @@ class _GuideField extends StatelessWidget {
                 Expanded(
                   child: Text(
                     value == null ? '$label: belirtilmemiş' : '$label: $value',
-                    style: Theme.of(context).textTheme.bodyMedium
+                    style: Theme.of(context).textTheme.bodyLarge
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -246,8 +245,8 @@ class _GuideField extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 6, left: 26),
                 child: Text(
                   '"$quote"',
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(fontStyle: FontStyle.italic),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(fontStyle: FontStyle.italic, height: 1.45),
                 ),
               ),
           ],

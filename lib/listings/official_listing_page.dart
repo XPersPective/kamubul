@@ -301,8 +301,8 @@ class OfficialListingPage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               groups.isEmpty
-                  ? 'Başvuru koşulları bu kaynakta henüz güvenilir biçimde ayıklanamadı. '
-                        'Başvurmadan önce resmî belgeyi kontrol edin.'
+                  ? 'Başvuru koşulları resmî belgede yer alır; belgeyi açabilir '
+                        'ya da "Bana uygun mu?" diye Asistan’a sorabilirsiniz.'
                   : 'Gösterilen koşullar başvuru uygunluğu garantisi değildir. Başvurmadan önce resmî belgeyi kontrol edin.',
               style: theme.textTheme.bodyMedium,
             ),

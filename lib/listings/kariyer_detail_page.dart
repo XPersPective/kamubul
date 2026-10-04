@@ -319,7 +319,8 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                                     line,
                                     style: Theme.of(context)
                                         .textTheme
-                                        .bodyLarge,
+                                        .bodyLarge
+                                        ?.copyWith(fontSize: 17, height: 1.45),
                                   ),
                                 ),
                               ],
@@ -358,7 +359,8 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                                     line,
                                     style: Theme.of(context)
                                         .textTheme
-                                        .bodyLarge,
+                                        .bodyLarge
+                                        ?.copyWith(fontSize: 17, height: 1.45),
                                   ),
                                 ),
                               ],
@@ -457,13 +459,13 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
       children: [
         Text(
           '$label: $value',
-          style: Theme.of(context).textTheme.bodyMedium
-              ?.copyWith(fontWeight: FontWeight.w600),
+          style: Theme.of(context).textTheme.bodyLarge
+              ?.copyWith(fontSize: 17, fontWeight: FontWeight.w700),
         ),
         Text(
           '"$quote"',
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(fontStyle: FontStyle.italic),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(fontSize: 15, height: 1.45, fontStyle: FontStyle.italic),
         ),
       ],
     ),
@@ -475,16 +477,16 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 120,
-          child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          width: 150,
+          child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
         ),
         Expanded(
           child: Text(
             value ?? 'Belirtilmemiş',
             style: value == null
-                ? Theme.of(context).textTheme.bodyMedium
+                ? Theme.of(context).textTheme.bodyLarge
                       ?.copyWith(fontStyle: FontStyle.italic)
-                : Theme.of(context).textTheme.bodyMedium
+                : Theme.of(context).textTheme.bodyLarge
                       ?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
