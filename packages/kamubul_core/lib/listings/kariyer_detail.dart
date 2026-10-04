@@ -106,11 +106,7 @@ KariyerDetail parseKariyerDetail(Object? main, Object? rawPositions) {
         if (item is! Map<String, dynamic>) continue;
         final count = item['kontenjan'];
         if (count is int && count > 0 && count < 100000) quota += count;
-        final place = field(item, 'il').trim();
-        final halves = place.split(' / ');
-        final cleaned = halves.length == 2 && halves[0] == halves[1]
-            ? halves[0]
-            : place;
+        final cleaned = cleanKariyerPlace(field(item, 'il'));
         if (cleaned.isNotEmpty) places.add(cleaned);
       }
     }
@@ -145,3 +141,11 @@ String plainNoticeText(String value) => value
     .replaceAll(RegExp(r'[ \t]+'), ' ')
     .replaceAll(RegExp(r'\n{3,}'), '\n\n')
     .trim();
+
+/// "İL / İL" gibi tekrarlı yer adlarını tekilleştirir (boşluk farkına dayanıklı).
+String cleanKariyerPlace(String raw) => raw
+    .split('/')
+    .map((part) => part.replaceAll(RegExp(r'\s+'), ' ').trim())
+    .where((part) => part.isNotEmpty)
+    .toSet()
+    .join(' / ');

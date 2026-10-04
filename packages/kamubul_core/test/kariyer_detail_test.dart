@@ -97,4 +97,12 @@ void main() {
     expect(detail.places, ['BAKANLIK MERKEZ TEŞKİLATI']);
     expect(detail.positions.single.places, ['BAKANLIK MERKEZ TEŞKİLATI']);
   });
+
+  test('tekrarlı yer adı tekilleşir', () {
+    expect(
+      cleanKariyerPlace('BAKANLIK MERKEZ TEŞKİLATI /  BAKANLIK MERKEZ TEŞKİLATI '),
+      'BAKANLIK MERKEZ TEŞKİLATI',
+    );
+    expect(cleanKariyerPlace('ANKARA / ÇANKAYA'), 'ANKARA / ÇANKAYA');
+  });
 }

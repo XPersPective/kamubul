@@ -2955,8 +2955,10 @@ class _SourcesPage extends StatelessWidget {
           leading: Icon(Icons.location_city_outlined),
           title: Text('Belediyeler'),
           subtitle: Text(
-            'Basın İlan Kurumu üzerinden yayımlanan belediye personel '
-            'ilanları ilan.gov.tr ile gelir; "Belediye" süzgeciyle bulunur.',
+            'Belediye personel ilanları ilan.gov.tr (Basın İlan Kurumu) ve '
+            'İŞKUR kamu ilanlarıyla gelir; "Belediye" süzgeciyle bulunur. '
+            'İlanını yalnız kendi sitesinde yayımlayan belediyeler şimdilik '
+            'kapsam dışıdır.',
           ),
         ),
       ],
