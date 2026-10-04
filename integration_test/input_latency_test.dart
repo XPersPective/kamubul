@@ -9,10 +9,12 @@ import 'package:kamubul/main.dart' as app;
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart';
 
 /// PB-008 girdi yanıtı ölçümü: dokunuş gönderiminden, dokunuşa yanıt veren
 /// ilk karenin ekrana çizilmesine (raster bitişi) kadar geçen gerçek süre.
-/// En yavaş derleme (debug) ile ölçülür; release bunun altındadır.
+/// Sonuç yalnız ölçülen derleme modu ve cihaz için geçerlidir.
 class _NoNetwork extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) =>
@@ -95,6 +97,24 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('girdi yanıtı her hedefte 100ms altında', (tester) async {
+    final previousNetwork = HttpOverrides.current;
+    final originalDbPath = await getDatabasesPath();
+    final testDirectory = await Directory.systemTemp.createTemp(
+      'kamubul_latency_',
+    );
+    final isolatedDbPath = p.join(testDirectory.path, 'kamubul_listings.db');
+    addTearDown(() async {
+      try {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await deleteDatabase(isolatedDbPath);
+        await testDirectory.delete(recursive: true);
+      } finally {
+        await databaseFactory.setDatabasesPath(originalDbPath);
+        HttpOverrides.global = previousNetwork;
+      }
+    });
+    await databaseFactory.setDatabasesPath(testDirectory.path);
+    expect((await ListingStore().database).path, isolatedDbPath);
     HttpOverrides.global = _NoNetwork();
     final settings = SettingsStore();
     // Doğrudan ana ekran: onboarding akışı ölçümün parçası değil.
@@ -107,24 +127,19 @@ void main() {
     );
     final pro = ProController(store: settings, repository: purchase)..load();
     final stamp = DateTime.now().microsecondsSinceEpoch;
-    await ListingStore().mergeFeed(
-      [
-        ListingRecord(
-          url: 'https://kariyerkapisi.gov.tr/ilan/olcu-$stamp',
-          sourceId: 'kariyerkapisi',
-          title: 'ÖLÇÜM KURUMU - Sözleşmeli Personel Alım İlanı ($stamp)',
-          category: 'Sözleşmeli Personel',
-          publishedAt: DateTime.now(),
-          fetchedAt: DateTime.now(),
-          deadline: DateTime.now().add(const Duration(days: 3)),
-          quota: 5,
-          places: const ['ANKARA'],
-        ),
-      ],
-      // Cihaz veritabanındaki eski deneme kayıtları listeyi kaydırmasın:
-      // kaydedilmemiş eskiler budanır; bu kayıt taze olduğu için kalır.
-      pruneBefore: DateTime.now().subtract(const Duration(seconds: 5)),
-    );
+    await ListingStore().mergeFeed([
+      ListingRecord(
+        url: 'https://kariyerkapisi.gov.tr/ilan/olcu-$stamp',
+        sourceId: 'kariyerkapisi',
+        title: 'ÖLÇÜM KURUMU - Sözleşmeli Personel Alım İlanı ($stamp)',
+        category: 'Sözleşmeli Personel',
+        publishedAt: DateTime.now(),
+        fetchedAt: DateTime.now(),
+        deadline: DateTime.now().add(const Duration(days: 3)),
+        quota: 5,
+        places: const ['ANKARA'],
+      ),
+    ]);
 
     await tester.pumpWidget(
       app.KamuBulApp(
@@ -185,17 +200,12 @@ void main() {
       // Sekme değişimi: yeni sayfa gövdesi ilk karede kurulur.
       final settingsTab = find.text('Ayarlar');
       expect(settingsTab, findsWidgets);
-      record(
-        'Ayarlar sekmesi',
-        await tapToFirstFrameMs(tester, settingsTab),
-      );
+      record('Ayarlar sekmesi', await tapToFirstFrameMs(tester, settingsTab));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('İlanlar'));
       await tester.pump(const Duration(milliseconds: 300));
       // Liste → ayrıntı: geçişin ilk karesi (yay geçişi başlar).
-      final inspect = find
-          .widgetWithText(FilledButton, 'İlanı incele')
-          .first;
+      final inspect = find.widgetWithText(FilledButton, 'İlanı incele').first;
       expect(inspect, findsWidgets);
       await tester.ensureVisible(inspect);
       await tester.pump(const Duration(milliseconds: 200));
@@ -208,9 +218,7 @@ void main() {
       } else if (find.byTooltip('Geri').evaluate().isNotEmpty) {
         await tester.tap(find.byTooltip('Geri'));
       } else {
-        tester
-            .state<NavigatorState>(find.byType(Navigator).first)
-            .pop();
+        tester.state<NavigatorState>(find.byType(Navigator).first).pop();
       }
       await tester.pump(const Duration(milliseconds: 300));
     }
