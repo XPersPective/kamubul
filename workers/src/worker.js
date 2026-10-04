@@ -1,3 +1,4 @@
+import {handleAssistant} from './assistant.js';
 import {validateCriteria,migrateFilters,fold,installationAnchorKeys,educationValues,cityValues} from './criteria.js';
 import {runScheduled,handleWorkQueue} from './pipeline.js';
 
@@ -93,6 +94,13 @@ export async function fetchRequest(request,env,ctx){
         if(result.count>60)return json({error:'rate_limited'},429,{'Retry-After':'3600'});
       }
       return await registry(request,env,path.split('/').pop());
+    }
+    if(request.method==='POST'&&path==='/api/v2/assistant') {
+      if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return json({error:'content_type'},415);
+      const text=await request.text();if(text.length>2048)return json({error:'body_oversize'},413);
+      let body;try{body=JSON.parse(text);}catch{return json({error:'json'},400);}
+      const result=await handleAssistant(body,env,{sha256,ip:request.headers.get('CF-Connecting-IP')??'unknown'});
+      return json(result.body,result.status);
     }
     if(request.method!=='GET')return json({error:'method_not_allowed'},405,{'Allow':'GET'});
     if(path==='/api/v2/health'||path==='/v1/health') {

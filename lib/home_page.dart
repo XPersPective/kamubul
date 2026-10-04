@@ -40,6 +40,7 @@ import 'listings/kariyer_feed.dart';
 import 'listings/listing_guide.dart';
 import 'listings/official_listing_page.dart';
 import 'ads_state.dart';
+import 'data/assistant_client.dart';
 import 'rate_prompt_state.dart';
 import 'ui/premium.dart';
 import 'ui/premium_widgets.dart';
@@ -2132,6 +2133,148 @@ class _KamuHomePageState extends State<KamuHomePage> {
         )
       : ListView(children: [_intro(), ..._visibleRecords.map(_listingCard)]);
 
+  late final AssistantClient _assistantClient = AssistantClient(
+    store: widget.store,
+  );
+  final TextEditingController _assistantController = TextEditingController();
+  bool _assistantBusy = false;
+  AssistantReply? _assistantReply;
+  String? _assistantError;
+
+  Future<void> _askAssistant() async {
+    if (_assistantBusy) return;
+    setState(() {
+      _assistantBusy = true;
+      _assistantError = null;
+    });
+    try {
+      final reply = await _assistantClient.ask(_assistantController.text);
+      if (mounted) setState(() => _assistantReply = reply);
+    } on AssistantException catch (error) {
+      if (mounted) setState(() => _assistantError = error.message);
+    } finally {
+      if (mounted) setState(() => _assistantBusy = false);
+    }
+  }
+
+  SavedSearch? _assistantSearch(Map<String, Object?> raw) {
+    try {
+      return SavedSearch(
+        id: null,
+        name: '',
+        filters: const {},
+        criteria: SearchCriteria.parse(raw),
+        createdAt: DateTime.now(),
+      );
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Future<void> _applyAssistantCriteria(Map<String, Object?> raw) async {
+    final seed = _assistantSearch(raw);
+    if (seed == null) {
+      setState(() => _assistantError = 'Önerilen kriterler doğrulanamadı.');
+      return;
+    }
+    var saved = await _promptEditSearch(seed, creating: true);
+    if (saved == null) return;
+    saved = await _store.addSavedSearch(saved);
+    await _loadLocal();
+    if (!mounted) return;
+    _applySearch(saved);
+    setState(() => _tab = 0);
+    await _maybeAskNotificationPermission();
+  }
+
+  Widget _assistantCard() {
+    final scheme = Theme.of(context).colorScheme;
+    final reply = _assistantReply;
+    final suggestion = reply?.criteria == null
+        ? null
+        : _assistantSearch(reply!.criteria!);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Kriter asistanı',
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Aradığınız ilanları kısaca anlatın; şehir, eğitim, yaş, KPSS '
+              'gibi kriterlere çevirelim. Yalnızca ilan kriteri sorularına '
+              'yanıt verir. Kişisel bilgi yazmayın.',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _assistantController,
+              maxLength: AssistantClient.maxMessage,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText:
+                    'Örn: Ankara\'da lisans mezunu, 28 yaşında, KPSS P3 75 '
+                    'puanlı bilişim ilanları',
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _assistantBusy || !_assistantClient.available
+                  ? null
+                  : _askAssistant,
+              icon: _assistantBusy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.bolt_rounded),
+              label: Text(_assistantBusy ? 'Hazırlanıyor…' : 'Kriterleri öner'),
+            ),
+            if (_assistantError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  _assistantError!,
+                  style: TextStyle(color: scheme.error),
+                ),
+              ),
+            if (reply != null) ...[
+              const SizedBox(height: 12),
+              Text(reply.reply),
+              if (suggestion != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _filterSummary(suggestion),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _applyAssistantCriteria(reply.criteria!),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Düzenle ve kaydet'),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _assistantView() {
     final selected = _assistantListing;
     SavedSearch? profile;
@@ -2182,9 +2325,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
         const SizedBox(height: 8),
         const Text(
           'Bir ilanın yanındaki "Rehbere sor" düğmesine dokunun; yaş, eğitim, '
-          'KPSS gibi koşulları kaynak cümlesiyle yanıtlayalım. Serbest soru '
-          'sorma (yapay zekâ sohbeti) hazırlanıyor.',
+          'KPSS gibi koşulları kaynak cümlesiyle yanıtlayalım. Aşağıdaki asistan '
+          'ise aradığınız ilan kriterlerini sizin için hazırlar.',
         ),
+        const SizedBox(height: 16),
+        _assistantCard(),
         if (profile != null)
           Card(
             child: ListTile(
