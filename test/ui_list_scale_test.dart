@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/home_page.dart';
@@ -48,6 +50,24 @@ void main() {
 
   setUpAll(() async {
     dbPath = await isolateListingsDb('ui_list_scale');
+    // Match the SDK font used by ui_golden_test; Ahem changes line widths.
+    final config = File('.dart_tool/package_config.json');
+    final packages =
+        jsonDecode(await config.readAsString())['packages'] as List;
+    final flutter = config.absolute.uri.resolve(
+      '${packages.singleWhere((p) => p['name'] == 'flutter')['rootUri']}/',
+    );
+    final fonts = FontLoader('Roboto');
+    for (final weight in ['regular', 'medium', 'bold']) {
+      fonts.addFont(
+        File.fromUri(
+          flutter.resolve(
+            '../../bin/cache/artifacts/material_fonts/roboto-$weight.ttf',
+          ),
+        ).readAsBytes().then(ByteData.sublistView),
+      );
+    }
+    await fonts.load();
   });
 
   setUp(() async {
@@ -159,11 +179,26 @@ void main() {
     tester,
   ) async {
     await pumpHome(tester);
-    await tester.tap(find.text('Kriterlerinize göre keşfedin'));
+    await tester.tap(find.text('Kriter ekle'));
     await tester.pumpAndSettle();
     expect(find.text('Aramayı kaydet'), findsOneWidget);
     expect(find.text('Arama adı'), findsOneWidget);
     expect(find.text('KPSS puanınız (0–100)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ilk ilan başlığı küçük telefonda kaydırmadan okunur', (
+    tester,
+  ) async {
+    await pumpHome(tester, size: const Size(360, 640), textScale: 1.3);
+    final title = find.text(
+      'TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)',
+    );
+    expect(title, findsOneWidget);
+    expect(
+      tester.getBottomRight(title).dy,
+      lessThan(tester.getTopLeft(find.byType(NavigationBar)).dy),
+    );
     expect(tester.takeException(), isNull);
   });
 

@@ -1616,7 +1616,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   );
 
   Widget _intro() => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+    padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1628,7 +1628,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
             letterSpacing: 1.5,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         Text(
           _tab == 1 ? 'Kaydettiğiniz ilanlar' : 'Güncel kamu ilanları',
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -1638,7 +1638,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
             height: 1.15,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Text(
           _tab == 1
               ? '${_visibleRecords.length} kayıt • çevrimdışı erişim'
@@ -1652,55 +1652,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
           style: Theme.of(context).textTheme.bodySmall
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
-        if (_tab == 0) ...[
-          const SizedBox(height: 14),
-          Material(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(18),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(18),
-              onTap: _searches.isEmpty ? _saveCurrentSearch : _manageSearches,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.tune_rounded,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Kriterlerinize göre keşfedin',
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onPrimaryContainer,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
         if (_tab == 0 && _error != null) ...[
           const SizedBox(height: 12),
           Text(
@@ -1715,6 +1666,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   Widget _filters() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
     child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
           controller: _searchController,
@@ -1882,39 +1834,38 @@ class _KamuHomePageState extends State<KamuHomePage> {
             _cityError!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: Text(
-            '${_visibleRecords.length} ilan',
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-        ),
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
           children: [
-            Expanded(child: _savedSearchChips()),
-            IconButton(
-              tooltip: 'Bu aramayı kaydet',
-              onPressed: _saveCurrentSearch,
-              icon: const Icon(Icons.bookmark_add_outlined),
+            Text(
+              '${_visibleRecords.length} ilan',
+              style: Theme.of(context).textTheme.labelMedium,
             ),
-            IconButton(
-              tooltip: 'Kayıtlı aramaları yönet',
-              onPressed: _manageSearches,
-              icon: const Icon(Icons.manage_search),
+            Tooltip(
+              message: 'Bu aramayı kaydet',
+              child: TextButton.icon(
+                style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
+                onPressed: _saveCurrentSearch,
+                icon: const Icon(Icons.tune_rounded, size: 20),
+                label: const Text('Kriter ekle'),
+              ),
             ),
+            if (_searches.isNotEmpty)
+              IconButton(
+                tooltip: 'Kayıtlı aramaları yönet',
+                onPressed: _manageSearches,
+                icon: const Icon(Icons.manage_search),
+              ),
           ],
         ),
+        if (_searches.isNotEmpty) _savedSearchChips(),
       ],
     ),
   );
 
   Widget _savedSearchChips() {
-    if (_searches.isEmpty) {
-      return Text(
-        'Kayıtlı aramalarınız',
-        style: Theme.of(context).textTheme.bodySmall,
-      );
-    }
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
