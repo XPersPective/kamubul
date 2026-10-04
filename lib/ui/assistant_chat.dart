@@ -7,12 +7,19 @@ import 'premium_widgets.dart';
 
 /// Sohbette görüntülenen tek mesaj.
 class ChatMessage {
-  ChatMessage.user(this.text) : fromUser = true, criteria = null;
-  ChatMessage.assistant(this.text, {this.criteria}) : fromUser = false;
+  ChatMessage.user(this.text)
+    : fromUser = true,
+      criteria = null,
+      upgrade = false;
+  ChatMessage.assistant(this.text, {this.criteria, this.upgrade = false})
+    : fromUser = false;
 
   final String text;
   final bool fromUser;
   final Map<String, Object?>? criteria;
+
+  /// Ücretsiz hak doldu: mesajın altında "Pro'ya geç" gösterilir.
+  final bool upgrade;
 }
 
 /// KamuBul Asistan: kamu ilanları için kapsamı sınırlı yapay zekâ sohbeti.
@@ -29,6 +36,10 @@ class AssistantChatView extends StatefulWidget {
     this.criteriaSummary,
     this.onSaveCriteria,
     this.listingGuide,
+    this.isPro = false,
+    this.onUpgrade,
+    this.onNewChat,
+    this.profile,
   });
 
   final AssistantClient client;
@@ -42,6 +53,14 @@ class AssistantChatView extends StatefulWidget {
   final String Function(Map<String, Object?> criteria)? criteriaSummary;
   final Future<void> Function(Map<String, Object?> criteria)? onSaveCriteria;
   final Widget? listingGuide;
+  final bool isPro;
+  final VoidCallback? onUpgrade;
+
+  /// Mesajları ve seçili ilanı temizleyip yeni sohbet başlatır.
+  final VoidCallback? onNewChat;
+
+  /// Kullanıcının kayıtlı kriterleri: "bana uygun mu?" için salt okunur bağlam.
+  final Map<String, Object?>? profile;
 
   @override
   State<AssistantChatView> createState() => _AssistantChatViewState();
@@ -63,6 +82,7 @@ class _AssistantChatViewState extends State<AssistantChatView> {
 
   List<String> get _suggestions => widget.listingTitle != null
       ? const [
+          'Bu ilan bana uygun mu?',
           'Bu ilanın başvuru şartları neler?',
           'Yaş sınırı var mı?',
           'Hangi belgeler gerekiyor?',
@@ -89,7 +109,7 @@ class _AssistantChatViewState extends State<AssistantChatView> {
 
   Future<void> _send([String? preset]) async {
     final text = (preset ?? _input.text).trim();
-    if (_busy || text.length < 4) return;
+    if (_busy || text.length < 2) return;
     HapticFeedback.selectionClick();
     final history = [
       for (final m in widget.messages)
@@ -108,12 +128,16 @@ class _AssistantChatViewState extends State<AssistantChatView> {
         history: history,
         listingTitle: widget.listingTitle,
         listingText: listingText,
+        pro: widget.isPro,
+        profile: widget.profile,
       );
       widget.messages.add(
         ChatMessage.assistant(reply.reply, criteria: reply.criteria),
       );
     } on AssistantException catch (error) {
-      widget.messages.add(ChatMessage.assistant(error.message));
+      widget.messages.add(
+        ChatMessage.assistant(error.message, upgrade: error.upgrade),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
       _scrollToEnd();
@@ -150,15 +174,23 @@ class _AssistantChatViewState extends State<AssistantChatView> {
                     'için sorun. Konu dışı sorulara yanıt vermez.',
               ),
               const SizedBox(height: 12),
+              if (widget.onNewChat != null &&
+                  (widget.messages.isNotEmpty || widget.listingTitle != null))
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _busy ? null : widget.onNewChat,
+                    icon: const Icon(Icons.add_comment_outlined),
+                    label: const Text('Yeni sohbet'),
+                  ),
+                ),
               if (widget.listingTitle != null) _listingCard(scheme),
               if (widget.listingGuide != null)
                 Card(
                   margin: const EdgeInsets.only(top: 8),
-                  child: ExpansionTile(
-                    leading: const Icon(Icons.fact_check_outlined),
-                    title: const Text('Kaynaktan çıkarılan şartlar'),
-                    childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                    children: [widget.listingGuide!],
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                    child: widget.listingGuide!,
                   ),
                 ),
               if (widget.messages.isEmpty) ...[
@@ -292,12 +324,21 @@ class _AssistantChatViewState extends State<AssistantChatView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SelectableText(
-                m.text,
+                // Model bazen Markdown kalın (**) kullanır; düz metinde gösterilmez.
+                m.text.replaceAll('**', ''),
                 style: TextStyle(
                   color: m.fromUser ? scheme.onPrimary : scheme.onSurface,
                   height: 1.45,
                 ),
               ),
+              if (m.upgrade && !widget.isPro && widget.onUpgrade != null) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: widget.onUpgrade,
+                  icon: const Icon(Icons.workspace_premium_rounded),
+                  label: const Text('Pro\'ya geç'),
+                ),
+              ],
               if (criteria != null && widget.onSaveCriteria != null) ...[
                 if (widget.criteriaSummary != null) ...[
                   const SizedBox(height: 8),

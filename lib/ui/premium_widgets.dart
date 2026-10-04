@@ -301,3 +301,109 @@ class SettingsGroup extends StatelessWidget {
     );
   }
 }
+
+/// İlan ayrıntısı alt çubuğu: üç ayrı renk, üç ayrı amaç.
+/// Asistan (vurgu moru) • Başvuru (marka mavisi) • İlan (sade çerçeve).
+class ListingActionBar extends StatelessWidget {
+  const ListingActionBar({
+    super.key,
+    required this.onOpenListing,
+    this.onApply,
+    this.onAskAssistant,
+    this.openLabel = 'İlanı aç',
+    this.applyLabel = 'Başvuru sayfasını aç',
+  });
+
+  final VoidCallback onOpenListing;
+
+  /// Başvuru bağlantısı yoksa null; o zaman ilan düğmesi ana düğme olur.
+  final VoidCallback? onApply;
+  final VoidCallback? onAskAssistant;
+  final String openLabel;
+  final String applyLabel;
+
+  static const brand = Color(0xFF1B6AA5);
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(PremiumShape.buttonRadius),
+    );
+    Widget label(String text) =>
+        Text(text, maxLines: 1, overflow: TextOverflow.ellipsis);
+    final primaryIsApply = onApply != null;
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (onAskAssistant != null) ...[
+            FilledButton.icon(
+              onPressed: onAskAssistant,
+              icon: const Icon(Icons.auto_awesome_rounded),
+              label: label('Asistana sor: Bana uygun mu?'),
+              style: FilledButton.styleFrom(
+                backgroundColor: dark
+                    ? const Color(0xFFB9ADFF)
+                    : const Color(0xFF5B3FD9),
+                foregroundColor: dark ? const Color(0xFF1E1240) : Colors.white,
+                minimumSize: const Size.fromHeight(48),
+                shape: shape,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: primaryIsApply
+                    ? OutlinedButton.icon(
+                        onPressed: onOpenListing,
+                        icon: const Icon(Icons.article_outlined),
+                        label: label(openLabel),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: scheme.onSurface,
+                          side: BorderSide(color: scheme.outline),
+                          minimumSize: const Size.fromHeight(52),
+                          shape: shape,
+                        ),
+                      )
+                    : FilledButton.icon(
+                        onPressed: onOpenListing,
+                        icon: const Icon(Icons.open_in_new),
+                        label: label(openLabel),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: brand,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(52),
+                          shape: shape,
+                        ),
+                      ),
+              ),
+              if (primaryIsApply) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: onApply,
+                    icon: const Icon(Icons.open_in_new),
+                    label: label(applyLabel),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: brand,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(52),
+                      shape: shape,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -17,7 +17,7 @@ void main() {
         return http.Response('{}', 200);
       }),
     );
-    await expectLater(client.ask('ab'), throwsA(isA<AssistantException>()));
+    await expectLater(client.ask('a'), throwsA(isA<AssistantException>()));
     await expectLater(
       client.ask('a' * 301),
       throwsA(isA<AssistantException>()),

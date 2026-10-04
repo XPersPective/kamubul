@@ -19,6 +19,7 @@ class KariyerDetailPage extends StatefulWidget {
     super.key,
     required this.listing,
     this.onLoaded,
+    this.onAskAssistant,
     this.loader,
     this.summary = const [],
   });
@@ -33,6 +34,9 @@ class KariyerDetailPage extends StatefulWidget {
   /// Ayrıntı başarıyla okunduğunda çağrılır; katalog yapılandırılmış
   /// alanları (kontenjan, son başvuru, yerler) yerel kayda işler.
   final void Function(KariyerDetail detail)? onLoaded;
+
+  /// "Asistana sor": ilanı Asistan sekmesinde bağlam olarak açar.
+  final VoidCallback? onAskAssistant;
 
   /// Ayrıntı yükleyici; varsayılan resmî açık okuma çağrıları. Testler
   /// ağsız fikstürle besler.
@@ -145,52 +149,11 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
     ],
   );
 
-  Widget _stickyApply(Uri url, {required bool canApply}) => SafeArea(
-    minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-    child: Row(
-      children: [
-        if (canApply) ...[
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _open(widget.listing.url),
-              icon: const Icon(Icons.article_outlined),
-              label: const Text(
-                'İlanı aç',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    PremiumShape.buttonRadius,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-        ],
-        Expanded(
-          flex: 2,
-          child: FilledButton.icon(
-            onPressed: () => _open(url),
-            icon: const Icon(Icons.open_in_new),
-            label: Text(
-              canApply ? 'Başvuru sayfasını aç' : 'Resmî ilanı aç',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(PremiumShape.buttonRadius),
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
+  Widget _stickyApply(Uri url, {required bool canApply}) => ListingActionBar(
+    onOpenListing: () => _open(widget.listing.url),
+    onApply: canApply ? () => _open(url) : null,
+    openLabel: canApply ? 'İlanı aç' : 'Resmî ilanı aç',
+    onAskAssistant: widget.onAskAssistant,
   );
 
   Widget _card(Widget child) => Card(

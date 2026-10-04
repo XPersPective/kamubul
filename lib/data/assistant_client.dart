@@ -20,8 +20,11 @@ class AssistantReply {
 }
 
 class AssistantException implements Exception {
-  const AssistantException(this.message);
+  const AssistantException(this.message, {this.upgrade = false});
   final String message;
+
+  /// Ücretsiz günlük hak doldu; Pro daha yüksek sınır verir.
+  final bool upgrade;
 }
 
 /// Kriter asistanı istemcisi. Sunucu kapsam dışı istekleri modele göndermez;
@@ -60,14 +63,18 @@ class AssistantClient {
     List<({String role, String text})> history = const [],
     String? listingTitle,
     String? listingText,
+    bool pro = false,
+    Map<String, Object?>? profile,
   }) => ask(
     message,
     extra: {
       'mode': 'chat',
+      if (pro) 'tier': 'pro',
+      if (profile != null && profile.isNotEmpty) 'profile': profile,
       'history': [
         for (final turn
-            in history.length > 4
-                ? history.sublist(history.length - 4)
+            in history.length > 10
+                ? history.sublist(history.length - 10)
                 : history)
           {'role': turn.role, 'text': turn.text},
       ],
@@ -90,10 +97,8 @@ class AssistantClient {
     if (!available) {
       throw const AssistantException('Asistan şu an kullanılamıyor.');
     }
-    if (text.length < 4 || text.length > maxMessage) {
-      throw const AssistantException(
-        'Lütfen 4–300 karakterlik bir mesaj yazın.',
-      );
+    if (text.length < 2 || text.length > maxMessage) {
+      throw const AssistantException('Mesaj en fazla 300 karakter olabilir.');
     }
     final http.Response response;
     try {
@@ -114,9 +119,13 @@ class AssistantClient {
       );
     }
     if (response.statusCode == 429) {
-      throw const AssistantException(
-        'Bugünlük asistan hakkınız doldu. Yarın tekrar deneyin veya '
-        'kriterleri elle girin.',
+      final free = utf8.decode(response.bodyBytes).contains('free_limit');
+      throw AssistantException(
+        free
+            ? 'Bugünkü ücretsiz asistan hakkınız doldu. Yarın yenilenir; '
+                  'Pro ile günde çok daha fazla soru sorabilirsiniz.'
+            : 'Asistan bugün yoğun. Lütfen daha sonra tekrar deneyin.',
+        upgrade: free,
       );
     }
     if (response.statusCode != 200) {

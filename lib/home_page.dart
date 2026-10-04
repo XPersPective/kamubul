@@ -1494,6 +1494,17 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Geri tuşu: İlanlar dışındaki sekmelerden önce İlanlar'a döner.
+    return PopScope(
+      canPop: _tab == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _tab = 0);
+      },
+      child: _scaffold(context),
+    );
+  }
+
+  Widget _scaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -2130,10 +2141,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
           listing: _asPublicListing(record),
           summary: record.summary,
           onLoaded: (detail) => _cacheDetail(record.url, detail),
+          onAskAssistant: () => _askAssistantAbout(record),
         )
       : OfficialListingPage(
           listing: record,
           unavailable: record.criteriaListing?['active'] == false,
+          onAskAssistant: () => _askAssistantAbout(record),
         );
 
   PublicListing _asPublicListing(ListingRecord record) => PublicListing(
@@ -2212,7 +2225,47 @@ class _KamuHomePageState extends State<KamuHomePage> {
       listingGuide: selected == null
           ? null
           : ListingGuideView(listing: selected),
+      isPro: widget.pro.isPro,
+      onUpgrade: _openPaywall,
+      onNewChat: () => setState(() {
+        _assistantListing = null;
+        _chatMessages.clear();
+      }),
+      profile: _assistantProfile(),
     );
+  }
+
+  /// "Bana uygun mu?" için kullanıcının kayıtlı kriterleri (salt okunur):
+  /// önce "Sizin için", yoksa etkin arama, yoksa ilk geçerli arama.
+  Map<String, Object?>? _assistantProfile() {
+    final candidates = [
+      ..._searches.where((s) => s.name == 'Sizin için'),
+      ..._searches.where((s) => s.id == _activeSearchId),
+      ..._searches,
+    ];
+    for (final search in candidates) {
+      if (search.hasInvalidCriteria) continue;
+      try {
+        final values = {...search.effectiveCriteria.values}
+          ..remove('version')
+          ..remove('keywordScope');
+        if (values.isNotEmpty) return values;
+      } on FormatException {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  /// İlan ayrıntısından "Asistana sor": ayrıntıyı kapatıp seçili ilanla
+  /// Asistan sekmesini açar.
+  void _askAssistantAbout(ListingRecord record) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    setState(() {
+      if (_assistantListing?.url != record.url) _chatMessages.clear();
+      _assistantListing = record;
+      _tab = 2;
+    });
   }
 
   /// Asistana verilecek ilan bağlamı: Kariyer Kapısı ayrıntısı telefondan

@@ -14,11 +14,15 @@ class OfficialListingPage extends StatelessWidget {
     required this.listing,
     this.unavailable = false,
     this.cacheNotice,
+    this.onAskAssistant,
   });
 
   final ListingRecord listing;
   final bool unavailable;
   final String? cacheNotice;
+
+  /// "Asistana sor": ilanı Asistan sekmesinde bağlam olarak açar.
+  final VoidCallback? onAskAssistant;
 
   String _date(DateTime? value) => value == null
       ? 'Belirtilmemiş'
@@ -167,14 +171,10 @@ class OfficialListingPage extends StatelessWidget {
     final groups = rawGroups is List ? rawGroups : const [];
     return Scaffold(
       appBar: AppBar(title: const Text('İlan ayrıntısı')),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        child: FilledButton.icon(
-          onPressed: () => _open(context),
-          icon: const Icon(Icons.open_in_new),
-          label: const Text('Resmî belgeyi aç'),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-        ),
+      bottomNavigationBar: ListingActionBar(
+        onOpenListing: () => _open(context),
+        openLabel: 'Resmî belgeyi aç',
+        onAskAssistant: onAskAssistant,
       ),
       body: ListView(
         padding: EdgeInsets.symmetric(
