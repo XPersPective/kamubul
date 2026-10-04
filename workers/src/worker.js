@@ -7,7 +7,7 @@ const json=(body,status=200,headers={})=>Response.json(body,{status,headers:{'X-
 const int=(raw,min,max,fallback,strict=false)=>{if(raw===null||raw===undefined||(!strict&&raw===''))return fallback;if(strict&&!/^\d{1,16}$/.test(raw))return NaN;const n=Number(raw);return Number.isSafeInteger(n)&&n>=min&&n<=max?n:strict?NaN:fallback;};
 const stable=(a,b)=>{if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0;};
 async function bodyJSON(request){
-  if(!request.headers.get('content-type')?.startsWith('application/json'))throw new Error('content_type');
+  if(request.headers.get('content-type')?.split(';',1)[0].trim().toLowerCase()!=='application/json')throw new Error('content_type');
   const reader=request.body?.getReader();if(!reader)throw new Error('registration');
   const chunks=[];let total=0;
   while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>32768){await reader.cancel();throw new Error('body_oversize');}chunks.push(value);}

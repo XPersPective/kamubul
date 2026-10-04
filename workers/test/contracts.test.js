@@ -16,6 +16,16 @@ test('source normalization survives malformed entities and rejects unsafe identi
 });
 
 const now=new Date('2026-09-30T12:00:00Z');
+test('registry accepts JSON media types and rejects lookalike prefixes before writing',async()=>{
+  let writes=0;
+  const DB={prepare(query){return {bind(){return this;},async first(){return query.startsWith('SELECT * FROM installations')?null:{n:0};},async all(){return {results:[]};}};},async batch(){writes++;}};
+  const body=JSON.stringify({fcmToken:'t'.repeat(20),platform:'android',searches:[]});
+  const put=contentType=>fetchRequest(new Request('https://api/api/v2/installations/'+'a'.repeat(32),{method:'PUT',headers:{Authorization:'Bearer '+'b'.repeat(64),'Content-Type':contentType},body}),{DB},{});
+  for(const type of ['application/jsonp','application/json-extra','text/plain'])assert.equal((await put(type)).status,400);
+  assert.equal(writes,0);
+  for(const type of ['application/json','Application/JSON; charset=utf-8'])assert.equal((await put(type)).status,201);
+  assert.equal(writes,2);
+});
 test('non-finite source KPSS score remains unknown',()=>{
   for(const kpssScore of [NaN,Infinity,-Infinity])assert.equal(matchListing({title:'Memur',requirementGroups:[{kpssStatus:'required',kpssType:'P3',kpssScore}]},{kpssType:'P3',kpssScore:75},now),'unknown');
 });
