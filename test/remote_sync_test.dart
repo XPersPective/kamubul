@@ -147,6 +147,8 @@ void main() {
       store,
       remote: client(metadataBody(sbbId: 'sbb')),
       kariyer: kariyerLoader,
+      ilanGov: () async => [],
+      iskur: () async => [],
       sbb: sbbLoader,
       at: now,
     );
@@ -171,6 +173,8 @@ void main() {
       store,
       remote: client(jsonEncode(body)),
       kariyer: kariyerLoader,
+      ilanGov: () async => [],
+      iskur: () async => [],
       sbb: sbbLoader,
       at: now,
     );
@@ -330,6 +334,8 @@ void main() {
       store,
       remote: initial,
       kariyer: emptyKariyer,
+      ilanGov: () async => [],
+      iskur: () async => [],
       at: now,
     );
     final previous = await store.remoteMetadata();
@@ -348,6 +354,8 @@ void main() {
       store,
       remote: unchanged,
       kariyer: emptyKariyer,
+      ilanGov: () async => [],
+      iskur: () async => [],
       at: now.add(const Duration(hours: 1)),
     );
     expect(requests, hasLength(1));
@@ -439,6 +447,8 @@ void main() {
       store,
       remote: client(metadataBody()),
       kariyer: emptyKariyer,
+      ilanGov: () async => [],
+      iskur: () async => [],
       sbb: sbbLoader,
       at: now,
     );
@@ -470,6 +480,8 @@ void main() {
       store,
       remote: client(metadataBody(sbb: SourceState.blocked)),
       kariyer: kariyerLoader,
+      ilanGov: () async => [],
+      iskur: () async => [],
       sbb: sbbLoader,
       at: now,
     );
@@ -486,6 +498,8 @@ void main() {
         store,
         remote: client(metadataBody()),
         kariyer: kariyerLoader,
+        ilanGov: () async => [],
+        iskur: () async => [],
         sbb: sbbLoader,
         at: now,
       );
@@ -493,6 +507,8 @@ void main() {
         store,
         remote: client('hata', status: 503),
         kariyer: kariyerLoader,
+        ilanGov: () async => [],
+        iskur: () async => [],
         sbb: sbbLoader,
         at: now.add(const Duration(hours: 6)),
       );
@@ -515,6 +531,8 @@ void main() {
         store,
         remote: client(metadataBody(generatedAt: DateTime(2026, 9, 27, 8))),
         kariyer: kariyerLoader,
+        ilanGov: () async => [],
+        iskur: () async => [],
         sbb: sbbLoader,
         at: now,
       );
@@ -528,6 +546,8 @@ void main() {
     final result = await refreshCatalogue(
       store,
       kariyer: kariyerLoader,
+      ilanGov: () async => [],
+      iskur: () async => [],
       sbb: () async => throw const FormatException('kapalı'),
       at: now,
     );
@@ -542,6 +562,8 @@ void main() {
       store,
       remote: client(metadataBody()),
       kariyer: emptyKariyer,
+      ilanGov: () async => [],
+      iskur: () async => [],
       at: now,
     );
     await store.setSaved(_url, true);
@@ -549,6 +571,8 @@ void main() {
       store,
       remote: client(metadataBody()),
       kariyer: emptyKariyer,
+      ilanGov: () async => [],
+      iskur: () async => [],
       at: now.add(const Duration(hours: 6)),
     );
     final stored = (await store.allListings()).single;

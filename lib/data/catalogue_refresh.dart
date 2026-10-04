@@ -51,6 +51,8 @@ Future<CatalogueRefreshResult> refreshCatalogue(
   ListingStore store, {
   Future<List<PublicListing>> Function()? kariyer,
   Future<List<SbbListing>> Function()? sbb,
+  Future<List<IlanGovListing>> Function()? ilanGov,
+  Future<List<IskurListing>> Function()? iskur,
   RemoteCatalogueClient? remote,
   DateTime? at,
 }) async {
@@ -125,6 +127,21 @@ Future<CatalogueRefreshResult> refreshCatalogue(
     } on Exception {
       failed.add('Kamu İlanları (SBB)');
     }
+  }
+  // ilan.gov.tr (belediye, üniversite, Resmî Gazete personel ilanları)
+  // sunucuda yok; telefon resmî API'den okur.
+  try {
+    final items = await (ilanGov ?? loadIlanGovListings)();
+    incoming.addAll([for (final item in items) ilanGovRecord(item, now)]);
+  } on Exception {
+    failed.add('ilan.gov.tr');
+  }
+  // İŞKUR: yalnız kamu işyeri ilanları (özel sektör kapsam dışı).
+  try {
+    final items = await (iskur ?? loadIskurListings)();
+    incoming.addAll([for (final item in items) iskurRecord(item, now)]);
+  } on Exception {
+    failed.add('İŞKUR');
   }
   if (incoming.isNotEmpty) {
     try {

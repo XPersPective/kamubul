@@ -10,10 +10,10 @@ sonuçlar ayrı kanıttır; yerel erişim sunucunun erişebildiğini göstermez.
 | --- | --- | --- | --- |
 | Kariyer Kapısı | Public `ilan/GetIseAlimPage` JSON; başarısızsa resmî `/RSS`. Ayrıntı: `ilan/GetIlanPreviewPublic` ve `altilan/GetAltIlanInfoByIlanIdPublic` POST | RSS üzerinden23 gerçek ilan/46 immutable değişiklik. Güncel Cloudflare remote preview ayrıntı HTTP522; kaynak notu eksik ayrıntıyı belirtir | Kaynak ayrıntısına gerçek Worker erişimi, kullanım şartları, yeterli belge üzerinden model değerlendirmesi |
 | Kamu İlanları SBB | `https://kamuilan.sbb.gov.tr/` GET WebForms token'ları + POST yıl; parser `parseSbbList`; sabit resmî ilanDetay.aspx PDF'si native AI.toMarkdown text okuyucusuna gider | Erişim engeli; `blocked` raporlanır. Kaynak başarıyla toplanmış kabul edilmez | Gerçek Worker PDF erişimi/dönüşümü/kalitesi/CPU ve sayfa sınırı, kullanım şartları |
-| İŞKUR | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; oturum/CAPTCHA/WAF aşılmaz |
-| ilan.gov.tr | Merkezi adaptör etkin değil; kayıtlı engel açık gösterilir | `blocked`; üretim kataloğuna veri sağlamaz | İzinli herkese açık veri erişimi; engel aşılmaz |
+| İŞKUR | Telefon (TR IP): `esube.iskur.gov.tr/Istihdam/AcikIsIlanAra.aspx` GET + "Kamu" filtresiyle tek WebForms POST (`lib/listings/iskur_feed.dart`). GET linkiyle filtre yok. Yalnız kamu satırları (onclick ve işyeri türü "Kamu"); filtre yoksa okuma yapılmaz. Ayrıntı `AcikIsIlanDetay.aspx?uiID=…&isyeriTuru=Kamu` girişsiz | 4 Ekim 2026: 9 kamu ilanı (belediyeler dahil), son başvuru tarihli. Sunucuda adaptör yok | Özel sektör ilanları KAPSAM DIŞI (kullanıcı kararı). robots.txt yalnız meslek popup'ını yasaklar; oturum/CAPTCHA aşılmaz |
+| ilan.gov.tr | Telefon: `POST /api/api/services/app/Ad/AdsByFilter` `{keys:{ats:[5]}}` (PERSONEL ALIMI), sayfa 20, en çok 10 sayfa; site başlıkları `X-Request-Origin: IGT-UI`. Ayrıntı `AdDetail/GetAdDetail?id=` HTML (`lib/listings/ilangov_feed.dart`) | 4 Ekim 2026: 167 ilan (18 belediye; DPB/Resmî Gazete, BİK, üniversiteler). Son başvuru yapılandırılmış değil → null | robots.txt yalnız tebligatı yasaklar. Dokümansız iç API; düzen değişirse hata görünür, tahmin yok |
 | Resmî Gazete | Kapsam dışı; adaptör kaldırıldı | Yeni veri toplanmaz | Eski cihaz cache'i görülürse geçiş/retention kuralları uygulanır |
-| Belediyelerin ayrı siteleri | Ayrı kaynak adaptörü yok | Veri sağlanmış kabul edilmez | Kullanıcı kapsamı/kaynak sözleşmesi olmadan yeni scraper eklenmez |
+| Belediyelerin ayrı siteleri | Ayrı adaptör yok; belediye personel ilanları ilan.gov.tr (BİK) ve İŞKUR kamu işçi ilanlarıyla gelir | — | Belediye başına scraper eklenmez |
 
 ## Zamanlama ve güvenlik
 

@@ -35,6 +35,8 @@ void main() {
           deadline: DateTime(2026, 9, 29, 13),
         ),
       ],
+      ilanGov: () async => [],
+      iskur: () async => [],
       sbb: () async => [],
     );
     expect(first.failedSources, isEmpty);
@@ -48,6 +50,8 @@ void main() {
       store,
       at: at.add(const Duration(days: 90)),
       kariyer: () async => throw const FormatException('kaynak kapalı'),
+      ilanGov: () async => [],
+      iskur: () async => [],
       sbb: () async => throw const FormatException('kaynak kapalı'),
     );
     expect(failed.failedSources, hasLength(2));

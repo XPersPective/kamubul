@@ -7,6 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:kamubul_core/kamubul_core.dart'
     show
         SourceStatus,
+        kIlanGovSourceId,
+        kIskurSourceId,
+        loadIlanGovDetailText,
+        loadIskurDetailText,
         SourceState,
         CatalogueMetadata,
         SearchCriteria,
@@ -2471,6 +2475,20 @@ class _KamuHomePageState extends State<KamuHomePage> {
       } on Object {
         // Ayrıntı okunamazsa başlık ve özetle devam edilir.
       }
+    } else if (record.sourceId == kIskurSourceId) {
+      final id = Uri.tryParse(record.url)?.queryParameters['uiID'];
+      try {
+        if (id != null) parts.add(await loadIskurDetailText(id));
+      } on Object {
+        // Ayrıntı okunamazsa başlık ve özetle devam edilir.
+      }
+    } else if (record.sourceId == kIlanGovSourceId) {
+      final id = Uri.tryParse(record.url)?.pathSegments.elementAtOrNull(1);
+      try {
+        if (id != null) parts.add(await loadIlanGovDetailText(id));
+      } on Object {
+        // Ayrıntı okunamazsa başlık ve özetle devam edilir.
+      }
     }
     parts.addAll(record.summary);
     return parts.where((part) => part.trim().isNotEmpty).join('\n');
@@ -2775,8 +2793,11 @@ class _SourcesPage extends StatelessWidget {
   /// Sunucunun bildirdiği kaynak durumları (boşsa sunucu kapalı/okunamadı).
   final List<SourceStatus> sourceStatuses;
 
+  // ilan.gov.tr ve İŞKUR'u telefon okur; sunucunun eski "engelli" kaydı gösterilmez.
   SourceStatus? _serverStatus(String id) =>
-      sourceStatuses.where((s) => s.id == id).firstOrNull ??
+      id == kIlanGovSourceId || id == kIskurSourceId
+      ? null
+      : sourceStatuses.where((s) => s.id == id).firstOrNull ??
       (id == 'sbb'
           ? sourceStatuses.where((s) => s.id == 'kamuilan_sbb').firstOrNull
           : null);
@@ -2817,6 +2838,18 @@ class _SourcesPage extends StatelessWidget {
             'sbb',
             'Güncel yıl listesi; asıl ilan resmî PDF belgedir.',
           ),
+          (
+            'ilan.gov.tr',
+            kIlanGovSourceId,
+            'Personel alımı ilanları (belediye, üniversite, Resmî Gazete); '
+                'telefon resmî portaldan okur.',
+          ),
+          (
+            'İŞKUR',
+            kIskurSourceId,
+            'Yalnız kamu işçi alımları (belediye vb.); özel sektör ilanları '
+                'alınmaz.',
+          ),
         ])
           ListTile(
             leading: Icon(
@@ -2839,35 +2872,13 @@ class _SourcesPage extends StatelessWidget {
                   : description,
             ),
           ),
-        for (final (name, id, status, url) in [
-          (
-            'İŞKUR',
-            'iskur',
-            'Herkese açık arayüz oturum akışına bağlı; otomatik tarama için çalışma sürüyor.',
-            'https://esube.iskur.gov.tr/',
-          ),
-          (
-            'ilan.gov.tr',
-            'ilangov',
-            'Arama arayüzü dokümanlanmamış bir ağ geçidi ardında; otomatik tarama hazırlanıyor.',
-            'https://www.ilan.gov.tr/',
-          ),
-        ])
-          ListTile(
-            leading: const Icon(Icons.schedule_outlined),
-            title: Text(name),
-            subtitle: Text(
-              _serverNote(id) == null
-                  ? status
-                  : 'Sunucu denetimi: ${_serverNote(id)}',
-            ),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => open(Uri.parse(url)),
-          ),
         const ListTile(
           leading: Icon(Icons.location_city_outlined),
           title: Text('Belediyeler'),
-          subtitle: Text('Kurum bazında resmî duyuru kaynakları eklenecek.'),
+          subtitle: Text(
+            'Basın İlan Kurumu üzerinden yayımlanan belediye personel '
+            'ilanları ilan.gov.tr ile gelir; "Belediye" süzgeciyle bulunur.',
+          ),
         ),
       ],
     ),

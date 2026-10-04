@@ -11,6 +11,8 @@ export 'data/turkish_cities.dart';
 export 'listings/apply_conditions.dart';
 export 'listings/extract_conditions.dart';
 export 'listings/extraction_policy.dart';
+export 'listings/ilangov_feed.dart';
+export 'listings/iskur_feed.dart';
 export 'listings/kariyer_detail.dart';
 export 'listings/kariyer_feed.dart';
 export 'listings/sbb_feed.dart';

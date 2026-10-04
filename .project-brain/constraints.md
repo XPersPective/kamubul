@@ -50,3 +50,9 @@ Eski local fetch yeni backend doğrulanmadan sökülmez; yalnız geçişte tutul
 ürünü, Türkçe gerçek ekran görüntüleri ve bir sürüm gönderme kapsamda. Mağaza
 yükleme yetkisi vardır; sözleşme/export beyanı action-time onayını kaldırmaz.
 Backend/frontend tüm uygulama ve canlı kurulum yetkilendirildi. Son kaynaklar kalıcı üretim Worker/D1 ve gerçek resmî veridir; Hello World/dev kaynakları güvenli cutover sonrası kaldırılır. Demo/fake ilan veya pretend-success sender üretimde yok. Deterministik test fixture'ları yalnız otomatik kontrol içindir. Credential/access grants, geri alınamaz silme ve mağaza işlemlerinde yürürlükteki insan/onay sınırları korunur; tamamlanmayan canlı adımlar açık raporlanır.
+
+## C-050 Kaynak kapsamı — 4 Ekim 2026 kullanıcı kararı
+Yalnız kamu ilanları. İŞKUR'dan YALNIZ kamu işyeri ilanı okunur (özel sektör
+kapsam dışı); "Kamu" filtresi yoksa İŞKUR hiç okunmaz. Kaynak okuma basit ve
+deterministiktir (filtreli liste isteği + kural tabanlı ayrıştırma); yapay zekâ
+kaynak sayfalarında gezinmez/arama yapmaz.
