@@ -111,6 +111,13 @@ void main() {
 
   var kariyerCalls = 0;
   var sbbCalls = 0;
+  // Sunucu sağlıklıyken de telefon Kariyer dizinini okur; bu yükleyici
+  // çağrıyı sayar ama katalogu değiştirmez.
+  Future<List<PublicListing>> emptyKariyer() async {
+    kariyerCalls++;
+    return const [];
+  }
+
   Future<List<PublicListing>> kariyerLoader() async {
     kariyerCalls++;
     return [
@@ -133,23 +140,21 @@ void main() {
     sbbCalls = 0;
   });
 
-  test(
-    'live sbb source ID prevents fallback while fresh and healthy',
-    () async {
-      final store = await freshStore();
-      addTearDown(store.close);
-      final result = await refreshCatalogue(
-        store,
-        remote: client(metadataBody(sbbId: 'sbb')),
-        kariyer: kariyerLoader,
-        sbb: sbbLoader,
-        at: now,
-      );
-      expect(kariyerCalls, 0);
-      expect(sbbCalls, 0);
-      expect(result.sourceStatuses[1].id, 'sbb');
-    },
-  );
+  test('live sbb source ID prevents fallback while fresh and healthy', () async {
+    final store = await freshStore();
+    addTearDown(store.close);
+    final result = await refreshCatalogue(
+      store,
+      remote: client(metadataBody(sbbId: 'sbb')),
+      kariyer: kariyerLoader,
+      sbb: sbbLoader,
+      at: now,
+    );
+    // Kariyer Kapısı ayrıntısı sunucuya kapalı: telefon dizini her zaman okur.
+    expect(kariyerCalls, 1);
+    expect(sbbCalls, 0);
+    expect(result.sourceStatuses[1].id, 'sbb');
+  });
 
   test('current wire SBB status wins conflicting legacy alias', () async {
     final body =
@@ -169,7 +174,8 @@ void main() {
       sbb: sbbLoader,
       at: now,
     );
-    expect(kariyerCalls, 0);
+    // Kariyer Kapısı ayrıntısı sunucuya kapalı: telefon dizini her zaman okur.
+    expect(kariyerCalls, 1);
     expect(sbbCalls, 1);
   });
 
@@ -320,7 +326,12 @@ void main() {
     final store = await freshStore();
     final requests = <http.Request>[];
     final initial = client(metadataBody());
-    await refreshCatalogue(store, remote: initial, at: now);
+    await refreshCatalogue(
+      store,
+      remote: initial,
+      kariyer: emptyKariyer,
+      at: now,
+    );
     final previous = await store.remoteMetadata();
     expect(previous.etag, '"meta1"');
     expect(previous.lastSuccess, now);
@@ -336,6 +347,7 @@ void main() {
     await refreshCatalogue(
       store,
       remote: unchanged,
+      kariyer: emptyKariyer,
       at: now.add(const Duration(hours: 1)),
     );
     expect(requests, hasLength(1));
@@ -426,11 +438,12 @@ void main() {
     final result = await refreshCatalogue(
       store,
       remote: client(metadataBody()),
-      kariyer: kariyerLoader,
+      kariyer: emptyKariyer,
       sbb: sbbLoader,
       at: now,
     );
-    expect(kariyerCalls, 0);
+    // Kariyer Kapısı ayrıntısı sunucuya kapalı: telefon dizini her zaman okur.
+    expect(kariyerCalls, 1);
     expect(sbbCalls, 0);
     expect(result.failedSources, isEmpty);
     expect(result.remoteFailed, false);
@@ -460,7 +473,8 @@ void main() {
       sbb: sbbLoader,
       at: now,
     );
-    expect(kariyerCalls, 0);
+    // Kariyer Kapısı ayrıntısı sunucuya kapalı: telefon dizini her zaman okur.
+    expect(kariyerCalls, 1);
     expect(sbbCalls, 1);
   });
 
@@ -482,7 +496,7 @@ void main() {
         sbb: sbbLoader,
         at: now.add(const Duration(hours: 6)),
       );
-      expect(kariyerCalls, 1);
+      expect(kariyerCalls, 2);
       expect(sbbCalls, 1);
       expect(result.failedSources, isEmpty);
       expect(result.remoteFailed, true);
@@ -524,11 +538,17 @@ void main() {
 
   test('sunucudan gelen kayıt kaydedilmiş ilanı sıfırlamaz', () async {
     final store = await freshStore();
-    await refreshCatalogue(store, remote: client(metadataBody()), at: now);
+    await refreshCatalogue(
+      store,
+      remote: client(metadataBody()),
+      kariyer: emptyKariyer,
+      at: now,
+    );
     await store.setSaved(_url, true);
     await refreshCatalogue(
       store,
       remote: client(metadataBody()),
+      kariyer: emptyKariyer,
       at: now.add(const Duration(hours: 6)),
     );
     final stored = (await store.allListings()).single;

@@ -54,14 +54,45 @@ class AssistantClient {
     return id;
   }
 
-  Future<AssistantReply> ask(String message) async {
+  /// KamuBul Asistan sohbeti: seçili ilan metni ve son birkaç mesajla.
+  Future<AssistantReply> chat(
+    String message, {
+    List<({String role, String text})> history = const [],
+    String? listingTitle,
+    String? listingText,
+  }) => ask(
+    message,
+    extra: {
+      'mode': 'chat',
+      'history': [
+        for (final turn
+            in history.length > 4
+                ? history.sublist(history.length - 4)
+                : history)
+          {'role': turn.role, 'text': turn.text},
+      ],
+      if (listingText != null && listingText.trim().isNotEmpty)
+        'listing': {
+          'title': listingTitle ?? '',
+          // Sunucu da kırpar; gereksiz veri gönderilmez.
+          'text': listingText.length > 8000
+              ? listingText.substring(0, 8000)
+              : listingText,
+        },
+    },
+  );
+
+  Future<AssistantReply> ask(
+    String message, {
+    Map<String, Object?> extra = const {},
+  }) async {
     final text = message.trim();
     if (!available) {
       throw const AssistantException('Asistan şu an kullanılamıyor.');
     }
     if (text.length < 4 || text.length > maxMessage) {
       throw const AssistantException(
-        'Lütfen 4–300 karakterlik bir istek yazın.',
+        'Lütfen 4–300 karakterlik bir mesaj yazın.',
       );
     }
     final http.Response response;
@@ -73,6 +104,7 @@ class AssistantClient {
             body: jsonEncode({
               'installationId': _installationId(),
               'message': text,
+              ...extra,
             }),
           )
           .timeout(const Duration(seconds: 30));

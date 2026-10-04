@@ -7,6 +7,7 @@ import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 
 import 'data/listing_store.dart';
+import 'data/trial_sync.dart';
 import 'home_page.dart';
 import 'ads_state.dart';
 import 'notifications/alert_service.dart';
@@ -50,6 +51,8 @@ Future<void> main() async {
   );
   final pro = ProController(store: store, repository: purchase)..load();
   pro.startListening();
+  // Yeniden kurulum deneme süresini sıfırlamasın: sunucudaki ilk görülme.
+  await syncTrialStart(store);
   final policy = AdPolicy();
   restoreAds(policy, store);
   policy

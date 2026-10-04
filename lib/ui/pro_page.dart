@@ -77,7 +77,6 @@ class _ProPageState extends State<ProPage> {
   }
 
   Widget _hero(ColorScheme scheme) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final text = widget.controller.isPro
         ? 'Pro etkin. Teşekkürler!'
         : widget.trialDays > 0
@@ -92,9 +91,7 @@ class _ProPageState extends State<ProPage> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: dark
-              ? const [Color(0xFF123B5A), Color(0xFF0E2538)]
-              : const [Color(0xFF1B6AA5), Color(0xFF123F66)],
+          colors: const [Color(0xFF1B6AA5), Color(0xFF123F66)],
         ),
       ),
       child: Column(
@@ -182,11 +179,10 @@ class _ProPageState extends State<ProPage> {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary
-                .withValues(alpha: 0.12),
+            color: _brandAccent(context).withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+          child: Icon(icon, color: _brandAccent(context)),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -263,6 +259,11 @@ class _ProPageState extends State<ProPage> {
             const SizedBox(height: 8),
             FilledButton(
               style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF1B6AA5),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFF1B6AA5)
+                    .withValues(alpha: 0.45),
+                disabledForegroundColor: Colors.white70,
                 minimumSize: const Size.fromHeight(56),
                 shape: const StadiumBorder(),
                 textStyle: const TextStyle(
@@ -331,3 +332,10 @@ class HeroLine extends StatelessWidget {
     ),
   );
 }
+
+/// Pro sayfası marka vurgusu: açık temada koyu, koyu temada açık mavi;
+/// iki temada da aynı marka tonundan türetilir.
+Color _brandAccent(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? const Color(0xFF7DB8EA)
+    : const Color(0xFF1B6AA5);

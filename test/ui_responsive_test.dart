@@ -430,25 +430,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('büyük başlık kaydırmada çöker, CTA yerinde kalır', (
+  testWidgets('kompakt başlık sabit kalır, iki CTA kaydırmada yerinde', (
     tester,
   ) async {
     await pumpDetail(tester, logicalSize: const Size(390, 844));
-    // SliverAppBar bir RenderSliver'dır; yükseklik geometriden okunur.
-    double barExtent() => tester
-        .renderObject<RenderSliver>(find.byType(SliverAppBar))
-        .geometry!
-        .paintExtent;
-    final expandedHeight = barExtent();
     await tester.fling(
       find.byType(CustomScrollView),
       const Offset(0, -600),
       2000,
     );
     await tester.pumpAndSettle();
-    expect(barExtent(), lessThan(expandedHeight));
-    // Yapışkan başvuru düğmesi kaydırma sonrası da ekrandadır.
+    // Kompakt başlık sabittir; telefonda dev başlık yer kaplamaz.
+    expect(find.text('İlan ayrıntısı'), findsOneWidget);
+    // Hem resmî ilan hem başvuru sayfası her zaman erişilebilir.
+    expect(find.text('İlanı aç'), findsOneWidget);
     expect(find.text('Başvuru sayfasını aç'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('bildirim geçmişi 1.3x metinde rozetleriyle yerleşir', (

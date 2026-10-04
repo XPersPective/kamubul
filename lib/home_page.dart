@@ -44,6 +44,7 @@ import 'data/assistant_client.dart';
 import 'rate_prompt_state.dart';
 import 'ui/premium.dart';
 import 'ui/premium_widgets.dart';
+import 'ui/assistant_chat.dart';
 import 'ui/pro_page.dart';
 import 'ui/turkish.dart';
 
@@ -1575,7 +1576,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
               const NavigationDestination(
                 icon: Icon(Icons.auto_awesome_outlined),
                 selectedIcon: Icon(Icons.auto_awesome_rounded),
-                label: 'Rehber',
+                label: 'Asistan',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.tune_outlined),
@@ -1987,7 +1988,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Padding(
                 padding: const EdgeInsets.only(right: 10, top: 10),
                 child: Text(
-                  '${_sourceLabel(record.sourceId)}  ·  ${_date(record.publishedAt)}',
+                  record.publishedAt == null
+                      ? _sourceLabel(record.sourceId)
+                      : '${_sourceLabel(record.sourceId)}  ·  Yayın ${_date(record.publishedAt)}',
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
@@ -2058,11 +2061,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   ),
                   TextButton.icon(
                     onPressed: () => setState(() {
+                      if (_assistantListing?.url != record.url) {
+                        _chatMessages.clear();
+                      }
                       _assistantListing = record;
                       _tab = 2;
                     }),
                     icon: const Icon(Icons.auto_awesome_outlined, size: 18),
-                    label: const Text('Rehbere sor'),
+                    label: const Text('Asistana sor'),
                   ),
                 ],
               ),
@@ -2147,26 +2153,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   late final AssistantClient _assistantClient = AssistantClient(
     store: widget.store,
   );
-  final TextEditingController _assistantController = TextEditingController();
-  bool _assistantBusy = false;
-  AssistantReply? _assistantReply;
-  String? _assistantError;
-
-  Future<void> _askAssistant() async {
-    if (_assistantBusy) return;
-    setState(() {
-      _assistantBusy = true;
-      _assistantError = null;
-    });
-    try {
-      final reply = await _assistantClient.ask(_assistantController.text);
-      if (mounted) setState(() => _assistantReply = reply);
-    } on AssistantException catch (error) {
-      if (mounted) setState(() => _assistantError = error.message);
-    } finally {
-      if (mounted) setState(() => _assistantBusy = false);
-    }
-  }
+  final List<ChatMessage> _chatMessages = [];
 
   SavedSearch? _assistantSearch(Map<String, Object?> raw) {
     try {
@@ -2185,7 +2172,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
   Future<void> _applyAssistantCriteria(Map<String, Object?> raw) async {
     final seed = _assistantSearch(raw);
     if (seed == null) {
-      setState(() => _assistantError = 'Önerilen kriterler doğrulanamadı.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Önerilen kriterler doğrulanamadı.')),
+      );
       return;
     }
     var saved = await _promptEditSearch(seed, creating: true);
@@ -2198,175 +2187,66 @@ class _KamuHomePageState extends State<KamuHomePage> {
     await _maybeAskNotificationPermission();
   }
 
-  Widget _assistantCard() {
-    final scheme = Theme.of(context).colorScheme;
-    final reply = _assistantReply;
-    final suggestion = reply?.criteria == null
-        ? null
-        : _assistantSearch(reply!.criteria!);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.auto_awesome_rounded, color: scheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Kriter asistanı',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Aradığınız ilanları kısaca anlatın; şehir, eğitim, yaş, KPSS '
-              'gibi kriterlere çevirelim. Yalnızca ilan kriteri sorularına '
-              'yanıt verir. Kişisel bilgi yazmayın.',
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _assistantController,
-              maxLength: AssistantClient.maxMessage,
-              minLines: 2,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText:
-                    'Örn: Ankara\'da lisans mezunu, 28 yaşında, KPSS P3 75 '
-                    'puanlı bilişim ilanları',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: scheme.outlineVariant),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: scheme.outlineVariant),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: scheme.primary, width: 1.6),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _assistantBusy || !_assistantClient.available
-                  ? null
-                  : _askAssistant,
-              icon: _assistantBusy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.bolt_rounded),
-              label: Text(_assistantBusy ? 'Hazırlanıyor…' : 'Kriterleri öner'),
-            ),
-            if (_assistantError != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  _assistantError!,
-                  style: TextStyle(color: scheme.error),
-                ),
-              ),
-            if (reply != null) ...[
-              const SizedBox(height: 12),
-              Text(reply.reply),
-              if (suggestion != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _filterSummary(suggestion),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () => _applyAssistantCriteria(reply.criteria!),
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('Düzenle ve kaydet'),
-                ),
-              ],
-            ],
-          ],
-        ),
-      ),
+  Widget _assistantView() {
+    final selected = _assistantListing;
+    return AssistantChatView(
+      key: ValueKey(selected?.url),
+      client: _assistantClient,
+      messages: _chatMessages,
+      listingTitle: selected?.title,
+      loadListingText: selected == null
+          ? null
+          : () => _listingContext(selected),
+      onClearListing: selected == null
+          ? null
+          : () => setState(() {
+              _assistantListing = null;
+              _chatMessages.clear();
+            }),
+      onOpenListing: selected == null ? null : () => _showListing(selected),
+      criteriaSummary: (raw) {
+        final search = _assistantSearch(raw);
+        return search == null ? '' : _filterSummary(search);
+      },
+      onSaveCriteria: _applyAssistantCriteria,
+      listingGuide: selected == null
+          ? null
+          : ListingGuideView(listing: selected),
     );
   }
 
-  Widget _assistantView() {
-    final selected = _assistantListing;
-    SavedSearch? profile;
-    for (final search in _searches) {
-      if (search.name == 'Sizin için') profile = search;
+  /// Asistana verilecek ilan bağlamı: Kariyer Kapısı ayrıntısı telefondan
+  /// resmî kaynaktan okunur (sunucu bu kaynağa erişemiyor).
+  Future<String?> _listingContext(ListingRecord record) async {
+    final parts = <String>[
+      record.title,
+      if (record.category.isNotEmpty) 'Kategori: ${record.category}',
+      if (record.deadline != null) 'Son başvuru: ${_date(record.deadline)}',
+      if (record.quota != null) 'Kontenjan: ${record.quota}',
+      if (record.places.isNotEmpty) 'Yerler: ${record.places.join(', ')}',
+    ];
+    if (record.sourceId == 'kariyerkapisi') {
+      try {
+        final detail = await loadKariyerDetail(Uri.parse(record.url));
+        parts.add('Kurum: ${detail.institution}');
+        if (detail.start != null) parts.add('Yayın: ${_date(detail.start)}');
+        if (detail.deadline != null) {
+          parts.add('Son başvuru: ${_date(detail.deadline)}');
+        }
+        parts.add(detail.body);
+        for (final position in detail.positions) {
+          parts.add(
+            'Kadro: ${position.profession.isEmpty ? position.title : position.profession}'
+            ' (kontenjan ${position.quota}; ${position.places.join(', ')})\n'
+            '${position.conditions}',
+          );
+        }
+      } on Object {
+        // Ayrıntı okunamazsa başlık ve özetle devam edilir.
+      }
     }
-    if (selected != null) {
-      return ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (profile != null)
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.tune),
-                title: const Text('Arama tercihleriniz'),
-                subtitle: Text(_filterSummary(profile)),
-                trailing: const Icon(Icons.arrow_forward),
-                onTap: () {
-                  _applySearch(profile!);
-                  setState(() => _tab = 0);
-                },
-              ),
-            ),
-          Text('Seçili ilan', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Card(
-            child: ListTile(
-              title: Text(selected.title),
-              trailing: const Icon(Icons.article_outlined),
-              onTap: () => _showListing(selected),
-            ),
-          ),
-          const SizedBox(height: 8),
-          ListingGuideView(listing: selected),
-        ],
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Icon(
-          Icons.auto_awesome,
-          size: 48,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(height: 12),
-        Text('İlan Rehberi', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        const Text(
-          'Bir ilanın yanındaki "Rehbere sor" düğmesine dokunun; yaş, eğitim, '
-          'KPSS gibi koşulları kaynak cümlesiyle yanıtlayalım. Aşağıdaki asistan '
-          'ise aradığınız ilan kriterlerini sizin için hazırlar.',
-        ),
-        const SizedBox(height: 16),
-        _assistantCard(),
-        if (profile != null)
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.person_search_outlined),
-              title: const Text('Sizin için arama'),
-              subtitle: Text(_filterSummary(profile)),
-              onTap: () {
-                _applySearch(profile!);
-                setState(() => _tab = 0);
-              },
-            ),
-          ),
-      ],
-    );
+    parts.addAll(record.summary);
+    return parts.where((part) => part.trim().isNotEmpty).join('\n');
   }
 
   Widget _proCard() {

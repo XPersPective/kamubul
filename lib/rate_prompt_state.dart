@@ -25,7 +25,8 @@ void saveRatePrompt(RatePromptPolicy policy, SettingsStore store) {
     store.setInt('kamubul.rate.firstSeen', firstSeen.millisecondsSinceEpoch);
   }
   store.setStringList('kamubul.rate.prompts', [
-    for (final time in snapshot.promptedAt) time.millisecondsSinceEpoch.toString(),
+    for (final time in snapshot.promptedAt)
+      time.millisecondsSinceEpoch.toString(),
   ]);
   store.setInt('kamubul.rate.positive', snapshot.positiveMoments);
 }
