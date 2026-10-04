@@ -108,3 +108,13 @@ test('free installs hit free_limit; pro tier gets the higher daily limit', async
   assert.equal(free.status, 429); assert.equal(free.body.error, 'free_limit');
   assert.equal((await ask('pro')).status, 200);
 });
+
+import { sanitizeProfile } from '../src/assistant.js';
+test('profile context is read-only, whitelisted and bounded', () => {
+  assert.deepEqual(sanitizeProfile({ age: 28, ageAsOf: '2026-10-04', education: ['Lisans'], kpssType: 'P3', kpssScore: 72, token: 'secret', age2: 5 }), { education: ['Lisans'], ageAsOf: '2026-10-04', kpssType: 'P3', age: 28, kpssScore: 72 });
+  assert.equal(sanitizeProfile({ age: 500 }), null);
+  const r = buildChatRequest({ message: 'bana uygun mu', profile: { age: 28 }, listing: { title: 'T', text: '35 yaş sınırı' }, today: '2026-10-04' });
+  const ctx = JSON.parse(r.messages[1].content);
+  assert.equal(ctx.userProfile.age, 28);
+  assert.equal(ctx.today, '2026-10-04');
+});
