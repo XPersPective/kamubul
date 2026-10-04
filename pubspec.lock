@@ -505,11 +505,11 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/napp_pro"
-      ref: "pro-v1.0.0"
-      resolved-ref: ff837be1ec2173c0418bf99c684b2480155e40ae
+      ref: "pro-v1.0.1"
+      resolved-ref: df5e29cd2a04a45984f3536e363f0e1873420c81
       url: "https://github.com/XPersPective/napp_kit.git"
     source: git
-    version: "0.0.1"
+    version: "0.0.1+1"
   native_toolchain_c:
     dependency: transitive
     description:
