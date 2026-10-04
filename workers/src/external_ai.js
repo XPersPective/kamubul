@@ -9,7 +9,7 @@ export function externalRequest(env, request) {
   const messages = request.messages.filter(m => m.role !== 'system');
   if (env.EXTERNAL_AI_FORMAT === 'openai') {
     return { url: base + '/chat/completions', init: { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + env.EXTERNAL_AI_KEY },
-      body: JSON.stringify({ model: env.EXTERNAL_AI_MODEL, messages: request.messages, max_tokens: request.max_tokens, temperature: request.temperature ?? 0 }) } };
+      body: JSON.stringify({ model: env.EXTERNAL_AI_MODEL, messages: request.messages, max_tokens: request.max_tokens, temperature: request.temperature ?? 0, ...(env.EXTERNAL_AI_NOTHINK === '1' ? { enable_thinking: false } : {}) }) } };
   }
   return { url: base + '/v1/messages', init: { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.EXTERNAL_AI_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: env.EXTERNAL_AI_MODEL, system, messages, max_tokens: request.max_tokens ?? 1024, temperature: request.temperature ?? 0 }) } };

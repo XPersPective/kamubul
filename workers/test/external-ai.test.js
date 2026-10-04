@@ -34,3 +34,9 @@ test('429 maps to quota wait code; http and insecure urls fail closed', async ()
   await assert.rejects(externalAiRun(env, request, async () => new Response('', { status: 500 })), /external_ai_http_500/);
   await assert.rejects(externalAiRun({ ...env, EXTERNAL_AI_URL: 'http://x.test' }, request, async () => new Response('{}')), /insecure/);
 });
+
+test('qwen compatible mode can disable thinking', () => {
+  const e = { ...env, EXTERNAL_AI_FORMAT: 'openai', EXTERNAL_AI_NOTHINK: '1' };
+  assert.equal(JSON.parse(externalRequest(e, request).init.body).enable_thinking, false);
+  assert.equal('enable_thinking' in JSON.parse(externalRequest({ ...e, EXTERNAL_AI_NOTHINK: '' }, request).init.body), false);
+});
