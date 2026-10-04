@@ -616,6 +616,17 @@ class ListingStore {
   Future<void> _upgrade(Database db, int oldVersion, int newVersion) =>
       upgradeSchema(db, oldVersion, newVersion);
 
+  /// Kaynaktan en son ne zaman yerel çekim yapıldı (nazik aralık için).
+  Future<DateTime?> lastFetched(String sourceId) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT MAX(fetchedAt) AS t FROM listings WHERE sourceId = ?',
+      [sourceId],
+    );
+    final t = rows.first['t'] as int?;
+    return t == null ? null : DateTime.fromMillisecondsSinceEpoch(t);
+  }
+
   /// Akıştan gelen ilanları birleştirir: mevcut kayıt korunur, kaydedilen
   /// ilanların saved bayrağı asla sıfırlanmaz. Kaydedilmemiş ve [pruneBefore]
   /// tarihinden eski görülmeyen ilanlar budanır. Dönen değer işlem sonrası

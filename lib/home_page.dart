@@ -461,13 +461,17 @@ class _KamuHomePageState extends State<KamuHomePage> {
     messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _refresh() async {
+  /// [manual]: kullanıcı aşağı çekti ya da yenile düğmesine bastı.
+  Future<void> _refresh({bool manual = false}) async {
     if (_loading) return;
     setState(() {
       _loading = true;
       _error = null;
     });
-    final result = await refreshCatalogue(_store);
+    final result = await refreshCatalogue(
+      _store,
+      minSourceInterval: manual ? manualSourceInterval : autoSourceInterval,
+    );
     await _loadLocal();
     if (!mounted) return;
     setState(() {
@@ -627,24 +631,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
       }
     }
     return [...matched, ...unknown];
-  }
-
-  /// Tüm süzgeçleri ve seçili kayıtlı aramayı kaldırır: "Tümü".
-  void _resetFilters() {
-    _searchController.clear();
-    setState(() {
-      _search = '';
-      _category = 0;
-      _last30 = false;
-      _place = null;
-      _ageFilter = null;
-      _ageAsOf = null;
-      _quickCriteria = null;
-      _educationFilter = null;
-      _kpssFilter = null;
-      _activeSearchId = null;
-      _includeUnknown = false;
-    });
   }
 
   void _applySearch(SavedSearch search) {
@@ -1619,7 +1605,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
           if (_tab == 0)
             IconButton(
               tooltip: 'Yenile',
-              onPressed: _loading ? null : _refresh,
+              onPressed: _loading ? null : () => _refresh(manual: true),
               icon: const Icon(Icons.refresh),
             ),
           GiftFlow(
@@ -1690,28 +1676,32 @@ class _KamuHomePageState extends State<KamuHomePage> {
     );
   }
 
-  Widget _listingView() => CustomScrollView(
-    slivers: [
-      SliverToBoxAdapter(child: _intro()),
-      SliverToBoxAdapter(child: _filters()),
-      if (_loading && _records.isEmpty)
-        SliverToBoxAdapter(child: listingSkeletons())
-      else if (_visibleRecords.isEmpty)
-        SliverFillRemaining(
-          child: _emptyState(
-            _error ??
-                (_category == 1
-                    ? 'Bu seçimde doğrulanmış işçi ilanı yok. İŞKUR otomatik bağlantısı henüz hazır değil.'
-                    : 'Bu seçimde henüz doğrulanmış ilan yok.'),
-            onPressed: _clearFilters,
+  Widget _listingView() => RefreshIndicator(
+    onRefresh: () => _refresh(manual: true),
+    child: CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(child: _intro()),
+        SliverToBoxAdapter(child: _filters()),
+        if (_loading && _records.isEmpty)
+          SliverToBoxAdapter(child: listingSkeletons())
+        else if (_visibleRecords.isEmpty)
+          SliverFillRemaining(
+            child: _emptyState(
+              _error ??
+                  (_category == 1
+                      ? 'Bu seçimde doğrulanmış işçi ilanı yok. İŞKUR otomatik bağlantısı henüz hazır değil.'
+                      : 'Bu seçimde henüz doğrulanmış ilan yok.'),
+              onPressed: _clearFilters,
+            ),
+          )
+        else
+          SliverList.builder(
+            itemCount: _visibleRecords.length,
+            itemBuilder: (_, index) => _listingCard(_visibleRecords[index]),
           ),
-        )
-      else
-        SliverList.builder(
-          itemCount: _visibleRecords.length,
-          itemBuilder: (_, index) => _listingCard(_visibleRecords[index]),
-        ),
-    ],
+      ],
+    ),
   );
 
   void _openPaywall() => Navigator.of(context).push(
@@ -1782,15 +1772,27 @@ class _KamuHomePageState extends State<KamuHomePage> {
     );
   }
 
-  String get _syncLine => _tab == 1
-      ? '${_visibleRecords.length} kayıtlı ilan • çevrimdışı da açılır'
-      : _remoteLastSuccess != null
-      ? 'Son eşitleme ${_date(_remoteLastSuccess)} ${_remoteLastSuccess!.hour.toString().padLeft(2, '0')}:${_remoteLastSuccess!.minute.toString().padLeft(2, '0')}${_remoteFailed || DateTime.now().difference(_remoteLastSuccess!) > remoteSnapshotMaxAge ? ' • Önbellek' : ''}'
-      : _lastRefresh == null
-      ? _records.isEmpty
-            ? 'Katalog cihazdan yükleniyor.'
-            : 'Kaydedilmiş katalog • kaynaklar kontrol ediliyor'
-      : 'Son kontrol ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')}';
+  String get _syncLine {
+    if (_tab == 1) {
+      return '${_visibleRecords.length} kayıtlı ilan • çevrimdışı da açılır';
+    }
+    // Başarısız yenileme "güncellendi" sayılmaz; son başarılı zaman korunur.
+    final cleanRefresh = _failedSources.isEmpty && !_remoteFailed
+        ? _lastRefresh
+        : null;
+    final times = [?cleanRefresh, ?_remoteLastSuccess]..sort();
+    if (times.isEmpty) {
+      return _records.isEmpty
+          ? 'Katalog cihazdan yükleniyor.'
+          : 'Kaydedilmiş katalog • kaynaklar kontrol ediliyor';
+    }
+    final t = times.last;
+    final hhmm =
+        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    final day = DateUtils.isSameDay(t, DateTime.now()) ? 'bugün' : _date(t);
+    return 'Güncellendi $day $hhmm${_remoteFailed ? ' • önbellek' : ''} • '
+        'açılışta ve aşağı çekince yenilenir';
+  }
 
   /// Kompakt başlık: dikey alanı listeye bırakır.
   Widget _intro() {
@@ -1957,7 +1959,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   onSelected: (_) {
                     HapticFeedback.selectionClick();
                     // "Tümü": kayıtlı aramadan kalan tüm kriterler dahil sıfırlanır.
-                    if (index == 0) return _resetFilters();
+                    if (index == 0) return _clearFilters();
                     setState(() {
                       _category = index;
                       _patchQuickCriteria(['categories']);
@@ -2121,7 +2123,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   selected: _activeSearchId == search.id,
                   // Tekrar dokununca seçim kalkar, liste tüm ilanlara döner.
                   onSelected: (_) => _activeSearchId == search.id
-                      ? _resetFilters()
+                      ? _clearFilters()
                       : _applySearch(search),
                 ),
               Tooltip(
@@ -2873,9 +2875,11 @@ class _SourcesPage extends StatelessWidget {
       id == kIlanGovSourceId || id == kIskurSourceId
       ? null
       : sourceStatuses.where((s) => s.id == id).firstOrNull ??
-      (id == 'sbb'
-          ? sourceStatuses.where((s) => s.id == 'kamuilan_sbb').firstOrNull
-          : null);
+            (id == 'sbb'
+                ? sourceStatuses
+                      .where((s) => s.id == 'kamuilan_sbb')
+                      .firstOrNull
+                : null);
   String? _serverNote(String id) => _serverStatus(id)?.note;
   String _serverLabel(String id) => switch (_serverStatus(id)?.state) {
     SourceState.ok => 'Listeye erişildi',

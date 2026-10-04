@@ -10,6 +10,11 @@ const cataloguePruneAfter = Duration(days: 45);
 /// Geçişte kaynak son başarısı bu eşiği geçtiyse eski yol devrede kalır.
 const remoteSnapshotMaxAge = Duration(hours: 36);
 
+/// Resmî sitelere nazik aralık (IP engeli olmasın): otomatik yenilemede bir
+/// kaynak bu süreden sık okunmaz; elle yenilemede [manualSourceInterval].
+const autoSourceInterval = Duration(minutes: 30);
+const manualSourceInterval = Duration(minutes: 5);
+
 class CatalogueRefreshResult {
   const CatalogueRefreshResult(
     this.checkedAt,
@@ -55,10 +60,19 @@ Future<CatalogueRefreshResult> refreshCatalogue(
   Future<List<IskurListing>> Function()? iskur,
   RemoteCatalogueClient? remote,
   DateTime? at,
+  Duration minSourceInterval = autoSourceInterval,
 }) async {
   final now = at ?? DateTime.now();
   final incoming = <ListingRecord>[];
   final failed = <String>[];
+  // Son başarılı çekim aralık içindeyse kaynak yeniden okunmaz (hata sayılmaz).
+  Future<bool> due(String sourceId) async {
+    final last = await store.lastFetched(sourceId);
+    return last == null ||
+        last.isAfter(now) ||
+        now.difference(last) >= minSourceInterval;
+  }
+
   var needKariyer = true;
   var needSbb = true;
   var statuses = const <SourceStatus>[];
@@ -112,7 +126,7 @@ Future<CatalogueRefreshResult> refreshCatalogue(
     }
   }
 
-  if (needKariyer) {
+  if (needKariyer && await due(kKariyerSourceId)) {
     try {
       final items = await (kariyer ?? loadKariyerListings)();
       incoming.addAll([for (final item in items) kariyerRecord(item, now)]);
@@ -120,7 +134,7 @@ Future<CatalogueRefreshResult> refreshCatalogue(
       failed.add('Kariyer Kapısı');
     }
   }
-  if (needSbb) {
+  if (needSbb && await due(kSbbSourceId)) {
     try {
       final items = await (sbb ?? loadSbbListings)();
       incoming.addAll([for (final item in items) sbbRecord(item, now)]);
@@ -130,18 +144,22 @@ Future<CatalogueRefreshResult> refreshCatalogue(
   }
   // ilan.gov.tr (belediye, üniversite, Resmî Gazete personel ilanları)
   // sunucuda yok; telefon resmî API'den okur.
-  try {
-    final items = await (ilanGov ?? loadIlanGovListings)();
-    incoming.addAll([for (final item in items) ilanGovRecord(item, now)]);
-  } on Exception {
-    failed.add('ilan.gov.tr');
+  if (await due(kIlanGovSourceId)) {
+    try {
+      final items = await (ilanGov ?? loadIlanGovListings)();
+      incoming.addAll([for (final item in items) ilanGovRecord(item, now)]);
+    } on Exception {
+      failed.add('ilan.gov.tr');
+    }
   }
   // İŞKUR: yalnız kamu işyeri ilanları (özel sektör kapsam dışı).
-  try {
-    final items = await (iskur ?? loadIskurListings)();
-    incoming.addAll([for (final item in items) iskurRecord(item, now)]);
-  } on Exception {
-    failed.add('İŞKUR');
+  if (await due(kIskurSourceId)) {
+    try {
+      final items = await (iskur ?? loadIskurListings)();
+      incoming.addAll([for (final item in items) iskurRecord(item, now)]);
+    } on Exception {
+      failed.add('İŞKUR');
+    }
   }
   if (incoming.isNotEmpty) {
     try {
