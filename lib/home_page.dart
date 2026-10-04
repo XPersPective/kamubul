@@ -606,13 +606,20 @@ class _KamuHomePageState extends State<KamuHomePage> {
     );
   }
 
+  /// Kriterlere göre sıralama: kesin uyanlar önce, bilinmeyenler sonra;
+  /// her grup içinde mevcut (yayın tarihi) sırası korunur.
   List<ListingRecord> get _visibleRecords {
-    return _records.where((record) {
-      if (_tab == 1 && !record.saved) return false;
+    final matched = <ListingRecord>[], unknown = <ListingRecord>[];
+    for (final record in _records) {
+      if (_tab == 1 && !record.saved) continue;
       final match = _matchVisible(record);
-      return match == CriteriaMatch.match ||
-          (_includeUnknown && match == CriteriaMatch.unknown);
-    }).toList();
+      if (match == CriteriaMatch.match) {
+        matched.add(record);
+      } else if (_includeUnknown && match == CriteriaMatch.unknown) {
+        unknown.add(record);
+      }
+    }
+    return [...matched, ...unknown];
   }
 
   void _applySearch(SavedSearch search) {
