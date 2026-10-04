@@ -128,6 +128,7 @@ void main() {
 
     await tester.pumpWidget(
       app.KamuBulApp(
+        translations: await app.loadAppTranslations(),
         identity: AppIdentity(
           appName: 'KamuBul',
           packageName: 'com.crazypenguin.kamubul',
