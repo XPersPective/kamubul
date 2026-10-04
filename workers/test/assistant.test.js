@@ -98,3 +98,13 @@ test('chat mode end to end with listing context', async () => {
   assert.equal(r.body.intent, 'answer');
   assert.match(sent.messages[1].content, /Diploma ve kimlik/);
 });
+
+test('free installs hit free_limit; pro tier gets the higher daily limit', async () => {
+  const e = env({ ASSISTANT_DAILY_INSTALL: '1', ASSISTANT_DAILY_PRO: '3' });
+  const deps = { sha256, ip: '7.7.7.7', fetch: model('{"intent":"answer","reply":"ok"}') };
+  const ask = tier => handleAssistant({ installationId: 'd'.repeat(32), mode: 'chat', message: 'ilan öner', tier }, e, deps);
+  await ask();
+  const free = await ask();
+  assert.equal(free.status, 429); assert.equal(free.body.error, 'free_limit');
+  assert.equal((await ask('pro')).status, 200);
+});

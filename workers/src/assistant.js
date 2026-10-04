@@ -8,7 +8,10 @@ export const MAX_MESSAGE = 300;
 export const MAX_LISTING_TEXT = 8000;
 const MAX_HISTORY = 10;
 const MAX_HISTORY_CHARS = 4000;
-const limits = env => ({ global: Number(env.ASSISTANT_DAILY_GLOBAL) || 2000, ip: Number(env.ASSISTANT_DAILY_IP) || 300, install: Number(env.ASSISTANT_DAILY_INSTALL) || 40 });
+// Günlük sınırlar (wrangler vars ile değiştirilebilir). Global tavan sağlayıcı kotasını korur.
+// ponytail: Pro iddiası istemciden gelir ve doğrulanmaz; kötüye kullanım global tavanla sınırlı.
+// Play Developer API ile satın alma doğrulaması eklenince Pro sınırı yalnız doğrulanana verilmeli.
+const limits = env => ({ global: Number(env.ASSISTANT_DAILY_GLOBAL) || 300, ip: Number(env.ASSISTANT_DAILY_IP) || 500, install: Number(env.ASSISTANT_DAILY_INSTALL) || 30, pro: Number(env.ASSISTANT_DAILY_PRO) || 100 });
 
 // Kapsam anahtar sözcükleri (fold edilmiş kök); şehir adları ayrıca kontrol edilir.
 const topics = ['ILAN','KAMU','KPSS','YAS','SEHIR','EGITIM','LISANS','LISE','DOKTORA','MEMUR','PERSONEL','ISCI','KURUM','BAKANLIK','BELEDIYE','UNIVERSITE','HEMSIRE','MUHENDIS','OGRETMEN','POLIS','BEKCI','ZABIT','SOZLESMELI','KADRO','ATAMA','ALIM','BASVUR','KRITER','ETIKET','BILDIRIM','TAKIP','ARA','ONER','UYGUN','IS ','MESLEK','PUAN','MEZUN','DOKTOR','AVUKAT','TEKNISYEN','TEKNIKER','GUVENLIK','SAGLIK','ISKUR','SINAV','KONTENJAN','YIL','SART','KOSUL','BELGE','EVRAK','MULAKAT','MAAS','UCRET','UNVAN','TARIH','KAMUBUL','DIPLOMA','ONLISANS','ASKERLIK','EHLIYET','SERTIFIKA','TECRUBE','DENEYIM','ENGELLI','EKPSS','ALES','YDS'];
@@ -158,7 +161,9 @@ export async function handleAssistant(body, env, deps) {
   const listing = chat && body.listing && typeof body.listing === 'object' && typeof body.listing.text === 'string' && body.listing.text.trim() ? body.listing : null;
   // Önce kurulum+IP sayaçları: kötüye kullanım model çağrısından önce kesilir.
   const ipKey = 'ip:' + (await deps.sha256('ip:' + deps.ip)).slice(0, 24);
-  if (await bump(env.DB, day, ipKey) > lim.ip || await bump(env.DB, day, 'inst:' + body.installationId) > lim.install) return { status: 429, body: { error: 'rate_limited' } };
+  const installLimit = body.tier === 'pro' ? lim.pro : lim.install;
+  if (await bump(env.DB, day, ipKey) > lim.ip) return { status: 429, body: { error: 'rate_limited' } };
+  if (await bump(env.DB, day, 'inst:' + body.installationId) > installLimit) return { status: 429, body: { error: body.tier === 'pro' ? 'rate_limited' : 'free_limit', limit: installLimit } };
   const gate = scopeGate(body.message, { hasListing: !!listing, chat });
   if (gate === 'invalid') return { status: 400, body: { error: 'message' } };
   if (gate) return { status: 200, body: { intent: 'refuse', reply: gate === 'too_long' ? `Mesaj en fazla ${MAX_MESSAGE} karakter olabilir.` : gate === 'too_short' ? 'Lütfen sorunuzu biraz daha ayrıntılı yazın.' : refusal, criteria: null } };
