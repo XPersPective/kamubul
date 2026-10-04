@@ -93,4 +93,41 @@ void main() {
     await tester.tap(find.text('Aramayı kaydet'));
     expect(saved?['cities'], ['Ankara']);
   });
+
+  testWidgets('"Bana uygun mu?" düğmesiyle gelince soru bir kez gönderilir', (
+    tester,
+  ) async {
+    final asked = <String>[];
+    var used = 0;
+    final client = AssistantClient(
+      store: SettingsStore(),
+      baseUrl: 'https://api.test',
+      client: MockClient((request) async {
+        asked.add((jsonDecode(request.body) as Map)['message'] as String);
+        return http.Response(
+          jsonEncode({'intent': 'answer', 'reply': 'Uygun.', 'criteria': null}),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AssistantChatView(
+            client: client,
+            messages: <ChatMessage>[],
+            listingTitle: 'TEST KURUMU - Alım',
+            loadListingText: () async => 'Şartlar',
+            initialQuestion: 'Bu ilan bana uygun mu?',
+            onInitialQuestionUsed: () => used++,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(asked, ['Bu ilan bana uygun mu?']);
+    expect(used, 1);
+    expect(find.text('Uygun.'), findsOneWidget);
+  });
 }

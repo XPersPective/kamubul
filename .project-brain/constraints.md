@@ -60,3 +60,7 @@ kaynak sayfalarında gezinmez/arama yapmaz.
 ## C-051 Ücretli özellik metni — 4 Ekim 2026 kullanıcı kararı
 Pro/abonelik metinleri olumlu ve teşvik edicidir; maliyet gerekçesi, "cüzi",
 suçlayıcı/rencide edici ifade kullanıcıya gösterilmez (uygulama, mağaza, sürüm notu).
+
+## C-052 Geri bildirim kuyruğu — 4 Ekim 2026
+Kullanıcı çalışma sırasında yeni istek gönderirse istek hemen ilgili PB görevine
+madde olarak yazılır; yürüyen iş yarım bırakılmaz, yeni madde sıraya girer.

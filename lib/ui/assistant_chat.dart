@@ -40,6 +40,8 @@ class AssistantChatView extends StatefulWidget {
     this.onUpgrade,
     this.onNewChat,
     this.profile,
+    this.initialQuestion,
+    this.onInitialQuestionUsed,
   });
 
   final AssistantClient client;
@@ -62,6 +64,10 @@ class AssistantChatView extends StatefulWidget {
   /// Kullanıcının kayıtlı kriterleri: "bana uygun mu?" için salt okunur bağlam.
   final Map<String, Object?>? profile;
 
+  /// Ayrıntıdaki "Bana uygun mu?" düğmesiyle gelindiyse açılışta bir kez sorulur.
+  final String? initialQuestion;
+  final VoidCallback? onInitialQuestionUsed;
+
   @override
   State<AssistantChatView> createState() => _AssistantChatViewState();
 }
@@ -72,6 +78,28 @@ class _AssistantChatViewState extends State<AssistantChatView> {
   bool _busy = false;
   String? _listingText;
   String? _loadedFor;
+
+  @override
+  void initState() {
+    super.initState();
+    _askInitial(null);
+  }
+
+  @override
+  void didUpdateWidget(AssistantChatView old) {
+    super.didUpdateWidget(old);
+    _askInitial(old.initialQuestion);
+  }
+
+  void _askInitial(String? previous) {
+    final q = widget.initialQuestion;
+    if (q == null || q == previous) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onInitialQuestionUsed?.call();
+      _send(q);
+    });
+  }
 
   @override
   void dispose() {

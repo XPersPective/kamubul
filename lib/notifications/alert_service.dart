@@ -86,6 +86,12 @@ Future<void> consumeLaunchAlertTap() async {
 /// Bildirim izni: önce değer açıklaması (primer), sonra sistem penceresi.
 Future<bool> requestAlertPermission(BuildContext context) async {
   await _ensureInitialized();
+  final android = _plugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >();
+  // İzin zaten açıksa tanıtım penceresi ("Aç") tekrar gösterilmez.
+  if (await android?.areNotificationsEnabled() == true) return true;
   if (!context.mounted) return false;
   final accepted = await showDialog<bool>(
     context: context,
@@ -110,12 +116,7 @@ Future<bool> requestAlertPermission(BuildContext context) async {
   );
   if (accepted != true) return false;
   if (!context.mounted) return false;
-  return await _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.requestNotificationsPermission() ??
-      false;
+  return await android?.requestNotificationsPermission() ?? false;
 }
 
 Future<void> showPendingNotification(PendingNotification notification) async {

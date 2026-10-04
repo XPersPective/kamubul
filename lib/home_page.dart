@@ -126,6 +126,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   List<ListingRecord> _records = const [];
   List<SavedSearch> _searches = const [];
   ListingRecord? _assistantListing;
+  String? _assistantQuestion;
   final ListingStore _store = ListingStore();
   final TextEditingController _searchController = TextEditingController();
   late final ShareService _share = widget.shareService ?? ShareService();
@@ -412,6 +413,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
         _remoteLastSuccess = cached.lastSuccess;
         if (statuses != null) _sourceStatuses = statuses;
       });
+      _restoreSelection();
       // Kullanıcı sunucu bildirimini açtıysa etiketler değişince kayıt tazelenir;
       // içerik değişmediyse ağa çıkılmaz.
       final registrar = pushRegistrar;
@@ -448,10 +450,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
     } else {
       final deleted = await registrar.disable();
       message = deleted
-          ? 'Sunucu bildirimleri kapatıldı; kaydınız silindi.'
+          ? 'Sunucu bildirimleri kapatıldı. Aramalarınız ve kriterleriniz '
+                'cihazınızda duruyor.'
           : registrar.enabled
           ? 'Kapatma işlemi kaydedilemedi; yeniden deneyin.'
-          : 'Kapatıldı; kaydınız bağlantı gelince silinecek.';
+          : 'Kapatıldı. Aramalarınız ve kriterleriniz cihazınızda duruyor.';
     }
     if (!mounted) return;
     setState(() {});
@@ -626,6 +629,24 @@ class _KamuHomePageState extends State<KamuHomePage> {
     return [...matched, ...unknown];
   }
 
+  /// Tüm süzgeçleri ve seçili kayıtlı aramayı kaldırır: "Tümü".
+  void _resetFilters() {
+    _searchController.clear();
+    setState(() {
+      _search = '';
+      _category = 0;
+      _last30 = false;
+      _place = null;
+      _ageFilter = null;
+      _ageAsOf = null;
+      _quickCriteria = null;
+      _educationFilter = null;
+      _kpssFilter = null;
+      _activeSearchId = null;
+      _includeUnknown = false;
+    });
+  }
+
   void _applySearch(SavedSearch search) {
     if (search.hasInvalidCriteria) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -778,6 +799,48 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _cityError = null;
       _cityLoading = false;
     });
+  }
+
+  static const _selectionKey = 'kamubul.selection';
+  bool _selectionRestored = false;
+
+  /// Süzgeç ve seçili kayıtlı arama her değişimde saklanır; açılışta döner.
+  @override
+  void setState(VoidCallback fn) {
+    super.setState(fn);
+    if (!_selectionRestored) return;
+    final value = jsonEncode({
+      'search': _activeSearchId,
+      'filters': _currentFilters,
+    });
+    if (widget.store.getString(_selectionKey) != value) {
+      widget.store.setString(_selectionKey, value);
+    }
+  }
+
+  void _restoreSelection() {
+    if (_selectionRestored) return;
+    _selectionRestored = true;
+    try {
+      final raw = jsonDecode(widget.store.getString(_selectionKey) ?? '');
+      final id = raw['search'];
+      final saved = _searches.where((s) => s.id != null && s.id == id);
+      if (saved.isNotEmpty) return _applySearch(saved.first);
+      final filters = Map<String, String>.from(raw['filters'] as Map);
+      final isDefault = filters.entries.every(
+        (e) => const {'q': '', 'kategori': '0', 'son30': '0'}[e.key] == e.value,
+      );
+      if (isDefault) return;
+      final search = SavedSearch(
+        id: null,
+        name: '',
+        filters: filters,
+        createdAt: DateTime.now(),
+      );
+      if (!search.hasInvalidCriteria) _applySearch(search);
+    } on Object {
+      // Kayıt yoksa ya da bozuksa varsayılan "Tümü" görünümü kalır.
+    }
   }
 
   Map<String, String> get _currentFilters => {
@@ -1893,6 +1956,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   selected: _category == index,
                   onSelected: (_) {
                     HapticFeedback.selectionClick();
+                    // "Tümü": kayıtlı aramadan kalan tüm kriterler dahil sıfırlanır.
+                    if (index == 0) return _resetFilters();
                     setState(() {
                       _category = index;
                       _patchQuickCriteria(['categories']);
@@ -2054,7 +2119,10 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: Text(search.name),
                   selected: _activeSearchId == search.id,
-                  onSelected: (_) => _applySearch(search),
+                  // Tekrar dokununca seçim kalkar, liste tüm ilanlara döner.
+                  onSelected: (_) => _activeSearchId == search.id
+                      ? _resetFilters()
+                      : _applySearch(search),
                 ),
               Tooltip(
                 message: 'Bu aramayı kaydet',
@@ -2319,12 +2387,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
           listing: _asPublicListing(record),
           summary: record.summary,
           onLoaded: (detail) => _cacheDetail(record.url, detail),
-          onAskAssistant: () => _askAssistantAbout(record),
+          onAskAssistant: () => _askAssistantAbout(record, suitability: true),
         )
       : OfficialListingPage(
           listing: record,
           unavailable: record.criteriaListing?['active'] == false,
-          onAskAssistant: () => _askAssistantAbout(record),
+          onAskAssistant: () => _askAssistantAbout(record, suitability: true),
         );
 
   PublicListing _asPublicListing(ListingRecord record) => PublicListing(
@@ -2410,6 +2478,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
         _chatMessages.clear();
       }),
       profile: _assistantProfile(),
+      initialQuestion: _assistantQuestion,
+      onInitialQuestionUsed: () => setState(() => _assistantQuestion = null),
     );
   }
 
@@ -2437,12 +2507,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   /// İlan ayrıntısından "Asistana sor": ayrıntıyı kapatıp seçili ilanla
   /// Asistan sekmesini açar.
-  void _askAssistantAbout(ListingRecord record) {
+  /// [suitability]: ayrıntıdaki "Bana uygun mu?" düğmesi soruyu da gönderir.
+  void _askAssistantAbout(ListingRecord record, {bool suitability = false}) {
     Navigator.of(context).popUntil((route) => route.isFirst);
     setState(() {
       if (_assistantListing?.url != record.url) _chatMessages.clear();
       _assistantListing = record;
       _tab = 2;
+      _assistantQuestion = suitability ? 'Bu ilan bana uygun mu?' : null;
     });
   }
 
@@ -2503,9 +2575,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
           'Açtığınızda kurulum kimliğiniz, bildirim jetonunuz ve bildirimi açık '
           'aramalarınızın adları, kriterleri ve tercihleri Cloudflare '
           'sunucusuna gönderilir; yeni ilan bu kriterlere uyunca bildirim '
-          'gelir. Sessiz saatler 22:00–08:00. Kapatınca sunucudaki kaydın '
-          'silinmesi istenir; çevrimdışıysanız bağlantı gelince yeniden '
-          'denenir. Ayrıntı için gizlilik politikasına bakın.',
+          'gelir. Sessiz saatler 22:00–08:00.\n\nKapatınca yalnız sunucudaki '
+          'bu bildirim kaydı silinir. Cihazınızdaki aramalarınız, '
+          'kriterleriniz ve kaydettiğiniz ilanlar SİLİNMEZ; uygulama '
+          'kapansa ya da günler geçse de yerinde kalır. Ayrıntı için '
+          'gizlilik politikasına bakın.',
         ),
       ),
       actions: [

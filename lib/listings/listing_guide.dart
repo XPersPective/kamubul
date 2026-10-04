@@ -103,7 +103,7 @@ class ListingGuideView extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           children: [
             Text(
-              'Rehber yanıtı',
+              'İlan özeti',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
@@ -176,11 +176,11 @@ class ListingGuideView extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Rehber yanıtı', style: Theme.of(context).textTheme.titleMedium),
+        Text('İlan özeti', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         const Text(
-          'Bu kaynaktan doğrulanan bilgiler aşağıda. Yaş, eğitim ve KPSS '
-          'koşulları henüz güvenilir biçimde ayıklanmadı.',
+          'Kaynakta doğrulanan bilgiler. Yaş, eğitim ve KPSS şartlarını '
+          'Asistan’a sorabilirsiniz; ilan metnini okuyarak yanıtlar.',
         ),
         _GuideField(
           label: 'Kontenjan',
