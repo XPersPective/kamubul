@@ -199,7 +199,14 @@ class OfficialListingPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Text(listing.title, style: theme.textTheme.headlineSmall),
+          Text(
+            listing.title,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
+            ),
+          ),
           if (cacheNotice != null) ...[
             const SizedBox(height: 12),
             Text(cacheNotice!),

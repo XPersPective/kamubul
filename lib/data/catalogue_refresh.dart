@@ -97,7 +97,10 @@ Future<CatalogueRefreshResult> refreshCatalogue(
             now.difference(success) <= remoteSnapshotMaxAge;
       }
 
-      needKariyer = !available(kKariyerSourceId);
+      // Sunucu Kariyer Kapısı ayrıntı API'sine erişemiyor (Cloudflare 522);
+      // yalnız RSS başlığı gelir. Son tarih/kontenjan/kurum için telefon
+      // resmî dizini her zaman kendisi okur.
+      needKariyer = true;
       needSbb = !available(kSbbSourceId);
     } on Exception {
       remoteFailed = true;

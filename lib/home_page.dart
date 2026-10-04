@@ -2107,8 +2107,19 @@ class _KamuHomePageState extends State<KamuHomePage> {
     Navigator.of(context).push(sharedAxisRoute<void>(_listingPage(record)));
   }
 
+  /// Sunucu ayrıntıyı okuyamadıysa (Kariyer Kapısı Cloudflare'i engelliyor)
+  /// ayrıntı telefondan resmî kaynaktan okunur.
+  bool _serverDetailMissing(ListingRecord record) {
+    final listing = record.criteriaListing;
+    if (listing == null) return true;
+    final groups = listing['requirementGroups'];
+    return listing['detailState'] == 'unavailable' ||
+        groups is! List ||
+        groups.isEmpty;
+  }
+
   Widget _listingPage(ListingRecord record) =>
-      record.sourceId == 'kariyerkapisi' && record.criteriaListing == null
+      record.sourceId == 'kariyerkapisi' && _serverDetailMissing(record)
       ? KariyerDetailPage(
           listing: _asPublicListing(record),
           summary: record.summary,

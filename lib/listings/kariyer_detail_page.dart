@@ -104,7 +104,7 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
 
   Widget _loadingView() => CustomScrollView(
     slivers: [
-      const SliverAppBar.large(title: Text('İlan ayrıntısı')),
+      const SliverAppBar(pinned: true, title: Text('İlan ayrıntısı')),
       SliverToBoxAdapter(
         child: Semantics(
           label: 'İlan ayrıntısı yükleniyor',
@@ -116,7 +116,7 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
 
   Widget _errorView(ColorScheme scheme) => CustomScrollView(
     slivers: [
-      const SliverAppBar.large(title: Text('İlan ayrıntısı')),
+      const SliverAppBar(pinned: true, title: Text('İlan ayrıntısı')),
       SliverFillRemaining(
         hasScrollBody: false,
         child: Center(
@@ -147,16 +147,49 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
 
   Widget _stickyApply(Uri url, {required bool canApply}) => SafeArea(
     minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-    child: FilledButton.icon(
-      onPressed: () => _open(url),
-      icon: const Icon(Icons.open_in_new),
-      label: Text(canApply ? 'Başvuru sayfasını aç' : 'Resmî ilanı aç'),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(PremiumShape.buttonRadius),
+    child: Row(
+      children: [
+        if (canApply) ...[
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _open(widget.listing.url),
+              icon: const Icon(Icons.article_outlined),
+              label: const Text(
+                'İlanı aç',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    PremiumShape.buttonRadius,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+        ],
+        Expanded(
+          flex: 2,
+          child: FilledButton.icon(
+            onPressed: () => _open(url),
+            icon: const Icon(Icons.open_in_new),
+            label: Text(
+              canApply ? 'Başvuru sayfasını aç' : 'Resmî ilanı aç',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(PremiumShape.buttonRadius),
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     ),
   );
 
@@ -188,7 +221,7 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
     return CustomScrollView(
       slivers: [
         // Büyük başlık kaydırmada çöker; ilan başlığı sayfanın öznesidir.
-        const SliverAppBar.large(title: Text('İlan ayrıntısı')),
+        const SliverAppBar(pinned: true, title: Text('İlan ayrıntısı')),
         SliverPadding(
           padding: const EdgeInsets.all(16),
           sliver: SliverList.list(
@@ -215,7 +248,14 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                 ],
               ),
               const SizedBox(height: 14),
-              Text(title, style: Theme.of(context).textTheme.headlineSmall),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                ),
+              ),
               const SizedBox(height: 12),
               _card(
                 Padding(

@@ -1,4 +1,5 @@
 import {handleAssistant} from './assistant.js';
+import {handleTrial} from './trial.js';
 import {validateCriteria,migrateFilters,fold,installationAnchorKeys,educationValues,cityValues} from './criteria.js';
 import {runScheduled,handleWorkQueue} from './pipeline.js';
 
@@ -95,9 +96,16 @@ export async function fetchRequest(request,env,ctx){
       }
       return await registry(request,env,path.split('/').pop());
     }
+    if(request.method==='POST'&&path==='/api/v2/trial') {
+      if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return json({error:'content_type'},415);
+      const text=await request.text();if(text.length>512)return json({error:'body_oversize'},413);
+      let body;try{body=JSON.parse(text);}catch{return json({error:'json'},400);}
+      const result=await handleTrial(body,env,{sha256,ip:request.headers.get('CF-Connecting-IP')??'unknown'});
+      return json(result.body,result.status);
+    }
     if(request.method==='POST'&&path==='/api/v2/assistant') {
       if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return json({error:'content_type'},415);
-      const text=await request.text();if(text.length>2048)return json({error:'body_oversize'},413);
+      const text=await request.text();if(text.length>16384)return json({error:'body_oversize'},413);
       let body;try{body=JSON.parse(text);}catch{return json({error:'json'},400);}
       const result=await handleAssistant(body,env,{sha256,ip:request.headers.get('CF-Connecting-IP')??'unknown'});
       return json(result.body,result.status);
