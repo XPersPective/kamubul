@@ -1,6 +1,6 @@
 # KamuBul gizlilik açıklaması
 
-Son güncelleme: 3 Ekim 2026. KamuBul, crazypenguin tarafından geliştirilen bağımsız bir ilan uygulamasıdır; hesap veya giriş istemez. Kayıtlı aramalar, yaş/KPSS gibi kriterler, yer imleri ve tema tercihi cihazda saklanır. Sunucu bildirimlerini açmadığınız sürece kayıtlı aramalarınız KamuBul sunucusuna yüklenmez. Bu açıklama mevcut Cloudflare/FCM sürümünü anlatır; mağaza beyanlarının tamamlandığı anlamına gelmez.
+Son güncelleme: 4 Ekim 2026. KamuBul, crazypenguin tarafından geliştirilen bağımsız bir ilan uygulamasıdır; hesap veya giriş istemez. Kayıtlı aramalar, yaş/KPSS gibi kriterler, yer imleri ve tema tercihi cihazda saklanır. Sunucu bildirimlerini açmadığınız sürece kayıtlı aramalarınız KamuBul sunucusuna yüklenmez. Bu açıklama mevcut Cloudflare/FCM sürümünü anlatır; mağaza beyanlarının tamamlandığı anlamına gelmez.
 
 ## İlan kataloğu
 
@@ -34,7 +34,13 @@ Cihazdaki arama/yer imleri dışa aktarılabilir; dosyanın saklanması ve payla
 
 İlan işleme için Cloudflare Workers AI'ya yalnız herkese açık ilan metni, başlığı veya resmî ilan PDF belgesi verilir; kullanıcı kriterleri veya bildirim jetonu verilmez. PDF'den metin çıkarılır; taranmış belgede okunabilir metin yoksa bilgi uydurulmaz. Başarılı çıktı ortak katalogda saklanır; aynı içerik her kullanıcı için yeniden işlenmez. Bilinmeyen şart uygunluk onayı sayılmaz. [Workers AI veri açıklaması](https://developers.cloudflare.com/workers-ai/platform/data-usage/) sağlayıcı uygulamalarını anlatır.
 
-Harici AI hesabıyla kota sonrası fallback ve doğal dille kriter asistanı planlanmıştır; **bu sürümde etkin değildir**. Etkinleştirilmeden önce sağlayıcı, gönderilecek mesaj/kriterler ve saklama açıklaması burada ve asistan akışında güncellenecektir. Mevcut ilan rehberi böyle bir sohbet asistanı değildir.
+### KamuBul Asistan (yapay zekâ sohbeti)
+
+Asistan sekmesinde yazdığınız mesaj, aynı sohbetteki son en fazla 4 mesaj ve bir ilan seçtiyseniz o ilanın herkese açık resmî metni KamuBul sunucusu üzerinden yapay zekâ sağlayıcısına (Alibaba Cloud Qwen, OpenAI uyumlu API) yanıt üretmek için gönderilir. Rastgele kurulum kimliği ve IP adresinden üretilen karma yalnızca günlük kullanım sınırı için sayılır; KamuBul mesaj içeriğini ve yanıtı sunucuda saklamaz. Konu dışı mesajlar ve bağlantı/komut içeren mesajlar yapay zekâya hiç gönderilmez. Sağlayıcının veri işleme kuralları kendi gizlilik politikasında yer alır. Mesajlara ad, T.C. kimlik numarası, telefon gibi kişisel bilgi yazmayın. Yanıtlar yapay zekâ ile üretilir ve hatalı olabilir; başvurmadan önce resmî ilanı kontrol edin.
+
+### Reklamsız deneme süresi
+
+İlk 7 gün reklam gösterilmez. Uygulamayı kaldırıp yeniden kurmanın deneme süresini sıfırlamaması için cihazın bu uygulamaya özgü Android kimliği (ANDROID_ID) cihazda tuzlanıp SHA-256 ile özetlenir; ham kimlik gönderilmez. Sunucu yalnızca bu özeti ve ilk görülme zamanını saklar; başka bir veriyle eşleştirilmez ve reklam hedeflemesinde kullanılmaz.
 
 ## Reklam ve satın alma
 
