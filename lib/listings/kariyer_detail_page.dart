@@ -96,11 +96,13 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
             applyUrl,
             canApply: detail?.applyUrl != null,
           ),
-          body: snapshot.connectionState != ConnectionState.done
-              ? _loadingView()
-              : snapshot.hasError
-              ? _errorView(Theme.of(context).colorScheme)
-              : _content(detail!),
+          body: ReadingScaleScope(
+            child: snapshot.connectionState != ConnectionState.done
+                ? _loadingView()
+                : snapshot.hasError
+                ? _errorView(Theme.of(context).colorScheme)
+                : _content(detail!),
+          ),
         );
       },
     );
@@ -108,7 +110,11 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
 
   Widget _loadingView() => CustomScrollView(
     slivers: [
-      const SliverAppBar(pinned: true, title: Text('İlan ayrıntısı')),
+      const SliverAppBar(
+        pinned: true,
+        title: Text('İlan ayrıntısı'),
+        actions: [ReadingScaleButton()],
+      ),
       SliverToBoxAdapter(
         child: Semantics(
           label: 'İlan ayrıntısı yükleniyor',
@@ -120,7 +126,11 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
 
   Widget _errorView(ColorScheme scheme) => CustomScrollView(
     slivers: [
-      const SliverAppBar(pinned: true, title: Text('İlan ayrıntısı')),
+      const SliverAppBar(
+        pinned: true,
+        title: Text('İlan ayrıntısı'),
+        actions: [ReadingScaleButton()],
+      ),
       SliverFillRemaining(
         hasScrollBody: false,
         child: Center(
@@ -184,7 +194,11 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
     return CustomScrollView(
       slivers: [
         // Büyük başlık kaydırmada çöker; ilan başlığı sayfanın öznesidir.
-        const SliverAppBar(pinned: true, title: Text('İlan ayrıntısı')),
+        const SliverAppBar(
+          pinned: true,
+          title: Text('İlan ayrıntısı'),
+          actions: [ReadingScaleButton()],
+        ),
         SliverPadding(
           padding: const EdgeInsets.all(16),
           sliver: SliverList.list(
@@ -250,7 +264,8 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
               if (detail.positions.isNotEmpty) ...[
                 Text(
                   'Kadrolar',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 for (final position in detail.positions)
                   _card(
@@ -277,7 +292,8 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
               if (keyConditions.isNotEmpty) ...[
                 Text(
                   'Öne çıkan şartlar',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 _card(
                   Padding(
@@ -298,7 +314,14 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                                     size: 16,
                                   ),
                                 ),
-                                Expanded(child: Text(line)),
+                                Expanded(
+                                  child: Text(
+                                    line,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -311,7 +334,8 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
               if (widget.summary.isNotEmpty) ...[
                 Text(
                   'Yapay zekâ özeti',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 _card(
                   Padding(
@@ -329,7 +353,14 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                                   padding: EdgeInsets.only(top: 3, right: 8),
                                   child: Icon(Icons.auto_awesome, size: 16),
                                 ),
-                                Expanded(child: Text(line)),
+                                Expanded(
+                                  child: Text(
+                                    line,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -353,7 +384,8 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                   conditions.quotaType != null) ...[
                 Text(
                   'Şart alanları',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 _card(
                   Padding(

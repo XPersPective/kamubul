@@ -166,12 +166,42 @@ class _AssistantChatViewState extends State<AssistantChatView> {
             controller: _scroll,
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             children: [
-              const HeroPanel(
-                eyebrow: 'YAPAY ZEKÂ DESTEKLİ',
-                title: 'KamuBul Asistan',
-                subtitle:
-                    'Kamu ilanları, başvuru şartları ve arama kriterleriniz '
-                    'için sorun. Konu dışı sorulara yanıt vermez.',
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF5B3FD9), Color(0xFF1B6AA5)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'KamuBul Asistan',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          'İlanlar, başvuru şartları ve kriterleriniz için sorun.',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               if (widget.onNewChat != null &&

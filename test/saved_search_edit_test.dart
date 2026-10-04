@@ -368,6 +368,17 @@ void main() {
     await tester.ensureVisible(uncertain);
     await tester.tap(uncertain);
     await pumpRoute(tester);
+    // Filtreler alt satıra geçtiği için 320px/1.3x'te ilan kaydırınca görünür.
+    await tester.scrollUntilVisible(
+      find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     expect(
       find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
       findsOneWidget,
@@ -393,6 +404,17 @@ void main() {
     await tester.ensureVisible(uncertain);
     await tester.tap(uncertain);
     await pumpRoute(tester);
+    // Filtreler alt satıra geçtiği için 320px/1.3x'te ilan kaydırınca görünür.
+    await tester.scrollUntilVisible(
+      find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     expect(
       find.text('TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)'),
       findsOneWidget,

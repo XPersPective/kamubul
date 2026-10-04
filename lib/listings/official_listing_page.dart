@@ -1,3 +1,4 @@
+import '../ui/premium.dart';
 import '../ui/premium_widgets.dart';
 
 import 'package:flutter/material.dart';
@@ -170,136 +171,143 @@ class OfficialListingPage extends StatelessWidget {
     final rawGroups = data?['requirementGroups'];
     final groups = rawGroups is List ? rawGroups : const [];
     return Scaffold(
-      appBar: AppBar(title: const Text('İlan ayrıntısı')),
+      appBar: AppBar(
+        title: const Text('İlan ayrıntısı'),
+        actions: const [ReadingScaleButton()],
+      ),
       bottomNavigationBar: ListingActionBar(
         onOpenListing: () => _open(context),
         openLabel: 'Resmî belgeyi aç',
         onAskAssistant: onAskAssistant,
       ),
-      body: ListView(
-        padding: EdgeInsets.symmetric(
-          vertical: 20,
-          horizontal: MediaQuery.sizeOf(context).width > 800
-              ? (MediaQuery.sizeOf(context).width - 760) / 2
-              : 20,
-        ),
-        children: [
-          Row(
-            children: [
-              InstitutionAvatar(title: listing.title, size: 48),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  source,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ),
-            ],
+      body: ReadingScaleScope(
+        child: ListView(
+          padding: EdgeInsets.symmetric(
+            vertical: 20,
+            horizontal: MediaQuery.sizeOf(context).width > 800
+                ? (MediaQuery.sizeOf(context).width - 760) / 2
+                : 20,
           ),
-          const SizedBox(height: 14),
-          Text(
-            listing.title,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              height: 1.3,
-            ),
-          ),
-          if (cacheNotice != null) ...[
-            const SizedBox(height: 12),
-            Text(cacheNotice!),
-          ],
-          if (unavailable) ...[
-            const SizedBox(height: 12),
-            const Text(
-              'Bu ilan artık yayında değil. Başvuru durumunu resmî kaynaktan kontrol edin.',
-            ),
-          ],
-          if (listing.summary.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text(
-              data?['aiProvenance'] is Map ? 'Yapay zekâ özeti' : 'İlan özeti',
-              style: theme.textTheme.titleMedium,
-            ),
-          ],
-          for (final text in listing.summary) ...[
-            const SizedBox(height: 12),
-            _summary(text),
-          ],
-          const SizedBox(height: 20),
-          Card(
-            child: Column(
+          children: [
+            Row(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.account_balance_outlined),
-                  title: const Text('Alım türü'),
-                  subtitle: Text(
-                    listing.category.isEmpty
-                        ? 'Belirtilmemiş'
-                        : listing.category,
-                  ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.groups_outlined),
-                  title: const Text('Kontenjan'),
-                  subtitle: Text(
-                    listing.quota == null
-                        ? 'Belirtilmemiş'
-                        : '${listing.quota} kişi',
-                  ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.event_outlined),
-                  title: const Text('Son başvuru'),
-                  subtitle: Text(_date(listing.deadline)),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.schedule_outlined),
-                  title: const Text('Yayın tarihi'),
-                  subtitle: Text(_date(listing.publishedAt)),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.place_outlined),
-                  title: const Text('Yerler'),
-                  subtitle: Text(
-                    listing.places.isEmpty
-                        ? 'Belirtilmemiş'
-                        : listing.places.join(', '),
+                InstitutionAvatar(title: listing.title, size: 48),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    source,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          if (groups.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text('Kadro koşulları', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
-            const Text(
-              'Her kadronun koşulları ayrı değerlendirilir. Eksik bilgi uygunluk anlamına gelmez.',
-            ),
-            // ponytail: bound detail rendering to 100 source groups; larger
-            // notices need a paginated position API, with the official link now.
-            for (var i = 0; i < groups.length && i < 100; i++)
-              if (groups[i] is Map)
-                _group(context, groups[i] as Map, i)
-              else
-                Text('Kadro ${i + 1}: koşullar henüz belirlenemedi'),
-            if (groups.length > 100)
-              const Text(
-                'İlk 100 kadro gösteriliyor. Tüm kadrolar için resmî belgeyi açın.',
+            const SizedBox(height: 14),
+            Text(
+              listing.title,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                height: 1.3,
               ),
+            ),
+            if (cacheNotice != null) ...[
+              const SizedBox(height: 12),
+              Text(cacheNotice!),
+            ],
+            if (unavailable) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Bu ilan artık yayında değil. Başvuru durumunu resmî kaynaktan kontrol edin.',
+              ),
+            ],
+            if (listing.summary.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Text(
+                data?['aiProvenance'] is Map
+                    ? 'Yapay zekâ özeti'
+                    : 'İlan özeti',
+                style: theme.textTheme.titleMedium,
+              ),
+            ],
+            for (final text in listing.summary) ...[
+              const SizedBox(height: 12),
+              _summary(text),
+            ],
+            const SizedBox(height: 20),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.account_balance_outlined),
+                    title: const Text('Alım türü'),
+                    subtitle: Text(
+                      listing.category.isEmpty
+                          ? 'Belirtilmemiş'
+                          : listing.category,
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.groups_outlined),
+                    title: const Text('Kontenjan'),
+                    subtitle: Text(
+                      listing.quota == null
+                          ? 'Belirtilmemiş'
+                          : '${listing.quota} kişi',
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.event_outlined),
+                    title: const Text('Son başvuru'),
+                    subtitle: Text(_date(listing.deadline)),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.schedule_outlined),
+                    title: const Text('Yayın tarihi'),
+                    subtitle: Text(_date(listing.publishedAt)),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.place_outlined),
+                    title: const Text('Yerler'),
+                    subtitle: Text(
+                      listing.places.isEmpty
+                          ? 'Belirtilmemiş'
+                          : listing.places.join(', '),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (groups.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Text('Kadro koşulları', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 8),
+              const Text(
+                'Her kadronun koşulları ayrı değerlendirilir. Eksik bilgi uygunluk anlamına gelmez.',
+              ),
+              // ponytail: bound detail rendering to 100 source groups; larger
+              // notices need a paginated position API, with the official link now.
+              for (var i = 0; i < groups.length && i < 100; i++)
+                if (groups[i] is Map)
+                  _group(context, groups[i] as Map, i)
+                else
+                  Text('Kadro ${i + 1}: koşullar henüz belirlenemedi'),
+              if (groups.length > 100)
+                const Text(
+                  'İlk 100 kadro gösteriliyor. Tüm kadrolar için resmî belgeyi açın.',
+                ),
+            ],
+            const SizedBox(height: 12),
+            Text(
+              groups.isEmpty
+                  ? 'Başvuru koşulları bu kaynakta henüz güvenilir biçimde ayıklanamadı. '
+                        'Başvurmadan önce resmî belgeyi kontrol edin.'
+                  : 'Gösterilen koşullar başvuru uygunluğu garantisi değildir. Başvurmadan önce resmî belgeyi kontrol edin.',
+              style: theme.textTheme.bodyMedium,
+            ),
           ],
-          const SizedBox(height: 12),
-          Text(
-            groups.isEmpty
-                ? 'Başvuru koşulları bu kaynakta henüz güvenilir biçimde ayıklanamadı. '
-                      'Başvurmadan önce resmî belgeyi kontrol edin.'
-                : 'Gösterilen koşullar başvuru uygunluğu garantisi değildir. Başvurmadan önce resmî belgeyi kontrol edin.',
-            style: theme.textTheme.bodyMedium,
-          ),
-        ],
+        ),
       ),
     );
   }

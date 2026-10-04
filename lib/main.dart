@@ -35,6 +35,10 @@ Future<void> main() async {
   final translations = await loadAppTranslations();
   final store = await SettingsStore.load();
   final theme = ThemeModeController(store: store)..load();
+  ReadingScale.attach(
+    double.tryParse(store.getString(ReadingScale.key) ?? ''),
+    (value) => store.setString(ReadingScale.key, value.toString()),
+  );
   final identity = AppIdentity(
     appName: 'KamuBul',
     packageName: 'com.crazypenguin.kamubul',

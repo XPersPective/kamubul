@@ -1507,31 +1507,35 @@ class _KamuHomePageState extends State<KamuHomePage> {
   Widget _scaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.account_balance_outlined,
-                size: 22,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'KamuBul',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
+        titleSpacing: 16,
+        title: _tab == 0
+            ? Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.account_balance_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Flexible(
+                    child: Text(
+                      'KamuBul',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              )
+            : Text(const ['', 'Kaydedilenler', 'Asistan', 'Ayarlar'][_tab]),
         actions: [
+          _membershipBadge(),
           IconButton(
             tooltip: 'Bildirimler',
             onPressed: () => Navigator.of(context)
@@ -1564,6 +1568,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (!widget.pro.isPro) BannerAdWidget(controller: widget.banner),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           NavigationBar(
             selectedIndex: _tab,
             onDestinationSelected: (value) {
@@ -1642,37 +1651,124 @@ class _KamuHomePageState extends State<KamuHomePage> {
     ),
   );
 
-  Widget _intro() {
-    final trialDays = widget.pro.isPro
-        ? 0
-        : trialDaysLeft(widget.policy, DateTime.now());
-    final sync = _tab == 1
-        ? '${_visibleRecords.length} kayıt • çevrimdışı erişim'
-        : _remoteLastSuccess != null
-        ? 'Son eşitleme ${_date(_remoteLastSuccess)} ${_remoteLastSuccess!.hour.toString().padLeft(2, '0')}:${_remoteLastSuccess!.minute.toString().padLeft(2, '0')}${_remoteFailed || DateTime.now().difference(_remoteLastSuccess!) > remoteSnapshotMaxAge ? ' • Önbellek' : ''}'
-        : _lastRefresh == null
-        ? _records.isEmpty
-              ? 'Katalog cihazdan yükleniyor.'
-              : 'Kaydedilmiş katalog • kaynaklar kontrol ediliyor'
-        : 'Son kontrol ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')}';
+  /// Üst çubuktaki üyelik rozeti: Pro, deneme günleri ya da Pro daveti.
+  Widget _membershipBadge() {
+    final scheme = Theme.of(context).colorScheme;
+    final pro = widget.pro.isPro;
+    final days = pro ? 0 : trialDaysLeft(widget.policy, DateTime.now());
+    // Dar ekran/büyük yazıda üst çubuk taşmasın: kısa etiket.
+    final narrow =
+        MediaQuery.sizeOf(context).width /
+            MediaQuery.textScalerOf(context).scale(1) <
+        330;
+    final label = pro
+        ? 'PRO'
+        : days > 0
+        ? (narrow ? '$days g' : 'Deneme · $days gün')
+        : 'Pro';
+    final background = pro
+        ? const Color(0xFFE9B949)
+        : scheme.primary.withValues(alpha: 0.12);
+    final foreground = pro ? const Color(0xFF3A2A00) : scheme.primary;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-      child: HeroPanel(
-        eyebrow: _tab == 1
-            ? 'KİŞİSEL ARŞİVİNİZ'
-            : 'RESMÎ KAYNAKLARDAN, TEK YERDE',
-        title: _tab == 1 ? 'Kaydettiğiniz ilanlar' : 'Güncel kamu ilanları',
-        subtitle: sync,
-        error: _tab == 0 ? _error : null,
-        badge: trialDays > 0
-            ? HeroBadge(
-                icon: Icons.verified_outlined,
-                text: trialDays == 1
-                    ? 'Reklamsız deneme: son gün'
-                    : 'Reklamsız deneme: $trialDays gün kaldı',
-                onTap: _openPaywall,
-              )
-            : null,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Material(
+        color: background,
+        shape: const StadiumBorder(),
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: _openPaywall,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  pro
+                      ? Icons.workspace_premium_rounded
+                      : Icons.hourglass_bottom_rounded,
+                  size: 15,
+                  color: foreground,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: pro ? 1 : 0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String get _syncLine => _tab == 1
+      ? '${_visibleRecords.length} kayıtlı ilan • çevrimdışı da açılır'
+      : _remoteLastSuccess != null
+      ? 'Son eşitleme ${_date(_remoteLastSuccess)} ${_remoteLastSuccess!.hour.toString().padLeft(2, '0')}:${_remoteLastSuccess!.minute.toString().padLeft(2, '0')}${_remoteFailed || DateTime.now().difference(_remoteLastSuccess!) > remoteSnapshotMaxAge ? ' • Önbellek' : ''}'
+      : _lastRefresh == null
+      ? _records.isEmpty
+            ? 'Katalog cihazdan yükleniyor.'
+            : 'Kaydedilmiş katalog • kaynaklar kontrol ediliyor'
+      : 'Son kontrol ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')}';
+
+  /// Kompakt başlık: dikey alanı listeye bırakır.
+  Widget _intro() {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_tab == 0)
+            Text(
+              'Güncel kamu ilanları',
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3),
+            ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Icon(
+                _remoteFailed ? Icons.cloud_off_rounded : Icons.sync_rounded,
+                size: 14,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _syncLine,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+          if (_tab == 0 && _error != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.info_outline_rounded, size: 15, color: scheme.error),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _error!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: scheme.error),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -1691,13 +1787,40 @@ class _KamuHomePageState extends State<KamuHomePage> {
             required isFocused,
             maxLength,
           }) => null,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search),
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: _search.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Aramayı temizle',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => setState(() {
+                      _searchController.clear();
+                      _search = '';
+                      _patchQuickCriteria(['keyword']);
+                    }),
+                  ),
             hintText: 'Kurum veya meslek ara',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16)),
-            ),
+            isDense: true,
             filled: true,
+            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 1.5,
+              ),
+            ),
           ),
           onChanged: (value) => setState(() {
             _search = value;
@@ -1706,128 +1829,134 @@ class _KamuHomePageState extends State<KamuHomePage> {
             _includeUnknown = false;
           }),
         ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              if (_place != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InputChip(
-                    label: Text(_place!),
-                    onDeleted: () => setState(() {
-                      _place = null;
-                      _patchQuickCriteria(['cities']);
-                      _activeSearchId = null;
-                      _includeUnknown = false;
-                    }),
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ActionChip(
-                    avatar: const Icon(Icons.place_outlined, size: 18),
-                    label: const Text('Şehir'),
-                    onPressed: _chooseCity,
-                  ),
+        const SizedBox(height: 10),
+        Wrap(
+          runSpacing: 8,
+          children: [
+            if (_place != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InputChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: Text(_place!),
+                  onDeleted: () => setState(() {
+                    _place = null;
+                    _patchQuickCriteria(['cities']);
+                    _activeSearchId = null;
+                    _includeUnknown = false;
+                  }),
                 ),
-              if (_quickCriteria != null ||
-                  _activeSearch != null ||
-                  _place != null ||
-                  _ageFilter != null ||
-                  _educationFilter != null ||
-                  _kpssFilter != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: const Text('Şartları kontrol et'),
-                    selected: _includeUnknown,
-                    onSelected: (value) =>
-                        setState(() => _includeUnknown = value),
-                  ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ActionChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  avatar: const Icon(Icons.place_outlined, size: 18),
+                  label: const Text('Şehir'),
+                  onPressed: _chooseCity,
                 ),
-              for (final (index, label) in _kategoriAdlari.indexed)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(label),
-                    selected: _category == index,
-                    onSelected: (_) {
-                      HapticFeedback.selectionClick();
-                      setState(() {
-                        _category = index;
-                        _patchQuickCriteria(['categories']);
-                        _activeSearchId = null;
-                        _includeUnknown = false;
-                      });
-                    },
-                  ),
-                ),
+              ),
+            if (_quickCriteria != null ||
+                _activeSearch != null ||
+                _place != null ||
+                _ageFilter != null ||
+                _educationFilter != null ||
+                _kpssFilter != null)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: FilterChip(
-                  label: const Text('Son 30 gün'),
-                  selected: _last30,
-                  onSelected: (value) {
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: const Text('Şartları kontrol et'),
+                  selected: _includeUnknown,
+                  onSelected: (value) =>
+                      setState(() => _includeUnknown = value),
+                ),
+              ),
+            for (final (index, label) in _kategoriAdlari.indexed)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: Text(label),
+                  selected: _category == index,
+                  onSelected: (_) {
                     HapticFeedback.selectionClick();
                     setState(() {
-                      _last30 = value;
-                      _patchQuickCriteria(['last30']);
+                      _category = index;
+                      _patchQuickCriteria(['categories']);
                       _activeSearchId = null;
                       _includeUnknown = false;
                     });
                   },
                 ),
               ),
-              if (_ageFilter != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InputChip(
-                    label: Text('Yaş uyarı: $_ageFilter'),
-                    onDeleted: () => setState(() {
-                      _ageFilter = null;
-                      _ageAsOf = null;
-                      _patchQuickCriteria(['age', 'ageAsOf']);
-                      _activeSearchId = null;
-                      _includeUnknown = false;
-                    }),
-                  ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                label: const Text('Son 30 gün'),
+                selected: _last30,
+                onSelected: (value) {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _last30 = value;
+                    _patchQuickCriteria(['last30']);
+                    _activeSearchId = null;
+                    _includeUnknown = false;
+                  });
+                },
+              ),
+            ),
+            if (_ageFilter != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InputChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: Text('Yaş uyarı: $_ageFilter'),
+                  onDeleted: () => setState(() {
+                    _ageFilter = null;
+                    _ageAsOf = null;
+                    _patchQuickCriteria(['age', 'ageAsOf']);
+                    _activeSearchId = null;
+                    _includeUnknown = false;
+                  }),
                 ),
-              if (_educationFilter != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InputChip(
-                    label: Text(_educationFilter!),
-                    onDeleted: () => setState(() {
-                      _educationFilter = null;
-                      _patchQuickCriteria(['education']);
-                      _activeSearchId = null;
-                      _includeUnknown = false;
-                    }),
-                  ),
+              ),
+            if (_educationFilter != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InputChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: Text(_educationFilter!),
+                  onDeleted: () => setState(() {
+                    _educationFilter = null;
+                    _patchQuickCriteria(['education']);
+                    _activeSearchId = null;
+                    _includeUnknown = false;
+                  }),
                 ),
-              if (_kpssFilter != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InputChip(
-                    label: Text('KPSS $_kpssFilter'),
-                    onDeleted: () => setState(() {
-                      _kpssFilter = null;
-                      _patchQuickCriteria([
-                        'kpssType',
-                        'kpssScore',
-                        'kpssYear',
-                        'onlyKpss',
-                      ]);
-                      _activeSearchId = null;
-                      _includeUnknown = false;
-                    }),
-                  ),
+              ),
+            if (_kpssFilter != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InputChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: Text('KPSS $_kpssFilter'),
+                  onDeleted: () => setState(() {
+                    _kpssFilter = null;
+                    _patchQuickCriteria([
+                      'kpssType',
+                      'kpssScore',
+                      'kpssYear',
+                      'onlyKpss',
+                    ]);
+                    _activeSearchId = null;
+                    _includeUnknown = false;
+                  }),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         if (_activeSearchId == null && _quickCriteria != null)
@@ -1848,51 +1977,89 @@ class _KamuHomePageState extends State<KamuHomePage> {
             _cityError!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 12,
-          children: [
-            Text(
-              '${_visibleRecords.length} ilan',
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
-            Tooltip(
-              message: 'Bu aramayı kaydet',
-              child: TextButton.icon(
-                style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
-                onPressed: _saveCurrentSearch,
-                icon: const Icon(Icons.tune_rounded, size: 20),
-                label: const Text('Kriter ekle'),
-              ),
-            ),
-            if (_searches.isNotEmpty)
-              IconButton(
-                tooltip: 'Kayıtlı aramaları yönet',
-                onPressed: _manageSearches,
-                icon: const Icon(Icons.manage_search),
-              ),
-          ],
+        const SizedBox(height: 12),
+        _searchesCard(),
+        const SizedBox(height: 10),
+        Text(
+          '${_visibleRecords.length} ilan',
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w800),
         ),
-        if (_searches.isNotEmpty) _savedSearchChips(),
       ],
     ),
   );
 
-  Widget _savedSearchChips() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
+  /// Kayıtlı aramalar ("Sizin için" dahil) ve yeni kriter ekleme; tek kart.
+  Widget _searchesCard() {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 8, 12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final search in _searches)
+          Row(
+            children: [
+              Icon(
+                Icons.person_search_rounded,
+                size: 20,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Aramalarım',
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (_searches.isNotEmpty)
+                IconButton(
+                  tooltip: 'Kayıtlı aramaları yönet',
+                  onPressed: _manageSearches,
+                  icon: const Icon(Icons.manage_search),
+                ),
+            ],
+          ),
+          if (_searches.isEmpty)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(search.name),
-                selected: _activeSearchId == search.id,
-                onSelected: (_) => _applySearch(search),
+              padding: const EdgeInsets.only(right: 6, bottom: 8),
+              child: Text(
+                'Kriterlerinizi kaydedin, uygun ilanlar öne çıksın.',
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final search in _searches)
+                ChoiceChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: Text(search.name),
+                  selected: _activeSearchId == search.id,
+                  onSelected: (_) => _applySearch(search),
+                ),
+              Tooltip(
+                message: 'Bu aramayı kaydet',
+                child: ActionChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  avatar: Icon(
+                    Icons.add_rounded,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
+                  label: const Text('Kriter ekle'),
+                  onPressed: _saveCurrentSearch,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -2302,6 +2469,29 @@ class _KamuHomePageState extends State<KamuHomePage> {
     return parts.where((part) => part.trim().isNotEmpty).join('\n');
   }
 
+  void _showServerPushInfo() => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Sunucudan anlık bildirim'),
+      content: const SingleChildScrollView(
+        child: Text(
+          'Açtığınızda kurulum kimliğiniz, bildirim jetonunuz ve bildirimi açık '
+          'aramalarınızın adları, kriterleri ve tercihleri Cloudflare '
+          'sunucusuna gönderilir; yeni ilan bu kriterlere uyunca bildirim '
+          'gelir. Sessiz saatler 22:00–08:00. Kapatınca sunucudaki kaydın '
+          'silinmesi istenir; çevrimdışıysanız bağlantı gelince yeniden '
+          'denenir. Ayrıntı için gizlilik politikasına bakın.',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Tamam'),
+        ),
+      ],
+    ),
+  );
+
   Widget _proCard() {
     final scheme = Theme.of(context).colorScheme;
     final trialDays = trialDaysLeft(widget.policy, DateTime.now());
@@ -2402,10 +2592,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
             title: const Text('Bildirimler'),
-            subtitle: const Text(
-              'Kayıtlı aramalarınıza uyan ilanlar ve son başvuru hatırlatıcıları. '
-              'Sessiz saatler: 22:00-08:00.',
-            ),
+            subtitle: const Text('Uygun ilanlar ve son başvuru hatırlatmaları'),
             onTap: () async {
               final granted = await requestAlertPermission(context);
               if (!mounted) return;
@@ -2428,11 +2615,25 @@ class _KamuHomePageState extends State<KamuHomePage> {
             SwitchListTile(
               secondary: const Icon(Icons.cloud_outlined),
               title: const Text('Sunucudan anlık bildirim'),
-              subtitle: const Text(
-                'Yeni ilan bildirimleri için kurulum kimliğiniz, bildirim jetonunuz '
-                've bildirimi açık aramalarınızın adları, kriterleri ve tercihleri '
-                'Cloudflare sunucusuna gönderilir. Kapatınca silme istenir; '
-                'çevrimdışıysanız bağlantı gelince yeniden denenir.',
+              subtitle: Text.rich(
+                TextSpan(
+                  text: 'Uygulama kapalıyken de yeni ilan bildirimi. ',
+                  children: [
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: InkWell(
+                        onTap: _showServerPushInfo,
+                        child: Text(
+                          'Ayrıntılar',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               value: pushRegistrar!.enabled,
               onChanged: _setServerPush,
@@ -2440,10 +2641,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
           ListTile(
             leading: const Icon(Icons.history),
             title: const Text('Bildirim geçmişi'),
-            subtitle: const Text(
-              'Gönderilen, bekleyen ve gönderilmeyen tüm uyarılar. '
-              'Yerel kayıtlar ve sunucu bildirim geçmişiniz.',
-            ),
+            subtitle: const Text('Gönderilen ve bekleyen uyarılar'),
             onTap: () => Navigator.of(context)
                 .push(sharedAxisRoute<void>(const NotificationCenterPage())),
           ),

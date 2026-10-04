@@ -78,17 +78,28 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // Okuma ölçeği metni büyüttüğü için özet aşağıda olabilir.
+      await tester.scrollUntilVisible(
+        find.text('Alıntısı olmayan özet'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.byType(ExpansionTile), findsOneWidget);
       expect(find.text('Alıntısı olmayan özet'), findsOneWidget);
-      expect(find.text('“$quote”'), findsNothing);
+      // Alıntı yalnız açılınca özet altında görünür (başka bölümlerde de
+      // geçebilir; bu yüzden sayı farkı kontrol edilir).
+      int quotes() => find.text('“$quote”').evaluate().length;
+      final closed = quotes();
       await tester.tap(find.text('Kaynak alıntısını göster'));
       await tester.pumpAndSettle();
       expect(find.text('Mühendis: $text'), findsOneWidget);
-      expect(find.text('“$quote”'), findsOneWidget);
+      expect(quotes(), closed + 1);
       expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.text('Kaynak alıntısını göster'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Kaynak alıntısını göster'));
       await tester.pumpAndSettle();
-      expect(find.text('“$quote”'), findsNothing);
+      expect(quotes(), closed);
     }
   });
 

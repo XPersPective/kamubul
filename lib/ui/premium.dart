@@ -86,7 +86,8 @@ ThemeData premiumTheme(ThemeData base) {
       ),
     ),
     navigationBarTheme: base.navigationBarTheme.copyWith(
-      backgroundColor: colors.surfaceContainerLow,
+      // Koyu temada gezinme çubuğu zeminden belirgin biçimde açık; açıkta beyaz.
+      backgroundColor: dark ? const Color(0xFF1B2D3D) : Colors.white,
       surfaceTintColor: Colors.transparent,
       indicatorColor: colors.primaryContainer,
       indicatorShape: RoundedRectangleBorder(
@@ -284,4 +285,104 @@ String? countdownLabel(DateTime? deadline, DateTime now) {
   if (days == 0) return 'Bugün son gün';
   if (days == 1) return 'Son 1 gün';
   return 'Son $days gün';
+}
+
+/// İlan ayrıntısı okuma boyutu: kullanıcı bir kez ayarlar, kalıcıdır.
+abstract final class ReadingScale {
+  static const _key = 'kamubul.readingScale';
+  static const min = 0.9, max = 1.6, initial = 1.1;
+  static final notifier = ValueNotifier<double>(initial);
+  static void Function(double)? _persist;
+
+  /// Uygulama açılışında kayıtlı değer okunur; [persist] yeni değeri yazar.
+  static void attach(double? stored, void Function(double) persist) {
+    _persist = persist;
+    if (stored != null) notifier.value = stored.clamp(min, max).toDouble();
+  }
+
+  static void set(double value) {
+    notifier.value = value.clamp(min, max).toDouble();
+    _persist?.call(notifier.value);
+  }
+
+  static String get key => _key;
+}
+
+/// Okuma ölçeğini alt ağaca uygular (sistem yazı ölçeğiyle çarpılır).
+class ReadingScaleScope extends StatelessWidget {
+  const ReadingScaleScope({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<double>(
+    valueListenable: ReadingScale.notifier,
+    builder: (context, scale, _) {
+      final media = MediaQuery.of(context);
+      return MediaQuery(
+        data: media.copyWith(
+          textScaler: TextScaler.linear(media.textScaler.scale(1) * scale),
+        ),
+        child: child,
+      );
+    },
+  );
+}
+
+/// Üst çubukta "Yazı boyutu" düğmesi: kaydırıcıyla ayarlanır, kaydedilir.
+class ReadingScaleButton extends StatelessWidget {
+  const ReadingScaleButton({super.key});
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: 'Yazı boyutu',
+    icon: const Icon(Icons.format_size_rounded),
+    onPressed: () => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: ValueListenableBuilder<double>(
+            valueListenable: ReadingScale.notifier,
+            builder: (context, scale, _) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Yazı boyutu',
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text('A', style: TextStyle(fontSize: 14)),
+                    Expanded(
+                      child: Slider(
+                        value: scale,
+                        min: ReadingScale.min,
+                        max: ReadingScale.max,
+                        divisions: 7,
+                        label: '%${(scale * 100).round()}',
+                        onChanged: ReadingScale.set,
+                      ),
+                    ),
+                    const Text('A', style: TextStyle(fontSize: 24)),
+                  ],
+                ),
+                Text(
+                  'İlan metinleri bu boyutta gösterilir; ayar kaydedilir.',
+                  style: TextStyle(
+                    fontSize: 14 * scale,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }

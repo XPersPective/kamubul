@@ -187,10 +187,10 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('ilk ilan başlığı küçük telefonda kaydırmadan okunur', (
-    tester,
-  ) async {
-    await pumpHome(tester, size: const Size(360, 640), textScale: 1.3);
+  // Filtreler yatay kaymaz, alt satıra geçer (kullanıcı isteği); bu yüzden
+  // ölçüt tipik telefon boyutu + büyük yazıdır.
+  testWidgets('ilk ilan başlığı telefonda kaydırmadan okunur', (tester) async {
+    await pumpHome(tester, size: const Size(390, 844), textScale: 1.3);
     final title = find.text(
       'TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)',
     );
