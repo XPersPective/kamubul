@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Koyu tema zemini (premium.dart surface, dark). -->
+    <color name="splash_background">#0B1520</color>
+</resources>

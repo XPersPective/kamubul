@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Markalı açılış ekranı: marka zemini ortalanmış uygulama simgesiyle. -->
+<!-- Açılış: tema zemini, ortada simge, altta marka ve slogan. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/ic_launcher_background" />
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/splash" />
+    <item android:drawable="@color/splash_background" />
+    <item
+        android:width="144dp"
+        android:height="144dp"
+        android:gravity="center">
+        <bitmap android:src="@drawable/splash" />
+    </item>
+    <item
+        android:width="200dp"
+        android:height="80dp"
+        android:bottom="56dp"
+        android:gravity="bottom|center_horizontal">
+        <bitmap android:src="@drawable/splash_branding" />
     </item>
 </layer-list>
