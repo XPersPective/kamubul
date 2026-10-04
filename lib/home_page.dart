@@ -2224,10 +2224,22 @@ class _KamuHomePageState extends State<KamuHomePage> {
               maxLength: AssistantClient.maxMessage,
               minLines: 2,
               maxLines: 4,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText:
                     'Örn: Ankara\'da lisans mezunu, 28 yaşında, KPSS P3 75 '
                     'puanlı bilişim ilanları',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: scheme.outlineVariant),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: scheme.outlineVariant),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: scheme.primary, width: 1.6),
+                ),
               ),
             ),
             const SizedBox(height: 8),
