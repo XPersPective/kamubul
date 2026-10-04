@@ -203,7 +203,7 @@ class HeroPanel extends StatelessWidget {
               height: 1.4,
             ),
           ),
-          if (badge != null) ...[const SizedBox(height: 14), badge!],
+          if (badge != null) ...[const SizedBox(height: 10), badge!],
           if (error != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -238,9 +238,9 @@ class HeroBadge extends StatelessWidget {
       borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
       onTap: onTap,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 40),
+        constraints: const BoxConstraints(minHeight: 36),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

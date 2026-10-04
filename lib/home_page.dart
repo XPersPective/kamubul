@@ -43,6 +43,7 @@ import 'ads_state.dart';
 import 'rate_prompt_state.dart';
 import 'ui/premium.dart';
 import 'ui/premium_widgets.dart';
+import 'ui/pro_page.dart';
 import 'ui/turkish.dart';
 
 class KamuHomePage extends StatefulWidget {
@@ -1619,11 +1620,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   void _openPaywall() => Navigator.of(context).push(
     sharedAxisRoute<void>(
-      PaywallPage(
+      ProPage(
         identity: widget.identity,
         controller: widget.pro,
         repository: widget.purchase,
-        benefits: const ['Reklamsız ilan takibi'],
+        trialDays: trialDaysLeft(widget.policy, DateTime.now()),
       ),
     ),
   );

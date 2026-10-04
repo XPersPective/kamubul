@@ -2,6 +2,9 @@ import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,sourceBytes,plain} from
 import {matchListing,listingAnchorKeys} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
+import {externalAiEnabled,externalAiRun} from './external_ai.js';
+const aiProvider=env=>externalAiEnabled(env)?'external':'cloudflare';
+const aiModel=env=>externalAiEnabled(env)?env.EXTERNAL_AI_MODEL:env.AI_MODEL;
 
 const later=minutes=>new Date(Date.now()+minutes*60000).toISOString();
 const safeError=e=>/^\w{1,70}$/.test(e.message)?e.message:'operation_failed';
@@ -66,7 +69,7 @@ export async function readSource(env){
       notice.occupations=[...new Set((detail.positions??[]).map(p=>p.profession).filter(Boolean))];
       notice.requirementGroups=(detail.positions??[]).map(p=>({cities:p.places,occupations:p.profession?[p.profession]:[],education:[],ageStatus:'unknown',kpssStatus:'unknown'}));
       const hasText=!!notice.text||(notice.positions??[]).some(p=>p.text);
-      const contract=hasText?{provider:'cloudflare',model:env.AI_MODEL??'',extractionRevision:aiExtractionRevision}:null;
+      const contract=hasText?{provider:aiProvider(env),model:aiModel(env)??'',extractionRevision:aiExtractionRevision}:null;
       const key=contract?JSON.stringify([contract.provider,contract.model,contract.extractionRevision]):'source-only';
       await env.DB.batch([
         env.DB.prepare(`INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,deadline,payload) VALUES(?,?,?,?,?,?,?,?,?)
@@ -113,7 +116,7 @@ export function splitAiText(text){
   return chunks;
 }
 export async function processNotice(env){
-  if(!env.AI)return;
+  if(!env.AI&&!externalAiEnabled(env))return;
   const now=nowISO();const job=await env.DB.prepare("UPDATE processing_jobs SET state='leased',lease_until=?,attempts=attempts+1 WHERE id=(SELECT j.id FROM processing_jobs j WHERE (j.state IN ('pending','quota_wait') OR (j.state='leased' AND j.lease_until<?)) AND j.due_at<=? AND j.attempts<5 AND NOT EXISTS(SELECT 1 FROM processing_jobs other WHERE other.listing_id=j.listing_id AND other.state='leased' AND other.lease_until>=?) ORDER BY j.due_at,j.id LIMIT 1) RETURNING *").bind(later(4),now,now,now).first();
   if(!job)return;
   const current=await env.DB.prepare('SELECT content_hash,processed_hash,processed_contract,reprocess_contract,first_seen,active,deadline FROM listings WHERE id=?').bind(job.listing_id).first();
@@ -122,11 +125,11 @@ export async function processNotice(env){
   let chunks;try{chunks=splitAiText(text);}catch(e){await env.DB.prepare("UPDATE processing_jobs SET state='failed',error_code=?,lease_until=NULL WHERE id=?").bind(safeError(e),job.id).run();return;}
   let contract=storedContract;
   if(text.length){
-    const error=contract?(contract.provider!=='cloudflare'||contract.extractionRevision!==aiExtractionRevision||typeof contract.model!=='string'||!contract.model?'ai_revision_mismatch':null):aiProgress?.index>0?'ai_revision_unknown':null;
+    const error=contract?(contract.provider!==aiProvider(env)||contract.extractionRevision!==aiExtractionRevision||typeof contract.model!=='string'||!contract.model?'ai_revision_mismatch':null):aiProgress?.index>0?'ai_revision_unknown':null;
     if(error){await env.DB.prepare("UPDATE processing_jobs SET state='failed',lease_until=NULL,error_code=? WHERE id=?").bind(error,job.id).run();return;}
     if(!contract){
-      if(typeof env.AI_MODEL!=='string'||!env.AI_MODEL){await env.DB.prepare("UPDATE processing_jobs SET state='failed',lease_until=NULL,error_code='ai_model_not_configured' WHERE id=?").bind(job.id).run();return;}
-      contract={provider:'cloudflare',model:env.AI_MODEL,extractionRevision:aiExtractionRevision};
+      if(typeof aiModel(env)!=='string'||!aiModel(env)){await env.DB.prepare("UPDATE processing_jobs SET state='failed',lease_until=NULL,error_code='ai_model_not_configured' WHERE id=?").bind(job.id).run();return;}
+      contract={provider:aiProvider(env),model:aiModel(env),extractionRevision:aiExtractionRevision};
       await env.DB.prepare("UPDATE processing_jobs SET input=json_set(input,'$.aiContract',json(?)) WHERE id=?").bind(JSON.stringify(contract),job.id).run();
     }
     if(job.contract_key!=='legacy'&&job.contract_key!==JSON.stringify([contract.provider,contract.model,contract.extractionRevision])){
@@ -165,7 +168,8 @@ export async function processNotice(env){
       }
       if(new TextEncoder().encode(JSON.stringify(request)).length>24000)throw new Error('ai_input_oversize');
       let timer;
-      const response=await Promise.race([env.AI.run(contract.model,request,{rejectIfBusy:true}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('ai_timeout')),45000);})]).finally(()=>clearTimeout(timer));
+      const external=externalAiEnabled(env);
+      const response=await Promise.race([external?externalAiRun(env,request):env.AI.run(contract.model,request,{rejectIfBusy:true}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('ai_timeout')),45000);})]).finally(()=>clearTimeout(timer));
       let raw;try{raw=JSON.parse(typeof response.response==='string'?response.response:JSON.stringify(response.response));}catch{throw new Error('ai_schema');}
       summary=validateAiSummary(raw,consolidate?text:inputText,notice);candidates=raw.conditions??null;
       if(consolidate)summary=summary.filter(s=>quotes.slice(offset,offset+count).some(q=>q.quote.includes(s.quote))).slice(0,summaryLimit);
