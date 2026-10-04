@@ -60,10 +60,29 @@ ThemeData premiumTheme(ThemeData base) {
       filled: true,
       fillColor: colors.surfaceContainerLow,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
+        borderSide: BorderSide.none,
+      ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: colors.outline),
+        borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
+        borderSide: BorderSide(color: colors.outlineVariant),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
+        borderSide: BorderSide(color: colors.primary, width: 1.6),
+      ),
+    ),
+    chipTheme: base.chipTheme.copyWith(
+      shape: const StadiumBorder(),
+      side: BorderSide(color: colors.outlineVariant),
+      backgroundColor: colors.surfaceContainerLow,
+      selectedColor: colors.primary.withValues(alpha: dark ? 0.30 : 0.14),
+      checkmarkColor: colors.primary,
+      labelStyle: TextStyle(
+        color: colors.onSurface,
+        fontSize: 13.5,
+        fontWeight: FontWeight.w600,
       ),
     ),
     navigationBarTheme: base.navigationBarTheme.copyWith(
@@ -245,16 +264,23 @@ PageRouteBuilder<T> sharedAxisRoute<T>(Widget page) => PageRouteBuilder<T>(
   },
 );
 
-/// Son başvuruya kalan günü kısa etiketle döndürür; null = tarih yok.
-String? countdownLabel(DateTime? deadline, DateTime now) {
+/// Son başvuruya kalan takvim günü; null = tarih yok, negatif = süre doldu.
+int? deadlineDays(DateTime? deadline, DateTime now) {
   if (deadline == null) return null;
-  if (!deadline.isAfter(now)) return 'Süre doldu';
   final end = deadline.toLocal(), today = now.toLocal();
   final days = DateTime.utc(
     end.year,
     end.month,
     end.day,
   ).difference(DateTime.utc(today.year, today.month, today.day)).inDays;
+  return deadline.isAfter(now) ? days : -1;
+}
+
+/// Son başvuruya kalan günü kısa etiketle döndürür; null = tarih yok.
+String? countdownLabel(DateTime? deadline, DateTime now) {
+  final days = deadlineDays(deadline, now);
+  if (days == null) return null;
+  if (days < 0) return 'Süre doldu';
   if (days == 0) return 'Bugün son gün';
   if (days == 1) return 'Son 1 gün';
   return 'Son $days gün';

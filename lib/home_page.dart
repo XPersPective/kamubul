@@ -39,8 +39,10 @@ import 'listings/extract_conditions.dart';
 import 'listings/kariyer_feed.dart';
 import 'listings/listing_guide.dart';
 import 'listings/official_listing_page.dart';
+import 'ads_state.dart';
 import 'rate_prompt_state.dart';
 import 'ui/premium.dart';
+import 'ui/premium_widgets.dart';
 import 'ui/turkish.dart';
 
 class KamuHomePage extends StatefulWidget {
@@ -1615,53 +1617,51 @@ class _KamuHomePageState extends State<KamuHomePage> {
     ],
   );
 
-  Widget _intro() => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _tab == 1 ? 'KİŞİSEL ARŞİVİNİZ' : 'RESMÎ KAYNAKLARDAN, TEK YERDE',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.primary,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          _tab == 1 ? 'Kaydettiğiniz ilanlar' : 'Güncel kamu ilanları',
-          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.9,
-            fontSize: 28,
-            height: 1.15,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _tab == 1
-              ? '${_visibleRecords.length} kayıt • çevrimdışı erişim'
-              : _remoteLastSuccess != null
-              ? 'Son eşitleme ${_date(_remoteLastSuccess)} ${_remoteLastSuccess!.hour.toString().padLeft(2, '0')}:${_remoteLastSuccess!.minute.toString().padLeft(2, '0')}${_remoteFailed || DateTime.now().difference(_remoteLastSuccess!) > remoteSnapshotMaxAge ? ' • Önbellek' : ''}'
-              : _lastRefresh == null
-              ? _records.isEmpty
-                    ? 'Katalog cihazdan yükleniyor.'
-                    : 'Kaydedilmiş katalog • kaynaklar kontrol ediliyor'
-              : 'Son kontrol ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')}',
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        if (_tab == 0 && _error != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            _error!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-        ],
-      ],
+  void _openPaywall() => Navigator.of(context).push(
+    sharedAxisRoute<void>(
+      PaywallPage(
+        identity: widget.identity,
+        controller: widget.pro,
+        repository: widget.purchase,
+        benefits: const ['Reklamsız ilan takibi'],
+      ),
     ),
   );
+
+  Widget _intro() {
+    final trialDays = widget.pro.isPro
+        ? 0
+        : trialDaysLeft(widget.policy, DateTime.now());
+    final sync = _tab == 1
+        ? '${_visibleRecords.length} kayıt • çevrimdışı erişim'
+        : _remoteLastSuccess != null
+        ? 'Son eşitleme ${_date(_remoteLastSuccess)} ${_remoteLastSuccess!.hour.toString().padLeft(2, '0')}:${_remoteLastSuccess!.minute.toString().padLeft(2, '0')}${_remoteFailed || DateTime.now().difference(_remoteLastSuccess!) > remoteSnapshotMaxAge ? ' • Önbellek' : ''}'
+        : _lastRefresh == null
+        ? _records.isEmpty
+              ? 'Katalog cihazdan yükleniyor.'
+              : 'Kaydedilmiş katalog • kaynaklar kontrol ediliyor'
+        : 'Son kontrol ${_lastRefresh!.hour.toString().padLeft(2, '0')}:${_lastRefresh!.minute.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+      child: HeroPanel(
+        eyebrow: _tab == 1
+            ? 'KİŞİSEL ARŞİVİNİZ'
+            : 'RESMÎ KAYNAKLARDAN, TEK YERDE',
+        title: _tab == 1 ? 'Kaydettiğiniz ilanlar' : 'Güncel kamu ilanları',
+        subtitle: sync,
+        error: _tab == 0 ? _error : null,
+        badge: trialDays > 0
+            ? HeroBadge(
+                icon: Icons.verified_outlined,
+                text: trialDays == 1
+                    ? 'Reklamsız deneme: son gün'
+                    : 'Reklamsız deneme: $trialDays gün kaldı',
+                onTap: _openPaywall,
+              )
+            : null,
+      ),
+    );
+  }
 
   Widget _filters() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -1904,71 +1904,111 @@ class _KamuHomePageState extends State<KamuHomePage> {
           search.matchListing(record, now: DateTime.now()) ==
               CriteriaMatch.match,
     );
+    final scheme = Theme.of(context).colorScheme;
+    final days = deadlineDays(record.deadline, DateTime.now());
+    final facts = <Widget>[
+      if (record.quota != null)
+        _factChip(Icons.groups_outlined, '${record.quota} kişi'),
+      if (record.places.isNotEmpty)
+        _factChip(Icons.place_outlined, record.places.join(', ')),
+    ];
     return Card(
-      margin: const EdgeInsets.fromLTRB(20, 5, 20, 11),
+      margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
       clipBehavior: Clip.antiAlias,
       elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      color: scheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(PremiumShape.cardRadius),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        side: BorderSide(color: scheme.outlineVariant),
       ),
       child: InkWell(
         onTap: () => _showListing(record),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 14, 6, 6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (unresolved)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'Şartları kontrol et • bazı kriterler doğrulanamadı.',
-                  ),
-                ),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  InstitutionAvatar(title: record.title),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      record.category.isEmpty ? 'Kamu ilanı' : record.category,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            (record.category.isEmpty
+                                    ? 'Kamu ilanı'
+                                    : record.category)
+                                .toUpperCase(),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: scheme.primary,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.9,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          record.title,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16.5,
+                                letterSpacing: -0.2,
+                                height: 1.3,
+                              ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(
                     tooltip: record.saved ? 'Kaydı kaldır' : 'Kaydet',
                     onPressed: () => _toggleSaved(record),
                     icon: Icon(
-                      record.saved ? Icons.bookmark : Icons.bookmark_outline,
+                      record.saved
+                          ? Icons.bookmark_rounded
+                          : Icons.bookmark_outline_rounded,
+                      color: record.saved ? scheme.primary : null,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                record.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 20,
-                  letterSpacing: -0.4,
-                  height: 1.3,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                '${_sourceLabel(record.sourceId)}  ·  ${_date(record.publishedAt)}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+              Padding(
+                padding: const EdgeInsets.only(right: 10, top: 10),
+                child: Text(
+                  '${_sourceLabel(record.sourceId)}  ·  ${_date(record.publishedAt)}',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ),
+              if (unresolved)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, right: 10),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.help_outline_rounded,
+                        size: 16,
+                        color: PremiumStatus.held(Theme.of(context).brightness),
+                      ),
+                      const SizedBox(width: 6),
+                      const Expanded(
+                        child: Text(
+                          'Şartları kontrol et • bazı kriterler doğrulanamadı.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (_tab == 1 &&
                   record.publishedAt != null &&
                   record.publishedAt!.isAfter(DateTime.now()))
@@ -1976,9 +2016,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Yayın tarihi bekleniyor',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    style: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(color: scheme.primary),
                   ),
                 ),
               if (profileMatch)
@@ -1986,38 +2025,29 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     '✓ Arama tercihlerinizle eşleşiyor',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    style: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(color: scheme.primary),
                   ),
                 ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _factChip(
-                    Icons.event_outlined,
-                    record.deadline == null
-                        ? 'Son tarih belirtilmemiş'
-                        : '${_date(record.deadline)} • ${countdownLabel(record.deadline, DateTime.now())}',
-                    urgent: expired,
-                  ),
-                  if (record.quota != null)
-                    _factChip(Icons.groups_outlined, '${record.quota} kişi'),
-                  if (record.places.isNotEmpty)
-                    _factChip(Icons.place_outlined, record.places.join(', ')),
-                ],
+              Padding(
+                padding: const EdgeInsets.only(top: 12, right: 10),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    DeadlinePill(
+                      text: record.deadline == null
+                          ? 'Son tarih belirtilmemiş'
+                          : '${_date(record.deadline)} • ${countdownLabel(record.deadline, DateTime.now())}',
+                      daysLeft: days,
+                      expired: expired,
+                    ),
+                    ...facts,
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              Divider(
-                height: 1,
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
-              const SizedBox(height: 4),
               Wrap(
-                spacing: 8,
-                runSpacing: 4,
+                alignment: WrapAlignment.spaceBetween,
                 children: [
                   TextButton.icon(
                     onPressed: () => _showListing(record),
@@ -2029,7 +2059,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       _assistantListing = record;
                       _tab = 2;
                     }),
-                    icon: const Icon(Icons.auto_awesome_outlined),
+                    icon: const Icon(Icons.auto_awesome_outlined, size: 18),
                     label: const Text('Rehbere sor'),
                   ),
                 ],
@@ -2043,20 +2073,28 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   Widget _factChip(IconData icon, String label, {bool urgent = false}) =>
       Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
           color: urgent
               ? Theme.of(context).colorScheme.errorContainer
               : Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16),
+            Icon(icon, size: 15),
             const SizedBox(width: 5),
             Flexible(
-              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
@@ -2162,147 +2200,221 @@ class _KamuHomePageState extends State<KamuHomePage> {
     );
   }
 
-  Widget _settingsView() => ListView(
-    children: [
-      if (_otherApps != null)
-        ListTile(
-          leading: const Icon(Icons.explore_outlined),
-          title: const Text('Diğer uygulamalarımız'),
-          subtitle: const Text('Uygulamalarımızı keşfedin.'),
-          onTap: _openOtherApps,
-        ),
-      const ListTile(
-        title: Text('Görünüm ve üyelik'),
-        subtitle: Text('Tercihler bu cihazda tutulur.'),
-      ),
-      ListTile(
-        leading: const Icon(Icons.brightness_6_outlined),
-        title: const Text('Tema'),
-        trailing: DropdownButton<ThemeMode>(
-          value: widget.theme.mode,
-          onChanged: (value) {
-            if (value != null) widget.theme.setMode(value);
-          },
-          items: const [
-            DropdownMenuItem(value: ThemeMode.system, child: Text('Sistem')),
-            DropdownMenuItem(value: ThemeMode.light, child: Text('Açık')),
-            DropdownMenuItem(value: ThemeMode.dark, child: Text('Koyu')),
-          ],
-        ),
-      ),
-      ListTile(
-        leading: const Icon(Icons.workspace_premium_outlined),
-        title: const Text('Ömür boyu Pro'),
-        subtitle: Text(widget.pro.isPro ? 'Etkin' : 'Reklamsız kullanım'),
-        onTap: () => Navigator.of(context).push(
-          sharedAxisRoute<void>(
-            PaywallPage(
-              identity: widget.identity,
-              controller: widget.pro,
-              repository: widget.purchase,
-              benefits: const ['Reklamsız ilan takibi'],
+  Widget _proCard() {
+    final scheme = Theme.of(context).colorScheme;
+    final trialDays = trialDaysLeft(widget.policy, DateTime.now());
+    final isPro = widget.pro.isPro;
+    final text = isPro
+        ? 'Pro etkin. Teşekkürler; reklamlar kapalı.'
+        : trialDays > 0
+        ? '${trialDays == 1 ? 'Reklamsız deneme son gün. ' : 'Reklamsız deneme: $trialDays gün kaldı. '}'
+              'Sonrasında küçük banner ve seyrek tam ekran reklamlar gelir; '
+              'tek seferlik Pro hepsini kalıcı kaldırır.'
+        : 'Tek seferlik ödeme, abonelik yok. Reklamları kalıcı kaldırır.';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Material(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(PremiumShape.barRadius),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(PremiumShape.barRadius),
+          onTap: _openPaywall,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.workspace_premium_rounded,
+                  size: 34,
+                  color: scheme.onPrimaryContainer,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ömür boyu Pro',
+                        style: TextStyle(
+                          color: scheme.onPrimaryContainer,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        text,
+                        style: TextStyle(
+                          color: scheme.onPrimaryContainer.withValues(
+                            alpha: 0.9,
+                          ),
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ],
             ),
           ),
         ),
       ),
-      ListTile(
-        leading: const Icon(Icons.notifications_outlined),
-        title: const Text('Bildirimler'),
-        subtitle: const Text(
-          'Kayıtlı aramalarınıza uyan ilanlar ve son başvuru hatırlatıcıları. '
-          'Sessiz saatler: 22:00-08:00.',
-        ),
-        onTap: () async {
-          final granted = await requestAlertPermission(context);
-          if (!mounted) return;
-          final checked = granted ? await runAlertCheckNow() : 0;
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                granted
-                    ? (checked == 0
-                          ? 'Bildirimler açık. Yeni ilan geldiğinde haber verilir.'
-                          : 'Bildirimler açık. $checked uyarı gönderildi.')
-                    : 'Bildirim izni verilmedi; uygulama yine de çalışır.',
+    );
+  }
+
+  Widget _settingsView() => ListView(
+    padding: const EdgeInsets.only(bottom: 24),
+    children: [
+      _proCard(),
+      SettingsGroup(
+        title: 'Görünüm ve üyelik',
+        children: [
+          ListTile(
+            leading: const Icon(Icons.brightness_6_outlined),
+            title: const Text('Tema'),
+            trailing: DropdownButton<ThemeMode>(
+              value: widget.theme.mode,
+              onChanged: (value) {
+                if (value != null) widget.theme.setMode(value);
+              },
+              items: const [
+                DropdownMenuItem(
+                  value: ThemeMode.system,
+                  child: Text('Sistem'),
+                ),
+                DropdownMenuItem(value: ThemeMode.light, child: Text('Açık')),
+                DropdownMenuItem(value: ThemeMode.dark, child: Text('Koyu')),
+              ],
+            ),
+          ),
+        ],
+      ),
+      SettingsGroup(
+        title: 'Bildirimler',
+        children: [
+          ListTile(
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Bildirimler'),
+            subtitle: const Text(
+              'Kayıtlı aramalarınıza uyan ilanlar ve son başvuru hatırlatıcıları. '
+              'Sessiz saatler: 22:00-08:00.',
+            ),
+            onTap: () async {
+              final granted = await requestAlertPermission(context);
+              if (!mounted) return;
+              final checked = granted ? await runAlertCheckNow() : 0;
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    granted
+                        ? (checked == 0
+                              ? 'Bildirimler açık. Yeni ilan geldiğinde haber verilir.'
+                              : 'Bildirimler açık. $checked uyarı gönderildi.')
+                        : 'Bildirim izni verilmedi; uygulama yine de çalışır.',
+                  ),
+                ),
+              );
+            },
+          ),
+          if (pushRegistrar != null)
+            SwitchListTile(
+              secondary: const Icon(Icons.cloud_outlined),
+              title: const Text('Sunucudan anlık bildirim'),
+              subtitle: const Text(
+                'Yeni ilan bildirimleri için kurulum kimliğiniz, bildirim jetonunuz '
+                've bildirimi açık aramalarınızın adları, kriterleri ve tercihleri '
+                'Cloudflare sunucusuna gönderilir. Kapatınca silme istenir; '
+                'çevrimdışıysanız bağlantı gelince yeniden denenir.',
+              ),
+              value: pushRegistrar!.enabled,
+              onChanged: _setServerPush,
+            ),
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text('Bildirim geçmişi'),
+            subtitle: const Text(
+              'Gönderilen, bekleyen ve gönderilmeyen tüm uyarılar. '
+              'Yerel kayıtlar ve sunucu bildirim geçmişiniz.',
+            ),
+            onTap: () => Navigator.of(context)
+                .push(sharedAxisRoute<void>(const NotificationCenterPage())),
+          ),
+        ],
+      ),
+      SettingsGroup(
+        title: 'Kaynaklar',
+        children: [
+          if (_otherApps != null)
+            ListTile(
+              leading: const Icon(Icons.explore_outlined),
+              title: const Text('Diğer uygulamalarımız'),
+              subtitle: const Text('Uygulamalarımızı keşfedin.'),
+              onTap: _openOtherApps,
+            ),
+          ListTile(
+            leading: const Icon(Icons.source_outlined),
+            title: const Text('Resmî kaynaklar'),
+            onTap: () => Navigator.of(context).push(
+              sharedAxisRoute<void>(
+                _SourcesPage(
+                  open: _open,
+                  checkedAt: _remoteLastSuccess ?? _lastRefresh,
+                  failedSources: _failedSources,
+                  sourceStatuses: _sourceStatuses,
+                ),
               ),
             ),
-          );
-        },
-      ),
-      if (pushRegistrar != null)
-        SwitchListTile(
-          secondary: const Icon(Icons.cloud_outlined),
-          title: const Text('Sunucudan anlık bildirim'),
-          subtitle: const Text(
-            'Yeni ilan bildirimleri için kurulum kimliğiniz, bildirim jetonunuz '
-            've bildirimi açık aramalarınızın adları, kriterleri ve tercihleri '
-            'Cloudflare sunucusuna gönderilir. Kapatınca silme istenir; '
-            'çevrimdışıysanız bağlantı gelince yeniden denenir.',
           ),
-          value: pushRegistrar!.enabled,
-          onChanged: _setServerPush,
-        ),
-      ListTile(
-        leading: const Icon(Icons.history),
-        title: const Text('Bildirim geçmişi'),
-        subtitle: const Text(
-          'Gönderilen, bekleyen ve gönderilmeyen tüm uyarılar. '
-          'Yerel kayıtlar ve sunucu bildirim geçmişiniz.',
-        ),
-        onTap: () =>
-            Navigator.of(context)
-                .push(sharedAxisRoute<void>(const NotificationCenterPage())),
+        ],
       ),
-      ListTile(
-        leading: const Icon(Icons.source_outlined),
-        title: const Text('Resmî kaynaklar'),
-        onTap: () => Navigator.of(context).push(
-          sharedAxisRoute<void>(
-            _SourcesPage(
-              open: _open,
-              checkedAt: _remoteLastSuccess ?? _lastRefresh,
-              failedSources: _failedSources,
-              sourceStatuses: _sourceStatuses,
+      SettingsGroup(
+        title: 'Veriler ve geri bildirim',
+        children: [
+          ListTile(
+            leading: const Icon(Icons.ios_share),
+            title: const Text('Uygulamayı paylaş'),
+            onTap: _shareApp,
+          ),
+          ListTile(
+            leading: const Icon(Icons.star_rate_outlined),
+            title: const Text('Puan ver'),
+            onTap: _openRatePage,
+          ),
+          ListTile(
+            leading: const Icon(Icons.file_upload_outlined),
+            title: const Text('Verileri dışa aktar'),
+            subtitle: const Text(
+              'Kayıtlı aramalar ve yer imleri JSON yedeği olur.',
             ),
+            onTap: _exportData,
           ),
-        ),
+          ListTile(
+            leading: const Icon(Icons.file_download_outlined),
+            title: const Text('Verileri içe aktar'),
+            subtitle: const Text(
+              'Yedek yapıştırılır; mevcut kayıtlar korunur.',
+            ),
+            onTap: _importData,
+          ),
+        ],
       ),
-      const ListTile(
-        title: Text('Veriler ve geri bildirim'),
-        subtitle: Text(
-          'Yedek dosyası yalnızca sizin paylaştığınız yere gider.',
-        ),
-      ),
-      ListTile(
-        leading: const Icon(Icons.ios_share),
-        title: const Text('Uygulamayı paylaş'),
-        onTap: _shareApp,
-      ),
-      ListTile(
-        leading: const Icon(Icons.star_rate_outlined),
-        title: const Text('Puan ver'),
-        onTap: _openRatePage,
-      ),
-      ListTile(
-        leading: const Icon(Icons.file_upload_outlined),
-        title: const Text('Verileri dışa aktar'),
-        subtitle: const Text(
-          'Kayıtlı aramalar ve yer imleri JSON yedeği olur.',
-        ),
-        onTap: _exportData,
-      ),
-      ListTile(
-        leading: const Icon(Icons.file_download_outlined),
-        title: const Text('Verileri içe aktar'),
-        subtitle: const Text('Yedek yapıştırılır; mevcut kayıtlar korunur.'),
-        onTap: _importData,
-      ),
-      ListTile(
-        leading: const Icon(Icons.info_outline),
-        title: const Text('Hakkında ve lisanslar'),
-        onTap: () => Navigator.of(context)
-            .push(sharedAxisRoute<void>(AboutPage(identity: widget.identity))),
+      SettingsGroup(
+        title: 'Hakkında',
+        children: [
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Hakkında ve lisanslar'),
+            onTap: () => Navigator.of(
+              context,
+            ).push(sharedAxisRoute<void>(AboutPage(identity: widget.identity))),
+          ),
+        ],
       ),
     ],
   );

@@ -283,4 +283,21 @@ void main() {
     }
     expect(tester.takeException(), isNull);
   });
+
+  for (final dark in [false, true]) {
+    final mode = dark ? 'dark' : 'light';
+    testWidgets('ana ekran ve ayarlar premium golden ($mode)', (tester) async {
+      await pumpHome(tester, dark: dark);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/home_phone_$mode.png'),
+      );
+      await tester.tap(find.text('Ayarlar'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/settings_phone_$mode.png'),
+      );
+    });
+  }
 }

@@ -47,4 +47,13 @@ void main() {
     expect(policy.canShowInterstitial(DateTime(2026, 9, 28)), isFalse);
     expect(policy.canShowRewarded(DateTime(2026, 9, 28)), isFalse);
   });
+
+  test('7 günlük reklamsız deneme kurulum gününden sayılır', () {
+    final policy = AdPolicy();
+    expect(trialDaysLeft(policy, DateTime(2026, 10, 4)), 0);
+    policy.startSession(DateTime(2026, 10, 4));
+    expect(trialDaysLeft(policy, DateTime(2026, 10, 4)), 7);
+    expect(trialDaysLeft(policy, DateTime(2026, 10, 10, 12)), 1);
+    expect(trialDaysLeft(policy, DateTime(2026, 10, 11)), 0);
+  });
 }

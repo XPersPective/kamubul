@@ -33,3 +33,17 @@ void saveAds(AdPolicy policy, SettingsStore store) {
   date('fullscreen', state.lastFullscreenAt);
   date('rewarded', state.lastRewardedDay);
 }
+
+/// Kurulumdan sonraki reklamsız deneme süresi; bitince reklam SDK'sı başlar.
+const adFreeTrialDays = 7;
+
+/// Deneme bitişi; ilk açılış henüz kaydedilmediyse null.
+DateTime? trialEndsAt(AdPolicy policy) =>
+    policy.snapshot().firstLaunchAt?.add(const Duration(days: adFreeTrialDays));
+
+/// Kalan deneme günü (başlamış ve bitmemişse ≥1, aksi halde 0).
+int trialDaysLeft(AdPolicy policy, DateTime now) {
+  final end = trialEndsAt(policy);
+  if (end == null || !end.isAfter(now)) return 0;
+  return (end.difference(now).inHours / 24).ceil();
+}

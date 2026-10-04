@@ -17,8 +17,7 @@ import 'ui/premium.dart';
 const contactEmail = String.fromEnvironment('CONTACT_EMAIL');
 const privacyUrl = String.fromEnvironment(
   'PRIVACY_URL',
-  defaultValue:
-      'https://kamubul-api.devx8585.workers.dev/privacy/',
+  defaultValue: 'https://kamubul-api.devx8585.workers.dev/privacy/',
 );
 const sourceUrl = 'https://github.com/XPersPective/kamubul';
 const otherAppsUrl = String.fromEnvironment(
@@ -62,7 +61,8 @@ Future<void> main() async {
   final rewarded = RewardedAdManager(policy: policy);
   final interstitial = InterstitialAdManager(policy: policy);
   final appOpen = AppOpenAdManager(policy: policy);
-  if (!pro.isPro) {
+  // Deneme süresinde reklam SDK'sı, onay formu ve istekler hiç başlamaz.
+  if (!pro.isPro && trialDaysLeft(policy, DateTime.now()) == 0) {
     unawaited(() async {
       final ready = await ConsentManager.initialize();
       if (!ready) return;

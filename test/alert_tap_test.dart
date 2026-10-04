@@ -328,6 +328,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Ayarlar'));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Diğer uygulamalarımız'),
+        300,
+      );
+      await tester.ensureVisible(find.text('Diğer uygulamalarımız'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Diğer uygulamalarımız'));
       await settleUntil(tester, find.text('com.crazypenguin.doctorfilter'));
       await tester.pumpAndSettle();

@@ -1,3 +1,5 @@
+import '../ui/premium_widgets.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -191,14 +193,28 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
           padding: const EdgeInsets.all(16),
           sliver: SliverList.list(
             children: [
-              Text(
-                detail.institution.isEmpty
-                    ? 'Kurum belirtilmemiş'
-                    : detail.institution,
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(color: Theme.of(context).colorScheme.primary),
+              Row(
+                children: [
+                  InstitutionAvatar(
+                    title: detail.institution.isEmpty
+                        ? widget.listing.title
+                        : detail.institution,
+                    size: 48,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      detail.institution.isEmpty
+                          ? 'Kurum belirtilmemiş'
+                          : detail.institution,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 14),
               Text(title, style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 12),
               _card(

@@ -1,3 +1,5 @@
+import '../ui/premium_widgets.dart';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kamubul_core/kamubul_core.dart' show cityLabel, educationLabel;
@@ -182,13 +184,21 @@ class OfficialListingPage extends StatelessWidget {
               : 20,
         ),
         children: [
-          Text(
-            source,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.primary,
-            ),
+          Row(
+            children: [
+              InstitutionAvatar(title: listing.title, size: 48),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  source,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 14),
           Text(listing.title, style: theme.textTheme.headlineSmall),
           if (cacheNotice != null) ...[
             const SizedBox(height: 12),
