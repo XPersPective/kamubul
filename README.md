@@ -1,6 +1,8 @@
 # KamuBul
 
-Türkiye'deki resmî kamu iş ilanları için premium, Türkçe Flutter Android/iOS uygulaması. **Geliştirme/geçiş aşamasında; mağazaya hazır değildir.** Hesap açmadan kişisel profil, kriterlerle isimlendirilmiş kayıtlı aramalar, favori ve uygun yeni ilan bildirimi hedeflenir.
+Türkiye'deki resmî kamu iş ilanlarını takip eden, **açık kaynaklı (GPL-3.0)**, hesapsız ve yalnız Türkçe Flutter Android uygulaması. Google Play yayını hazırlanıyor; kaynak kodu bu depodadır. Kayıtlı aramalar, yaş/KPSS gibi kriterler ve yer imleri cihazda tutulur; yeni ilan bildirimi ve kriter asistanı isteğe bağlıdır.
+
+Gelir modeli: ilk 7 gün hiç reklam yok; sonrasında küçük banner ve seyrek tam ekran reklamlar. Tek seferlik "Ömür boyu Pro" (abonelik yok) reklamları kalıcı kaldırır.
 
 ## Mimari ve mevcut durum
 
