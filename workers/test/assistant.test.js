@@ -53,3 +53,11 @@ test('request is bounded and unavailable without a model', async () => {
   assert.equal((await handleAssistant({ installationId: id, message: 'Ankara' }, { DB: fakeDb() }, { sha256, ip: 'x' })).status, 503);
   assert.equal((await handleAssistant({ installationId: 'bad', message: 'Ankara' }, env(), { sha256, ip: 'x' })).status, 400);
 });
+
+test('string array fields and numeric strings from the model are normalized', () => {
+  const out = parseModelOutput(JSON.stringify({ intent: 'criteria', reply: '', criteria: { cities: ['Ankara'], education: 'Lisans', age: '28', kpssType: 'P3', kpssScore: 75, keyword: 'bilişim' } }), '2026-10-04');
+  assert.equal(out.intent, 'criteria');
+  assert.deepEqual(out.criteria.education, ['Lisans']);
+  assert.equal(out.criteria.age, 28);
+  assert.equal(out.criteria.ageAsOf, '2026-10-04');
+});
