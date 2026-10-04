@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show FramePhase;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -43,14 +45,34 @@ class TapLatency {
     required this.tapToBuildMs,
     required this.rasterMs,
     required this.reportLagMs,
+    required this.visibleResponseMs,
   });
 
   final double tapToBuildMs;
   final double rasterMs;
   final double reportLagMs;
 
-  /// Kullanıcının gördüğü yanıt: ilk karenin kurulumu + ekrana çizilmesi.
-  double get visibleResponseMs => tapToBuildMs + rasterMs;
+  /// Dokunuş gönderiminden raster bitişine; raster kuyruğu da dahildir.
+  /// Fiziksel ekranın sunum gecikmesi bu motor ölçümünün kapsamı dışındadır.
+  final double visibleResponseMs;
+
+  factory TapLatency.fromFrame({
+    required int tapWallTime,
+    required FrameTiming timing,
+    required double tapToBuildMs,
+    required double reportElapsedMs,
+  }) {
+    final responseMs =
+        (timing.timestampInMicroseconds(FramePhase.rasterFinishWallTime) -
+            tapWallTime) /
+        1000.0;
+    return TapLatency(
+      tapToBuildMs: tapToBuildMs,
+      rasterMs: timing.rasterDuration.inMicroseconds / 1000.0,
+      visibleResponseMs: responseMs,
+      reportLagMs: reportElapsedMs - responseMs,
+    );
+  }
 
   @override
   String toString() =>
@@ -66,25 +88,37 @@ class TapLatency {
 Future<TapLatency> tapToFirstFrameMs(WidgetTester tester, Finder finder) async {
   // Önceki karelerin raporu ölçüme karışmasın: önce sakinleş.
   await Future<void>.delayed(const Duration(milliseconds: 150));
-  final timings = <FrameTiming>[];
-  void onTimings(List<FrameTiming> batch) => timings.addAll(batch);
+  final response = Completer<FrameTiming>();
+  final tapWallTime = DateTime.now().microsecondsSinceEpoch;
+  void onTimings(List<FrameTiming> batch) {
+    for (final timing in batch) {
+      final buildStartWallTime =
+          timing.timestampInMicroseconds(FramePhase.rasterFinishWallTime) -
+          (timing.timestampInMicroseconds(FramePhase.rasterFinish) -
+              timing.timestampInMicroseconds(FramePhase.buildStart));
+      if (!response.isCompleted && buildStartWallTime >= tapWallTime) {
+        response.complete(timing);
+      }
+    }
+  }
 
   WidgetsBinding.instance.addTimingsCallback(onTimings);
   final stopwatch = Stopwatch()..start();
-  await tester.tap(finder);
-  await tester.pump();
-  final tapToBuildMs = stopwatch.elapsedMicroseconds / 1000.0;
-  while (timings.isEmpty) {
-    await Future<void>.delayed(const Duration(milliseconds: 1));
+  try {
+    await tester.tap(finder);
+    await tester.pump();
+    final tapToBuildMs = stopwatch.elapsedMicroseconds / 1000.0;
+    final timing = await response.future.timeout(const Duration(seconds: 10));
+    return TapLatency.fromFrame(
+      tapWallTime: tapWallTime,
+      timing: timing,
+      tapToBuildMs: tapToBuildMs,
+      reportElapsedMs: stopwatch.elapsedMicroseconds / 1000.0,
+    );
+  } finally {
+    stopwatch.stop();
+    WidgetsBinding.instance.removeTimingsCallback(onTimings);
   }
-  stopwatch.stop();
-  WidgetsBinding.instance.removeTimingsCallback(onTimings);
-  final timing = timings.first;
-  return TapLatency(
-    tapToBuildMs: tapToBuildMs,
-    rasterMs: timing.rasterDuration.inMicroseconds / 1000.0,
-    reportLagMs: stopwatch.elapsedMicroseconds / 1000.0 - tapToBuildMs,
-  );
 }
 
 /// Örneklerin medyanı; tek ani sıçramanın sonucu bozmaması için.
