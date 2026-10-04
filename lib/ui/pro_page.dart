@@ -53,21 +53,21 @@ class _ProPageState extends State<ProPage> {
             const SizedBox(height: 18),
             _benefit(
               Icons.block_rounded,
-              'Reklamsız ilan takibi',
-              'Abonelik süresince banner ve tam ekran reklamlar kapanır.',
+              'Reklamsız deneyim',
+              'İlanları kesintisiz, reklamsız takip edin.',
             ),
             _benefit(
               Icons.auto_awesome_outlined,
-              'Asistan’a daha çok soru',
-              'KamuBul Asistan yapay zekâ kullanır ve her sorunun bir maliyeti '
-                  'vardır. Pro ile günde 100 soru (ücretsiz: 30).',
+              'Daha fazla günlük soru hakkı',
+              'KamuBul Asistan’a günde 100 soru sorun (ücretsiz sürümde 30). '
+                  'İlanları ve başvuru şartlarını dilediğiniz kadar değerlendirin.',
             ),
             _benefit(
               Icons.payments_outlined,
-              'Aylık, cüzi ücret',
-              'Her ay otomatik yenilenir; Google Play > Abonelikler’den '
-                  'istediğiniz an iptal edersiniz, dönem sonuna kadar Pro sürer. '
-                  'Yeni telefonda geri yüklenir.',
+              'Esnek aylık üyelik',
+              'Her ay otomatik yenilenir; dilediğiniz zaman Google Play > '
+                  'Abonelikler’den iptal edebilirsiniz, dönem sonuna kadar Pro '
+                  'açık kalır. Yeni telefonda geri yüklenir.',
             ),
             _benefit(
               Icons.lock_outline_rounded,
@@ -267,7 +267,7 @@ class _ProPageState extends State<ProPage> {
               const Padding(
                 padding: EdgeInsets.only(bottom: 4),
                 child: Text(
-                  'Otomatik yenilenir · İstediğiniz an iptal',
+                  'Otomatik yenilenir · Dilediğiniz zaman iptal',
                   textAlign: TextAlign.center,
                 ),
               ),

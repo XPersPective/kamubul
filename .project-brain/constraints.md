@@ -56,3 +56,7 @@ Yalnız kamu ilanları. İŞKUR'dan YALNIZ kamu işyeri ilanı okunur (özel sek
 kapsam dışı); "Kamu" filtresi yoksa İŞKUR hiç okunmaz. Kaynak okuma basit ve
 deterministiktir (filtreli liste isteği + kural tabanlı ayrıştırma); yapay zekâ
 kaynak sayfalarında gezinmez/arama yapmaz.
+
+## C-051 Ücretli özellik metni — 4 Ekim 2026 kullanıcı kararı
+Pro/abonelik metinleri olumlu ve teşvik edicidir; maliyet gerekçesi, "cüzi",
+suçlayıcı/rencide edici ifade kullanıcıya gösterilmez (uygulama, mağaza, sürüm notu).

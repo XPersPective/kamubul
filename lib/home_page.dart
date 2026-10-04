@@ -2527,8 +2527,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
         ? '${trialDays == 1 ? 'Reklamsız deneme son gün. ' : 'Reklamsız deneme: $trialDays gün kaldı. '}'
               'Sonrasında küçük banner ve seyrek tam ekran reklamlar gelir; '
               'aylık Pro bunları kaldırır.'
-        : 'Aylık cüzi ücret: reklamsız kullanım ve Asistan’a daha çok soru. '
-              'İstediğiniz an iptal.';
+        : 'Reklamsız deneyim ve Asistan’da günde 100 soru hakkı. '
+              'Dilediğiniz zaman iptal edebilirsiniz.';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Material(
@@ -2552,7 +2552,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'KamuBul Pro (aylık)',
+                        'KamuBul Pro',
                         style: TextStyle(
                           color: scheme.onPrimaryContainer,
                           fontSize: 17,
