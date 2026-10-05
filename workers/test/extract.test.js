@@ -179,3 +179,14 @@ test('uzun ilanda modele yalnız şart kesiti gider; alıntılar kesitte doğrul
   const short = 'Kısa metin. '.repeat(30);
   assert.equal(focusText(short), short);
 });
+
+test('zaman aşımında Qwen; saatlik pay dolunca o saat için durur', async () => {
+  const db = fakeDb(); let qwen = 0;
+  const config = { ...env(db), EXTRACT_AI_PROVIDER: 'cloudflare', EXTRACT_QWEN_DAILY: '20', EXTRACT_QWEN_HOURLY: '1', EXTRACT_DAILY_INSTALL: '10', AI_MODEL: '@cf/test', AI: { run: async () => { throw new Error('extract_timeout'); } } };
+  const fetch = async () => { qwen++; return modelReply([{ education: ['Lisans'], educationQuote: 'Lisans mezunu olmak' }])(); };
+  const first = await handleExtract({ installationId: id, text: TEXT }, config, { sha256, fetch });
+  assert.equal(first.status, 200); assert.equal(qwen, 1);
+  assert.deepEqual(first.body.groups[0].education, ['Lisans']);
+  const second = await handleExtract({ installationId: id, text: TEXT + ' farklı' }, config, { sha256, fetch });
+  assert.equal(second.status, 429); assert.equal(second.body.error, 'fallback_budget'); assert.equal(qwen, 1);
+});

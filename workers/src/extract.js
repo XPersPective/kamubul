@@ -133,6 +133,16 @@ export function validateGroups(raw, text) {
   return out;
 }
 
+// Qwen payı: günlük tavan + saatlik pay (tavan ilk saatte tükenmesin). İkisi de
+// çağrıdan önce sayılır; aşılırsa false.
+async function qwenAllowed(env, now) {
+  const day = now.toISOString().slice(0, 10), hour = now.toISOString().slice(11, 13);
+  const daily = Number(env.EXTRACT_QWEN_DAILY), hourly = Number(env.EXTRACT_QWEN_HOURLY) || 2;
+  if (!Number.isInteger(daily) || daily <= 0) return false;
+  if (await bump(env.DB, day, 'x:qwen:h' + hour) > hourly) return false;
+  return await bump(env.DB, day, 'x:qwen') <= daily;
+}
+
 async function bump(db, day, bucket) {
   const row = await db.prepare('INSERT INTO assistant_usage (day,bucket,count) VALUES (?,?,1) ON CONFLICT(day,bucket) DO UPDATE SET count=count+1 RETURNING count').bind(day, bucket).first();
   return row.count;
@@ -174,7 +184,7 @@ export async function handleExtract(body, env, deps) {
       const fallbackCap = Number(env.EXTRACT_QWEN_DAILY);
       let useExternal = external;
       if (attempt && externalAiEnabled(env) && Number.isInteger(fallbackCap) && fallbackCap > 0) {
-        useExternal = await bump(env.DB, day, 'x:qwen') <= fallbackCap;
+        useExternal = await qwenAllowed(env, deps.now ?? new Date());
       }
       let timer;
       let out;
@@ -186,8 +196,9 @@ export async function handleExtract(body, env, deps) {
       ]).finally(() => clearTimeout(timer));
       } catch (error) {
         if (calls >= 2 || useExternal || !externalAiEnabled(env) || !Number.isInteger(fallbackCap) || fallbackCap <= 0 ||
-            !/3036|quota|neuron|daily.*limit/i.test(String(error?.message))) throw error;
-        if (await bump(env.DB, day, 'x:qwen') > fallbackCap) return { status: 429, body: { error: 'fallback_budget' } };
+            !/3036|quota|neuron|daily.*limit|extract_timeout/i.test(String(error?.message))) throw error;
+        // Kullanıcı kararı (5 Ekim): kota ve zaman aşımında da Qwen (saatlik pay + günlük tavan).
+        if (!(await qwenAllowed(env, deps.now ?? new Date()))) return { status: 429, body: { error: 'fallback_budget' } };
         if (await bump(env.DB, day, 'x:global') > lim.global) return { status: 429, body: { error: 'daily_budget' } };
         await env.DB.prepare('UPDATE extraction_runs SET attempts=attempts+1 WHERE hash=? AND attempts<2').bind(hash).run();
         calls++;

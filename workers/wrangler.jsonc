@@ -20,6 +20,7 @@
     "EXTRACT_AI_PROVIDER": "cloudflare",
     "EXTRACT_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fp8",
     "EXTRACT_QWEN_DAILY": "20",
+    "EXTRACT_QWEN_HOURLY": "2",
     "AI_PROVIDER": "external",
     "EXTERNAL_AI_URL": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
     "EXTERNAL_AI_MODEL": "qwen3.6-flash",
