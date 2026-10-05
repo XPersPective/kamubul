@@ -968,10 +968,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       if (ok != true) return;
                       final id = search.id;
                       if (id != null) await _store.deleteSavedSearch(id);
-                      if (_activeSearchId == search.id) {
-                        _activeSearchId = null;
-                        _includeUnknown = false;
-                      }
+                      // Silinen arama seçiliyse kriterleri de ekranda kalmasın.
+                      if (_activeSearchId == search.id) _clearFilters();
                       if (sheetContext.mounted) {
                         Navigator.pop(sheetContext, true);
                       }
@@ -1933,29 +1931,18 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   onPressed: _chooseCity,
                 ),
               ),
-            if (_quickCriteria != null ||
-                _activeSearch != null ||
-                _place != null ||
-                _ageFilter != null ||
-                _educationFilter != null ||
-                _kpssFilter != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  label: const Text('Şartları kontrol et'),
-                  selected: _includeUnknown,
-                  onSelected: (value) =>
-                      setState(() => _includeUnknown = value),
-                ),
-              ),
             for (final (index, label) in _kategoriAdlari.indexed)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: Text(label),
-                  selected: _category == index,
+                  // "Tümü" yalnız hiçbir kriter/kayıtlı arama yokken seçili görünür.
+                  selected: index == 0
+                      ? _category == 0 &&
+                            _activeSearchId == null &&
+                            _quickCriteria == null
+                      : _category == index,
                   onSelected: (_) {
                     HapticFeedback.selectionClick();
                     // "Tümü": kayıtlı aramadan kalan tüm kriterler dahil sıfırlanır.
@@ -2032,6 +2019,22 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     _activeSearchId = null;
                     _includeUnknown = false;
                   }),
+                ),
+              ),
+            if (_quickCriteria != null ||
+                _activeSearch != null ||
+                _place != null ||
+                _ageFilter != null ||
+                _educationFilter != null ||
+                _kpssFilter != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: const Text('Şartları kontrol et'),
+                  selected: _includeUnknown,
+                  onSelected: (value) =>
+                      setState(() => _includeUnknown = value),
                 ),
               ),
           ],
