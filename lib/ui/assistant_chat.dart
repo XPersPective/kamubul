@@ -295,9 +295,8 @@ class _AssistantChatViewState extends State<AssistantChatView> {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Yanıtlar yapay zekâ ile üretilir; başvurmadan önce resmî '
-                  'ilanı kontrol edin. Kişisel bilgi yazmayın. Günlük kullanım '
-                  'sınırlıdır.',
+                  'Asistan yapay zekâ ile yanıt verir. Başvurunuzdan önce '
+                  'resmî ilana da göz atmanızı öneririz; başarılar dileriz.',
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: scheme.onSurfaceVariant),
                 ),

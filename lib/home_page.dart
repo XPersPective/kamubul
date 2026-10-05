@@ -619,7 +619,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   /// Kriterlere göre sıralama: kesin uyanlar önce, bilinmeyenler sonra;
   /// her grup içinde mevcut (yayın tarihi) sırası korunur.
-  List<ListingRecord> get _visibleRecords {
+  /// Her setState'te sıfırlanır: kaydırırken her kart için ~300 ilanı yeniden
+  /// eşleştirmek (O(n²)) listeyi takılarak kaydırıyordu.
+  List<ListingRecord>? _visibleCache;
+
+  List<ListingRecord> get _visibleRecords =>
+      _visibleCache ??= _computeVisibleRecords();
+
+  List<ListingRecord> _computeVisibleRecords() {
     final matched = <ListingRecord>[], unknown = <ListingRecord>[];
     for (final record in _records) {
       if (_tab == 1 && !record.saved) continue;
@@ -794,6 +801,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   @override
   void setState(VoidCallback fn) {
     super.setState(fn);
+    _visibleCache = null; // fn içinde okunmuş olabilir; değişiklikten sonra sıfırla
     if (!_selectionRestored) return;
     final value = jsonEncode({
       'search': _activeSearchId,
