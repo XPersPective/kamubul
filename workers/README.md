@@ -363,3 +363,5 @@ yaş referansı strict unknown. 50/source kalite kapısı ve merkezi Cron/source
 paging henüz açık; API çıkarım cache'ine istemci metni koymak canonical ilanı
 mutasyona uğratmaz. ilan.gov page/detail adapteri native egress'te çalışır,
 şimdilik production scheduled pipeline'a bağlı değildir.
+
+Source detail repairs (migration0021): Kariyer/SBB reserve each read before HTTP, with a two-attempt durable ceiling per published source revision and a120s lease. Complete text ends the repair episode; normal freshness checks remain possible. Empty/failed documents retain the counter and previous successful catalogue text. This does not count absent eligibility fields as a source failure, and does not enable the ilan.gov adapter in Cron.

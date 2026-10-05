@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
-import {readSbbDetail,readSource} from '../src/pipeline.js';
+import {readSbbDetail,readSource,readNoticeDetail} from '../src/pipeline.js';
 import {sha256} from '../src/worker.js';
 
 function setup(t){
@@ -26,6 +26,39 @@ test('PDF raw hash cache avoids repeated conversion; changed bytes reserve a new
   assert.deepEqual(await readSbbDetail(f.env,'a+b/c',first),first);assert.equal(f.calls(),1);
   f.setPdf('%PDF-1.7\nchanged');await readSbbDetail(f.env,'a+b/c',first);assert.equal(f.calls(),2);
   assert.equal(f.sql.prepare("SELECT count FROM rate_limits WHERE key LIKE 'pdf:%'").get().count,2);
+});
+
+test('detail repair has two durable reads; same revision cannot reset on a new Cron',async t=>{
+  const f=setup(t),base={id:'sbb:bounded',sourceId:'sbb',externalId:'bounded',title:'Resmî ilan',publishedAt:'2026-10-01'};
+  let reads=0;globalThis.fetch=async()=>{reads++;return new Response('blocked',{status:403});};
+  for(let i=0;i<2;i++)await assert.rejects(readNoticeDetail(f.env,base),/blocked/);
+  await assert.rejects(readNoticeDetail({...f.env},base),/detail_retry_exhausted_or_busy/);
+  assert.equal(reads,2);assert.equal(f.sql.prepare('SELECT attempts FROM source_detail_runs').get().attempts,2);
+  await assert.rejects(readNoticeDetail(f.env,{...base,publishedAt:'2026-10-02'}),/blocked/);
+  assert.equal(reads,3);assert.equal(f.sql.prepare('SELECT attempts FROM source_detail_runs').get().attempts,1);
+});
+
+test('concurrent detail repair reserves one read, and complete text ends the repair episode',async t=>{
+  const f=setup(t),base={id:'sbb:one',sourceId:'sbb',externalId:'one',title:'Resmî ilan'};
+  let resume;const blocked=new Promise(resolve=>{resume=resolve;});
+  globalThis.fetch=async()=>{await blocked;return new Response('%PDF-1.7\nfixture');};
+  const first=readNoticeDetail(f.env,base);
+  // Wait until the durable reservation exists, without relying on timer scheduling.
+  for(let i=0;i<100&&!f.sql.prepare('SELECT 1 FROM source_detail_runs').get();i++)await new Promise(resolve=>setImmediate(resolve));
+  assert.ok(f.sql.prepare('SELECT 1 FROM source_detail_runs').get());
+  await assert.rejects(readNoticeDetail(f.env,base),/detail_retry_exhausted_or_busy/);
+  resume();assert.equal((await first).detailState,'available');assert.equal(f.calls(),1);
+  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM source_detail_runs').get().n,0);
+});
+
+test('empty converted text stays a failed repair; quota or missing fields never fabricate completion',async t=>{
+  const f=setup(t),base={id:'sbb:empty',sourceId:'sbb',externalId:'empty',title:'Resmî ilan'};
+  f.env.AI.toMarkdown=async()=>({format:'text',mimetype:'application/pdf',data:'   '});
+  await assert.rejects(readNoticeDetail(f.env,base),/pdf_text_empty/);
+  assert.equal(f.sql.prepare('SELECT attempts FROM source_detail_runs').get().attempts,1);
+  f.env.AI.toMarkdown=async()=>({format:'text',mimetype:'application/pdf',data:'Şartlar kaynakta belirtilmemiştir.'});
+  assert.equal((await readNoticeDetail(f.env,base)).text,'Şartlar kaynakta belirtilmemiştir.');
+  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM source_detail_runs').get().n,0);
 });
 
 test('PDF budget is atomic and failures remain bounded; non-PDF never reaches converter',async t=>{

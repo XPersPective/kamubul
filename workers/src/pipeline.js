@@ -29,6 +29,26 @@ export async function readSbbDetail(env,id,previous={}){
   const text=plain(result.data);if(!text)throw new Error('pdf_text_empty');
   return {text,documentHash,documentReader,detailState:'available'};
 }
+export async function readNoticeDetail(env,base,previous={}){
+  const inputKey=await sha256(JSON.stringify([base.sourceId,base.externalId,base.title,base.category,base.institution,base.publishedAt,base.deadline]));
+  const now=nowISO(),lease=later(2);
+  // Reserve before HTTP: a crash or a different Cron cannot reset the two-read repair ceiling.
+  const claim=await env.DB.prepare(`INSERT INTO source_detail_runs(listing_id,input_key,attempts,lease_until) VALUES(?,?,1,?)
+    ON CONFLICT(listing_id) DO UPDATE SET input_key=excluded.input_key,
+    attempts=CASE WHEN source_detail_runs.input_key=excluded.input_key THEN attempts+1 ELSE 1 END,lease_until=excluded.lease_until
+    WHERE (source_detail_runs.lease_until IS NULL OR source_detail_runs.lease_until<=?)
+      AND (source_detail_runs.input_key!=excluded.input_key OR source_detail_runs.attempts<2) RETURNING attempts`).bind(base.id,inputKey,lease,now).first();
+  if(!claim)throw new Error('detail_retry_exhausted_or_busy');
+  try{
+    const detail=base.sourceId==='kariyerkapisi'?await fetchKariyerDetail(base.externalId):await readSbbDetail(env,base.externalId,previous);
+    if(!plain(detail.text)&&(detail.positions??[]).every(p=>!plain(p.text)))throw new Error('detail_text_empty');
+    // A complete read ends the repair episode; ordinary later freshness checks remain possible.
+    await env.DB.prepare('DELETE FROM source_detail_runs WHERE listing_id=? AND input_key=? AND lease_until=?').bind(base.id,inputKey,lease).run();
+    return detail;
+  }finally{
+    await env.DB.prepare('UPDATE source_detail_runs SET lease_until=NULL WHERE listing_id=? AND input_key=? AND lease_until=?').bind(base.id,inputKey,lease).run();
+  }
+}
 export async function readSource(env){
   const now=nowISO();let source=await env.DB.prepare("SELECT * FROM sources WHERE id IN ('kariyerkapisi','sbb') AND (lease_until IS NULL OR lease_until<?) AND next_due<=? ORDER BY CASE WHEN pending_batch IS NULL THEN 1 ELSE 0 END,next_due LIMIT 1").bind(now,now).first();
   if(!source)return;
@@ -48,7 +68,7 @@ export async function readSource(env){
       const old=await env.DB.prepare('SELECT content_hash,recheck_at,payload,first_seen FROM listings WHERE id=?').bind(base.id).first();
       if(old&&old.recheck_at>now)continue;
       let detail={};
-      try{detail=source.id==='kariyerkapisi'?await fetchKariyerDetail(base.externalId):await readSbbDetail(env,base.externalId,old?JSON.parse(old.payload):{});}
+      try{detail=await readNoticeDetail(env,{...base,sourceId:source.id},old?JSON.parse(old.payload):{});}
       catch(e){detailFailure=true;detail={detailState:'unavailable',detailError:safeError(e)};}
       if(detail.detailState==='unavailable'&&old){
         // A transient source failure cannot erase the last successful detail/summary.
