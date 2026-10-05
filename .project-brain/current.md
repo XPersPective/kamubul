@@ -99,11 +99,13 @@ Owned5562 kapalı, kamubul_pb026 AVD resmi araçla silindi; kullanıcı5560 koru
 Signed source b526eb1/version1.1.8+13; build C:/Users/rubicon/.codex/builds/kamubul-1.1.8.
 APK package/cert/nondebuggable/ZIP16KB, AAB signature/12ELF/3ABI LOAD>=16KB PASS.
 AAB60756830byte SHA2566139F648EF0379453A82C29E5A01A2C50F14673CB8EE5779D17461683F1990A9.
-Play code13 binary upload+commit PASS; SHA256 yerel AAB ile eşleşir.
-Track değiştirilmedi, review/publish yok. Production/internal completed12;
-tüm kaynak tam metin kanıtlanmadan server-only mobil sürüm mevcut üretim
-sürümünün yerine gönderilmez. İlk upload edit'i unsupported review flag ile
-commit hatasında rollback oldu; flagsiz artifact-only commit tamamlandı.
+Son açık kullanıcı talimatıyla Play production1.1.8/code13 completed:
+track update/validate/commit ve fresh API/hash PASS. Internal completed12.
+Play Console Yayın özeti üretim1.1.8 için otomatik ön kontrollerin başladığını
+gösterir; managed publishing kapalı, kontrol+Google onayı sonrası sunulur.
+Genel mağaza erişimi/onay henüz doğrulanmadı. Proof:
+C:/Users/rubicon/.codex/builds/kamubul-play-1.1.8-submitted.jpg.
+Kaynak tam-metin/kalite kapsamı yayın sonrası açık; eksiksiz kabul sayılmaz.
 
 Yerel100/1000/10000 fanout check PASS: max15 SQL/match ve8/send;10k match15004SQL.
 Günlük3000 Queue task örneğinde7996 send/2004 durable pending/9000normaloperations.

@@ -14,7 +14,8 @@ karar `decisions/ADR-001.md`, ilk uygulama görevi `tasks/PB-016.md`.
 ve Cloud Run/Blaze görevleri aktif plandan kaldırılmıştır; Git geçmişindedir.
 5 Ekim son kullanıcı yönü PB-026: kaynak okuma/ayıklama yalnız sunucuda;
 telefon API/cache kullanır. Önceki telefon fallback koruma yönergesi geçersizdir.
-Yeni mobil üretim yayını için tüm kaynakların gerçek tam-metin kapsamı doğrulanır.
+5 Ekim son açık talimat:1.1.8/code13 Google Play üretimine hemen gönderilir;
+kaynak tam-metin kapsamı ve kalite işleri yayın sonrası açık takip edilir.
 Mevcut mimari yalnızca `current.md` içinde, ürün hedefi `target.md` içinde,
 uygulama sırası `tasks/` içinde tutulur. `ORTAK_UYGULAMA_STANDARDI.md`
 kuralları geçerlidir.

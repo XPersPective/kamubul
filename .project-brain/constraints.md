@@ -4,7 +4,9 @@
 Kaynak okuma ve ayıklama tamamen sunucuda; telefonda otomatik kaynak/şehir/
 ayrıntı/backfill yok. Önceki C-040 geçiş fallback korumasını son kullanıcı
 yönü değiştirir. Telefon yalnız API/cache ve kullanıcı tarafından açılan
-başvuru bağlantısı. Mobil üretim yayını tüm kaynak/tam-metin kabulünden sonra.
+başvuru bağlantısı.5 Ekim son açık "Google Play'i gönder" talimatı code13
+üretim gönderimini kaynak kabulünü beklemeden yetkilendirdi; eksik kaynak
+kapsamı ve kalite görevleri tamamlanmış sayılmaz.
 Qwen3.6-flash mevcut Token Plan ile birincil ayıklama ve Asistan; yapısal
 kaynak alanları doğrudan, ayrı parça başına AI özet çağrısı yok. Geçerli
 sonuç tekrar okutulmaz; provider Credits'i varsayımsal sabit mesaja çevrilmez.
