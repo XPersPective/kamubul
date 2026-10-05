@@ -106,7 +106,7 @@ export async function fetchRequest(request,env,ctx){
     }
     if(request.method==='POST'&&path==='/api/v2/extract') {
       if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return json({error:'content_type'},415);
-      const text=await request.text();if(text.length>32768)return json({error:'body_oversize'},413);
+      const text=await request.text();if(text.length>262144)return json({error:'body_oversize'},413);
       let body;try{body=JSON.parse(text);}catch{return json({error:'json'},400);}
       const result=await handleExtract(body,env,{sha256});
       return json(result.body,result.status);

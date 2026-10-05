@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handleExtract, validateGroups, mentions } from '../src/extract.js';
+import { handleExtract, validateGroups, mentions, focusText } from '../src/extract.js';
 
 import { createHash } from 'node:crypto';
 const sha256 = async v => createHash('sha256').update(v).digest('hex');
@@ -142,7 +142,7 @@ test('Qwen repairs missing coverage under its own cap; oversized text is never s
   assert.equal(result.status, 200); assert.equal(cf, 1); assert.equal(qwen, 1);
   assert.equal(result.body.groups.length, 1);
   assert.equal(db.sql.prepare('SELECT model FROM extraction_cache').get().model, 'm');
-  const oversized = await handleExtract({ installationId: id, text: TEXT.repeat(100) }, config, { sha256 });
+  const oversized = await handleExtract({ installationId: id, text: TEXT.repeat(400) }, config, { sha256 });
   assert.equal(oversized.status, 413); assert.equal(cf, 1);
 });
 
@@ -165,4 +165,17 @@ test('bozuk JSON ilk denemede kalırsa ikinci hak (Qwen) kullanılır', async ()
   } });
   assert.equal(result.status, 200); assert.equal(cf, 1); assert.equal(qwen, 1);
   assert.deepEqual(result.body.groups[0].education, ['Lisans']);
+});
+
+test('uzun ilanda modele yalnız şart kesiti gider; alıntılar kesitte doğrulanır', () => {
+  const filler = 'Bu bölüm ilan süreci hakkında genel bilgi içermektedir ve şartlarla ilgisi yoktur. '.repeat(200);
+  const conditions = 'Zabıta Memuru kadrosu için: Lise mezunu olmak. Başvuru tarihi itibarıyla 30 yaşını doldurmamış olmak.';
+  const focused = focusText(filler + conditions + ' ' + filler);
+  assert.ok(focused.length <= 7000);
+  assert.ok(focused.includes('Lise mezunu olmak.'));
+  assert.ok(focused.includes('30 yaşını doldurmamış olmak.'));
+  const [g] = validateGroups({ groups: [{ education: ['Lise'], educationQuote: 'Lise mezunu olmak', maxAge: 30, ageQuote: 'Başvuru tarihi itibarıyla 30 yaşını doldurmamış olmak' }] }, focused);
+  assert.equal(g.maxAge, 29);
+  const short = 'Kısa metin. '.repeat(30);
+  assert.equal(focusText(short), short);
 });
