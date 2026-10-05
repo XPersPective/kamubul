@@ -209,3 +209,12 @@ test('Qwen birincil: tam metin (tablo satırları dahil) gider; her satır ayrı
   const later = await handleExtract({ installationId: id, text: text + ' ek' }, config, { sha256, fetch });
   assert.equal(later.status, 429); assert.equal(later.body.error, 'fallback_budget'); assert.equal(sent.length, 1);
 });
+
+test('tablo hücrelerinden birleşen etiket kabul edilir; metinde olmayan sözcük reddedilir', () => {
+  const text = 'S.No | Bölüm | Kadro\n1 | Psikoloji | Profesör | Psikoloji alanında lisans mezunu olmak';
+  const [ok, bad] = validateGroups({ groups: [
+    { label: 'Psikoloji - Profesör', education: ['Lisans'], educationQuote: 'Psikoloji alanında lisans mezunu olmak' },
+    { label: 'Hukuk - Doçent', education: ['Lisans'], educationQuote: 'Psikoloji alanında lisans mezunu olmak' },
+  ] }, text);
+  assert.equal(ok.label, 'Psikoloji - Profesör'); assert.equal(bad.label, undefined);
+});

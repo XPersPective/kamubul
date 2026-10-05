@@ -8,7 +8,7 @@ import { externalAiEnabled, externalAiRun } from './external_ai.js';
 export const MIN_TEXT = 200;
 // Tam metin boru hattı sınırına kadar kabul edilir; modele giden kısım FULL_LIMIT/FOCUS_LIMIT ile sınırlı.
 export const MAX_TEXT = 120000;
-const VERSION = 'x9';
+const VERSION = 'x10';
 const EDU = ['Lise', 'Ön lisans', 'Lisans', 'Yüksek lisans', 'Doktora'];
 const limits = env => ({ global: Number(env.EXTRACT_DAILY_GLOBAL) || 200, install: Number(env.EXTRACT_DAILY_INSTALL) || 40 });
 
@@ -100,7 +100,9 @@ export function validateGroups(raw, text) {
   for (const g of groups) {
     if (!g || typeof g !== 'object') continue;
     const o = {}; const quotes = {};
-    if (typeof g.label === 'string' && g.label.length <= 120 && t.includes(fold(g.label))) o.label = g.label.trim();
+    // Etiket tablo hücrelerinden birleşebilir ("Psikoloji - Profesör"): her sözcüğü metinde geçmeli.
+    const labelWords = typeof g.label === 'string' && g.label.length <= 120 ? fold(g.label).match(/[\p{L}\d]+/gu) ?? [] : [];
+    if (labelWords.length && labelWords.every(w => t.includes(w))) o.label = g.label.trim();
     const eq = quoted(g.educationQuote, t);
     const edu = Array.isArray(g.education) ? [...new Set(g.education.filter(e => EDU.includes(e)))] : [];
     if (eq && edu.length) {
