@@ -100,7 +100,11 @@ Signed source b526eb1/version1.1.8+13; build C:/Users/rubicon/.codex/builds/kamu
 APK package/cert/nondebuggable/ZIP16KB, AAB signature/12ELF/3ABI LOAD>=16KB PASS.
 AAB60756830byte SHA2566139F648EF0379453A82C29E5A01A2C50F14673CB8EE5779D17461683F1990A9.
 Son açık kullanıcı talimatıyla Play production1.1.8/code13 completed:
-track update/validate/commit ve fresh API/hash PASS. Internal completed12.
+track update/validate/commit ve fresh API/hash PASS. Son açık kullanıcı
+talimatıyla internal1.1.8/code13 update/validate/commit de PASS.
+Fresh API iki kanal13; UI dahili13 test kullanıcıları tarafından kullanılabilir.
+Download https://play.google.com/apps/internaltest/4701555814809167145;
+proof C:/Users/rubicon/.codex/builds/kamubul-play-1.1.8-internal.jpg.
 Play Console Yayın özeti üretim1.1.8 için otomatik ön kontrollerin başladığını
 gösterir; managed publishing kapalı, kontrol+Google onayı sonrası sunulur.
 Genel mağaza erişimi/onay henüz doğrulanmadı. Proof:
