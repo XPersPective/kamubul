@@ -68,3 +68,10 @@ test('telafi: geçici hata işaretlenmez ve sonraki turda tamamlanır; boş sonu
   const row=f.sql.prepare("SELECT conditions_checked c,payload FROM listings WHERE id='ilangov:8'").get();
   assert.equal(row.c,'h8');assert.deepEqual(JSON.parse(row.payload).requirementGroups[0].education,['Lise']);
 });
+
+test('ilan.gov.tr tablo satırı tek satır olarak okunur', async t => {
+  const original = globalThis.fetch; t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: { content: '<p>Genel</p><table><tr><th>S.No</th><th>Ünvan</th></tr><tr><td>1</td><td><p>Öğretim</p><p>Görevlisi</p></td></tr><tr><td></td><td></td></tr></table><p>Son</p>' } }));
+  const { fetchIlanGovDetail } = await import('../src/sources.js');
+  assert.equal((await fetchIlanGovDetail('1')).text, 'Genel\nS.No | Ünvan\n1 | Öğretim Görevlisi\nSon');
+});

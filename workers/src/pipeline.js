@@ -158,9 +158,8 @@ export async function canonicalConditions(env,listingId,contentHash,text,places=
   // Boş sonuçta payload yazılmaz (revizyon değişmez); yalnız denetim işareti.
   if(!groups.length)return checked();
   const existing=JSON.parse(done.g??'[]');
-  const merged=groups.length===existing.length
-    ?groups.map((g,i)=>({...existing[i],...g}))
-    :groups.map(g=>({cities:places,...g}));
+  // Yalnız kaynağın yapısal alanları (il, meslek) korunur; eski AI değerleri yeni okumayla değişir.
+  const merged=groups.map((g,i)=>{const e=groups.length===existing.length?existing[i]:{};return {cities:e.cities??places,...(e.occupations?{occupations:e.occupations}:{}),...g};});
   await env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.requirementGroups',json(?),'$.conditionsHash',?),conditions_checked=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=?")
     .bind(JSON.stringify(merged),contentHash,contentHash,nowISO(),listingId,contentHash).run();
 }

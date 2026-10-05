@@ -19,7 +19,7 @@ export function externalRequest(env, request) {
 export async function externalAiRun(env, request, fetchImpl = fetch) {
   const { url, init } = externalRequest(env, request);
   if (new URL(url).protocol !== 'https:') throw new Error('external_ai_insecure_url');
-  const res = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(40000) });
+  const res = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(request.timeoutMs ?? 40000) });
   if (res.status === 429) throw new Error('3036: external provider rate limited');
   if (!res.ok) throw new Error('external_ai_http_' + res.status);
   const body = await res.json();

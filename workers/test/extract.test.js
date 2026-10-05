@@ -190,3 +190,22 @@ test('zaman aşımında Qwen; saatlik pay dolunca o saat için durur', async () 
   const second = await handleExtract({ installationId: id, text: TEXT + ' farklı' }, config, { sha256, fetch });
   assert.equal(second.status, 429); assert.equal(second.body.error, 'fallback_budget'); assert.equal(qwen, 1);
 });
+
+test('Qwen birincil: tam metin (tablo satırları dahil) gider; her satır ayrı grup; pay dolunca bekler', async () => {
+  const db = fakeDb(); const sent = [];
+  const filler = 'Başvurular şahsen veya posta ile yapılabilir ve belgeler onaylı olmalıdır. '.repeat(120);
+  const table = '\nS.No | Ünvan | KPSS Puan Türü | Açıklama\n1 | Mühendis | P3 | İnşaat Mühendisliği lisans mezunu olmak\n2 | Tekniker | P93 | Elektrik ön lisans programından mezun olmak';
+  const text = 'Genel şart: KPSS sınavına girmiş olmak. ' + filler + table;
+  const config = { ...env(db), EXTRACT_QWEN_DAILY: '20', EXTRACT_QWEN_HOURLY: '1', EXTRACT_DAILY_INSTALL: '10' };
+  const fetch = async (url, init) => { sent.push(JSON.parse(init.body).messages[1].content); return modelReply([
+    { label: 'Mühendis', education: ['Lisans'], educationQuote: 'İnşaat Mühendisliği lisans mezunu olmak', kpssStatus: 'required', kpssType: 'P3', kpssQuote: '1 | Mühendis | P3' },
+    { label: 'Tekniker', education: ['Ön lisans'], educationQuote: 'Elektrik ön lisans programından mezun olmak', kpssStatus: 'required', kpssType: 'P93', kpssQuote: '2 | Tekniker | P93' },
+  ])(); };
+  const res = await handleExtract({ installationId: id, text }, config, { sha256, fetch });
+  assert.equal(res.status, 200);
+  assert.ok(sent[0].includes('2 | Tekniker | P93 | Elektrik'), 'table rows reach the model on their own lines');
+  assert.ok(sent[0].length > 7000, 'Qwen reads the full notice, not the short excerpt');
+  assert.deepEqual(res.body.groups.map(g => [g.label, g.education[0], g.kpssType]), [['Mühendis', 'Lisans', 'P3'], ['Tekniker', 'Ön lisans', 'P93']]);
+  const later = await handleExtract({ installationId: id, text: text + ' ek' }, config, { sha256, fetch });
+  assert.equal(later.status, 429); assert.equal(later.body.error, 'fallback_budget'); assert.equal(sent.length, 1);
+});

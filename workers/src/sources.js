@@ -56,7 +56,9 @@ export async function fetchIlanGovDetail(id) {
   if(!/^\d{1,20}$/.test(String(id)))throw new SourceError('source_identity');
   const raw=JSON.parse(await sourceFetch(ilanGovApi+'/AdDetail/GetAdDetail?id='+encodeURIComponent(id),{headers:ilanGovHeaders}));
   if(typeof raw?.result?.content!=='string')throw new SourceError('layout_changed');
-  const text=plain(raw.result.content.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,'').replace(/<br\s*\/?>|<\/(?:p|div|tr|li|h\d)>/gi,'\n')).split('\n').map(line=>line.trim()).filter(Boolean).join('\n');
+  // Tablo satırı tek satır olur ("1 | Öğretim Görevlisi | Lisans …"): kadro tabloları okunur kalır.
+  const html=raw.result.content.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,'').replace(/<t([dh])\b[^>]*>([\s\S]*?)<\/t\1>/gi,(_,__,cell)=>' '+plain(cell).replace(/\s+/g,' ')+' |');
+  const text=plain(html.replace(/<br\s*\/?>|<\/(?:p|div|tr|li|h\d)>/gi,'\n')).split('\n').map(line=>line.trim().replace(/^\|\s*|\s*\|$/g,'').trim()).filter(line=>line&&!/^[|\s]+$/.test(line)).join('\n');
   if(!text)throw new SourceError('source_empty');
   return {text,detailState:'available'};
 }
