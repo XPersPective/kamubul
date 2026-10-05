@@ -33,6 +33,7 @@ void main() {
     SourceState kariyer = SourceState.ok,
     SourceState sbb = SourceState.ok,
     String sbbId = kSbbSourceId,
+    SourceState? ilangov,
   }) => jsonEncode({
     'schemaVersion': 2,
     'taxonomyVersion': 1,
@@ -43,6 +44,7 @@ void main() {
         (kKariyerSourceId, 'Kariyer Kapısı', kariyer),
         (sbbId, 'Kamu İlanları (SBB)', sbb),
         ('iskur', 'İŞKUR', SourceState.blocked),
+        if (ilangov != null) (kIlanGovSourceId, 'ilan.gov.tr', ilangov),
       ])
         {
           'id': entry.$1,
@@ -577,5 +579,28 @@ void main() {
     );
     final stored = (await store.allListings()).single;
     expect(stored.saved, isTrue);
+  });
+
+  test('sunucu ilan.gov.tr sağlıklıysa telefon okumaz; engelliyse okur', () async {
+    for (final (state, expected) in [
+      (SourceState.ok, 0),
+      (SourceState.blocked, 1),
+    ]) {
+      final store = await freshStore();
+      var calls = 0;
+      await refreshCatalogue(
+        store,
+        remote: client(metadataBody(ilangov: state)),
+        kariyer: emptyKariyer,
+        ilanGov: () async {
+          calls++;
+          return [];
+        },
+        iskur: () async => [],
+        at: now,
+      );
+      expect(calls, expected, reason: state.name);
+      await store.close();
+    }
   });
 }

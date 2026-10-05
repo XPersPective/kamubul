@@ -75,6 +75,7 @@ Future<CatalogueRefreshResult> refreshCatalogue(
 
   var needKariyer = true;
   var needSbb = true;
+  var needIlanGov = true;
   var statuses = const <SourceStatus>[];
   DateTime? remoteLastSuccess;
   var remoteFailed = false;
@@ -118,6 +119,8 @@ Future<CatalogueRefreshResult> refreshCatalogue(
       // resmî dizini her zaman kendisi okur.
       needKariyer = true;
       needSbb = !available(kSbbSourceId);
+      // Sunucu ilan.gov.tr'yi sağlıklı ve taze sunuyorsa telefon okumaz.
+      needIlanGov = !available(kIlanGovSourceId);
     } on Exception {
       remoteFailed = true;
       // Sunucu ya da ağ yok: gömülü çekim tüm kaynakları kapsar.
@@ -144,7 +147,7 @@ Future<CatalogueRefreshResult> refreshCatalogue(
   }
   // ilan.gov.tr (belediye, üniversite, Resmî Gazete personel ilanları)
   // sunucuda yok; telefon resmî API'den okur.
-  if (await due(kIlanGovSourceId)) {
+  if (needIlanGov && await due(kIlanGovSourceId)) {
     try {
       final items = await (ilanGov ?? loadIlanGovListings)();
       incoming.addAll([for (final item in items) ilanGovRecord(item, now)]);

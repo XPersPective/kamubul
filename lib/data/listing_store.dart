@@ -574,19 +574,30 @@ class ListingStore {
         final savedMs = favorites.isEmpty
             ? null
             : favorites.single['savedAt'] as int?;
+        // Cihazdaki ayıklama durumu replace ile silinmesin (gereksiz yeniden
+        // okuma/AI isteği olmasın).
+        final extraction = await txn.query(
+          'listings',
+          columns: ['conditionsCheckedAt', 'aiGroups', 'pendingConditionText'],
+          where: 'url=?',
+          whereArgs: [record.url],
+        );
         if (oldUrl != null && oldUrl != record.url) {
           await txn.delete('listings', where: 'url=?', whereArgs: [oldUrl]);
         }
         await txn.insert(
           'listings',
-          record
-              .copyWith(
-                saved: saved,
-                savedAt: savedMs == null
-                    ? null
-                    : DateTime.fromMillisecondsSinceEpoch(savedMs),
-              )
-              .toRow(),
+          {
+            ...record
+                .copyWith(
+                  saved: saved,
+                  savedAt: savedMs == null
+                      ? null
+                      : DateTime.fromMillisecondsSinceEpoch(savedMs),
+                )
+                .toRow(),
+            if (extraction.isNotEmpty) ...extraction.single,
+          },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
