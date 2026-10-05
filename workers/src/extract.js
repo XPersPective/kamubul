@@ -182,7 +182,7 @@ export async function handleExtract(body, env, deps) {
       calls++;
       try { out = await Promise.race([
         useExternal ? externalAiRun(env, request, deps.fetch) : env.AI.run(model, request, { rejectIfBusy: true }),
-        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('extract_timeout')), Number(env.EXTRACT_TIMEOUT_MS) || 30000); }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('extract_timeout')), Number(env.EXTRACT_TIMEOUT_MS) || (deps.internal ? 60000 : 30000)); }),
       ]).finally(() => clearTimeout(timer));
       } catch (error) {
         if (calls >= 2 || useExternal || !externalAiEnabled(env) || !Number.isInteger(fallbackCap) || fallbackCap <= 0 ||
