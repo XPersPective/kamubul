@@ -28,7 +28,7 @@ SBB PDF reader native AI.toMarkdown:3MiB/25s fetch,45s conversion,
 120KB çıktı/20 UTC günlük rezervasyon, hash+reader cache. Gerçek SBB PDF
 conversion/kalite kanıtı henüz yok; OCR/sayfa sayısı sınırı yok.
 
-Son canlı readonly (10:38UTC): ilan.gov162 kimlik/text139/conditions_checked37;
+Son canlı readonly: ilan.gov177 kimlik/text167/conditions_checked37;
 Kariyer27 kimlik/text0. Bu bütün kaynak kapsamı değildir. ilan.gov yeni snapshot
 sayfalaması sürüyor. Gerçek preview: ilan.gov200+749chars; Kariyer homepage/RSS200
 fakat mevcut API522; SBB403 Access Restricted; İŞKUR500 veya200 Request Rejected
@@ -99,9 +99,11 @@ Owned5562 kapalı, kamubul_pb026 AVD resmi araçla silindi; kullanıcı5560 koru
 Signed source b526eb1/version1.1.8+13; build C:/Users/rubicon/.codex/builds/kamubul-1.1.8.
 APK package/cert/nondebuggable/ZIP16KB, AAB signature/12ELF/3ABI LOAD>=16KB PASS.
 AAB60756830byte SHA2566139F648EF0379453A82C29E5A01A2C50F14673CB8EE5779D17461683F1990A9.
-Fresh Play read-only API production/internal completed1.1.7/code12; code13
-henüz upload/publish edilmedi. Tüm kaynak tam metin kanıtlanmadan server-only
-mobil sürüm mevcut üretim sürümünün yerine gönderilmez.
+Play code13 binary upload+commit PASS; SHA256 yerel AAB ile eşleşir.
+Track değiştirilmedi, review/publish yok. Production/internal completed12;
+tüm kaynak tam metin kanıtlanmadan server-only mobil sürüm mevcut üretim
+sürümünün yerine gönderilmez. İlk upload edit'i unsupported review flag ile
+commit hatasında rollback oldu; flagsiz artifact-only commit tamamlandı.
 
 Yerel100/1000/10000 fanout check PASS: max15 SQL/match ve8/send;10k match15004SQL.
 Günlük3000 Queue task örneğinde7996 send/2004 durable pending/9000normaloperations.
