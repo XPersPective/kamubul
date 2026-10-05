@@ -3,6 +3,7 @@ import {matchListing,listingAnchorKeys} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
 import {externalAiEnabled,externalAiRun} from './external_ai.js';
+import {handleExtract,MIN_TEXT,MAX_TEXT} from './extract.js';
 const aiProvider=env=>externalAiEnabled(env)?'external':'cloudflare';
 const aiModel=env=>externalAiEnabled(env)?env.EXTERNAL_AI_MODEL:env.AI_MODEL;
 
@@ -141,6 +142,25 @@ export function splitAiText(text){
   }
   return chunks;
 }
+// Kanonik şart ayıklaması (ADR-005/006): içerik başına bir kez, özet işinden ve
+// bildirim eşleştirmesinden ÖNCE; sonuç requirementGroups'a yazılır, değişiklik
+// tetikleyicisiyle istemcilere yayılır. Başarısız/limitte alanlar bilinmiyor kalır.
+export async function canonicalConditions(env,listingId,contentHash,text,places=[]){
+  const done=await env.DB.prepare("SELECT json_extract(payload,'$.conditionsHash') h,json_extract(payload,'$.requirementGroups') g FROM listings WHERE id=? AND content_hash=?").bind(listingId,contentHash).first();
+  if(!done||done.h===contentHash)return;
+  const normalized=String(text).replace(/\s+/g,' ').trim();
+  if(normalized.length<MIN_TEXT||normalized.length>MAX_TEXT)return;
+  // Boş/limitte sonuçta ilan yazılmaz (revizyon değişmez); tekrar kontrol önbellekten ucuzdur.
+  const res=await handleExtract({installationId:'0'.repeat(32),text},env,{sha256,internal:true});
+  const groups=res.status===200?res.body.groups:[];
+  if(!groups.length)return;
+  const existing=JSON.parse(done.g??'[]');
+  const merged=groups.length===existing.length
+    ?groups.map((g,i)=>({...existing[i],...g}))
+    :groups.map(g=>({cities:places,...g}));
+  await env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.requirementGroups',json(?),'$.conditionsHash',?),revision=revision+1,updated_at=? WHERE id=? AND content_hash=?")
+    .bind(JSON.stringify(merged),contentHash,nowISO(),listingId,contentHash).run();
+}
 export async function processNotice(env){
   if(!env.AI&&!externalAiEnabled(env))return;
   const now=nowISO();const job=await env.DB.prepare("UPDATE processing_jobs SET state='leased',lease_until=?,attempts=attempts+1 WHERE id=(SELECT j.id FROM processing_jobs j WHERE (j.state IN ('pending','quota_wait') OR (j.state='leased' AND j.lease_until<?)) AND j.due_at<=? AND j.attempts<5 AND NOT EXISTS(SELECT 1 FROM processing_jobs other WHERE other.listing_id=j.listing_id AND other.state='leased' AND other.lease_until>=?) ORDER BY j.due_at,j.id LIMIT 1) RETURNING *").bind(later(4),now,now,now).first();
@@ -149,6 +169,10 @@ export async function processNotice(env){
   if(!current?.active||(current.deadline&&Date.parse(current.deadline)<=Date.now())||current.content_hash!==job.input_hash||(job.purpose==='reprocess'&&current.reprocess_contract!==job.contract_key)||(current.processed_hash===job.input_hash&&(job.purpose!=='reprocess'||current.processed_contract===job.contract_key))){await env.DB.prepare("UPDATE processing_jobs SET state='superseded',lease_until=NULL WHERE id=?").bind(job.id).run();return;}
   const {aiProgress,aiContract:storedContract,...notice}=JSON.parse(job.input),text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');
   let chunks;try{chunks=splitAiText(text);}catch(e){await env.DB.prepare("UPDATE processing_jobs SET state='failed',error_code=?,lease_until=NULL WHERE id=?").bind(safeError(e),job.id).run();return;}
+  if(text.length&&!aiProgress){
+    try{await canonicalConditions(env,job.listing_id,job.input_hash,text,notice.places??[]);}
+    catch(e){console.error('canonical_conditions_failed',safeError(e));}
+  }
   let contract=storedContract;
   if(text.length){
     const error=contract?(contract.provider!==aiProvider(env)||contract.extractionRevision!==aiExtractionRevision||typeof contract.model!=='string'||!contract.model?'ai_revision_mismatch':null):aiProgress?.index>0?'ai_revision_unknown':null;

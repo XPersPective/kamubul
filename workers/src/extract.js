@@ -124,7 +124,8 @@ export async function handleExtract(body, env, deps) {
   if (hit) return { status: 200, body: { groups: JSON.parse(hit.groups), cached: true } };
   if ((!external && !env.AI) || !model) return { status: 503, body: { error: 'extract_unavailable' } };
   const lim = limits(env); const day = (deps.now ?? new Date()).toISOString().slice(0, 10);
-  if (await bump(env.DB, day, 'x:inst:' + body.installationId) > lim.install) return { status: 429, body: { error: 'rate_limited' } };
+  // Sunucunun kendi kanonik işi (deps.internal, HTTP'den gelemez) kurulum tavanına girmez.
+  if (!deps.internal && await bump(env.DB, day, 'x:inst:' + body.installationId) > lim.install) return { status: 429, body: { error: 'rate_limited' } };
   const now = (deps.now ?? new Date()).toISOString();
   const lease = new Date(Date.parse(now) + 90000).toISOString();
   const claim = await env.DB.prepare('INSERT INTO extraction_runs(hash,lease_until) VALUES(?,?) ON CONFLICT(hash) DO UPDATE SET lease_until=excluded.lease_until WHERE extraction_runs.attempts<2 AND (extraction_runs.lease_until IS NULL OR extraction_runs.lease_until<=?) RETURNING attempts').bind(hash, lease, now).first();
