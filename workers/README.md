@@ -365,3 +365,5 @@ mutasyona uğratmaz. ilan.gov page/detail adapteri native egress'te çalışır,
 şimdilik production scheduled pipeline'a bağlı değildir.
 
 Source detail repairs (migration0021): Kariyer/SBB reserve each read before HTTP, with a two-attempt durable ceiling per published source revision and a120s lease. Complete text ends the repair episode; normal freshness checks remain possible. Empty/failed documents retain the counter and previous successful catalogue text. This does not count absent eligibility fields as a source failure, and does not enable the ilan.gov adapter in Cron.
+
+Migration0022 persists a source notification baseline after its first successful list read. All entries in that first saved batch remain silent across restarts; later discovery requires a known publication timestamp after the fixed baseline and no later than now. Matching and sending both recheck the current canonical notificationEligible flag. Day-only dates conservatively suppress same-day discoveries; source paging/typed extraction gates remain open.

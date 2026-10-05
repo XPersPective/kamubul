@@ -10,9 +10,25 @@ da cache; normal metin/hash+prompt/model sürümlüdür. 24k karakter üstü
 sessiz kırpılmaz; client65s. Null kaynak alanı yeniden çekim sebebi değildir.
 Mobil SQLite v11 pendingConditionText ile başarısız/quota AI sonucunu tamamlandı saymaz; sonraki deneme aynı kalıcı metni kullanır. Terminal/başarılı yanıt cache metnini temizler. Eski checked/AI verisi yeniden doğrulanır; kayıt/favoriler korunur.
 Merkezi Kariyer/SBB ayrıntı onarımı source_detail_runs ile aynı yayın revizyonunda en fazla iki başarısız okuma girişimi yapar. Çağrı öncesi D1 rezervasyonu ve120s lease vardır; restart/tur sınırı sıfırlamaz. Tam metin onarım bölümünü bitirir, sonraki normal güncellik kontrolünü engellemez. Eski başarılı metin hata yüzünden silinmez. Migration0021 remote PASS.
+Migration0022 remote PASS: sources.baseline_at ilk başarılı listeyi kalıcı sabitler; ilk batch tümü notificationEligible=false. Hatalı liste baseline oluşturmaz; sonraki kayıtta bilinmeyen/gelecek/eski tarih push olmaz. Eşleştirme ve gönderim güncel canonical flag kontrol eder; eski kuyruk payload'u korumayı aşamaz. Tarih yalnız gün ise aynı-gün yeni ilanı bastırma bilinçli sınırdır; hassas timestamp gerekir. SQLite/network iki regression dahil216 Worker PASS. ilan.gov Cron entegrasyonu ayrıca açık.
 Sohbet Qwen3.6-flash kalır. ADR-006 hedef ve bilinçli sınırları kaydeder.
-Son Worker fcd63776-c67a-4187-b4ae-4cfe5a8d248a deployed; health200/ok/seq48,
-AI ve FCM configured. Kaynak release adayı1.1.6+11. İlk signed APK175.1s/AAB193.9s ve cert/package/12ELF-3ABI16KB/production defines PASS. Own read-only Medium5562 fresh install11 Success; home295/real detail5quota+places ve Asistana sor→seçili ilan/no automatic message doğrulandı. Native dark1.3 sistem simgeleri contrast bug root MaterialApp AnnotatedRegion ile düzeltildi; gerçek platform style theme-switch regression ve202 suite PASS. Bu son fix için paket yeniden derleniyor; mağaza yayını henüz yok. Shared5560 değiştirilmedi. Host PixelLauncher/SystemUI ANR; cold12326ms hız kabulü değildir. Eski C release kopyası unrelated history nedeniyle korunup yeni C builds/kamubul-1.1.6-6d767af temiz clone açıldı.
+Son Worker 8a11b0f3-c1c7-4c23-b099-e30214085025 deployed; health200/ok/seq48,
+AI ve FCM configured. Kaynak4260f1a /1.1.6+11 son signed APK117.4s/AAB109.8s;
+cert/package/nondebuggable/12ELF-3ABI16KB/production defines PASS.
+AAB61,562,080byte SHA2562BACB590249376F88D2E10E0A112B0560D40D8E4E14A2D766897840673F80599.
+Fastlane internal ve production commit başarılı; fresh Play API iki kanalda
+name1.1.6/code11/status completed ve remote AAB hash eşleşmesi PASS. Bu API
+durumu Google son incelemesi/genel mağaza erişimi kanıtı değildir.
+Build C:/Users/rubicon/.codex/builds/kamubul-1.1.6-6d767af; symbols ayrı
+kamubul-1.1.6-symbols. Önceki C kopyası unrelated history nedeniyle korundu.
+Own read-only Medium5562: install11/update-r Success, gerçek home295/detail5quota+
+places, Asistana sor→seçili ilan/no automatic message görsel PASS. Dark1.3
+sistem simgesi contrast bug root overlay ile düzeltildi; son native PNG'de
+saat ve nav handle beyaz/okunur. C builds/kamubul-1.1.6-{home,detail,assistant}.png
+ve -final-dark-1.3.png. SystemUI/Launcher ANR ve launch timeout hız kabulü
+değildir. Font1.0/night no/storage null restore; owned5562 kapalı,
+shared5560 değiştirilmedi. Kalıcı AVD üzerindeki eski farklı-imzalı uygulama
+korundu; yalnız read-only geçici oturum kopyasında fresh install yapıldı.
 
 Native Cloudflare egress: ilan.gov filtreli list HTTP200/29080byte/701ms;
 gerçek adapter ilk20/toplam162 ve resmi2244449 ayrıntı23186karakter available.
@@ -23,13 +39,14 @@ Gerçek x6 inference200/1grup+cache replay200; outputta genel sınav70'in yanlı
 KPSS yorumlandığı görülüp ortak doğrulayıcıya KPSS kanıtı ve eğitim
 alternatif guard'ı eklendi (x7). Son x7 canlı inference200: Ön lisans/Lisans alternatifleri, yaş34/reference-date ve KPSS alanı yok; deploy7b6d8c1e. Bu pilot precision/recall kapısı değildir.
 
-202 Flutter test PASS; 214 Worker test PASS. 11 değişen Dart alanı analyze
-no issues. Önceki geniş suite iki zaman bağımlı route test ve yedi stale
+202 Flutter test PASS; 216 Worker test PASS. Tam flutter analyze67.5s/no issues.
+Önceki geniş suite iki zaman bağımlı route test ve yedi stale
 golden nedeniyle başarısızdı: bounded5s route wait, sabit golden tarihleri,
 MaterialIcons font yükleme ve tema font ailesi korunarak düzeltildi;
 referanslar görsel incelendi. Ayrıntı liste cache'inden quota/places/deadline
-fallback alır. Asistan açılışta mesaj göndermez; okuma ölçeği1.0. Bu kaynak
-henüz yeni APK/AAB/native yayın kabulü değildir; mağaza1.1.5+10 durumu PB-024.
+fallback alır. Asistan açılışta mesaj göndermez; okuma ölçeği1.0. Kaynak/API
+typed ingestion, kaynak başına50 etiketli örnek ve CPU/fanout hâlâ açık;
+mobil/store kontrolleri tüm mimarinin kabulü değildir. PB-017/PB-024/PB-025.
 
 3 Ekim 2026. Yalnız çalışan kod ve doğrulanmış dış durum; hedef `target.md`,
 uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları Git'tedir.

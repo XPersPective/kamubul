@@ -60,25 +60,31 @@ export async function readSource(env){
     if(source.pending_batch)batch=JSON.parse(source.pending_batch);
     else {
       batch=await(source.id==='kariyerkapisi'?fetchKariyerList():fetchSbbList());offset=0;
-      await env.DB.prepare('UPDATE sources SET pending_batch=?,batch_offset=0,last_attempt=? WHERE id=?').bind(JSON.stringify(batch),now,source.id).run();
     }
+    const firstSnapshot=!source.baseline_at;
+    if(firstSnapshot){source.baseline_at=now;batch=batch.map(base=>({...base,notificationEligible:false}));}
+    if(!source.pending_batch||firstSnapshot)await env.DB.prepare('UPDATE sources SET pending_batch=?,batch_offset=?,last_attempt=?,baseline_at=COALESCE(baseline_at,?) WHERE id=?').bind(JSON.stringify(batch),offset,now,source.baseline_at,source.id).run();
     // ponytail: a four-notice source stage used 20ms CPU; consume one entry to limit work, with slower batch completion. Split stages if measured CPU still exceeds 10ms.
     for(const base of batch.slice(offset,offset+1)) {
       if(base.deadline&&new Date(base.deadline)<new Date())continue;
       const old=await env.DB.prepare('SELECT content_hash,recheck_at,payload,first_seen FROM listings WHERE id=?').bind(base.id).first();
       if(old&&old.recheck_at>now)continue;
+      const previous=old?JSON.parse(old.payload):{};
       let detail={};
-      try{detail=await readNoticeDetail(env,{...base,sourceId:source.id},old?JSON.parse(old.payload):{});}
+      try{detail=await readNoticeDetail(env,{...base,sourceId:source.id},previous);}
       catch(e){detailFailure=true;detail={detailState:'unavailable',detailError:safeError(e)};}
       if(detail.detailState==='unavailable'&&old){
         // A transient source failure cannot erase the last successful detail/summary.
         await env.DB.prepare('UPDATE listings SET recheck_at=? WHERE id=?').bind(later(30),base.id).run();
         continue;
       }
-      const notice={...base,...detail,firstSeenAt:old?.first_seen??now,updatedAt:now};
+      // ponytail: day-only publication dates suppress same-day discoveries after baseline; precise source timestamps are needed to widen alerts safely.
+      const publishedAt=Date.parse(base.publishedAt);
+      const notificationEligible=previous.notificationEligible??base.notificationEligible??(publishedAt>Date.parse(source.baseline_at)&&publishedAt<=Date.parse(now));
+      const notice={...base,...detail,notificationEligible,firstSeenAt:old?.first_seen??now,updatedAt:now};
       const input=semanticInput(notice),hash=await sha256(input);
       if(old?.content_hash===hash){
-        const previous=JSON.parse(old.payload),metadata=['publishedAt','start','url','detailState','documentHash','documentReader'];
+        const metadata=['publishedAt','start','url','detailState','documentHash','documentReader','notificationEligible'];
         if(metadata.some(k=>(previous[k]??null)!==(notice[k]??null))){
           const refreshed={...previous,updatedAt:now};for(const k of metadata)refreshed[k]=notice[k]??null;
           await env.DB.prepare('UPDATE listings SET payload=?,revision=revision+1,updated_at=?,recheck_at=? WHERE id=?').bind(JSON.stringify(refreshed),now,later(360),base.id).run();
@@ -240,8 +246,9 @@ export async function expireListings(env) {
 export async function matchEvents(env){
   const now=nowISO();const event=await env.DB.prepare("UPDATE match_events SET state='leased',lease_until=? WHERE id=(SELECT id FROM match_events WHERE state='pending' OR (state='leased' AND lease_until<?) ORDER BY created_at LIMIT 1) RETURNING *").bind(later(3),now).first();if(!event)return;
   const listing=JSON.parse(event.payload);
-  const current=await env.DB.prepare('SELECT active,deadline,first_seq FROM listings WHERE id=?').bind(event.listing_id).first();
+  const current=await env.DB.prepare("SELECT active,deadline,first_seq,json_extract(payload,'$.notificationEligible') notification_eligible FROM listings WHERE id=?").bind(event.listing_id).first();
   if(!current?.active||(current.deadline&&Date.parse(current.deadline)<=Date.now())){await env.DB.prepare("UPDATE match_events SET state='expired',lease_until=NULL WHERE id=?").bind(event.id).run();return;}
+  if(current.notification_eligible===0){await env.DB.prepare("UPDATE match_events SET state='completed',lease_until=NULL WHERE id=?").bind(event.id).run();return;}
   const keys=listingAnchorKeys(listing);
   let facet=event.facet_index,cursor=event.cursor;
   const eventSeq=current.first_seq;
@@ -337,6 +344,7 @@ export async function flushOutbox(env,{send=sendFcm,now=new Date(),instantOnly=f
       if(!current||!row.active||(deadline!==null&&(!Number.isFinite(deadline)||deadline<=+now))) {
         invalid.push([row.id,'expired']);continue;
       }
+      if(current.notificationEligible===false){invalid.push([row.id,'cancelled']);continue;}
       const matches=searches.filter(s=>original.searchIds?.includes(s.id)&&matchListing(current,JSON.parse(s.criteria),now)==='match');
       if(!matches.length){invalid.push([row.id,'cancelled']);continue;}
       valid.push({...current,id:row.current_id,revision:row.current_revision,eventId:job.id,outboxId:row.id,searchIds:matches.map(s=>s.id)});

@@ -21,6 +21,7 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0010_education_alias_facets.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0011_catalogue_retention_floor.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../migrations/0012_catalogue_sweep.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0014_processing_versions.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0021_source_detail_runs.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0022_source_notification_baseline.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -434,7 +435,7 @@ test('AI capacity errors use bounded retry without losing completed chunks',asyn
 });
 
 test('source slots fetch at most one detail and resume every persisted batch entry',async()=>{
-  const {sql,DB}=database(),batch=Array.from({length:4},(_,i)=>({id:'kariyerkapisi:'+i,externalId:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa'+i,title:'İlan '+i,deadline:null}));
+  const {sql,DB}=database(),batch=Array.from({length:4},(_,i)=>({id:'kariyerkapisi:'+i,externalId:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa'+i,title:'İlan '+i,deadline:null,notificationEligible:false}));
   sql.prepare("UPDATE sources SET pending_batch=?,batch_offset=0,next_due='1970-01-01',last_success='2026-01-01' WHERE id='kariyerkapisi'").run(JSON.stringify(batch));
   sql.exec("UPDATE sources SET next_due='2999-01-01' WHERE id!='kariyerkapisi'");
   const before=globalThis.fetch;let fetched=0;globalThis.fetch=async()=>{fetched++;return new Response('',{status:522});};
@@ -907,6 +908,18 @@ test('invalid token removes candidate facets but preserves saved preferences',as
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM installation_facets').get().n,0);
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,1);
   assert.equal(sql.prepare('SELECT enabled FROM installations').get().enabled,0);
+});
+
+test('bootstrap eligibility is checked against current catalogue at matching and sending',async t=>{
+  const {sql,env,calls,send}=notifications(t,1,{mode:'instant'});
+  sql.exec("UPDATE listings SET payload=json_set(payload,'$.notificationEligible',json('false')) WHERE id='notice00'");
+  // Event/outbox payloads predate classification; current catalogue must still veto both paths.
+  sql.exec("INSERT INTO match_events(id,listing_id,revision,payload,created_at) SELECT 'bootstrap','notice00',revision,payload,'now' FROM listings WHERE id='notice00'");
+  await matchEvents(env);
+  assert.equal(sql.prepare("SELECT state FROM match_events WHERE id='bootstrap'").get().state,'completed');
+  await flushOutbox(env,{send,now:new Date('2026-10-01T15:00:00Z')});
+  assert.equal(calls.length,0);
+  assert.equal(sql.prepare("SELECT state FROM notification_outbox WHERE id='event0'").get().state,'cancelled');
 });
 
 test('send claim merges indexed state leaders in due/id order and skips live leases',async t=>{

@@ -93,3 +93,29 @@ test('SBB pipeline persists converted text/hash/job and preserves successful det
   f.sql.exec("UPDATE listings SET recheck_at='1970-01-01'");reset();await readSource(f.env);
   assert.equal(f.sql.prepare("SELECT payload FROM listings WHERE id='sbb:one'").get().payload,saved);
 });
+
+test('first valid snapshot is silent; stable cutoff excludes old, unknown and future publications',async t=>{
+  const f=setup(t);
+  f.sql.exec("UPDATE sources SET next_due='2999-01-01' WHERE id!='sbb'");
+  globalThis.fetch=async()=>new Response('blocked',{status:403});
+  await readSource(f.env);
+  assert.equal(f.sql.prepare("SELECT baseline_at FROM sources WHERE id='sbb'").get().baseline_at,null,'A failed list is not a source snapshot');
+  globalThis.fetch=async()=>new Response('%PDF-1.7\nfixture');
+  const initial=[{id:'sbb:initial',externalId:'initial',sourceId:'sbb',title:'Resmî ilan',deadline:null,publishedAt:new Date().toISOString()}];
+  f.sql.prepare("UPDATE sources SET next_due='1970-01-01',pending_batch=?,batch_offset=0 WHERE id='sbb'").run(JSON.stringify(initial));
+  await readSource(f.env);
+  assert.equal(JSON.parse(f.sql.prepare("SELECT payload FROM listings WHERE id='sbb:initial'").get().payload).notificationEligible,false);
+  assert.ok(Number.isFinite(Date.parse(f.sql.prepare("SELECT baseline_at FROM sources WHERE id='sbb'").get().baseline_at)));
+  // Advance the scenario without a timer: the current clock is three days after this fixture cutoff.
+  const baseline=new Date(Date.now()-3*86400000).toISOString();
+  f.sql.prepare("UPDATE sources SET baseline_at=? WHERE id='sbb'").run(baseline);
+  const notices=[['old',new Date(Date.now()-4*86400000).toISOString()],['unknown',null],['new',new Date(Date.now()-86400000).toISOString()],['future',new Date(Date.now()+86400000).toISOString()]];
+  for(const [id,publishedAt] of notices){
+    const batch=[{id:'sbb:'+id,externalId:id,sourceId:'sbb',title:'Resmî ilan',deadline:null,publishedAt}];
+    f.sql.prepare("UPDATE sources SET next_due='1970-01-01',pending_batch=?,batch_offset=0 WHERE id='sbb'").run(JSON.stringify(batch));
+    await readSource(f.env);
+    const payload=JSON.parse(f.sql.prepare('SELECT payload FROM listings WHERE id=?').get('sbb:'+id).payload);
+    assert.equal(payload.notificationEligible,id==='new');
+    assert.equal(f.sql.prepare("SELECT baseline_at FROM sources WHERE id='sbb'").get().baseline_at,baseline);
+  }
+});
