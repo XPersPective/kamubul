@@ -28,6 +28,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'data/catalogue_refresh.dart';
+import 'data/condition_backfill.dart';
 import 'data/listing_store.dart';
 import 'data/remote_sync.dart';
 import 'data/search_alerts.dart';
@@ -500,6 +501,23 @@ class _KamuHomePageState extends State<KamuHomePage> {
       saveRatePrompt(_ratePolicy, widget.store);
     }
     if (mounted) setState(() => _loading = false);
+    unawaited(_backfillConditions());
+  }
+
+  bool _backfilling = false;
+
+  /// Yeni ilanların şartlarını arka planda, nazik aralıkla ayıklar; bitince
+  /// liste yeniden yüklenir (eşleşmeler güncellenir).
+  Future<void> _backfillConditions() async {
+    if (_backfilling) return;
+    _backfilling = true;
+    try {
+      if (await backfillConditions(_store) > 0) await _loadLocal();
+    } on Object {
+      // Arka plan işi en iyi çabadır; ekranı hiç engellemez.
+    } finally {
+      _backfilling = false;
+    }
   }
 
   Future<void> _toggleSaved(ListingRecord record) async {

@@ -63,18 +63,36 @@ class ListingRecord {
   final bool saved;
   final DateTime? savedAt;
 
-  /// V2 cache projeksiyonu; düz legacy şartlardan kadro koşulu türetilmez.
+  /// V2 cache projeksiyonu (sunucu/yapay zekâ ayıklaması); varsa önceliklidir.
   final Map<String, Object?>? criteriaListing;
 
-  Map<String, Object?> get matchingData =>
-      criteriaListing ??
-      {
-        'title': title,
-        'category': category,
-        'places': places,
-        'publishedAt': publishedAt?.toIso8601String(),
-        'deadline': deadline?.toIso8601String(),
-      };
+  /// Yerel kural çıkarıcı yalnız metnin TAMAMINDA tek ayrık değer ve alıntı
+  /// varsa alan üretir; bu yüzden yalnız alıntılı alanlardan tek koşul grubu
+  /// türetmek güvenlidir (çok kadrolu, çelişen ilanda alan zaten boştur).
+  Map<String, Object?> get matchingData {
+    final cached = criteriaListing;
+    if (cached != null) return cached;
+    final group = <String, Object?>{
+      'cities': places,
+      if (education != null && educationQuote != null) 'education': [education],
+      if (kpss != null && kpssQuote != null) ...{
+        'kpssStatus': 'required',
+        'kpssType': kpss,
+      },
+      if (maxAge != null && maxAgeQuote != null) ...{
+        'ageStatus': 'known',
+        'maxAge': inclusiveMaxAge(maxAge!, maxAgeQuote!),
+      },
+    };
+    return {
+      'title': title,
+      'category': category,
+      'places': places,
+      'publishedAt': publishedAt?.toIso8601String(),
+      'deadline': deadline?.toIso8601String(),
+      if (group.length > 1) 'requirementGroups': [group],
+    };
+  }
 
   ListingRecord copyWith({
     DateTime? fetchedAt,
@@ -314,4 +332,13 @@ class SavedSearch {
       ),
     );
   }
+}
+
+/// "35 yaşını doldurmamış / 36 yaşından gün almamış" sınırı dışlar (en fazla
+/// 34 tamamlanmış yaş); "35 yaşından büyük olmamak" kapsar (en fazla 35).
+int inclusiveMaxAge(int value, String quote) {
+  final folded = foldTurkish(quote).toLowerCase();
+  return RegExp(r'doldurmam|gun almam|bitirmemi|tamamlamam').hasMatch(folded)
+      ? value - 1
+      : value;
 }

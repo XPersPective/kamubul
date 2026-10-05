@@ -35,7 +35,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 9;
+  static const int _schemaVersion = 10;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -63,7 +63,8 @@ class ListingStore {
         summary TEXT,
         fingerprint TEXT,
         saved INTEGER NOT NULL DEFAULT 0,
-        savedAt INTEGER
+        savedAt INTEGER,
+        conditionsCheckedAt INTEGER
       )
     ''');
     await db.execute('''
@@ -119,6 +120,11 @@ class ListingStore {
     if (oldVersion < 7 && newVersion >= 7) await _addRemoteBootstrap(db);
     if (oldVersion < 8 && newVersion >= 8) await _addRemoteOrigin(db);
     if (oldVersion < 9 && newVersion >= 9) await _addRemoteDetails(db);
+    if (oldVersion < 10 && newVersion >= 10) {
+      await db.execute(
+        'ALTER TABLE listings ADD COLUMN conditionsCheckedAt INTEGER',
+      );
+    }
   }
 
   static Future<void> _addRemoteDetails(Database db) async {
@@ -838,12 +844,17 @@ class ListingStore {
   /// Şart çıkarımı sonuçlarını alıntı kanıtlarıyla birlikte yazar.
   /// Alıntısı olmayan ya da politikası kapalı alan yazılmaz; alan
   /// "belirtilmemiş" kalır.
-  Future<void> applyConditions(String url, ConditionFields fields) async {
+  Future<void> applyConditions(
+    String url,
+    ConditionFields fields, {
+    DateTime? at,
+  }) async {
     final claimed = applyExtractionPolicy(fields);
     final db = await database;
     await db.update(
       'listings',
       {
+        'conditionsCheckedAt': (at ?? DateTime.now()).millisecondsSinceEpoch,
         'kpss': ?claimed.kpssType?.value,
         'kpssQuote': ?claimed.kpssType?.quote,
         'education': ?claimed.education?.value,
@@ -856,6 +867,22 @@ class ListingStore {
       where: 'url = ?',
       whereArgs: [url],
     );
+  }
+
+  /// Şartları henüz ayıklanmamış, süresi geçmemiş ilanlar (yeniden eskiye).
+  Future<List<ListingRecord>> uncheckedConditions({
+    required DateTime now,
+    int limit = 12,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      'listings',
+      where: 'conditionsCheckedAt IS NULL AND (deadline IS NULL OR deadline > ?)',
+      whereArgs: [now.millisecondsSinceEpoch],
+      orderBy: 'publishedAt DESC',
+      limit: limit,
+    );
+    return rows.map(ListingRecord.fromRow).toList();
   }
 
   Future<List<SavedSearch>> savedSearches() async {
