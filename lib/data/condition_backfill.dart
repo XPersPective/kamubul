@@ -42,7 +42,7 @@ Future<int> backfillConditions(
       at: now,
       complete: !needsAi,
     );
-    if (needsAi && text.length <= 24000) {
+    if (needsAi && text.length <= 60000) {
       await store.cachePendingConditionText(record.url, text);
     }
     if (needsAi && aiLimit > 0) {

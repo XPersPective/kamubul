@@ -63,7 +63,7 @@ class AssistantClient {
     if (!available) {
       return null;
     }
-    if (text.trim().length < 200 || text.length > 24000) return const [];
+    if (text.trim().length < 200 || text.length > 60000) return const [];
     try {
       final response = await _client
           .post(

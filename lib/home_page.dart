@@ -545,7 +545,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       extractConditions(conditionText),
       complete: false,
     );
-    if (conditionText.length <= 24000) {
+    if (conditionText.length <= 60000) {
       await _store.cachePendingConditionText(url, conditionText);
     }
     await _loadLocal();
