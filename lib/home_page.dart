@@ -1687,10 +1687,16 @@ class _KamuHomePageState extends State<KamuHomePage> {
           SliverFillRemaining(
             child: _emptyState(
               _error ??
-                  (_category == 1
-                      ? 'Bu seçimde doğrulanmış işçi ilanı yok. İŞKUR otomatik bağlantısı henüz hazır değil.'
-                      : 'Bu seçimde henüz doğrulanmış ilan yok.'),
+                  (_uncertainCount > 0
+                      ? 'Kriterlerinizi kesin karşılayan ilan yok. $_uncertainCount '
+                            'ilanda bazı şartlar (ör. yaş) ilanda net yazmıyor; '
+                            'göz atıp resmî metinden kontrol edebilirsiniz.'
+                      : 'Bu seçimde henüz ilan yok. Süzgeçleri değiştirin ya da '
+                            'listeyi aşağı çekerek yenileyin.'),
               onPressed: _clearFilters,
+              uncertainAction: _uncertainCount > 0
+                  ? () => setState(() => _includeUnknown = true)
+                  : null,
             ),
           )
         else
@@ -2824,7 +2830,22 @@ class _KamuHomePageState extends State<KamuHomePage> {
     ],
   );
 
-  Widget _emptyState(String message, {required VoidCallback onPressed}) =>
+  /// Kesin eşleşme yokken şartları net olmayan (bilinmeyen) ilan sayısı.
+  int get _uncertainCount => _includeUnknown
+      ? 0
+      : _records
+            .where(
+              (r) =>
+                  (_tab != 1 || r.saved) &&
+                  _matchVisible(r) == CriteriaMatch.unknown,
+            )
+            .length;
+
+  Widget _emptyState(
+    String message, {
+    required VoidCallback onPressed,
+    VoidCallback? uncertainAction,
+  }) =>
       Center(
         // 1.3x metinde bile taşma olmasın: içerik kırpılmak yerine kayar.
         child: SingleChildScrollView(
@@ -2836,6 +2857,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
               const SizedBox(height: 12),
               Text(message, textAlign: TextAlign.center),
               const SizedBox(height: 12),
+              if (uncertainAction != null) ...[
+                FilledButton(
+                  onPressed: uncertainAction,
+                  child: Text('$_uncertainCount ilanı göster'),
+                ),
+                const SizedBox(height: 8),
+              ],
               OutlinedButton(
                 onPressed: onPressed,
                 child: const Text('Süzgeçleri temizle'),
