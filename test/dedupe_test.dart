@@ -90,8 +90,7 @@ void main() {
       deadline: deadline,
     );
 
-    test('aynı kurum+son başvuru farklı URL ile gelirse ikinci kaynak '
-        'atlanır', () async {
+    test('aynı kurum+son başvuru farklı native ilanları silmez', () async {
       final store = await freshStore();
       await store.mergeFeed([
         record(
@@ -116,7 +115,11 @@ void main() {
         ),
       ]);
       final items = await store.allListings();
-      expect(items.map((item) => item.url), ['kariyer://1', 'sbb://3']);
+      expect(items.map((item) => item.url).toSet(), {
+        'kariyer://1',
+        'sbb://2',
+        'sbb://3',
+      });
       await store.close();
     });
 
@@ -153,8 +156,12 @@ void main() {
       ]);
       final db = await store.database;
       // Göç öncesi benzeri: parmak izi boş satır yenilemede dolar.
-      await db.update('listings', {'fingerprint': null}, where: 'url = ?',
-          whereArgs: ['a']);
+      await db.update(
+        'listings',
+        {'fingerprint': null},
+        where: 'url = ?',
+        whereArgs: ['a'],
+      );
       await store.mergeFeed([
         record(
           url: 'a',
@@ -163,8 +170,11 @@ void main() {
           deadline: DateTime(2026, 10, 12),
         ),
       ]);
-      final row = (await db.query('listings', where: 'url = ?', whereArgs: ['a']))
-          .single;
+      final row = (await db.query(
+        'listings',
+        where: 'url = ?',
+        whereArgs: ['a'],
+      )).single;
       expect(row['fingerprint'], isNotNull);
       await store.close();
     });

@@ -9,6 +9,90 @@ import 'package:kamubul/ui/assistant_chat.dart';
 import 'package:napp_core/napp_core.dart';
 
 void main() {
+  testWidgets(
+    'aynı ilanın yeni revizyonu eski sohbet metnini yeniden kullanmaz',
+    (tester) async {
+      final sent = <String>[];
+      var loads = 0;
+      final client = AssistantClient(
+        store: SettingsStore(),
+        baseUrl: 'https://api.test',
+        client: MockClient((request) async {
+          sent.add(
+            (jsonDecode(request.body)['listing'] as Map)['text'] as String,
+          );
+          return http.Response('{"intent":"answer","reply":"Tamam"}', 200);
+        }),
+      );
+      final messages = <ChatMessage>[];
+      Future<void> show(int revision) => tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AssistantChatView(
+              client: client,
+              messages: messages,
+              listingId: 'ilangov:1',
+              listingRevision: revision,
+              listingTitle: 'Aynı başlık',
+              loadListingText: () async {
+                loads++;
+                return 'Revizyon $revision kaynak metni';
+              },
+            ),
+          ),
+        ),
+      );
+      Future<void> send() async {
+        await tester.enterText(find.byType(TextField), 'Yaş şartı nedir?');
+        await tester.tap(find.byTooltip('Gönder'));
+        await tester.pumpAndSettle();
+      }
+
+      await show(1);
+      await send();
+      await send();
+      expect(loads, 1);
+      await show(2);
+      await send();
+      expect(loads, 2);
+      expect(sent, [
+        'Revizyon 1 kaynak metni',
+        'Revizyon 1 kaynak metni',
+        'Revizyon 2 kaynak metni',
+      ]);
+    },
+  );
+
+  testWidgets('metni henüz alınmamış ilan sorusu AI hakkı tüketmez', (
+    tester,
+  ) async {
+    var calls = 0;
+    final client = AssistantClient(
+      store: SettingsStore(),
+      baseUrl: 'https://api.test',
+      client: MockClient((request) async {
+        calls++;
+        return http.Response('{}', 200);
+      }),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AssistantChatView(
+            client: client,
+            messages: [],
+            listingTitle: 'Alım',
+            loadListingText: () async => null,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Yaş sınırı var mı?'));
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+    expect(find.textContaining('metni henüz hazır değil'), findsOneWidget);
+  });
+
   testWidgets('seçili ilanla soru sorulur, ilan metni sunucuya gider', (
     tester,
   ) async {

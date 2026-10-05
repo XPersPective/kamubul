@@ -57,43 +57,13 @@ class AssistantClient {
     return id;
   }
 
-  /// İlan şartlarını sunucuda yapay zekâyla ayıklar (ADR-005 katman 2).
-  /// Sunucu metin hash'iyle önbellekler; tavan/hata halinde null döner.
-  Future<List<Map<String, Object?>>?> extractConditions(String text) async {
-    if (!available) {
-      return null;
-    }
-    if (text.trim().length < 200 || text.length > 60000) return const [];
-    try {
-      final response = await _client
-          .post(
-            Uri.parse('$_base/api/v2/extract'),
-            headers: const {'content-type': 'application/json'},
-            body: jsonEncode({
-              'installationId': _installationId(),
-              'text': text,
-            }),
-          )
-          .timeout(const Duration(seconds: 65));
-      if (response.statusCode == 413 || response.statusCode == 422) {
-        return const [];
-      }
-      if (response.statusCode != 200) return null;
-      final groups =
-          (jsonDecode(utf8.decode(response.bodyBytes)) as Map)['groups'];
-      return groups is List
-          ? [for (final g in groups.whereType<Map>()) g.cast<String, Object?>()]
-          : null;
-    } on Object {
-      return null;
-    }
-  }
-
   /// KamuBul Asistan sohbeti: seçili ilan metni ve son birkaç mesajla.
   Future<AssistantReply> chat(
     String message, {
     List<({String role, String text})> history = const [],
     String? listingTitle,
+    String? listingId,
+    int? listingRevision,
     String? listingText,
     bool pro = false,
     Map<String, Object?>? profile,
@@ -113,9 +83,11 @@ class AssistantClient {
       if (listingText != null && listingText.trim().isNotEmpty)
         'listing': {
           'title': listingTitle ?? '',
-          // Sunucu da kırpar; gereksiz veri gönderilmez.
-          'text': listingText.length > 8000
-              ? listingText.substring(0, 8000)
+          'id': ?listingId,
+          'revision': ?listingRevision,
+          // Soruya uygun metin kesitini sunucu seçer; sondaki kadroları atlama.
+          'text': listingText.length > 120000
+              ? listingText.substring(0, 120000)
               : listingText,
         },
     },

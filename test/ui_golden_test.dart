@@ -58,6 +58,11 @@ void main() {
     places: const ['Ankara', 'İzmir'],
     summary: const ['Başvurular resmî başvuru sistemi üzerinden yapılır.'],
     criteriaListing: {
+      'text':
+          'Unvan | Eğitim | KPSS\n'
+          'Mühendis | Lisans | P3 en az 70 puan\n'
+          'Destek personeli | Koşulları resmî belgede belirtilir.\n'
+          'Başvurular 12 Ekim 2026 tarihine kadar Kariyer Kapısı üzerinden yapılır.',
       'requirementGroups': [
         {
           'occupations': ['Mühendis'],
@@ -111,6 +116,12 @@ void main() {
         matchesGoldenFile('goldens/canonical_${name}_top.png'),
       );
       await tester.scrollUntilVisible(
+        find.text('Eğitim: Lisans'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Eğitim: Lisans'), findsOneWidget);
+      await tester.scrollUntilVisible(
         find.text('Yaş şartı: henüz belirlenemedi'),
         180,
         scrollable: find.byType(Scrollable).first,
@@ -127,7 +138,6 @@ void main() {
         find.text('Yaş şartı: henüz belirlenemedi').hitTestable(),
         findsOneWidget,
       );
-      expect(find.text('Eğitim: Lisans'), findsOneWidget);
       final cta = find.widgetWithText(FilledButton, 'Resmî belgeyi aç');
       expect(cta.hitTestable(), findsOneWidget);
       expect(tester.getSize(cta).height, greaterThanOrEqualTo(48));

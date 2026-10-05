@@ -9,8 +9,8 @@ import 'extraction_policy.dart';
 import 'kariyer_detail.dart';
 import 'kariyer_feed.dart';
 
-/// Resmî ilanın ayrıntısı: Kariyer Kapısı'nın herkese açık okuma çağrılarından
-/// kurum, kontenjan, yer, tarih ve şartlar; resmî başvuru bağlantısıyla.
+/// Eski yapılandırılmış ayrıntı görünümü; veri yükleyici açıkça verilmelidir.
+/// Uygulama sunucu kaydını OfficialListingPage ile gösterir.
 ///
 /// PB-008: başlık kaydırmada çöken büyük başlık (SliverAppBar.large) ve
 /// her zaman görünür yapışkan başvuru düğmesi.
@@ -42,8 +42,7 @@ class KariyerDetailPage extends StatefulWidget {
   /// "Asistana sor": ilanı Asistan sekmesinde bağlam olarak açar.
   final VoidCallback? onAskAssistant;
 
-  /// Ayrıntı yükleyici; varsayılan resmî açık okuma çağrıları. Testler
-  /// ağsız fikstürle besler.
+  /// Ayrıntı yükleyici. Varsayılan kaynak ağ çağrısı yoktur; testler fikstür verir.
   final Future<KariyerDetail> Function(Uri url)? loader;
 
   @override
@@ -61,7 +60,10 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
 
   Future<KariyerDetail> _load() {
     final loaded = widget.onLoaded;
-    final read = widget.loader ?? loadKariyerDetail;
+    final read = widget.loader;
+    if (read == null) {
+      return Future.error(const FormatException('Sunucu ayrıntısı bulunamadı'));
+    }
     return read(widget.listing.url).then((detail) {
       loaded?.call(detail);
       return detail;

@@ -30,6 +30,8 @@ class AssistantChatView extends StatefulWidget {
     required this.client,
     required this.messages,
     this.listingTitle,
+    this.listingId,
+    this.listingRevision,
     this.loadListingText,
     this.onClearListing,
     this.onOpenListing,
@@ -47,6 +49,8 @@ class AssistantChatView extends StatefulWidget {
   /// Sohbet geçmişi üst bileşende tutulur; sekme değişince kaybolmaz.
   final List<ChatMessage> messages;
   final String? listingTitle;
+  final String? listingId;
+  final int? listingRevision;
   final Future<String?> Function()? loadListingText;
   final VoidCallback? onClearListing;
   final VoidCallback? onOpenListing;
@@ -71,7 +75,7 @@ class _AssistantChatViewState extends State<AssistantChatView> {
   final _scroll = ScrollController();
   bool _busy = false;
   String? _listingText;
-  String? _loadedFor;
+  (String?, int?, String)? _loadedFor;
 
   @override
   void dispose() {
@@ -97,13 +101,14 @@ class _AssistantChatViewState extends State<AssistantChatView> {
   Future<String?> _contextText() async {
     final title = widget.listingTitle;
     if (title == null || widget.loadListingText == null) return null;
-    if (_loadedFor == title) return _listingText;
+    final identity = (widget.listingId, widget.listingRevision, title);
+    if (_loadedFor == identity) return _listingText;
     try {
       _listingText = await widget.loadListingText!();
     } on Object {
       _listingText = null;
     }
-    _loadedFor = title;
+    _loadedFor = identity;
     return _listingText;
   }
 
@@ -123,10 +128,18 @@ class _AssistantChatViewState extends State<AssistantChatView> {
     _scrollToEnd();
     try {
       final listingText = await _contextText();
+      if (widget.listingTitle != null &&
+          (listingText == null || listingText.trim().isEmpty)) {
+        throw const AssistantException(
+          'Bu ilanın metni henüz hazır değil. Güncellendiğinde sorularınızı yanıtlayabilirim.',
+        );
+      }
       final reply = await widget.client.chat(
         text,
         history: history,
         listingTitle: widget.listingTitle,
+        listingId: widget.listingId,
+        listingRevision: widget.listingRevision,
         listingText: listingText,
         pro: widget.isPro,
         profile: widget.profile,

@@ -585,28 +585,31 @@ class ListingStore {
         if (oldUrl != null && oldUrl != record.url) {
           await txn.delete('listings', where: 'url=?', whereArgs: [oldUrl]);
         }
-        await txn.insert(
-          'listings',
-          {
-            ...record
-                .copyWith(
-                  saved: saved,
-                  savedAt: savedMs == null
-                      ? null
-                      : DateTime.fromMillisecondsSinceEpoch(savedMs),
-                )
-                .toRow(),
-            if (extraction.isNotEmpty) ...extraction.single,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('listings', {
+          ...record
+              .copyWith(
+                saved: saved,
+                savedAt: savedMs == null
+                    ? null
+                    : DateTime.fromMillisecondsSinceEpoch(savedMs),
+              )
+              .toRow(),
+          if (extraction.isNotEmpty) ...extraction.single,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       await txn.insert('remote_catalogue', {
         'id': change.id,
         'revision': change.revision,
         'url': url,
         'active': change.deleted ? 0 : 1,
-        'payload': jsonEncode(item),
+        'payload': jsonEncode({
+          if (change.deleted && old != null)
+            ...Map<String, Object?>.from(
+              jsonDecode(old['payload'] as String) as Map,
+            ),
+          ...item,
+          if (change.deleted) 'active': false,
+        }),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
   }
@@ -682,28 +685,13 @@ class ListingStore {
     final batch = db.batch();
     final pruneLimit =
         pruneBefore ?? DateTime.now().subtract(const Duration(days: 45));
-    // Kaynaklar-arasi kopyalar: ayni kurum+son basvuru parmak izine sahip
-    // farkli URL'ler yalnizca ilk gelen olarak alinir.
-    final known = <String, String?>{};
-    for (final row in await db.query(
-      'listings',
-      columns: ['url', 'fingerprint'],
-    )) {
-      known[row['url'] as String] = row['fingerprint'] as String?;
-    }
-    final seenFingerprints = <String>{for (final fp in known.values) ?fp};
+    // URL/native ID kimliktir; kurum ve tarih eşitliği ayrı ilanları silemez.
     for (final record in incoming) {
       record.fingerprint ??= listingFingerprint(
         title: record.title,
         sourceId: record.sourceId,
         deadline: record.deadline,
       );
-      if (!known.containsKey(record.url)) {
-        if (seenFingerprints.contains(record.fingerprint)) {
-          continue;
-        }
-        seenFingerprints.add(record.fingerprint!);
-      }
       batch.insert(
         'listings',
         record.toRow(),
@@ -775,19 +763,9 @@ class ListingStore {
           }
           final payload = jsonDecode(row['payload'] as String) as Map;
           byUrl[url] = {
+            ...Map<String, Object?>.from(payload),
+            'id': row['id'],
             'active': row['active'] == 1 && payload['active'] != false,
-            for (final key in [
-              'title',
-              'category',
-              'institution',
-              'publishedAt',
-              'deadline',
-              'places',
-              'occupations',
-              'requirementGroups',
-              'aiProvenance',
-            ])
-              key: payload[key],
           };
         }
         after = remote.last['id'] as String;

@@ -9,8 +9,6 @@ import 'package:kamubul_core/kamubul_core.dart'
         SourceStatus,
         kIlanGovSourceId,
         kIskurSourceId,
-        loadIlanGovDetailText,
-        loadIskurDetailText,
         SourceState,
         CatalogueMetadata,
         SearchCriteria,
@@ -28,7 +26,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'data/catalogue_refresh.dart';
-import 'data/condition_backfill.dart';
 import 'data/listing_store.dart';
 import 'data/remote_sync.dart';
 import 'data/search_alerts.dart';
@@ -38,10 +35,6 @@ import 'notifications/alert_service.dart';
 import 'notifications/notification_center_page.dart';
 import 'notifications/push_registration.dart';
 import 'notifications/push_setup.dart';
-import 'listings/kariyer_detail.dart';
-import 'listings/kariyer_detail_page.dart';
-import 'listings/extract_conditions.dart';
-import 'listings/kariyer_feed.dart';
 import 'listings/listing_guide.dart';
 import 'listings/official_listing_page.dart';
 import 'ads_state.dart';
@@ -116,8 +109,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
   SavedSearch? get _activeSearch =>
       _searches.where((s) => s.id == _activeSearchId).firstOrNull;
   bool _loading = false;
-  bool _cityLoading = false;
-  String? _cityError;
   String? _error;
   List<String> _failedSources = const [];
   List<SourceStatus> _sourceStatuses = const [];
@@ -300,6 +291,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
           OfficialListingPage(
             listing: detail,
             unavailable: item['active'] == false,
+            onAskAssistant: () => _askAssistantAbout(detail),
             cacheNotice: (item['revision'] as int) < (target.revision ?? 1)
                 ? 'Güncel ayrıntı alınamadı. Önbellekteki eski bilgiler gösteriliyor.'
                 : fromCache
@@ -468,10 +460,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _loading = true;
       _error = null;
     });
-    final result = await refreshCatalogue(
-      _store,
-      minSourceInterval: manual ? manualSourceInterval : autoSourceInterval,
-    );
+    final result = await refreshCatalogue(_store);
     await _loadLocal();
     if (!mounted) return;
     setState(() {
@@ -500,54 +489,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
       saveRatePrompt(_ratePolicy, widget.store);
     }
     if (mounted) setState(() => _loading = false);
-    unawaited(_backfillConditions());
-  }
-
-  bool _backfilling = false;
-
-  /// Yeni ilanların şartlarını arka planda, nazik aralıkla ayıklar; bitince
-  /// liste yeniden yüklenir (eşleşmeler güncellenir).
-  Future<void> _backfillConditions() async {
-    if (_backfilling) return;
-    _backfilling = true;
-    try {
-      final done = await backfillConditions(
-        _store,
-        aiExtract: _assistantClient.extractConditions,
-      );
-      if (done > 0) await _loadLocal();
-    } on Object {
-      // Arka plan işi en iyi çabadır; ekranı hiç engellemez.
-    } finally {
-      _backfilling = false;
-    }
   }
 
   Future<void> _toggleSaved(ListingRecord record) async {
     HapticFeedback.mediumImpact();
     await _store.setSaved(record.url, !record.saved);
-    await _loadLocal();
-  }
-
-  Future<void> _cacheDetail(String url, KariyerDetail detail) async {
-    await _store.applyDetail(
-      url,
-      deadline: detail.deadline,
-      quota: detail.quota > 0 ? detail.quota : null,
-      places: detail.places,
-    );
-    final conditionText = [
-      detail.body,
-      for (final position in detail.positions) position.conditions,
-    ].join('\n');
-    await _store.applyConditions(
-      url,
-      extractConditions(conditionText),
-      complete: false,
-    );
-    if (conditionText.length <= 60000) {
-      await _store.cachePendingConditionText(url, conditionText);
-    }
     await _loadLocal();
   }
 
@@ -678,7 +624,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
       return;
     }
     _searchController.text = search.filters['q'] ?? '';
-    final city = search.filters['sehir'];
     setState(() {
       _search = search.filters['q'] ?? '';
       _category = int.tryParse(search.filters['kategori'] ?? '') ?? 0;
@@ -698,26 +643,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _activeSearchId = search.id;
       _includeUnknown = false;
     });
-    if (city != null && city.isNotEmpty) _refreshCity(cityLabel(city));
-  }
-
-  Future<void> _refreshCity(String city) async {
-    setState(() {
-      _cityLoading = true;
-      _cityError = null;
-    });
-    try {
-      await refreshKariyerCity(_store, city);
-      await _loadLocal();
-    } on Exception {
-      if (mounted && _place == city) {
-        setState(
-          () => _cityError = 'Şehir kaynağına ulaşılamadı; yalnızca önceden doğrulanmış yerler gösteriliyor.',
-        );
-      }
-    } finally {
-      if (mounted && _place == city) setState(() => _cityLoading = false);
-    }
   }
 
   Future<void> _chooseCity() async {
@@ -800,7 +725,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _activeSearchId = null;
       _includeUnknown = false;
     });
-    await _refreshCity(chosen);
   }
 
   void _clearFilters() {
@@ -817,8 +741,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
       _kpssFilter = null;
       _activeSearchId = null;
       _includeUnknown = false;
-      _cityError = null;
-      _cityLoading = false;
     });
   }
 
@@ -2095,12 +2017,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
               ),
             ),
           ),
-        if (_cityLoading) const LinearProgressIndicator(),
-        if (_cityError != null)
-          Text(
-            _cityError!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
         const SizedBox(height: 12),
         _searchesCard(),
         const SizedBox(height: 10),
@@ -2418,39 +2334,10 @@ class _KamuHomePageState extends State<KamuHomePage> {
     Navigator.of(context).push(sharedAxisRoute<void>(_listingPage(record)));
   }
 
-  /// Sunucu ayrıntıyı okuyamadıysa (Kariyer Kapısı Cloudflare'i engelliyor)
-  /// ayrıntı telefondan resmî kaynaktan okunur.
-  bool _serverDetailMissing(ListingRecord record) {
-    final listing = record.criteriaListing;
-    if (listing == null) return true;
-    final groups = listing['requirementGroups'];
-    return listing['detailState'] == 'unavailable' ||
-        groups is! List ||
-        groups.isEmpty;
-  }
-
-  Widget _listingPage(ListingRecord record) =>
-      record.sourceId == 'kariyerkapisi' && _serverDetailMissing(record)
-      ? KariyerDetailPage(
-          listing: _asPublicListing(record),
-          summary: record.summary,
-          cachedQuota: record.quota,
-          cachedPlaces: record.places,
-          onLoaded: (detail) => _cacheDetail(record.url, detail),
-          onAskAssistant: () => _askAssistantAbout(record),
-        )
-      : OfficialListingPage(
-          listing: record,
-          unavailable: record.criteriaListing?['active'] == false,
-          onAskAssistant: () => _askAssistantAbout(record),
-        );
-
-  PublicListing _asPublicListing(ListingRecord record) => PublicListing(
-    title: record.title,
-    category: record.category,
-    url: Uri.parse(record.url),
-    publishedAt: record.publishedAt,
-    deadline: record.deadline,
+  Widget _listingPage(ListingRecord record) => OfficialListingPage(
+    listing: record,
+    unavailable: record.criteriaListing?['active'] == false,
+    onAskAssistant: () => _askAssistantAbout(record),
   );
 
   Widget _savedView() => _visibleRecords.isEmpty
@@ -2498,12 +2385,16 @@ class _KamuHomePageState extends State<KamuHomePage> {
   }
 
   Widget _assistantView() {
-    final selected = _assistantListing;
+    final selected =
+        _records.where((r) => r.url == _assistantListing?.url).firstOrNull ??
+        _assistantListing;
     return AssistantChatView(
       key: ValueKey(selected?.url),
       client: _assistantClient,
       messages: _chatMessages,
       listingTitle: selected?.title,
+      listingId: selected?.criteriaListing?['id'] as String?,
+      listingRevision: selected?.criteriaListing?['revision'] as int?,
       loadListingText: selected == null
           ? null
           : () => _listingContext(selected),
@@ -2565,52 +2456,19 @@ class _KamuHomePageState extends State<KamuHomePage> {
     });
   }
 
-  /// Asistana verilecek ilan bağlamı: Kariyer Kapısı ayrıntısı telefondan
-  /// resmî kaynaktan okunur (sunucu bu kaynağa erişemiyor).
+  /// Asistan yalnız indirilen sunucu metnini kullanır; resmî siteyi yeniden okumaz.
   Future<String?> _listingContext(ListingRecord record) async {
-    final parts = <String>[
-      record.title,
-      if (record.category.isNotEmpty) 'Kategori: ${record.category}',
-      if (record.deadline != null) 'Son başvuru: ${_date(record.deadline)}',
-      if (record.quota != null) 'Kontenjan: ${record.quota}',
-      if (record.places.isNotEmpty) 'Yerler: ${record.places.join(', ')}',
-    ];
-    if (record.sourceId == 'kariyerkapisi') {
-      try {
-        final detail = await loadKariyerDetail(Uri.parse(record.url));
-        parts.add('Kurum: ${detail.institution}');
-        if (detail.start != null) parts.add('Yayın: ${_date(detail.start)}');
-        if (detail.deadline != null) {
-          parts.add('Son başvuru: ${_date(detail.deadline)}');
-        }
-        parts.add(detail.body);
-        for (final position in detail.positions) {
-          parts.add(
-            'Kadro: ${position.profession.isEmpty ? position.title : position.profession}'
-            ' (kontenjan ${position.quota}; ${position.places.join(', ')})\n'
-            '${position.conditions}',
-          );
-        }
-      } on Object {
-        // Ayrıntı okunamazsa başlık ve özetle devam edilir.
-      }
-    } else if (record.sourceId == kIskurSourceId) {
-      final id = Uri.tryParse(record.url)?.queryParameters['uiID'];
-      try {
-        if (id != null) parts.add(await loadIskurDetailText(id));
-      } on Object {
-        // Ayrıntı okunamazsa başlık ve özetle devam edilir.
-      }
-    } else if (record.sourceId == kIlanGovSourceId) {
-      final id = Uri.tryParse(record.url)?.pathSegments.elementAtOrNull(1);
-      try {
-        if (id != null) parts.add(await loadIlanGovDetailText(id));
-      } on Object {
-        // Ayrıntı okunamazsa başlık ve özetle devam edilir.
-      }
-    }
-    parts.addAll(record.summary);
-    return parts.where((part) => part.trim().isNotEmpty).join('\n');
+    final current =
+        _records.where((r) => r.url == record.url).firstOrNull ?? record;
+    if (current.noticeText.isEmpty) return null;
+    return [
+      current.title,
+      if (current.category.isNotEmpty) 'Kategori: ${current.category}',
+      if (current.deadline != null) 'Son başvuru: ${_date(current.deadline)}',
+      if (current.quota != null) 'Kontenjan: ${current.quota}',
+      if (current.places.isNotEmpty) 'Yerler: ${current.places.join(', ')}',
+      current.noticeText,
+    ].join('\n');
   }
 
   void _showServerPushInfo() => showDialog<void>(
@@ -2936,16 +2794,11 @@ class _SourcesPage extends StatelessWidget {
   /// Sunucunun bildirdiği kaynak durumları (boşsa sunucu kapalı/okunamadı).
   final List<SourceStatus> sourceStatuses;
 
-  // ilan.gov.tr ve İŞKUR'u telefon okur; sunucunun eski "engelli" kaydı gösterilmez.
   SourceStatus? _serverStatus(String id) =>
-      id == kIlanGovSourceId || id == kIskurSourceId
-      ? null
-      : sourceStatuses.where((s) => s.id == id).firstOrNull ??
-            (id == 'sbb'
-                ? sourceStatuses
-                      .where((s) => s.id == 'kamuilan_sbb')
-                      .firstOrNull
-                : null);
+      sourceStatuses.where((s) => s.id == id).firstOrNull ??
+      (id == 'sbb'
+          ? sourceStatuses.where((s) => s.id == 'kamuilan_sbb').firstOrNull
+          : null);
   String? _serverNote(String id) => _serverStatus(id)?.note;
   String _serverLabel(String id) => switch (_serverStatus(id)?.state) {
     SourceState.ok => 'Listeye erişildi',
@@ -2976,7 +2829,7 @@ class _SourcesPage extends StatelessWidget {
           (
             'Kariyer Kapısı',
             'kariyerkapisi',
-            'Resmî liste ve RSS; ayrıntılar ilan açılınca okunur.',
+            'Resmî liste ve ilan metinleri sunucuda okunur; ayrıntılar cihazda saklanır.',
           ),
           (
             'Kamu İlanları (SBB)',
@@ -2986,8 +2839,8 @@ class _SourcesPage extends StatelessWidget {
           (
             'ilan.gov.tr',
             kIlanGovSourceId,
-            'Personel alımı ilanları (belediye, üniversite, Resmî Gazete); '
-                'telefon resmî portaldan okur.',
+            'Personel alımı ilanları (belediye, üniversite, Resmî Gazete) '
+                'sunucuda resmî portaldan okunur.',
           ),
           (
             'İŞKUR',
@@ -3002,11 +2855,7 @@ class _SourcesPage extends StatelessWidget {
                   ? _serverStatus(id)!.state == SourceState.ok
                         ? Icons.check_circle_outline
                         : Icons.error_outline
-                  : checkedAt == null
-                  ? Icons.help_outline
-                  : failedSources.contains(name)
-                  ? Icons.error_outline
-                  : Icons.check_circle_outline,
+                  : Icons.help_outline,
             ),
             title: Text(name),
             subtitle: Text(
@@ -3014,7 +2863,7 @@ class _SourcesPage extends StatelessWidget {
                   ? '${_serverLabel(id)}. ${_serverNote(id) ?? description}'
                   : checkedAt != null && failedSources.contains(name)
                   ? 'Son denetim başarısız; önbellek korunuyor. $description'
-                  : description,
+                  : 'Kaynak henüz denetlenmedi. $description',
             ),
           ),
         const ListTile(

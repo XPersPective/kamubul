@@ -43,6 +43,67 @@ String _envelope(Object? data, {String packageName = kUserDataPackageName}) =>
     });
 
 void main() {
+  test(
+    'ilan.gov ve İŞKUR favorileri yedekte korunur; sahte kaynak/ID reddedilir',
+    () {
+      for (final (source, url) in [
+        ('ilangov', 'https://www.ilan.gov.tr/ilan/2238622/personel-alimi'),
+        (
+          'iskur',
+          'https://esube.iskur.gov.tr/Istihdam/AcikIsIlanDetay.aspx?uiID=12345&isyeriTuru=Kamu',
+        ),
+        (
+          'iskur',
+          'https://esube.iskur.gov.tr/Istihdam/AcikIsIlanDetay.aspx?uiID=00009835411&isyeriTuru=Kamu',
+        ),
+      ]) {
+        String backup(String link) => exportUserDataJson(
+          searches: [],
+          bookmarks: [
+            ListingRecord(
+              url: link,
+              sourceId: source,
+              title: 'Kamu alımı',
+              category: 'Personel',
+              publishedAt: null,
+              fetchedAt: DateTime(2026, 10, 5),
+              saved: true,
+            ),
+          ],
+        );
+        final restored = parseUserDataJson(backup(url)).bookmarks.single;
+        expect(restored.sourceId, source);
+        expect(restored.url, url);
+        expect(restored.saved, true);
+        expect(
+          () => parseUserDataJson(
+            backup(url.replaceFirst(Uri.parse(url).host, 'fake.test')),
+          ),
+          throwsFormatException,
+        );
+        final invalidId = source == 'ilangov'
+            ? url.replaceFirst('2238622', 'abc')
+            : url.replaceFirst(RegExp(r'uiID=[0-9]+'), 'uiID=abc');
+        expect(
+          () => parseUserDataJson(backup(invalidId)),
+          throwsFormatException,
+        );
+        if (source == 'iskur') {
+          for (final invalid in ['00000000000', '', '-123', '1' * 21]) {
+            expect(
+              () => parseUserDataJson(
+                backup(
+                  url.replaceFirst(RegExp(r'uiID=[0-9]+'), 'uiID=$invalid'),
+                ),
+              ),
+              throwsFormatException,
+            );
+          }
+        }
+      }
+    },
+  );
+
   test('live and legacy SBB bookmark source IDs survive backup round trip', () {
     for (final source in ['sbb', 'kamuilan_sbb']) {
       final record = ListingRecord(

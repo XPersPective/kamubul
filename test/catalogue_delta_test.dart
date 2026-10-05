@@ -482,7 +482,7 @@ void main() {
           'maxAge': 30,
         },
       ],
-      'documentText': 'large source document',
+      'text': 'large source document',
     };
     await store.applyDeltaPage(
       CatalogueDeltaPage(1, 1, false, [
@@ -495,7 +495,7 @@ void main() {
       record.criteriaListing!['requirementGroups'],
       data['requirementGroups'],
     );
-    expect(record.criteriaListing!.containsKey('documentText'), isFalse);
+    expect(record.noticeText, 'large source document');
     SavedSearch candidate(num score, String city) => SavedSearch(
       id: 1,
       name: 'Kişisel',

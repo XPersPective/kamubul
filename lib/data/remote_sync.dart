@@ -2,7 +2,7 @@
 ///
 /// V2 metadata ve immutable değişiklik sayfaları kalıcı SQLite cursor'a işlenir.
 /// Sayfa kesilirse kayıt/cursor birlikte korunur; tüm senkronizasyon bitmeden
-/// son başarı zamanı ilerlemez. Gömülü kaynakların geçiş sahibi refreshCatalogue'dır.
+/// son başarı zamanı ilerlemez. Kaynaklar yalnız sunucuda okunur.
 library;
 
 import 'dart:convert';
@@ -12,7 +12,7 @@ import 'package:kamubul_core/kamubul_core.dart';
 import 'listing_store.dart';
 
 /// Uygulama derlemesine `--dart-define=KAMUBUL_API=https://...` ile verilir.
-/// Boşsa uzak katalog kapalıdır ve uygulama yalnızca gömülü çekimi kullanır.
+/// Boşsa uzak katalog kapalıdır; mevcut çevrimdışı önbellek gösterilir.
 const String kApiBaseUrl = String.fromEnvironment('KAMUBUL_API');
 
 String catalogueOrigin(RemoteCatalogueClient client) {
@@ -26,7 +26,7 @@ String catalogueOrigin(RemoteCatalogueClient client) {
       .toString();
 }
 
-/// Yapılandırma geçersizse ya da boşsa `null`; çağıran gömülü yola düşer.
+/// Yapılandırma geçersizse ya da boşsa `null`; kaynak kazıma yedeği yoktur.
 RemoteCatalogueClient? defaultRemoteClient() {
   if (kApiBaseUrl.isEmpty) return null;
   try {

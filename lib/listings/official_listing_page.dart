@@ -7,8 +7,7 @@ import 'package:kamubul_core/kamubul_core.dart' show cityLabel, educationLabel;
 
 import '../data/listing_store.dart';
 
-/// Kaynağında yapılandırılmış ayrıntı sunmayan ilanlar için yerel özet.
-/// Boş alanlar tahmin edilmez; belgeye geçiş kullanıcıya bırakılır.
+/// İndirilen sunucu ayrıntısı ve özgün metin; çevrimdışı da okunabilir.
 class OfficialListingPage extends StatelessWidget {
   const OfficialListingPage({
     super.key,
@@ -160,10 +159,8 @@ class OfficialListingPage extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       '“$quote”',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontStyle: FontStyle.italic,
-                        height: 1.45,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(fontStyle: FontStyle.italic, height: 1.45),
                     ),
                   ),
               const SizedBox(height: 6),
@@ -323,6 +320,21 @@ class OfficialListingPage extends StatelessWidget {
                   'İlk 100 kadro gösteriliyor. Tüm kadrolar için resmî belgeyi açın.',
                 ),
             ],
+            const SizedBox(height: 20),
+            Semantics(
+              header: true,
+              child: Text('İlan metni', style: theme.textTheme.titleLarge),
+            ),
+            const SizedBox(height: 8),
+            if (listing.noticeText.isNotEmpty)
+              SelectableText(
+                listing.noticeText,
+                style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+              )
+            else
+              const Text(
+                'İlan metni henüz sunucuya alınamadı. Güncellendiğinde burada görünecek.',
+              ),
             const SizedBox(height: 12),
             Text(
               groups.isEmpty

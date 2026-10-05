@@ -71,6 +71,29 @@ class ListingRecord {
   /// grupları (ADR-005 katman 2); yerel tek gruptan önceliklidir.
   final List<Map<String, Object?>> aiGroups;
 
+  /// SQLite'daki sunucu payload'ından özgün metin; AI alanlarından bağımsızdır.
+  String get noticeText {
+    final data = criteriaListing;
+    final body = data?['text'] is String ? data!['text'] as String : '';
+    final parts = <String>[if (body.trim().isNotEmpty) body];
+    final positions = data?['positions'];
+    if (positions is List) {
+      for (final position in positions.whereType<Map>()) {
+        final conditions = position['text'] ?? position['conditions'];
+        if (conditions is! String ||
+            conditions.trim().isEmpty ||
+            body.contains(conditions)) {
+          continue;
+        }
+        final label = position['profession'] ?? position['title'];
+        parts.add(
+          '${label is String && label.isNotEmpty ? '$label\n' : ''}$conditions',
+        );
+      }
+    }
+    return parts.join('\n\n');
+  }
+
   /// Yerel kural çıkarıcı yalnız metnin TAMAMINDA tek ayrık değer ve alıntı
   /// varsa alan üretir; bu yüzden yalnız alıntılı alanlardan tek koşul grubu
   /// türetmek güvenlidir (çok kadrolu, çelişen ilanda alan zaten boştur).
@@ -219,7 +242,10 @@ class ListingRecord {
     try {
       final decoded = jsonDecode(raw);
       return decoded is List
-          ? [for (final g in decoded.whereType<Map>()) g.cast<String, Object?>()]
+          ? [
+              for (final g in decoded.whereType<Map>())
+                g.cast<String, Object?>(),
+            ]
           : const [];
     } on FormatException {
       return const [];

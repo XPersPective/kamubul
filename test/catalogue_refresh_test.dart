@@ -1,63 +1,97 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:kamubul/data/catalogue_refresh.dart';
 import 'package:kamubul/data/listing_store.dart';
-import 'package:kamubul/listings/kariyer_feed.dart';
+import 'package:kamubul_core/kamubul_core.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  test('arka planla paylaşılan yenileme son tarihi işler ve hata halinde önbelleği korur', () async {
-    final store = ListingStore(
-      database: await databaseFactory.openDatabase(
-        inMemoryDatabasePath,
-        options: OpenDatabaseOptions(
-          version: 3,
-          singleInstance: false,
-          onCreate: ListingStore.createSchema,
+  test(
+    'sunucu hatası önbelleği ve favoriyi korur; resmî kaynak çağrısı yok',
+    () async {
+      final store = ListingStore(
+        database: await databaseFactory.openDatabase(
+          inMemoryDatabasePath,
+          options: OpenDatabaseOptions(
+            singleInstance: false,
+            onCreate: ListingStore.createSchema,
+            version: 11,
+          ),
         ),
-      ),
-    );
-    final url = Uri.parse(
-      'https://kariyerkapisi.gov.tr/IlanDetay?i=27cf966f-b2b9-4671-a21a-731cb060436a',
-    );
-    final at = DateTime(2026, 9, 28);
-    final first = await refreshCatalogue(
-      store,
-      at: at,
-      kariyer: () async => [
-        PublicListing(
-          title: '29 kişi alımı',
-          category: 'Personel',
-          url: url,
-          publishedAt: DateTime(2026, 9, 14),
-          deadline: DateTime(2026, 9, 29, 13),
-        ),
-      ],
-      ilanGov: () async => [],
-      iskur: () async => [],
-      sbb: () async => [],
-    );
-    expect(first.failedSources, isEmpty);
-    expect(
-      (await store.allListings()).single.deadline,
-      DateTime(2026, 9, 29, 13),
-    );
-    await store.setSaved(url.toString(), true);
-
-    final failed = await refreshCatalogue(
-      store,
-      at: at.add(const Duration(days: 90)),
-      kariyer: () async => throw const FormatException('kaynak kapalı'),
-      ilanGov: () async => [],
-      iskur: () async => [],
-      sbb: () async => throw const FormatException('kaynak kapalı'),
-    );
-    expect(failed.failedSources, hasLength(2));
-    final cached = (await store.allListings()).single;
-    expect(cached.saved, isTrue);
-    expect(cached.deadline, DateTime(2026, 9, 29, 13));
-    await store.close();
-  });
+      );
+      addTearDown(store.close);
+      final at = DateTime(2026, 10, 5);
+      final requests = <Uri>[];
+      var unavailable = false;
+      final remote = RemoteCatalogueClient(
+        baseUrl: Uri.parse('https://api.example.com'),
+        client: MockClient((request) async {
+          requests.add(request.url);
+          if (unavailable) return http.Response('', 503);
+          if (request.url.path == '/api/v2/meta') {
+            return http.Response(
+              jsonEncode({
+                'schemaVersion': 2,
+                'taxonomyVersion': 1,
+                'latestSeq': 1,
+                'oldestRetainedSeq': 1,
+                'sources': [],
+              }),
+              200,
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'watermark': 1,
+              'next': null,
+              'items': [
+                {
+                  'id': 'kariyer:1',
+                  'revision': 1,
+                  'url': 'https://kariyerkapisi.gov.tr/IlanDetay?i=1',
+                  'sourceId': 'kariyerkapisi',
+                  'title': 'Memur alımı',
+                  'category': 'Personel',
+                  'updatedAt': '2026-10-05T00:00:00Z',
+                  'text': 'Başvuru şartları ve özgün metin.',
+                  'requirementGroups': [],
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
+      );
+      final first = await refreshCatalogue(store, remote: remote, at: at);
+      expect(first.remoteFailed, false);
+      final cached = (await store.allListings()).single;
+      await store.setSaved(cached.url, true);
+      unavailable = true;
+      final failed = await refreshCatalogue(
+        store,
+        remote: remote,
+        at: at.add(const Duration(days: 1)),
+      );
+      expect(failed.remoteFailed, true);
+      expect(failed.remoteLastSuccess, at);
+      expect((await store.allListings()).single.saved, true);
+      expect(
+        (await store.allListings()).single.noticeText,
+        'Başvuru şartları ve özgün metin.',
+      );
+      expect(requests.map((uri) => uri.host).toSet(), {'api.example.com'});
+      expect(requests.map((uri) => uri.path), [
+        '/api/v2/meta',
+        '/api/v2/listings',
+        '/api/v2/meta',
+      ]);
+    },
+  );
 }

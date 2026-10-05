@@ -30,6 +30,8 @@ const Set<String> kUserDataSourceIds = {
   'kamuilan_sbb',
   'sbb',
   'resmigazete',
+  'ilangov',
+  'iskur',
 };
 
 /// İzin verilen azami kayıt sayıları; girdi güvenilmez kabul edilir.
@@ -174,7 +176,11 @@ ListingRecord _readBookmark(Object? row) {
   final map = _asMap(row, 'yer imi');
   final url = _asString(map, 'url', 'yer imi');
   final uri = Uri.tryParse(url);
-  if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty ||
+      (uri.hasPort && uri.port != 443)) {
     throw FormatException(
       'Yalnızca https bağlantıları içe aktarılabilir: $url',
     );
@@ -182,6 +188,22 @@ ListingRecord _readBookmark(Object? row) {
   final sourceId = _asString(map, 'sourceId', 'yer imi');
   if (!kUserDataSourceIds.contains(sourceId)) {
     throw FormatException('Bilinmeyen kaynak: $sourceId');
+  }
+  if (sourceId == 'ilangov' &&
+      (uri.host != 'www.ilan.gov.tr' ||
+          uri.pathSegments.length < 2 ||
+          uri.pathSegments.first != 'ilan' ||
+          !RegExp(r'^[1-9][0-9]{0,19}$').hasMatch(uri.pathSegments[1]))) {
+    throw const FormatException('Geçersiz ilan.gov.tr ilan bağlantısı.');
+  }
+  if (sourceId == 'iskur' &&
+      (uri.host != 'esube.iskur.gov.tr' ||
+          uri.path != '/Istihdam/AcikIsIlanDetay.aspx' ||
+          !RegExp(r'^(?=[0-9]{1,20}$)0*[1-9][0-9]*$')
+              .hasMatch(uri.queryParameters['uiID'] ?? '') ||
+          (uri.queryParameters['isyeriTuru'] != null &&
+              uri.queryParameters['isyeriTuru'] != 'Kamu'))) {
+    throw const FormatException('Geçersiz İŞKUR kamu ilan bağlantısı.');
   }
   final title = _asString(map, 'title', 'yer imi');
   if (title.isEmpty) {

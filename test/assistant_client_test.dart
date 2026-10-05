@@ -7,6 +7,33 @@ import 'package:kamubul/data/assistant_client.dart';
 import 'package:napp_core/napp_core.dart';
 
 void main() {
+  test('son kadronun metni ve sunucu kimliği kırpılmadan gider', () async {
+    final text =
+        '${'Genel hüküm. ' * 1000}\nSON KADRO: KPSS P93 en az 72 puan.';
+    Map<String, dynamic>? sent;
+    final client = AssistantClient(
+      store: SettingsStore(),
+      baseUrl: 'https://api.test',
+      client: MockClient((request) async {
+        expect(request.url.path, '/api/v2/assistant');
+        sent = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response('{"intent":"answer","reply":"72 puan."}', 200);
+      }),
+    );
+    await client.chat(
+      'Son kadro için kaç puan lazım?',
+      listingTitle: 'Alım',
+      listingId: 'ilangov:1',
+      listingRevision: 4,
+      listingText: text,
+    );
+    final listing = sent!['listing'] as Map;
+    expect(listing['text'], text);
+    expect((listing['text'] as String).length, greaterThan(8000));
+    expect(listing['id'], 'ilangov:1');
+    expect(listing['revision'], 4);
+  });
+
   test('kısa/uzun mesaj ağa hiç gitmez', () async {
     var calls = 0;
     final client = AssistantClient(

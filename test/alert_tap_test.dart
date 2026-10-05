@@ -563,11 +563,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Kariyer bildirimi yerel ayrıntıyı açar', (tester) async {
+  testWidgets('Kariyer bildirimi kaynak okumadan önbellekteki ayrıntıyı açar', (
+    tester,
+  ) async {
     await pumpHome(tester);
     alertTapUrl.value = 'https://kariyerkapisi.gov.tr/ilan/1';
-    await settleUntil(tester, find.byType(KariyerDetailPage));
-    expect(find.byType(KariyerDetailPage), findsOneWidget);
+    await settleUntil(tester, find.byType(OfficialListingPage));
+    expect(find.byType(OfficialListingPage), findsOneWidget);
+    expect(find.byType(KariyerDetailPage), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

@@ -111,54 +111,19 @@ void main() {
     }),
   );
 
-  var kariyerCalls = 0;
-  var sbbCalls = 0;
-  // Sunucu sağlıklıyken de telefon Kariyer dizinini okur; bu yükleyici
-  // çağrıyı sayar ama katalogu değiştirmez.
-  Future<List<PublicListing>> emptyKariyer() async {
-    kariyerCalls++;
-    return const [];
-  }
-
-  Future<List<PublicListing>> kariyerLoader() async {
-    kariyerCalls++;
-    return [
-      PublicListing(
-        title: 'YEDEK KURUM - Alım',
-        category: 'Personel',
-        url: Uri.parse('https://kariyerkapisi.gov.tr/IlanDetay?i=99'),
-        publishedAt: DateTime(2026, 9, 28),
-      ),
-    ];
-  }
-
-  Future<List<SbbListing>> sbbLoader() async {
-    sbbCalls++;
-    return const [];
-  }
-
-  setUp(() {
-    kariyerCalls = 0;
-    sbbCalls = 0;
-  });
-
-  test('live sbb source ID prevents fallback while fresh and healthy', () async {
-    final store = await freshStore();
-    addTearDown(store.close);
-    final result = await refreshCatalogue(
-      store,
-      remote: client(metadataBody(sbbId: 'sbb')),
-      kariyer: kariyerLoader,
-      ilanGov: () async => [],
-      iskur: () async => [],
-      sbb: sbbLoader,
-      at: now,
-    );
-    // Kariyer Kapısı ayrıntısı sunucuya kapalı: telefon dizini her zaman okur.
-    expect(kariyerCalls, 1);
-    expect(sbbCalls, 0);
-    expect(result.sourceStatuses[1].id, 'sbb');
-  });
+  test(
+    'live sbb source ID prevents fallback while fresh and healthy',
+    () async {
+      final store = await freshStore();
+      addTearDown(store.close);
+      final result = await refreshCatalogue(
+        store,
+        remote: client(metadataBody(sbbId: 'sbb')),
+        at: now,
+      );
+      expect(result.sourceStatuses[1].id, 'sbb');
+    },
+  );
 
   test('current wire SBB status wins conflicting legacy alias', () async {
     final body =
@@ -171,18 +136,7 @@ void main() {
     });
     final store = await freshStore();
     addTearDown(store.close);
-    await refreshCatalogue(
-      store,
-      remote: client(jsonEncode(body)),
-      kariyer: kariyerLoader,
-      ilanGov: () async => [],
-      iskur: () async => [],
-      sbb: sbbLoader,
-      at: now,
-    );
-    // Kariyer Kapısı ayrıntısı sunucuya kapalı: telefon dizini her zaman okur.
-    expect(kariyerCalls, 1);
-    expect(sbbCalls, 1);
+    await refreshCatalogue(store, remote: client(jsonEncode(body)), at: now);
   });
 
   test('expired delta or staged snapshot retries once with fresh metadata and keeps favorites', () async {
@@ -332,14 +286,7 @@ void main() {
     final store = await freshStore();
     final requests = <http.Request>[];
     final initial = client(metadataBody());
-    await refreshCatalogue(
-      store,
-      remote: initial,
-      kariyer: emptyKariyer,
-      ilanGov: () async => [],
-      iskur: () async => [],
-      at: now,
-    );
+    await refreshCatalogue(store, remote: initial, at: now);
     final previous = await store.remoteMetadata();
     expect(previous.etag, '"meta1"');
     expect(previous.lastSuccess, now);
@@ -355,9 +302,7 @@ void main() {
     await refreshCatalogue(
       store,
       remote: unchanged,
-      kariyer: emptyKariyer,
-      ilanGov: () async => [],
-      iskur: () async => [],
+
       at: now.add(const Duration(hours: 1)),
     );
     expect(requests, hasLength(1));
@@ -448,15 +393,8 @@ void main() {
     final result = await refreshCatalogue(
       store,
       remote: client(metadataBody()),
-      kariyer: emptyKariyer,
-      ilanGov: () async => [],
-      iskur: () async => [],
-      sbb: sbbLoader,
       at: now,
     );
-    // Kariyer Kapısı ayrıntısı sunucuya kapalı: telefon dizini her zaman okur.
-    expect(kariyerCalls, 1);
-    expect(sbbCalls, 0);
     expect(result.failedSources, isEmpty);
     expect(result.remoteFailed, false);
     expect(result.remoteLastSuccess, now);
@@ -476,130 +414,104 @@ void main() {
     ]);
   });
 
-  test('sunucu SBB\'yi sağlayamıyorsa yalnızca SBB cihazdan çekilir', () async {
+  test('sunucu engelli kaynak durumunu iletir; cihaz kaynak okumaz', () async {
     final store = await freshStore();
     await refreshCatalogue(
       store,
       remote: client(metadataBody(sbb: SourceState.blocked)),
-      kariyer: kariyerLoader,
-      ilanGov: () async => [],
-      iskur: () async => [],
-      sbb: sbbLoader,
       at: now,
     );
-    // Kariyer Kapısı ayrıntısı sunucuya kapalı: telefon dizini her zaman okur.
-    expect(kariyerCalls, 1);
-    expect(sbbCalls, 1);
+    expect((await store.allListings()).single.url, _url);
+    final metadata = CatalogueMetadata.decode(
+      jsonDecode((await store.remoteMetadata()).metadata!),
+    );
+    expect(metadata.sources[1].state, SourceState.blocked);
   });
 
   test(
-    'sunucuya ulaşılamazsa tüm kaynaklar cihazdan çekilir, yerel kayıt korunur',
+    'sunucuya ulaşılamazsa yalnız önbellek korunur, kaynak fallback yok',
     () async {
       final store = await freshStore();
-      await refreshCatalogue(
-        store,
-        remote: client(metadataBody()),
-        kariyer: kariyerLoader,
-        ilanGov: () async => [],
-        iskur: () async => [],
-        sbb: sbbLoader,
-        at: now,
-      );
+      await refreshCatalogue(store, remote: client(metadataBody()), at: now);
       final result = await refreshCatalogue(
         store,
         remote: client('hata', status: 503),
-        kariyer: kariyerLoader,
-        ilanGov: () async => [],
-        iskur: () async => [],
-        sbb: sbbLoader,
         at: now.add(const Duration(hours: 6)),
       );
-      expect(kariyerCalls, 2);
-      expect(sbbCalls, 1);
       expect(result.failedSources, isEmpty);
       expect(result.remoteFailed, true);
       expect(result.remoteLastSuccess, now);
       expect(result.sourceStatuses, hasLength(3));
       final urls = (await store.allListings()).map((r) => r.url).toSet();
-      expect(urls, {_url, 'https://kariyerkapisi.gov.tr/IlanDetay?i=99'});
+      expect(urls, {_url});
     },
   );
 
-  test(
-    'kaynağın son başarısı 36 saatten eskiyse geçişteki yedek yol çalışır',
-    () async {
-      final store = await freshStore();
-      await refreshCatalogue(
-        store,
-        remote: client(metadataBody(generatedAt: DateTime(2026, 9, 27, 8))),
-        kariyer: kariyerLoader,
-        ilanGov: () async => [],
-        iskur: () async => [],
-        sbb: sbbLoader,
-        at: now,
-      );
-      expect(kariyerCalls, 1);
-      expect(sbbCalls, 1);
-    },
-  );
-
-  test('uzak katalog yapılandırılmamışsa davranış eskisi gibidir', () async {
-    final store = await freshStore();
-    final result = await refreshCatalogue(
-      store,
-      kariyer: kariyerLoader,
-      ilanGov: () async => [],
-      iskur: () async => [],
-      sbb: () async => throw const FormatException('kapalı'),
-      at: now,
-    );
-    expect(kariyerCalls, 1);
-    expect(result.failedSources, ['Kamu İlanları (SBB)']);
-    expect(result.sourceStatuses, isEmpty);
-  });
-
-  test('sunucudan gelen kayıt kaydedilmiş ilanı sıfırlamaz', () async {
+  test('kaynak bayat olsa da cihaz yalnız sunucu kataloğunu okur', () async {
     final store = await freshStore();
     await refreshCatalogue(
       store,
-      remote: client(metadataBody()),
-      kariyer: emptyKariyer,
-      ilanGov: () async => [],
-      iskur: () async => [],
+      remote: client(metadataBody(generatedAt: DateTime(2026, 9, 27, 8))),
       at: now,
     );
+  });
+
+  test(
+    'uzak katalog yapılandırılmamışsa hata bildirilir ve kaynak okunmaz',
+    () async {
+      final store = await freshStore();
+      final result = await refreshCatalogue(store, at: now);
+      expect(result.failedSources, isEmpty);
+      expect(result.remoteFailed, isTrue);
+      expect(result.sourceStatuses, isEmpty);
+    },
+  );
+
+  test('sunucudan gelen kayıt kaydedilmiş ilanı sıfırlamaz', () async {
+    final store = await freshStore();
+    await refreshCatalogue(store, remote: client(metadataBody()), at: now);
     await store.setSaved(_url, true);
     await refreshCatalogue(
       store,
       remote: client(metadataBody()),
-      kariyer: emptyKariyer,
-      ilanGov: () async => [],
-      iskur: () async => [],
       at: now.add(const Duration(hours: 6)),
     );
     final stored = (await store.allListings()).single;
     expect(stored.saved, isTrue);
   });
 
-  test('sunucu ilan.gov.tr sağlıklıysa telefon okumaz; engelliyse okur', () async {
-    for (final (state, expected) in [
-      (SourceState.ok, 0),
-      (SourceState.blocked, 1),
+  test('kaynak ok, blocked veya failed olsa da yalnız API okunur', () async {
+    for (final state in [
+      SourceState.ok,
+      SourceState.blocked,
+      SourceState.failed,
     ]) {
       final store = await freshStore();
-      var calls = 0;
-      await refreshCatalogue(
-        store,
-        remote: client(metadataBody(ilangov: state)),
-        kariyer: emptyKariyer,
-        ilanGov: () async {
-          calls++;
-          return [];
-        },
-        iskur: () async => [],
-        at: now,
+      final requests = <Uri>[];
+      final remote = RemoteCatalogueClient(
+        baseUrl: Uri.parse('https://kamubul.example'),
+        client: MockClient((request) async {
+          requests.add(request.url);
+          if (request.url.path == '/api/v2/meta') {
+            return http.Response.bytes(
+              utf8.encode(metadataBody(ilangov: state)),
+              200,
+            );
+          }
+          return http.Response(
+            jsonEncode({'watermark': 1, 'items': [], 'next': null}),
+            200,
+          );
+        }),
       );
-      expect(calls, expected, reason: state.name);
+      final result = await refreshCatalogue(store, remote: remote, at: now);
+      expect(result.sourceStatuses.last.state, state);
+      expect(requests.map((uri) => uri.host).toSet(), {'kamubul.example'});
+      expect(requests.map((uri) => uri.path), [
+        '/api/v2/meta',
+        '/api/v2/listings',
+      ]);
+      expect(await store.allListings(), isEmpty);
       await store.close();
     }
   });

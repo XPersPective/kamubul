@@ -231,170 +231,32 @@ class AlertSettings {
   }
 }
 
-/// Kayıtlı aramalar + hatırlatıcılar için bir denetim turu; arka plan ve
-/// ayarlardaki "şimdi denetle" aynı yolu kullanır. Dönen değer gönderim sayısı.
+/// Elle denetim yalnız sunucu kataloğunu eşitler; yeni ilan bildiriminin sahibi FCM.
 Future<int> runAlertCheckOnce() async {
   final store = ListingStore();
-  final settings = await AlertSettings.load();
-  final now = DateTime.now();
-  var sent = 0;
-
-  // Arka plan denetimi önce resmî kaynakları yeniler; yalnızca eski yerel
-  // kayıtları taramak yeni ilan bildirimi üretemez.
-  await refreshCatalogue(store, at: now);
-
-  // Ertelenmiş bildirimler: sessiz saat dışındaki ilk denetimde günlük tavan
-  // kadar gönderilir; kalanlar kuyrukta bekler, kaybolmaz.
-  final queue = settings.pendingQueue();
-  final flushing = planQueueFlush(
-    queue: queue,
-    now: now,
-    quietStartHour: 22,
-    quietEndHour: 8,
-    maxInstantPerDay: 6,
-    instantSentToday: settings.instantSentToday,
-  );
-  for (final record in flushing) {
-    await showPendingNotification(
-      PendingNotification(
-        searchName: record.searchName,
-        title: record.title,
-        body: record.body,
-        listingUrl: record.listingUrl,
-        listingId: record.listingId,
-        listingRevision: record.listingRevision,
-      ),
-    );
-    await settings.markHistoryDelivered(record, now);
-    sent++;
+  try {
+    await refreshCatalogue(store);
+    return 0;
+  } finally {
+    await store.close();
   }
-  final queued = [...queue.skip(flushing.length)];
-  if (flushing.isNotEmpty) await settings.addInstantSent(flushing.length);
-
-  final searches = await store.savedSearches();
-  // Denetim başına en fazla beş farklı şehir sorgulanır; daha fazlası için
-  // sıralı tur işaretçisi ve kaynak başına kalıcı kota eklenmeli.
-  final cities = searches
-      .map((search) => search.filters['sehir']?.trim() ?? '')
-      .where((city) => city.isNotEmpty)
-      .toSet()
-      .take(5);
-  for (final city in cities) {
-    try {
-      await refreshKariyerCity(store, city);
-    } on Exception {
-      // Çevrimdışı durumda önceden doğrulanmış yerlerle devam edilir.
-    }
-  }
-  final listings = await store.allListings();
-  for (final search in searches) {
-    final mode = alertModeOf(search.filters);
-    final config = AlertConfig(
-      now: now,
-      quietStartHour: 22,
-      quietEndHour: 8,
-      maxInstantPerDay: 6,
-      instantSentToday: settings.instantSentToday,
-      digestSentDay: settings.digestDayFor(search.id!),
-    );
-    final decision = decideAlerts(
-      search: search,
-      listings: listings,
-      previouslySeen: settings.seenFor(search.id!),
-      config: config,
-    );
-    final kind = mode == SearchAlertMode.digest
-        ? AlertKind.digest
-        : AlertKind.instant;
-    for (final notification in decision.notifications) {
-      await showPendingNotification(notification);
-      await settings.appendHistory(
-        AlertRecord.create(
-          kind: kind,
-          searchName: notification.searchName,
-          title: notification.title,
-          body: notification.body,
-          listingUrl: notification.listingUrl,
-          createdAt: now,
-          delivery: AlertDelivery.delivered,
-          deliveredAt: now,
-        ),
-      );
-      sent++;
-    }
-    for (final notification in decision.held) {
-      final record = AlertRecord.create(
-        kind: kind,
-        searchName: notification.searchName,
-        title: notification.title,
-        body: notification.body,
-        listingUrl: notification.listingUrl,
-        createdAt: now,
-      );
-      queued.add(record);
-      await settings.appendHistory(record);
-    }
-    if (mode == SearchAlertMode.instant && decision.notifications.isNotEmpty) {
-      await settings.addInstantSent(decision.notifications.length);
-    }
-    if (mode == SearchAlertMode.digest && decision.notifications.isNotEmpty) {
-      await settings.saveDigestDay(search.id!, now.day);
-    }
-    await settings.saveSeen(search.id!, decision.seenUrls);
-  }
-  for (final record in listings) {
-    final reminder = deadlineReminder(
-      record: record,
-      alreadyReminded: settings.remindedUrls,
-      now: now,
-    );
-    if (reminder == null) continue;
-    await showPendingNotification(reminder);
-    await settings.appendHistory(
-      AlertRecord.create(
-        kind: AlertKind.reminder,
-        searchName: reminder.searchName,
-        title: reminder.title,
-        body: reminder.body,
-        listingUrl: reminder.listingUrl,
-        createdAt: now,
-        delivery: AlertDelivery.delivered,
-        deliveredAt: now,
-      ),
-    );
-    sent++;
-    await settings.markReminded(record.url);
-  }
-  await settings.savePendingQueue(queued);
-  await store.close();
-  return sent;
 }
 
 /// Ayarlar ekranındaki "şimdi denetle" eylemi.
 Future<int> runAlertCheckNow() => runAlertCheckOnce();
 
-/// Uygulama açılışında pil dostu arka plan denetimi (günde ~2 kez).
+/// Önceki sürümün kaynak okuyan yerel işini idempotent biçimde iptal eder.
 Future<void> registerBackgroundAlerts() async {
   if (kIsWeb) return;
   try {
-    await Workmanager().initialize(callbackDispatcher);
-    await Workmanager().registerPeriodicTask(
-      _backgroundTaskName,
-      _backgroundTaskName,
-      frequency: const Duration(hours: 12),
-      constraints: Constraints(networkType: NetworkType.connected),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-    );
+    await Workmanager().cancelByUniqueName(_backgroundTaskName);
   } on Exception {
-    // Arka plan zamanlaması platforma/işletim sistemine göre yok sayılabilir;
-    // elle yenileme ve ayarlardaki denetim her zaman çalışır.
+    // Eski iş zaten yoksa ya da platform desteklemiyorsa açılış sürer.
   }
 }
 
+// Güncelleme sırasında başlamış eski iş de kaynaklara gitmeden tamamlanır.
 @pragma('vm:entry-point')
 void callbackDispatcher() {
-  Workmanager().executeTask((task, inputData) async {
-    await runAlertCheckOnce();
-    return true;
-  });
+  Workmanager().executeTask((task, inputData) async => true);
 }
