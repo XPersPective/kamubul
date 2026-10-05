@@ -166,9 +166,17 @@ export async function handleExtract(body, env, deps) {
         out = await externalAiRun(env, request, deps.fetch);
         useExternal = true;
       }
-      const s = typeof out.response === 'string' ? out.response.replace(/^```(?:json)?\s*|\s*```$/g, '') : null;
-      const raw = s == null ? out.response : JSON.parse(s.slice(s.indexOf('{'), s.lastIndexOf('}') + 1));
-      if (!Array.isArray(raw?.groups)) throw new Error('extract_schema');
+      let raw;
+      try {
+        const s = typeof out.response === 'string' ? out.response.replace(/^```(?:json)?\s*|\s*```$/g, '') : null;
+        raw = s == null ? out.response : JSON.parse(s.slice(s.indexOf('{'), s.lastIndexOf('}') + 1));
+        if (!Array.isArray(raw?.groups)) throw new Error('extract_schema');
+      } catch (error) {
+        // Uzun metinde küçük model yarım/bozuk JSON verebilir: ikinci hak (Qwen
+        // yedeği dahil) kullanılır; ikisi de bozuksa sonuç saklanmaz.
+        if (calls < 2) continue;
+        throw error instanceof SyntaxError ? new Error('extract_schema') : error;
+      }
       const candidate = validateGroups(raw, text);
       if (!attempt || missingTopics(candidate, text).length < missingTopics(groups, text).length) {
         groups = candidate;

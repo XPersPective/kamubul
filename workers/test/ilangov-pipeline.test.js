@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
-import {readSource,canonicalConditions} from '../src/pipeline.js';
+import {readSource,canonicalConditions,canonicalBackfill} from '../src/pipeline.js';
 
 function setup(t){
   const sql=new DatabaseSync(':memory:');t.after(()=>sql.close());sql.exec('PRAGMA foreign_keys=ON');
@@ -52,4 +52,19 @@ test('kanonik ayıklama: alıntılı gruplar ilana yazılır, aynı içerik ikin
   assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM catalogue_changes WHERE listing_id='ilangov:9'").get().n,2,'değişiklik istemcilere yayılır');
   await canonicalConditions(env,'ilangov:9','h9',text,['Ankara']);
   assert.equal(calls,1);
+});
+
+test('telafi: geçici hata işaretlenmez ve sonraki turda tamamlanır; boş sonuç revizyonu artırmaz',async t=>{
+  const f=setup(t);
+  const text='Zabıta Memuru kadrosu için ortaöğretim (lise) mezunu olmak. '+'Genel şartlar ve belgeler ilanın devamında yer almaktadır. '.repeat(5);
+  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('ilangov:8','ilangov','8','h8','2026-10-05','2026-10-05','2026-10-05',?)").run(JSON.stringify({title:'Zabıta',places:['Ankara'],requirementGroups:[],text}));
+  let reply='{"groups":[{"label":"yar';
+  const env={DB:f.env.DB,EXTRACT_AI_MODEL:'m',AI:{async run(){return {response:reply};}}};
+  await canonicalBackfill(env);
+  assert.equal(f.sql.prepare("SELECT conditions_checked c FROM listings WHERE id='ilangov:8'").get().c,null,'bozuk yanıt işaretlenmez');
+  reply=JSON.stringify({groups:[{education:['Lise'],educationQuote:'ortaöğretim (lise) mezunu olmak'}]});
+  f.sql.exec('DELETE FROM extraction_runs');
+  await canonicalBackfill(env);
+  const row=f.sql.prepare("SELECT conditions_checked c,payload FROM listings WHERE id='ilangov:8'").get();
+  assert.equal(row.c,'h8');assert.deepEqual(JSON.parse(row.payload).requirementGroups[0].education,['Lise']);
 });

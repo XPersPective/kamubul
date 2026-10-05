@@ -156,3 +156,13 @@ test('real official exam threshold is not KPSS; law faculty and associate altern
   assert.equal(group.maxAge,34);assert.equal(group.ageCalculation,'other_reference');
   assert.deepEqual(validateGroups({groups:[{education:['Doktora'],educationQuote:'Lisans mezunu olmak'}]},'Lisans mezunu olmak'),[]);
 });
+
+test('bozuk JSON ilk denemede kalırsa ikinci hak (Qwen) kullanılır', async () => {
+  const db = fakeDb(); let cf = 0, qwen = 0;
+  const config = { ...env(db), EXTRACT_AI_PROVIDER: 'cloudflare', EXTRACT_QWEN_DAILY: '5', AI_MODEL: '@cf/test', AI: { run: async () => { cf++; return { response: '{"groups":[{"label":"yarım' }; } } };
+  const result = await handleExtract({ installationId: id, text: TEXT }, config, { sha256, fetch: async () => {
+    qwen++; return modelReply([{ education: ['Lisans'], educationQuote: 'Lisans mezunu olmak' }])();
+  } });
+  assert.equal(result.status, 200); assert.equal(cf, 1); assert.equal(qwen, 1);
+  assert.deepEqual(result.body.groups[0].education, ['Lisans']);
+});

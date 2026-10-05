@@ -146,20 +146,31 @@ export function splitAiText(text){
 // bildirim eşleştirmesinden ÖNCE; sonuç requirementGroups'a yazılır, değişiklik
 // tetikleyicisiyle istemcilere yayılır. Başarısız/limitte alanlar bilinmiyor kalır.
 export async function canonicalConditions(env,listingId,contentHash,text,places=[]){
-  const done=await env.DB.prepare("SELECT json_extract(payload,'$.conditionsHash') h,json_extract(payload,'$.requirementGroups') g FROM listings WHERE id=? AND content_hash=?").bind(listingId,contentHash).first();
-  if(!done||done.h===contentHash)return;
+  const done=await env.DB.prepare("SELECT conditions_checked c,json_extract(payload,'$.requirementGroups') g FROM listings WHERE id=? AND content_hash=?").bind(listingId,contentHash).first();
+  if(!done||done.c===contentHash)return;
+  const checked=()=>env.DB.prepare('UPDATE listings SET conditions_checked=? WHERE id=? AND content_hash=?').bind(contentHash,listingId,contentHash).run();
   const normalized=String(text).replace(/\s+/g,' ').trim();
-  if(normalized.length<MIN_TEXT||normalized.length>MAX_TEXT)return;
-  // Boş/limitte sonuçta ilan yazılmaz (revizyon değişmez); tekrar kontrol önbellekten ucuzdur.
+  if(normalized.length<MIN_TEXT||normalized.length>MAX_TEXT)return checked();
   const res=await handleExtract({installationId:'0'.repeat(32),text},env,{sha256,internal:true});
+  // Geçici durumlar (tavan, meşgul, sağlayıcı hatası) işaretlenmez; telafi aşaması yeniden dener.
+  if(res.status!==200&&res.status!==422){console.log('canonical_conditions_retry',res.status,res.body?.error??'',res.body?.reason??'');return;}
   const groups=res.status===200?res.body.groups:[];
-  if(!groups.length)return;
+  // Boş sonuçta payload yazılmaz (revizyon değişmez); yalnız denetim işareti.
+  if(!groups.length)return checked();
   const existing=JSON.parse(done.g??'[]');
   const merged=groups.length===existing.length
     ?groups.map((g,i)=>({...existing[i],...g}))
     :groups.map(g=>({cities:places,...g}));
-  await env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.requirementGroups',json(?),'$.conditionsHash',?),revision=revision+1,updated_at=? WHERE id=? AND content_hash=?")
-    .bind(JSON.stringify(merged),contentHash,nowISO(),listingId,contentHash).run();
+  await env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.requirementGroups',json(?),'$.conditionsHash',?),conditions_checked=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=?")
+    .bind(JSON.stringify(merged),contentHash,contentHash,nowISO(),listingId,contentHash).run();
+}
+// Telafi: özet işinin ilk turunda geçici hata alan ilanlar her turda bir tane.
+export async function canonicalBackfill(env){
+  const row=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY updated_at DESC LIMIT 1").bind(nowISO()).first();
+  if(!row)return;
+  const notice=JSON.parse(row.payload);
+  const text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');
+  await canonicalConditions(env,row.id,row.content_hash,text,notice.places??[]);
 }
 export async function processNotice(env){
   if(!env.AI&&!externalAiEnabled(env))return;
@@ -497,7 +508,7 @@ export async function runScheduled(env,scheduledTime=Date.now()){
   // The hourly :59 slot is dedicated to bounded maintenance, never added to fanout/query budgets.
   if(Math.floor(scheduledTime/60000)%60===59){await maintainRegistry(env);await maintainCatalogue(env);return;}
   // ponytail: three-minute stage cycle keeps each invocation below Free's 50 queries/subrequests; measured CPU/fanout sets the capacity ceiling.
-  const stages=[[expireListings,readSource,processNotice],[matchEvents],[flushOutbox]];
+  const stages=[[expireListings,readSource,processNotice],[matchEvents],[flushOutbox,canonicalBackfill]];
   // Each durable stage is recoverable; failures do not clear another stage's backlog.
   for(const step of stages[Math.floor(scheduledTime/60000)%stages.length]) {
     try {await step(env);}catch(e){console.error('scheduled_stage_failed',step.name,safeError(e));}
