@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
@@ -141,6 +142,20 @@ class KamuBulApp extends StatelessWidget {
       theme: premiumTheme(AppTheme.light(brandColor: identity.brandColor)),
       darkTheme: premiumTheme(AppTheme.dark(brandColor: identity.brandColor)),
       themeMode: theme.mode,
+      builder: (context, child) {
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+              .copyWith(
+                statusBarColor: Colors.transparent,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarIconBrightness: dark
+                    ? Brightness.light
+                    : Brightness.dark,
+              ),
+          child: child!,
+        );
+      },
       localizationsDelegates: [
         NappLocalizationsDelegate(translations),
         GlobalMaterialLocalizations.delegate,

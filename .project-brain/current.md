@@ -12,7 +12,7 @@ Mobil SQLite v11 pendingConditionText ile başarısız/quota AI sonucunu tamamla
 Merkezi Kariyer/SBB ayrıntı onarımı source_detail_runs ile aynı yayın revizyonunda en fazla iki başarısız okuma girişimi yapar. Çağrı öncesi D1 rezervasyonu ve120s lease vardır; restart/tur sınırı sıfırlamaz. Tam metin onarım bölümünü bitirir, sonraki normal güncellik kontrolünü engellemez. Eski başarılı metin hata yüzünden silinmez. Migration0021 remote PASS.
 Sohbet Qwen3.6-flash kalır. ADR-006 hedef ve bilinçli sınırları kaydeder.
 Son Worker fcd63776-c67a-4187-b4ae-4cfe5a8d248a deployed; health200/ok/seq48,
-AI ve FCM configured. Kaynak release adayı1.1.6+11; paket/mağaza kabulü bekler.
+AI ve FCM configured. Kaynak release adayı1.1.6+11. İlk signed APK175.1s/AAB193.9s ve cert/package/12ELF-3ABI16KB/production defines PASS. Own read-only Medium5562 fresh install11 Success; home295/real detail5quota+places ve Asistana sor→seçili ilan/no automatic message doğrulandı. Native dark1.3 sistem simgeleri contrast bug root MaterialApp AnnotatedRegion ile düzeltildi; gerçek platform style theme-switch regression ve202 suite PASS. Bu son fix için paket yeniden derleniyor; mağaza yayını henüz yok. Shared5560 değiştirilmedi. Host PixelLauncher/SystemUI ANR; cold12326ms hız kabulü değildir. Eski C release kopyası unrelated history nedeniyle korunup yeni C builds/kamubul-1.1.6-6d767af temiz clone açıldı.
 
 Native Cloudflare egress: ilan.gov filtreli list HTTP200/29080byte/701ms;
 gerçek adapter ilk20/toplam162 ve resmi2244449 ayrıntı23186karakter available.
@@ -23,7 +23,7 @@ Gerçek x6 inference200/1grup+cache replay200; outputta genel sınav70'in yanlı
 KPSS yorumlandığı görülüp ortak doğrulayıcıya KPSS kanıtı ve eğitim
 alternatif guard'ı eklendi (x7). Son x7 canlı inference200: Ön lisans/Lisans alternatifleri, yaş34/reference-date ve KPSS alanı yok; deploy7b6d8c1e. Bu pilot precision/recall kapısı değildir.
 
-201 Flutter test PASS; 214 Worker test PASS. 11 değişen Dart alanı analyze
+202 Flutter test PASS; 214 Worker test PASS. 11 değişen Dart alanı analyze
 no issues. Önceki geniş suite iki zaman bağımlı route test ve yedi stale
 golden nedeniyle başarısızdı: bounded5s route wait, sabit golden tarihleri,
 MaterialIcons font yükleme ve tema font ailesi korunarak düzeltildi;
