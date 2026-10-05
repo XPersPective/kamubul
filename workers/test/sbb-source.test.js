@@ -31,3 +31,9 @@ test('SBB application dates use Turkish civil days and validated year rollover',
   assert.equal(row('1 Mart - 2 Mart - 3 Mart').deadline,null);
   assert.equal(row('tarih yok').start,null);
 });
+
+test('SBB retains every official list row beyond 500; a malformed listing never silently disappears',()=>{
+  const row=id=>`<a href="ilanDetay.aspx?kod=${id}"><p class="alt_p1">Kurum</p><p class="alt_p2">İşçi alımı</p></a>`;
+  assert.equal(parseSbbList(Array.from({length:505},(_,i)=>row(i)).join('')).length,505);
+  assert.throws(()=>parseSbbList(row(1)+'<a href="ilanDetay.aspx?kod=2">Eksik düzen</a>'),/layout_changed/);
+});

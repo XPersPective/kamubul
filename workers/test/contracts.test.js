@@ -10,9 +10,10 @@ import {plain,parseKariyerIndex,parseKariyerRss,sourceFetch} from '../src/source
 test('source normalization survives malformed entities and rejects unsafe identities',async()=>{
   assert.equal(plain('&#304; &#128512; &#99999999999999999999; &#55296; &#0;'),'İ 😀 � � �');
   const item={guid:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',ilanBaslik:'İlan',bitTarih:'2026-12-01'};
-  assert.equal(parseKariyerIndex({searchIlan:[null,{...item,guid:'-'.repeat(36)},item]}).length,1);
+  assert.throws(()=>parseKariyerIndex({searchIlan:[null,{...item,guid:'-'.repeat(36)},item]}),/layout_changed/);
+  assert.equal(parseKariyerIndex({searchIlan:[item]}).length,1);
   for(const url of ['http://kariyerkapisi.gov.tr/RSS','https://user:pass@kariyerkapisi.gov.tr/RSS','https://kariyerkapisi.gov.tr:8443/RSS','https://example.com/'])await assert.rejects(sourceFetch(url),/host_rejected/);
-  assert.equal(parseKariyerRss('<rss><item><link>https://user:pass@kariyerkapisi.gov.tr/IlanDetay?i='+item.guid+'</link><title>İlan</title></item></rss>').length,0);
+  assert.throws(()=>parseKariyerRss('<rss><item><link>https://user:pass@kariyerkapisi.gov.tr/IlanDetay?i='+item.guid+'</link><title>İlan</title></item></rss>'),/rss_layout_changed/);
 });
 
 const now=new Date('2026-09-30T12:00:00Z');

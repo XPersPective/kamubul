@@ -78,11 +78,20 @@ test('chat gate leaves interpretation to the model but blocks links, injections 
 test('chat request bounds history and listing text', () => {
   const r = buildChatRequest({ message: 'Yaş sınırı var mı?', history: Array.from({ length: 9 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', text: 'x'.repeat(900) })), listing: { title: 'T', text: 'y'.repeat(20000) } });
   const ctx = JSON.parse(r.messages[1].content);
-  assert.equal(ctx.selectedListing.text.length, MAX_LISTING_TEXT);
+  assert.ok(ctx.selectedListing.text.length <= MAX_LISTING_TEXT);
+  assert.equal(ctx.selectedListing.partial, true);
   // 600 karakterlik 6 mesaj 4000 karakter bağlam tavanına sığar.
   assert.equal(r.messages.length, 3 + 6 + 1);
   assert.ok(r.messages.slice(3, 9).every(m => m.content.length <= 600));
   assert.equal(r.max_tokens, 450);
+});
+
+test('assistant selects late source clauses without fetching the official site',()=>{
+  const text='Genel açıklamalar.\n'.repeat(1000)+'\nMimar kadrosu için KPSS P3 en az 82 puan gerekir.\n';
+  const ctx=JSON.parse(buildChatRequest({message:'Mimar KPSS puanı kaç?',listing:{title:'Alım',text}}).messages[1].content);
+  assert.ok(ctx.selectedListing.text.length<=MAX_LISTING_TEXT);
+  assert.match(ctx.selectedListing.text,/Mimar kadrosu için KPSS P3 en az 82/);
+  assert.equal(ctx.selectedListing.partial,true);
 });
 
 test('chat output: answers kept, links stripped, criteria validated, junk refused', () => {

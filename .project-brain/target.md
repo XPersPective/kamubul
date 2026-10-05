@@ -1,5 +1,12 @@
 # Hedef Mimari — KamuBul
 
+5 Ekim son kullanıcı yönü (PB-026): bütün kaynak okuma ve ayıklama sunucuda.
+Telefon yalnız sunucu API'si/cache kullanır; kaynak fallback ve telefon AI işi
+hedef değildir. Tam resmî metin AI'dan bağımsız kalıcıdır. Qwen flash düşük
+tüketimli ayıklama ve soru yanıtı için; deterministik kaynak verisi öncelikli,
+aynı metne ayrı çok parçalı AI özet işi gerekmez. Kaynak erişiminde IP/ülke
+engeli varsayımı kullanılmaz; gerçek çağrı ve iş kuyruğu doğrulanır.
+
 ## 1. Amaç ve kapsam
 3 Ekim tasarım yönü: kullanıcı premium arayüz skill'i aranıp kullanıcı
 skills klasörüne kurulmasını ve gerçek Flutter arayüzüne uygulanmasını istedi.

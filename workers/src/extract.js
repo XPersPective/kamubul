@@ -190,7 +190,7 @@ export async function handleExtract(body, env, deps) {
     const capped = externalAiEnabled(env) && Number.isInteger(fallbackCap) && fallbackCap > 0;
     // Qwen tam metni (tablolar dahil) okur; 8B yalnız kısa şart kesitini.
     const build = (ext, review) => ({ messages: [{ role: 'system', content: prompt + review }, { role: 'user', content: ext ? focusText(text, FULL_LIMIT) : focused }],
-      max_tokens: ext ? 6000 : 1800, temperature: 0, response_format: { type: 'json_object' }, ...(ext ? { timeoutMs: 55000 } : {}) });
+      max_tokens: ext ? 6000 : 1800, temperature: 0, usageBucket:'extract', response_format: { type: 'json_object' }, ...(ext ? { timeoutMs: 55000 } : {}) });
     let parsed = false;
     for (let attempt = 0; calls < 2; attempt++) {
       let useExternal = external;
@@ -239,7 +239,7 @@ export async function handleExtract(body, env, deps) {
         groups = candidate;
         usedModel = useExternal ? env.EXTERNAL_AI_MODEL : model;
       }
-      if (!missingTopics(groups, text).length) break;
+      if (external || !missingTopics(groups, text).length) break;
     }
     // Save before releasing the lease so another device cannot infer concurrently.
     await env.DB.prepare('INSERT OR IGNORE INTO extraction_cache (hash,groups,model,created_at) VALUES (?,?,?,?)')

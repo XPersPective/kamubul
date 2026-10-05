@@ -1,5 +1,29 @@
 # Mevcut Mimari — KamuBul
 
+## 5 Ekim — PB-026 sunucu devri (yerel ve canlı kanıt ayrı)
+Yerel VERIFIED: kaynak tablo/paragraf sınırları korunur; Kariyer/RSS/SBB
+sessiz liste/kadro limitleri kaldırıldı, bozuk snapshot explicit error.
+İŞKUR kamu-only Worker adapteri, native20 ilan.gov sayfalama/cursor,
+AI öncesi bütün index kimliklerinin D1 yayımı. Qwen geçerli sonuçta tek çağrı;
+çok parçalı ayrı özet üretimde kapalı; başarısız/kota işi due ile ilerler.
+Kaynak/ayıklama Queue wake-up mevcut generational lease +3000 bütçesinde;
+kaynak15s pacing, başarısız onarım6h cooldown. 242 Worker PASS.
+Migration0025–0027 remote PASS. Worker7b5edf54 deployed, health200;
+sonraki semanticInput/consumer-tek-inference diff henüz deploy edilmedi.
+Canlı son readonly: ilan.gov162 kimlik/text85/checked6, Kariyer27/text0;
+Qwen ilk gözlenen2516input/1218output token. Bu tamamlanmış kapsam değildir.
+Remote-preview doğru native kaynak çağrıları: ilan.gov200/text749;
+Kariyer ana sayfa200, ayrıntıAPI522; SBB403 Access Restricted; İŞKUR500.
+IP/ülke nedeni çıkarılmadı; kullanıcının çalışan Cloudflare kaynak yolu
+ile okuyucu eşleştirmesi henüz açık. Yeni mobil üretim yayını yapılmadı.
+Mobil yerel VERIFIED:
+source scrape/condition-backfill/Asistan tekrar fetch kaldırıldı; D1 payload
+SQLite projeksiyonunda tam korunur; ayrıntı/Asistan aynı metin, farklı native
+ilan fingerprint ile elenmez, favori tombstone metni korunur. Gerçek Worker
+position.text sözleşmesiyle parity; 206 Flutter/208 core PASS, analyze temiz.
+Strateji: docs/SERVER_INGESTION_STRATEGY.md. Son kullanıcı yönü telefon
+fallback'ini geçersiz kılar; eski aşağıdaki fallback notları tarihsel durumdur.
+
 ## 5 Ekim — ayıklama protokolü ve görsel doğrulama
 `workers/src/extract.js:handleExtract` sohbet sağlayıcısından ayrıdır:
 Cloudflare FP8 önce, eksik konu veya gerçek kota hatasında ayrı günlük20

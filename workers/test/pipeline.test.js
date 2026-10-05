@@ -22,6 +22,9 @@ function database(){
   sql.exec(readFileSync(new URL('../migrations/0014_processing_versions.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0021_source_detail_runs.sql',import.meta.url),'utf8'));
   sql.exec(readFileSync(new URL('../migrations/0022_source_notification_baseline.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0023_conditions_checked.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0025_condition_retry.sql',import.meta.url),'utf8'));
+  sql.exec(readFileSync(new URL('../migrations/0026_source_snapshot.sql',import.meta.url),'utf8'));
   const DB={prepare(query){let values=[];return {bind(...args){values=args;return this;},async first(){return sql.prepare(query).get(...values)??null;},async all(){return {results:sql.prepare(query).all(...values)};},async run(){return sql.prepare(query).run(...values);}};},async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
   return {sql,DB};
 }
@@ -434,19 +437,19 @@ test('AI capacity errors use bounded retry without losing completed chunks',asyn
   await processNotice(env);assert.equal(calls.length,1);sql.close();
 });
 
-test('source slots fetch at most one detail and resume every persisted batch entry',async()=>{
+test('source slots fetch at most the configured details and resume every persisted batch entry',async()=>{
   const {sql,DB}=database(),batch=Array.from({length:4},(_,i)=>({id:'kariyerkapisi:'+i,externalId:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa'+i,title:'İlan '+i,deadline:null,notificationEligible:false}));
   sql.prepare("UPDATE sources SET pending_batch=?,batch_offset=0,next_due='1970-01-01',last_success='2026-01-01' WHERE id='kariyerkapisi'").run(JSON.stringify(batch));
   sql.exec("UPDATE sources SET next_due='2999-01-01' WHERE id!='kariyerkapisi'");
   const before=globalThis.fetch;let fetched=0;globalThis.fetch=async()=>{fetched++;return new Response('',{status:522});};
   try{
     for(let i=0;i<batch.length;i++){
-      await readSource({DB});const source=sql.prepare("SELECT * FROM sources WHERE id='kariyerkapisi'").get();
-      assert.equal(fetched,i+1);assert.equal(sql.prepare('SELECT COUNT(*) n FROM listings').get().n,i+1);assert.equal(source.lease_until,null);
+      await readSource({DB,SOURCE_DETAILS_PER_TICK:'1'});const source=sql.prepare("SELECT * FROM sources WHERE id='kariyerkapisi'").get();
+      assert.equal(fetched,i+1);assert.equal(sql.prepare('SELECT COUNT(*) n FROM listings').get().n,4,'all native identities are visible before details complete');assert.equal(source.lease_until,null);
       if(i<batch.length-1){assert.equal(source.batch_offset,i+1);assert.equal(source.pending_batch,JSON.stringify(batch));assert.equal(source.last_success,'2026-01-01');assert.equal(source.state,'processing');}
       else{assert.equal(source.batch_offset,0);assert.equal(source.pending_batch,null);assert.equal(source.state,'ok');assert.notEqual(source.last_success,'2026-01-01');}
     }
-    await readSource({DB});assert.equal(fetched,4); // Completed source waits its polling interval.
+    await readSource({DB,SOURCE_DETAILS_PER_TICK:'1'});assert.equal(fetched,4); // Completed source waits its polling interval.
   }finally{globalThis.fetch=before;sql.close();}
 });
 
@@ -455,6 +458,7 @@ test('temporary source detail failure preserves previously processed listing',as
   const payload={id:listingId,title:'Eski doğrulanmış ilan',text:'Doğrulanmış kaynak ayrıntısı.',summary:[{text:'Özet',quote:'Doğrulanmış kaynak ayrıntısı.'}]};
   sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,processed_hash,first_seen,updated_at,recheck_at,payload) VALUES(?,'kariyerkapisi',?,'good','good','first','first','1970-01-01',?)").run(listingId,id,JSON.stringify(payload));
   sql.prepare("UPDATE sources SET pending_batch=?,next_due='1970-01-01' WHERE id='kariyerkapisi'").run(JSON.stringify([{id:listingId,externalId:id,title:'Yeni liste başlığı',deadline:null}]));
+  sql.exec("UPDATE sources SET next_due='2999-01-01' WHERE id!='kariyerkapisi'");
   const fetchBefore=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:522});
   try{await readSource({DB});}finally{globalThis.fetch=fetchBefore;}
   const after=sql.prepare('SELECT * FROM listings WHERE id=?').get(listingId);
@@ -984,4 +988,16 @@ test('city identity migration protects old anchors until authenticated heartbeat
   await put();assert.deepEqual(sql.prepare('SELECT key FROM installation_facets').all().map(x=>x.key),['cities:istanbul']);
   assert.equal(sql.prepare('SELECT version FROM installations').get().version,version);
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM saved_searches').get().n,1);
+});
+
+test('recently read entries are skipped without spending the per-tick detail budget',async()=>{
+  const {sql,DB}=database(),batch=Array.from({length:4},(_,i)=>({id:'kariyerkapisi:'+i,externalId:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa'+i,title:'İlan '+i,deadline:null,notificationEligible:false}));
+  for(const b of batch.slice(0,3))sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES(?,'kariyerkapisi',?,'h','f','f','2999-01-01','{}')").run(b.id,b.externalId);
+  sql.prepare("UPDATE sources SET pending_batch=?,batch_offset=0,next_due='1970-01-01' WHERE id='kariyerkapisi'").run(JSON.stringify(batch));
+  sql.exec("UPDATE sources SET next_due='2999-01-01' WHERE id!='kariyerkapisi'");
+  const before=globalThis.fetch;let fetched=0;globalThis.fetch=async()=>{fetched++;return new Response('',{status:522});};
+  try{
+    await readSource({DB,SOURCE_DETAILS_PER_TICK:'1'});
+    assert.equal(fetched,1);assert.equal(sql.prepare("SELECT state FROM sources WHERE id='kariyerkapisi'").get().state,'ok');
+  }finally{globalThis.fetch=before;sql.close();}
 });

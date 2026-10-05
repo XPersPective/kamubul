@@ -113,7 +113,7 @@ export async function fetchRequest(request,env,ctx){
     }
     if(request.method==='POST'&&path==='/api/v2/assistant') {
       if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return json({error:'content_type'},415);
-      const text=await request.text();if(text.length>16384)return json({error:'body_oversize'},413);
+      const text=await request.text();if(text.length>262144)return json({error:'body_oversize'},413);
       let body;try{body=JSON.parse(text);}catch{return json({error:'json'},400);}
       const result=await handleAssistant(body,env,{sha256,ip:request.headers.get('CF-Connecting-IP')??'unknown'});
       return json(result.body,result.status);

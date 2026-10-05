@@ -1,4 +1,4 @@
-import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,fetchIlanGovList,fetchIlanGovDetail,sourceBytes,plain} from './sources.js';
+import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,fetchIlanGovPage,fetchIlanGovDetail,fetchIskurList,fetchIskurDetail,sourceBytes,plain,SourceError} from './sources.js';
 import {matchListing,listingAnchorKeys} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
@@ -11,7 +11,7 @@ const later=minutes=>new Date(Date.now()+minutes*60000).toISOString();
 const safeError=e=>/^\w{1,70}$/.test(e.message)?e.message:'operation_failed';
 // Bump when the prompt/validator changes; old partial work needs explicit reprocessing, not mixed excerpts.
 export const aiExtractionRevision=2;
-export function semanticInput(notice){return JSON.stringify({title:notice.title,category:notice.category,deadline:notice.deadline,institution:notice.institution??'',text:plain(notice.text),positions:(notice.positions??[]).map(p=>({title:p.title,profession:p.profession,text:plain(p.text),places:[...p.places].sort(),quota:p.quota}))});}
+export function semanticInput(notice){return JSON.stringify({title:notice.title,category:notice.category,deadline:notice.deadline,institution:notice.institution??'',applyUrl:notice.applyUrl??null,quota:notice.quota??null,places:[...(notice.places??[])].sort(),text:plain(notice.text),positions:(notice.positions??[]).map(p=>({title:p.title,profession:p.profession,text:plain(p.text),places:[...(p.places??[])].sort(),quota:p.quota}))});}
 export async function readSbbDetail(env,id,previous={}){
   if(typeof id!=='string'||!id.length||id.length>1024)throw new Error('pdf_identity');
   const bytes=await sourceBytes('https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod='+encodeURIComponent(id));
@@ -36,12 +36,12 @@ export async function readNoticeDetail(env,base,previous={}){
   // Reserve before HTTP: a crash or a different Cron cannot reset the two-read repair ceiling.
   const claim=await env.DB.prepare(`INSERT INTO source_detail_runs(listing_id,input_key,attempts,lease_until) VALUES(?,?,1,?)
     ON CONFLICT(listing_id) DO UPDATE SET input_key=excluded.input_key,
-    attempts=CASE WHEN source_detail_runs.input_key=excluded.input_key THEN attempts+1 ELSE 1 END,lease_until=excluded.lease_until
+    attempts=CASE WHEN source_detail_runs.input_key=excluded.input_key AND (retry_after IS NULL OR retry_after>?) THEN attempts+1 ELSE 1 END,lease_until=excluded.lease_until,retry_after=?
     WHERE (source_detail_runs.lease_until IS NULL OR source_detail_runs.lease_until<=?)
-      AND (source_detail_runs.input_key!=excluded.input_key OR source_detail_runs.attempts<2) RETURNING attempts`).bind(base.id,inputKey,lease,now).first();
+      AND (source_detail_runs.input_key!=excluded.input_key OR source_detail_runs.attempts<2 OR retry_after<=?) RETURNING attempts`).bind(base.id,inputKey,lease,now,later(360),now,now).first();
   if(!claim)throw new Error('detail_retry_exhausted_or_busy');
   try{
-    const detail=base.sourceId==='kariyerkapisi'?await fetchKariyerDetail(base.externalId):base.sourceId==='ilangov'?await fetchIlanGovDetail(base.externalId):await readSbbDetail(env,base.externalId,previous);
+    const detail=base.sourceId==='kariyerkapisi'?await fetchKariyerDetail(base.externalId):base.sourceId==='ilangov'?await fetchIlanGovDetail(base.externalId):base.sourceId==='iskur'?await fetchIskurDetail(base.externalId):await readSbbDetail(env,base.externalId,previous);
     if(!plain(detail.text)&&(detail.positions??[]).every(p=>!plain(p.text)))throw new Error('detail_text_empty');
     // A complete read ends the repair episode; ordinary later freshness checks remain possible.
     await env.DB.prepare('DELETE FROM source_detail_runs WHERE listing_id=? AND input_key=? AND lease_until=?').bind(base.id,inputKey,lease).run();
@@ -51,7 +51,7 @@ export async function readNoticeDetail(env,base,previous={}){
   }
 }
 export async function readSource(env){
-  const now=nowISO();let source=await env.DB.prepare("SELECT * FROM sources WHERE id IN ('kariyerkapisi','sbb','ilangov') AND (lease_until IS NULL OR lease_until<?) AND next_due<=? ORDER BY CASE WHEN pending_batch IS NULL THEN 1 ELSE 0 END,next_due LIMIT 1").bind(now,now).first();
+  const now=nowISO();let source=await env.DB.prepare("SELECT * FROM sources WHERE id IN ('kariyerkapisi','sbb','ilangov','iskur') AND (lease_until IS NULL OR lease_until<?) AND next_due<=? ORDER BY next_due,id LIMIT 1").bind(now,now).first();
   if(!source)return;
   const leased=await env.DB.prepare('UPDATE sources SET lease_until=? WHERE id=? AND (lease_until IS NULL OR lease_until<?) RETURNING id').bind(later(5),source.id,now).first();if(!leased)return;
   try {
@@ -60,21 +60,49 @@ export async function readSource(env){
     let detailFailure=!!source.pending_batch&&source.note===detailWarning;
     if(source.pending_batch)batch=JSON.parse(source.pending_batch);
     else {
-      batch=await(source.id==='kariyerkapisi'?fetchKariyerList():source.id==='ilangov'?fetchIlanGovList():fetchSbbList());offset=0;
+      if(source.id==='ilangov'){
+        const page=await fetchIlanGovPage(source.list_page);
+        batch=source.pending_list?JSON.parse(source.pending_list):[];
+        if(source.list_total!==null&&source.list_total!==page.total)throw new SourceError('source_snapshot_changed');
+        const seen=new Set(batch.map(item=>item.id));
+        if(page.items.some(item=>seen.has(item.id)))throw new SourceError('source_snapshot_changed');
+        batch.push(...page.items);
+        if(batch.length<page.total){
+          if(!page.items.length||source.list_page>=999)throw new SourceError('source_incomplete');
+          await env.DB.prepare("UPDATE sources SET pending_list=?,list_page=list_page+1,list_total=?,next_due=?,lease_until=NULL,state='processing',last_attempt=? WHERE id=?").bind(JSON.stringify(batch),page.total,now,now,source.id).run();return;
+        }
+        if(batch.length!==page.total)throw new SourceError('source_incomplete');
+        await env.DB.prepare('UPDATE sources SET pending_list=NULL,list_page=0,list_total=NULL WHERE id=?').bind(source.id).run();
+      }else batch=await(source.id==='kariyerkapisi'?fetchKariyerList():source.id==='iskur'?fetchIskurList():fetchSbbList());
+      offset=0;
     }
     const firstSnapshot=!source.baseline_at;
     if(firstSnapshot){source.baseline_at=now;batch=batch.map(base=>({...base,notificationEligible:false}));}
-    if(!source.pending_batch||firstSnapshot)await env.DB.prepare('UPDATE sources SET pending_batch=?,batch_offset=?,last_attempt=?,baseline_at=COALESCE(baseline_at,?) WHERE id=?').bind(JSON.stringify(batch),offset,now,source.baseline_at,source.id).run();
-    // ponytail: a four-notice source stage used 20ms CPU; consume one entry to limit work, with slower batch completion. Split stages if measured CPU still exceeds 10ms.
-    for(const base of batch.slice(offset,offset+1)) {
+    if(!source.pending_batch||firstSnapshot){
+      // Publish every native identity before detail/AI; no model quota hides an ad.
+      // Existing successful text/conditions are never overwritten by index fields.
+      const index=batch.map(({requirementGroups,summary,...item})=>({...item,notificationEligible:item.notificationEligible??(Date.parse(item.publishedAt)>Date.parse(source.baseline_at)&&Date.parse(item.publishedAt)<=Date.parse(now)),detailState:'pending',firstSeenAt:now,updatedAt:now}));
+      await env.DB.batch([
+        env.DB.prepare('UPDATE sources SET pending_batch=?,batch_offset=?,last_attempt=?,baseline_at=COALESCE(baseline_at,?) WHERE id=?').bind(JSON.stringify(batch),offset,now,source.baseline_at,source.id),
+        env.DB.prepare(`INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,deadline,payload)
+          SELECT json_extract(value,'$.id'),?,json_extract(value,'$.externalId'),'pending:'||json_extract(value,'$.id'),?,?,'1970-01-01',json_extract(value,'$.deadline'),json(value) FROM json_each(?) WHERE true
+          ON CONFLICT(id) DO NOTHING`).bind(source.id,now,now,JSON.stringify(index))
+      ]);
+    }
+    // Ayrıntı gerekmeyen girişler (süresi geçmiş / yakın zamanda okunmuş) aynı turda hızla geçilir;
+    // turda en çok SOURCE_DETAILS_PER_TICK (3) ayrıntı okunur. ponytail: Free CPU 10 ms; tail cpuTime ölçümüyle ayarlanır.
+    const perTick=Math.min(3,Math.max(1,Number(env.SOURCE_DETAILS_PER_TICK)||1)),end=Math.min(batch.length,offset+10);let fetched=0;
+    for(;offset<end&&fetched<perTick;offset++) {
+      const base=batch[offset];
       if(base.deadline&&new Date(base.deadline)<new Date())continue;
       const old=await env.DB.prepare('SELECT content_hash,recheck_at,payload,first_seen FROM listings WHERE id=?').bind(base.id).first();
       if(old&&old.recheck_at>now)continue;
       const previous=old?JSON.parse(old.payload):{};
       let detail={};
+      fetched++;
       try{detail=await readNoticeDetail(env,{...base,sourceId:source.id},previous);}
       catch(e){detailFailure=true;detail={detailState:'unavailable',detailError:safeError(e)};}
-      if(detail.detailState==='unavailable'&&old){
+      if(detail.detailState==='unavailable'&&old&&previous.detailState!=='pending'){
         // A transient source failure cannot erase the last successful detail/summary.
         await env.DB.prepare('UPDATE listings SET recheck_at=? WHERE id=?').bind(later(30),base.id).run();
         continue;
@@ -105,13 +133,12 @@ export async function readSource(env){
         env.DB.prepare(`INSERT OR IGNORE INTO processing_jobs(id,listing_id,input_hash,input,due_at,contract_key) VALUES(?,?,?,?,?,?)`).bind(JSON.stringify([base.id,hash,key]),base.id,hash,JSON.stringify({...notice,...(contract?{aiContract:contract}:{})}),now,key)
       ]);
     }
-    offset=Math.min(offset+1,batch.length);
     const complete=offset===batch.length;
     const missing=complete?await env.DB.prepare("SELECT COUNT(*) n FROM listings WHERE source_id=? AND active=1 AND (json_extract(payload,'$.detailState')='unavailable' OR json_extract(payload,'$.text') IS NULL)").bind(source.id).first():null;
     await env.DB.prepare('UPDATE sources SET state=?,last_success=?,pending_batch=?,batch_offset=?,next_due=?,lease_until=NULL,note=? WHERE id=?')
       .bind(complete?'ok':'processing',complete?now:source.last_success,complete?null:JSON.stringify(batch),complete?0:offset,complete?later(Number(env.SOURCE_INTERVAL_MINUTES)||30):now,detailFailure?detailWarning:missing?.n?`Liste alındı; ${missing.n} ilanın ayrıntısı henüz alınamadı.`:null,source.id).run();
   } catch(e) {
-    await env.DB.prepare('UPDATE sources SET state=?,last_attempt=?,note=?,lease_until=NULL,next_due=? WHERE id=?').bind(e.code==='blocked'?'blocked':'failed',now,safeError(e),later(30),source.id).run();
+    await env.DB.prepare('UPDATE sources SET state=?,last_attempt=?,note=?,lease_until=NULL,next_due=?,pending_list=NULL,list_page=0,list_total=NULL WHERE id=?').bind(e.code==='blocked'?'blocked':'failed',now,safeError(e),later(30),source.id).run();
   }
 }
 export function validateAiSummary(raw,text,notice){
@@ -147,25 +174,29 @@ export function splitAiText(text){
 // tetikleyicisiyle istemcilere yayılır. Başarısız/limitte alanlar bilinmiyor kalır.
 export async function canonicalConditions(env,listingId,contentHash,text,places=[]){
   const done=await env.DB.prepare("SELECT conditions_checked c,json_extract(payload,'$.requirementGroups') g FROM listings WHERE id=? AND content_hash=?").bind(listingId,contentHash).first();
-  if(!done||done.c===contentHash)return;
+  if(!done||done.c===contentHash)return {status:200};
   const checked=()=>env.DB.prepare('UPDATE listings SET conditions_checked=? WHERE id=? AND content_hash=?').bind(contentHash,listingId,contentHash).run();
   const normalized=String(text).replace(/\s+/g,' ').trim();
-  if(normalized.length<MIN_TEXT||normalized.length>MAX_TEXT)return checked();
+  if(normalized.length<MIN_TEXT||normalized.length>MAX_TEXT){await checked();return {status:200};}
   const res=await handleExtract({installationId:'0'.repeat(32),text},env,{sha256,internal:true});
   // Geçici durumlar (tavan, meşgul, sağlayıcı hatası) işaretlenmez; telafi aşaması yeniden dener.
-  if(res.status!==200&&res.status!==422){console.log('canonical_conditions_retry',res.status,res.body?.error??'',res.body?.reason??'');return;}
+  if(res.status!==200&&res.status!==422){
+    await env.DB.prepare('UPDATE listings SET conditions_due_at=?,conditions_error=? WHERE id=? AND content_hash=?').bind(later(res.status===429?60:15),res.body?.reason??res.body?.error??'extract_failed',listingId,contentHash).run();
+    return res;
+  }
   const groups=res.status===200?res.body.groups:[];
   // Boş sonuçta payload yazılmaz (revizyon değişmez); yalnız denetim işareti.
-  if(!groups.length)return checked();
+  if(!groups.length){await checked();return res;}
   const existing=JSON.parse(done.g??'[]');
   // Yalnız kaynağın yapısal alanları (il, meslek) korunur; eski AI değerleri yeni okumayla değişir.
   const merged=groups.map((g,i)=>{const e=groups.length===existing.length?existing[i]:{};return {cities:e.cities??places,...(e.occupations?{occupations:e.occupations}:{}),...g};});
   await env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.requirementGroups',json(?),'$.conditionsHash',?),conditions_checked=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=?")
     .bind(JSON.stringify(merged),contentHash,contentHash,nowISO(),listingId,contentHash).run();
+  return res;
 }
 // Telafi: özet işinin ilk turunda geçici hata alan ilanlar her turda bir tane.
 export async function canonicalBackfill(env){
-  const row=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY updated_at DESC LIMIT 1").bind(nowISO()).first();
+  const row=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY conditions_due_at,updated_at,id LIMIT 1").bind(nowISO(),nowISO()).first();
   if(!row)return;
   const notice=JSON.parse(row.payload);
   const text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');
@@ -178,6 +209,19 @@ export async function processNotice(env){
   const current=await env.DB.prepare('SELECT content_hash,processed_hash,processed_contract,reprocess_contract,first_seen,active,deadline FROM listings WHERE id=?').bind(job.listing_id).first();
   if(!current?.active||(current.deadline&&Date.parse(current.deadline)<=Date.now())||current.content_hash!==job.input_hash||(job.purpose==='reprocess'&&current.reprocess_contract!==job.contract_key)||(current.processed_hash===job.input_hash&&(job.purpose!=='reprocess'||current.processed_contract===job.contract_key))){await env.DB.prepare("UPDATE processing_jobs SET state='superseded',lease_until=NULL WHERE id=?").bind(job.id).run();return;}
   const {aiProgress,aiContract:storedContract,...notice}=JSON.parse(job.input),text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');
+  if(env.AI_SUMMARY_ENABLED==='0'){
+    // Source text is already published. Eligibility uses the shared, bounded cache;
+    // an optional UI summary must not add a model call for every text chunk.
+    const result=text?await canonicalConditions(env,job.listing_id,job.input_hash,text,notice.places??[]):{status:200};
+    if(result?.status!==200&&result?.status!==422){
+      await env.DB.prepare("UPDATE processing_jobs SET state='quota_wait',attempts=attempts-1,lease_until=NULL,due_at=?,error_code=? WHERE id=?").bind(later(result?.status===429?60:15),result?.body?.error??'extract_failed',job.id).run();return;
+    }
+    await env.DB.batch([
+      env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.aiStatus',?,'$.updatedAt',?),processed_hash=?,processed_contract=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=? AND active=1")
+        .bind(text?(result.status===422?'conditions_unavailable':'conditions_checked'):'source_only',now,job.input_hash,job.contract_key,now,job.listing_id,job.input_hash),
+      env.DB.prepare("UPDATE processing_jobs SET state=CASE WHEN EXISTS(SELECT 1 FROM listings WHERE id=? AND content_hash=? AND processed_hash=? AND active=1) THEN 'completed' ELSE 'superseded' END,lease_until=NULL,error_code=NULL WHERE id=?").bind(job.listing_id,job.input_hash,job.input_hash,job.id)
+    ]);return;
+  }
   let chunks;try{chunks=splitAiText(text);}catch(e){await env.DB.prepare("UPDATE processing_jobs SET state='failed',error_code=?,lease_until=NULL WHERE id=?").bind(safeError(e),job.id).run();return;}
   if(text.length&&!aiProgress){
     try{await canonicalConditions(env,job.listing_id,job.input_hash,text,notice.places??[]);}
@@ -412,19 +456,21 @@ export async function flushOutboxBatch(env,options={}) {
   for(let n=0;n<4;n++)if(await flushOutbox(env,{...options,instantOnly:n===3})!=='instant')break;
 }
 async function pendingDispatch(env,kind,now) {
+  if(kind==='source')return env.DB.prepare("SELECT 1 FROM sources WHERE next_due<=? AND (lease_until IS NULL OR lease_until<?) LIMIT 1").bind(now,now).first();
+  if(kind==='extract')return env.DB.prepare("SELECT 1 WHERE EXISTS(SELECT 1 FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5) OR EXISTS(SELECT 1 FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND json_extract(payload,'$.text') IS NOT NULL)").bind(now,now,now,now).first();
   return kind==='match'
     ?env.DB.prepare("SELECT 1 FROM match_events WHERE state='pending' OR (state='leased' AND lease_until<?) LIMIT 1").bind(now).first()
     :env.DB.prepare("SELECT 1 FROM notification_outbox WHERE (state='pending' OR (state='leased' AND lease_until<?)) AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) LIMIT 1").bind(now,now).first();
 }
 export async function dispatchWork(env,kind) {
-  if(!env.WORK_QUEUE||!['match','send'].includes(kind)||(kind==='send'&&(!env.FCM_PRIVATE_KEY||!env.FCM_CLIENT_EMAIL)))return;
+  if(!env.WORK_QUEUE||!['match','send','source','extract'].includes(kind)||(kind==='send'&&(!env.FCM_PRIVATE_KEY||!env.FCM_CLIENT_EMAIL)))return;
   const now=nowISO();if(!await pendingDispatch(env,kind,now))return;
   const ticket=await env.DB.prepare("UPDATE dispatch_state SET generation=generation+1,state='queued',lease_until=? WHERE kind=? AND (state='idle' OR lease_until<?) RETURNING generation").bind(later(3),kind,now).first();if(!ticket)return;
   try {
     // Independent atomic budget: at most 9,000 normal Queue operations/day; platform Free caps still apply to redelivery.
     const reserved=await env.DB.prepare('INSERT INTO daily_usage(day,queue_jobs) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET queue_jobs=queue_jobs+1 WHERE queue_jobs<3000 RETURNING queue_jobs').bind(now.slice(0,10)).first();
     if(!reserved)throw new Error('queue_daily_budget');
-    await env.WORK_QUEUE.send({kind,generation:ticket.generation});
+    await env.WORK_QUEUE.send({kind,generation:ticket.generation},kind==='source'?{delaySeconds:15}:{});
   }catch(error){
     await env.DB.prepare("UPDATE dispatch_state SET state='idle',lease_until=NULL WHERE kind=? AND generation=? AND state='queued'").bind(kind,ticket.generation).run();
     console.error('dispatch_deferred',kind,safeError(error));
@@ -433,10 +479,15 @@ export async function dispatchWork(env,kind) {
 export async function handleWorkQueue(batch,env,options={}) {
   for(const message of batch.messages){
     const body=message.body;
-    if(!body||!['match','send'].includes(body.kind)||!Number.isSafeInteger(body.generation)||body.generation<1){message.ack();continue;}
+    if(!body||!['match','send','source','extract'].includes(body.kind)||!Number.isSafeInteger(body.generation)||body.generation<1){message.ack();continue;}
     const owner=await env.DB.prepare("UPDATE dispatch_state SET state='running',lease_until=? WHERE kind=? AND generation=? AND state='queued' AND lease_until>? RETURNING kind").bind(later(3),body.kind,body.generation,nowISO()).first();
     if(!owner){message.ack();continue;}
-    try{await(body.kind==='match'?matchEvents(env):flushOutboxBatch(env,options));}
+    try{
+      if(body.kind==='extract'){
+        const due=await env.DB.prepare("SELECT 1 FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5 LIMIT 1").bind(nowISO(),nowISO()).first();
+        await(due?processNotice(env):canonicalBackfill(env));
+      }else await(body.kind==='match'?matchEvents(env):body.kind==='send'?flushOutboxBatch(env,options):readSource(env));
+    }
     catch(error){console.error('queue_stage_failed',body.kind,safeError(error));}
     finally{
       await env.DB.prepare("UPDATE dispatch_state SET state='idle',lease_until=NULL WHERE kind=? AND generation=? AND state='running'").bind(body.kind,body.generation).run();
@@ -516,5 +567,7 @@ export async function runScheduled(env,scheduledTime=Date.now()){
     const slot=Math.floor(scheduledTime/60000)%3;
     if(slot===1)await dispatchWork(env,'match');
     if(slot===2)await dispatchWork(env,'send');
+    if(slot===0)await dispatchWork(env,'source');
+    if(slot===2)await dispatchWork(env,'extract');
   }
 }

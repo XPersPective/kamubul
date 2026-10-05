@@ -22,6 +22,24 @@ function setup(t,count=25){
 }
 const message=body=>({body,acked:false,ack(){this.acked=true;}});
 
+test('source wake-ups are paced, restart-safe and preserve every pending notice',async t=>{
+  const {sql,env,tasks}=setup(t,0);
+  sql.exec("UPDATE sources SET next_due='2999-01-01';UPDATE match_events SET state='completed'");
+  const batch=[1,2].map(n=>({id:'ilangov:'+n,externalId:String(n),sourceId:'ilangov',title:'Resmî kamu ilanı',notificationEligible:false,deadline:null}));
+  sql.prepare("UPDATE sources SET pending_batch=?,batch_offset=0,next_due='1970-01-01',baseline_at='2026-10-01' WHERE id='ilangov'").run(JSON.stringify(batch));
+  let delay;env.WORK_QUEUE.send=async(body,options)=>{delay=options?.delaySeconds;tasks.push(body);};
+  const before=globalThis.fetch;t.after(()=>globalThis.fetch=before);
+  let reads=0;globalThis.fetch=async()=>{reads++;return Response.json({result:{content:'<p>Resmî ilan metni, tüm adayların okuyabileceği başvuru şartları.</p>'}});};
+  await dispatchWork(env,'source');assert.equal(delay,15);
+  const first=tasks.shift();await handleWorkQueue({messages:[message(first)]},env);
+  assert.equal(sql.prepare("SELECT batch_offset FROM sources WHERE id='ilangov'").get().batch_offset,1);
+  await handleWorkQueue({messages:[message(first)]},env);assert.equal(reads,1,'duplicate generation cannot read the source twice');
+  await handleWorkQueue({messages:[message(tasks.shift())]},env);
+  assert.equal(reads,2);assert.equal(sql.prepare("SELECT COUNT(*) n FROM listings WHERE source_id='ilangov'").get().n,2);
+  assert.equal(sql.prepare("SELECT state FROM sources WHERE id='ilangov'").get().state,'ok');
+  assert.equal(tasks.length,0,'no queue spin while the source freshness timer is closed');
+});
+
 test('one wake-up owns each generation; chained matching finishes and duplicate tickets cannot replay',async t=>{
   const {sql,env,tasks}=setup(t);
   await Promise.all([dispatchWork(env,'match'),dispatchWork(env,'match')]);

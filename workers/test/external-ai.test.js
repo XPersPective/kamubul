@@ -40,3 +40,12 @@ test('qwen compatible mode can disable thinking', () => {
   assert.equal(JSON.parse(externalRequest(e, request).init.body).enable_thinking, false);
   assert.equal('enable_thinking' in JSON.parse(externalRequest({ ...e, EXTERNAL_AI_NOTHINK: '' }, request).init.body), false);
 });
+
+test('Qwen receives JSON response format and exposes provider token usage',async()=>{
+  const e={...env,EXTERNAL_AI_FORMAT:'openai'};
+  const req={...request,response_format:{type:'json_object'}};
+  assert.deepEqual(JSON.parse(externalRequest(e,req).init.body).response_format,{type:'json_object'});
+  const usage={prompt_tokens:100,completion_tokens:20,total_tokens:120};
+  const out=await externalAiRun(e,req,async()=>Response.json({choices:[{message:{content:'{}'}}],usage}));
+  assert.deepEqual(out.usage,usage);
+});

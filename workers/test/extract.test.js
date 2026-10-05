@@ -49,7 +49,7 @@ test('aynı metin ikinci kez modeli çağırmaz; kurulum tavanı uygulanır', as
   const first = await handleExtract({ installationId: id, text: TEXT }, env(db), { sha256, fetch });
   assert.equal(first.status, 200); assert.equal(first.body.cached, false);
   const again = await handleExtract({ installationId: id, text: TEXT + '   ' }, env(db), { sha256, fetch });
-  assert.equal(again.body.cached, true); assert.equal(calls, 2);
+  assert.equal(again.body.cached, true); assert.equal(calls, 1);
   await handleExtract({ installationId: id, text: TEXT + ' x' }, env(db), { sha256, fetch });
   const capped = await handleExtract({ installationId: id, text: TEXT + ' y' }, env(db), { sha256, fetch });
   assert.equal(capped.status, 429);
@@ -89,7 +89,7 @@ test('Workers AI is preferred despite external chat configuration; empty result 
 
 test('repair reads the same text and stops at two; global budget counts each inference', async () => {
   const db = fakeDb(); let calls = 0;
-  const config = { ...env(db), EXTRACT_DAILY_GLOBAL: '1' };
+  const config = { ...env(db), EXTRACT_AI_PROVIDER:'cloudflare', AI_MODEL:'m', AI:{async run(){calls++;return {response:'{"groups":[]}'}}}, EXTRACT_DAILY_GLOBAL: '1' };
   const result = await handleExtract({ installationId: id, text: TEXT }, config, { sha256, fetch: async () => { calls++; return modelReply([])(); } });
   assert.equal(result.status, 429); assert.equal(calls, 1); assert.equal(db.cache.size, 0);
 });
