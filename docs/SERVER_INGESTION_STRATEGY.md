@@ -11,6 +11,8 @@ kullanıcının açtığı resmî başvuru bağlantısı kaynağa gider.
 - Sayfa cursor'u D1'de kalır. ilan.gov.tr gerçekte 20 kayıt döndürür; 100 istense
   bile 20 verir. Cursor 20 ilerler. Eksik/tekrarlanan/değişmiş snapshot başarılı
   tam liste olarak yayımlanmaz; önceki katalog korunur.
+- Ayrıntı kuyruğu sürerken de kaynak listesi30 dakikada yenilenir. Tamamlanan
+  ayrıntı cursor'u korunur; yeni native kimlikler hemen listeye eklenir.
 - HTML tablo satırları `hücre | hücre` biçiminde, paragraf sınırlarıyla saklanır.
   Kariyer genel metni ve her kadronun ayrı metni birlikte korunur.
 - Model hatası/kota/boş koşullar tam metni silmez. API ve offline cache aynı
@@ -21,6 +23,8 @@ kullanıcının açtığı resmî başvuru bağlantısı kaynağa gider.
   kullanılır. Qwen yalnız serbest metindeki şartların ayıklanmasını yapar.
 - `qwen3.6-flash`, thinking kapalı, JSON çıktısı. Normalize metin + istem/model
   sürümü D1 cache anahtarıdır; cihaz/kullanıcı/yenileme bu anahtara girmez.
+- Kabul edilen120.000 karaktere kadar metnin tamamı Qwen'e gider; içeride
+  yeniden60.000 karaktere indiren gizli kesit yoktur.
 - Geçerli Qwen sonucu bir çağrıda saklanır; kaba eksik-sözcük kontrolü aynı
   metni tekrar okutmaz. Bozuk/hatalı çağrı için mevcut iki-deneme tavanı korunur.
 - Ayrı, her parçaya AI özet üretme işi üretimde kapalıdır. Tam metin okunur;
@@ -44,6 +48,10 @@ kullanıcının açtığı resmî başvuru bağlantısı kaynağa gider.
 - AI kota/hata alan ilan `conditions_due_at` ile ertelenir; diğer ilanların
   sırasını kapatmaz. Günlük Queue3000 işi tavanında backlog D1'de kalır.
 - İlk snapshot bildirim üretmez. Unknown koşul kesin uygunluk/push sayılmaz.
+- Yerel100/1000/10000 alıcı kontrolü çalıştırılabilir: `node tool/check-fanout.js`.
+  10.000 örneğinde3000 günlük Queue görevi7996 gönderim işini tamamlar,
+  2004 iş dayanıklı bekler. Bu gerçek Cloudflare CPU/FCM teslim kapasitesi
+  veya bütün kullanıcılara aynı gün gönderim garantisi değildir.
 
 ## Asistan
 İndirilen tam metin ile soru ve gerekli profil alanları sunucuya gönderilir.

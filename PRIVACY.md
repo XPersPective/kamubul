@@ -1,6 +1,6 @@
 # KamuBul gizlilik açıklaması
 
-Son güncelleme: 4 Ekim 2026. KamuBul, crazypenguin tarafından geliştirilen bağımsız bir ilan uygulamasıdır; hesap veya giriş istemez. Kayıtlı aramalar, yaş/KPSS gibi kriterler, yer imleri ve tema tercihi cihazda saklanır. Sunucu bildirimlerini açmadığınız sürece kayıtlı aramalarınız KamuBul sunucusuna yüklenmez. Bu açıklama mevcut Cloudflare/FCM sürümünü anlatır; mağaza beyanlarının tamamlandığı anlamına gelmez.
+Son güncelleme: 5 Ekim 2026. KamuBul, crazypenguin tarafından geliştirilen bağımsız bir ilan uygulamasıdır; hesap veya giriş istemez. Kayıtlı aramalar, yaş/KPSS gibi kriterler, yer imleri ve tema tercihi cihazda saklanır. Sunucu bildirimlerini açmadığınız sürece kayıtlı aramalarınız KamuBul sunucusuna yüklenmez. Bu açıklama mevcut Cloudflare/FCM sürümünü anlatır; mağaza beyanlarının tamamlandığı anlamına gelmez.
 
 ## İlan kataloğu
 
@@ -8,7 +8,7 @@ Uygulama ortak ilan kataloğunu Cloudflare üzerindeki KamuBul API'sinden okur. 
 
 Sunucu resmî ilan kaynaklarını merkezi olarak kontrol eder. Kaynağın başvuru bağlantısını açtığınızda ilgili sitenin uygulamaları geçerlidir. Erişilemeyen ayrıntılar kesin bilgi gibi gösterilmez.
 
-Bu geçiş sürümünde cihazdaki kaynak kontrolü de korunmaktadır; telefon resmî ilan sitelerine doğrudan bağlanabilir. Bu bağlantılarda ilgili kaynak IP adresinizi ve teknik istek bilgilerini işleyebilir. Kaynak kontrolüne kişisel arama kriterleri eklenmez.
+Yeni sürümde kaynak okuması sunucuda yapılır; telefon ilan listesini ve özgün metni KamuBul API'sinden indirip çevrimdışı okumak için saklar. Önceki sürümler kaynak kontrolünde resmî sitelere doğrudan bağlanabilir. Resmî ilan veya başvuru bağlantısını açtığınızda ilgili kaynak IP adresinizi ve teknik istek bilgilerini işleyebilir. Bu bağlantılara kişisel arama kriterleri eklenmez.
 
 ## Sunucu bildirimleri (isteğe bağlı, varsayılan kapalı)
 
@@ -32,7 +32,7 @@ Cihazdaki arama/yer imleri dışa aktarılabilir; dosyanın saklanması ve payla
 
 ## Yapay zekâ
 
-İlan işleme için Cloudflare Workers AI'ya yalnız herkese açık ilan metni, başlığı veya resmî ilan PDF belgesi verilir; kullanıcı kriterleri veya bildirim jetonu verilmez. PDF'den metin çıkarılır; taranmış belgede okunabilir metin yoksa bilgi uydurulmaz. Başarılı çıktı ortak katalogda saklanır; aynı içerik her kullanıcı için yeniden işlenmez. Bilinmeyen şart uygunluk onayı sayılmaz. [Workers AI veri açıklaması](https://developers.cloudflare.com/workers-ai/platform/data-usage/) sağlayıcı uygulamalarını anlatır.
+İlan işleme için Cloudflare Workers AI veya Alibaba Cloud Qwen'e yalnız herkese açık ilan metni, başlığı veya resmî ilan PDF belgesi verilir; kullanıcı kriterleri veya bildirim jetonu verilmez. PDF'den metin çıkarılır; taranmış belgede okunabilir metin yoksa bilgi uydurulmaz. Başarılı çıktı ortak katalogda saklanır; aynı içerik her kullanıcı için yeniden işlenmez. Bilinmeyen şart uygunluk onayı sayılmaz. [Workers AI veri açıklaması](https://developers.cloudflare.com/workers-ai/platform/data-usage/) sağlayıcı uygulamalarını anlatır.
 
 ### KamuBul Asistan (yapay zekâ sohbeti)
 
@@ -41,7 +41,7 @@ Asistan sekmesinde yazdığınız mesaj, aynı sohbetteki son en fazla 10 mesaj,
 
 ### İlan şartlarının ayıklanması
 
-Cihazınız resmî kaynaklardan okuduğu ilanların şartlarını (yaş, eğitim, KPSS) önce kendi içinde ayıklar. Bunun yapılamadığı ilanlarda, yalnız o ilanın herkese açık resmî metni ve rastgele kurulum kimliği KamuBul sunucusuna gönderilir; sunucu şartları yapay zekâ sağlayıcısıyla ayıklar ve sonucu metnin karma değeriyle saklar ki aynı ilan için tekrar sorulmasın. Bu işlemde kişisel bilgi veya arama kriterleriniz gönderilmez; kurulum kimliği yalnız günlük kullanım sınırı için sayılır.
+Yeni sürümde ilan şartları (yaş, eğitim, KPSS) sunucuda ayıklanır ve sonuç özgün metinden ayrı saklanır. Aynı metnin ayıklama sonucu bütün kullanıcılar için paylaşılır. Önceki sürümler cihazda okunan resmî metni ve rastgele kurulum kimliğini ayıklama için sunucuya gönderebilir; bu kimlik yalnız günlük kullanım sınırı için sayılır. Bu işlemde kişisel bilgi veya arama kriterleriniz gönderilmez. Kişisel mesajlar saklanmadan, yalnız toplam giriş/çıkış token sayıları maliyeti izlemek için kaydedilir.
 
 ### Reklamsız deneme süresi
 

@@ -54,6 +54,25 @@ test('durable source pages resume across ticks and never skip the server native 
   assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM listings WHERE json_extract(payload,'$.text') IS NOT NULL").get().n,1);
 });
 
+test('new native identities are published while the older detail backlog is still running',async t=>{
+  const f=setup(t);
+  await readSource(f.env);
+  f.sql.exec("UPDATE sources SET last_attempt='1970-01-01' WHERE id='ilangov'");
+  const fetchBefore=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>String(url).includes('AdsByFilter')
+    ?Response.json({result:{numFound:3,ads:[11,12,13].map(id=>({id,title:'Kamu personeli '+id,urlStr:'/ilan/'+id+'/kamu',publishStartDate:'2026-10-01'}))}})
+    :fetchBefore(url,options);
+  await readSource(f.env);
+  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM listings').get().n,3);
+  const source=f.sql.prepare("SELECT * FROM sources WHERE id='ilangov'").get();
+  assert.equal(source.batch_offset,2,'refresh preserves the completed detail cursor');
+  assert.deepEqual(JSON.parse(source.pending_batch).map(item=>item.id),['ilangov:11','ilangov:12','ilangov:13']);
+  assert.equal(JSON.parse(f.sql.prepare("SELECT payload FROM listings WHERE id='ilangov:13'").get().payload).detailState,'pending');
+  await readSource(f.env);
+  assert.equal(f.sql.prepare("SELECT pending_batch FROM sources WHERE id='ilangov'").get().pending_batch,null);
+  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM processing_jobs').get().n,3);
+});
+
 test('one valid Qwen extraction finishes the canonical job without separate summary inference',async t=>{
   const f=setup(t),text='Lisans mezunu olmak. '+'Genel açıklamalar ve başvuru belgeleri. '.repeat(800);
   f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('ilangov:e','ilangov','e','h','2026-10-01','2026-10-01','2026-10-01',?)").run(JSON.stringify({text,places:['Ankara']}));

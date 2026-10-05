@@ -1,5 +1,16 @@
 # KamuBul — Bağlayıcı Kısıtlar
 
+## C-053 Sunucu devri — 5 Ekim son kullanıcı yönü
+Kaynak okuma ve ayıklama tamamen sunucuda; telefonda otomatik kaynak/şehir/
+ayrıntı/backfill yok. Önceki C-040 geçiş fallback korumasını son kullanıcı
+yönü değiştirir. Telefon yalnız API/cache ve kullanıcı tarafından açılan
+başvuru bağlantısı. Mobil üretim yayını tüm kaynak/tam-metin kabulünden sonra.
+Qwen3.6-flash mevcut Token Plan ile birincil ayıklama ve Asistan; yapısal
+kaynak alanları doğrudan, ayrı parça başına AI özet çağrısı yok. Geçerli
+sonuç tekrar okutulmaz; provider Credits'i varsayımsal sabit mesaja çevrilmez.
+Kullanıcı Cloudflare erişimini doğruladı; IP/ülke nedeni tahmin edilmez;
+gerçek okuyucu/uç nokta sonuçları ve eksik kapsam dürüst kaydedilir.
+
 ## C-042 Android ve yayın kökü — 3 Ekim son kullanıcı yönü
 Bu çalışma iOS/Mac işlerini erteler; Android emülatör doğrulaması yetkilidir.
 Önceki fiziksel Android zorunluluğu bu kapsamda emülatör kabulüyle değiştirilir;

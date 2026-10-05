@@ -58,7 +58,9 @@ export async function readSource(env){
     let batch,offset=source.batch_offset;
     const detailWarning='Ayrıntı yenilemesi başarısız; önceki ilan bilgileri korunuyor.';
     let detailFailure=!!source.pending_batch&&source.note===detailWarning;
-    if(source.pending_batch)batch=JSON.parse(source.pending_batch);
+    const refreshList=!source.pending_batch||source.pending_list||(source.last_attempt&&Date.parse(source.last_attempt)<Date.now()-(Number(env.SOURCE_INTERVAL_MINUTES)||30)*60000);
+    let refreshed=false;
+    if(!refreshList)batch=JSON.parse(source.pending_batch);
     else {
       if(source.id==='ilangov'){
         const page=await fetchIlanGovPage(source.list_page);
@@ -74,11 +76,17 @@ export async function readSource(env){
         if(batch.length!==page.total)throw new SourceError('source_incomplete');
         await env.DB.prepare('UPDATE sources SET pending_list=NULL,list_page=0,list_total=NULL WHERE id=?').bind(source.id).run();
       }else batch=await(source.id==='kariyerkapisi'?fetchKariyerList():source.id==='iskur'?fetchIskurList():fetchSbbList());
-      offset=0;
+      const fresh=batch;
+      if(source.pending_batch){
+        const old=JSON.parse(source.pending_batch),byId=new Map(fresh.map(item=>[item.id,item]));
+        batch=old.map(item=>byId.has(item.id)?{...item,...byId.get(item.id)}:item);
+        const existing=new Set(old.map(item=>item.id));batch.push(...fresh.filter(item=>!existing.has(item.id)));
+      }else offset=0;
+      refreshed=true;
     }
     const firstSnapshot=!source.baseline_at;
     if(firstSnapshot){source.baseline_at=now;batch=batch.map(base=>({...base,notificationEligible:false}));}
-    if(!source.pending_batch||firstSnapshot){
+    if(refreshed||firstSnapshot){
       // Publish every native identity before detail/AI; no model quota hides an ad.
       // Existing successful text/conditions are never overwritten by index fields.
       const index=batch.map(({requirementGroups,summary,...item})=>({...item,notificationEligible:item.notificationEligible??(Date.parse(item.publishedAt)>Date.parse(source.baseline_at)&&Date.parse(item.publishedAt)<=Date.parse(now)),detailState:'pending',firstSeenAt:now,updatedAt:now}));

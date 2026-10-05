@@ -33,8 +33,8 @@ export const normalize = text => String(text).replace(/[^\S\n]+/g, ' ').replace(
 // birebir parçası olduğundan alıntı doğrulaması değişmez. Tavanı aşan çok uzun
 // ilanda sonraki şart cümleleri dışarıda kalabilir (alan bilinmiyor; yanlış değer üretmez).
 const FOCUS_LIMIT = 7000;
-// Qwen tam metni okur (~20 bin token); daha uzunsa aynı seçimle bu sınıra iner.
-const FULL_LIMIT = 60000;
+// Qwen reads every accepted source character; no hidden second truncation.
+const FULL_LIMIT = MAX_TEXT;
 const FOCUS_STRONG = /yaş|mezun|öğrenim|lisans|\blise|ortaöğretim|doktora|kpss|puan|\bp\s?\d{1,3}\b|diploma/;
 const FOCUS_WEAK = /eğitim|nitelik|şart|koşul|kadro|unvan|pozisyon|bölüm|fakülte|yüksekokul/;
 export function focusText(text, limit = FOCUS_LIMIT) {
@@ -166,7 +166,7 @@ export async function handleExtract(body, env, deps) {
   const focused = focusText(text);
   const external = env.EXTRACT_AI_PROVIDER === 'external' && externalAiEnabled(env);
   const model = external ? env.EXTERNAL_AI_MODEL : env.EXTRACT_AI_MODEL ?? env.AI_MODEL;
-  const hash = await deps.sha256(JSON.stringify([VERSION, external ? 'external' : 'cloudflare', model, env.EXTRACT_QWEN_DAILY ? env.EXTERNAL_AI_MODEL : null, text]));
+  const hash = await deps.sha256(JSON.stringify([external&&text.length>60000?VERSION+'-full120':VERSION, external ? 'external' : 'cloudflare', model, env.EXTRACT_QWEN_DAILY ? env.EXTERNAL_AI_MODEL : null, text]));
   const hit = await env.DB.prepare('SELECT groups FROM extraction_cache WHERE hash=?').bind(hash).first();
   if (hit) return { status: 200, body: { groups: JSON.parse(hit.groups), cached: true } };
   if ((!external && !env.AI) || !model) return { status: 503, body: { error: 'extract_unavailable' } };

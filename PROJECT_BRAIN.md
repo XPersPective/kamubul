@@ -12,8 +12,9 @@ Güncel proje kaydı `.project-brain/` dizinindedir. Başlangıç sırası:
 karar `decisions/ADR-001.md`, ilk uygulama görevi `tasks/PB-016.md`.
 `docs/CLOUDFLARE_FCM_YOL_HARITASI.md` devir/sıra rehberidir. Eski local-only
 ve Cloud Run/Blaze görevleri aktif plandan kaldırılmıştır; Git geçmişindedir.
-Dev Worker2 Ekim dashboard listesinde yoktur; hedefin çalıştığı varsayılmaz. Mobile local fetch
-ve scheduler ancak PB-019 pilot/sync/push kapılarından sonra sökülür.
+5 Ekim son kullanıcı yönü PB-026: kaynak okuma/ayıklama yalnız sunucuda;
+telefon API/cache kullanır. Önceki telefon fallback koruma yönergesi geçersizdir.
+Yeni mobil üretim yayını için tüm kaynakların gerçek tam-metin kapsamı doğrulanır.
 Mevcut mimari yalnızca `current.md` içinde, ürün hedefi `target.md` içinde,
 uygulama sırası `tasks/` içinde tutulur. `ORTAK_UYGULAMA_STANDARDI.md`
 kuralları geçerlidir.
