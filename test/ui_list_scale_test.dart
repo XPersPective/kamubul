@@ -68,12 +68,22 @@ void main() {
       );
     }
     await fonts.load();
+    final icons = FontLoader('MaterialIcons')
+      ..addFont(
+        File.fromUri(
+          flutter.resolve(
+            '../../bin/cache/artifacts/material_fonts/materialicons-regular.otf',
+          ),
+        ).readAsBytes().then(ByteData.sublistView),
+      );
+    await icons.load();
   });
 
   setUp(() async {
     await databaseFactory.deleteDatabase(dbPath);
     final store = ListingStore();
-    final now = DateTime.now();
+    // Fixed dates keep golden references stable across calendar days.
+    final now = DateTime(2026, 1, 1);
     await store.mergeFeed(
       [
         ListingRecord(
@@ -83,7 +93,7 @@ void main() {
           category: 'Sözleşmeli Personel',
           publishedAt: now.subtract(const Duration(days: 1)),
           fetchedAt: now,
-          deadline: now.add(const Duration(days: 3)),
+          deadline: null,
           quota: 5,
           places: const ['ANKARA'],
           saved: true,
@@ -96,7 +106,7 @@ void main() {
           category: 'Personel',
           publishedAt: now.subtract(const Duration(days: 2)),
           fetchedAt: now,
-          deadline: now.add(const Duration(days: 10)),
+          deadline: null,
           quota: 2,
           places: const ['İZMİR', 'KARŞIYAKA'],
         ),

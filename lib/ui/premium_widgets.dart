@@ -344,7 +344,7 @@ class ListingActionBar extends StatelessWidget {
             FilledButton.icon(
               onPressed: onAskAssistant,
               icon: const Icon(Icons.auto_awesome_rounded),
-              label: label('Asistana sor: Bana uygun mu?'),
+              label: label('Asistana sor'),
               style: FilledButton.styleFrom(
                 backgroundColor: dark
                     ? const Color(0xFFB9ADFF)

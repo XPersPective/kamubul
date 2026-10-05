@@ -41,6 +41,13 @@ kapasite ölçülür. Ücretli upgrade açılmaz; R2/KV hâlâ gerekmiyor.
 
 ## 2. Sorumluluk sınırı
 
+5 Ekim kullanıcı yönü / ADR-006: uygulama Asistanı Qwen; ilan ayıklama
+Cloudflare Workers AI önce, eksik çıkarım veya gerçek ücretsiz provider
+kotası halinde ayrı günlük sınırlı Qwen desteği. Aynı içerik/model/çıkarım
+sözleşmesinde en fazla iki kalıcı sayılmış çağrı; mevcut metni tekrar kullan,
+alan yokluğu için kaynağı yeniden çekme. Merkezi kaynak metni/canonical
+çıkarım ve iki sınırlı kaynak yeniden doğrulaması tamamlanma hedefidir.
+
 | İş | Dışarıda / Cloudflare | İçeride / Flutter |
 | --- | --- | --- |
 | İlan | Kaynak listesi+ayrıntı çekme, normalizasyon, dedupe, deadline/state | Cache'ten liste/detay, resmi linki kullanıcı açar |

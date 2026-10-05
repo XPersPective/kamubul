@@ -22,9 +22,13 @@ class KariyerDetailPage extends StatefulWidget {
     this.onAskAssistant,
     this.loader,
     this.summary = const [],
+    this.cachedQuota,
+    this.cachedPlaces = const [],
   });
 
   final PublicListing listing;
+  final int? cachedQuota;
+  final List<String> cachedPlaces;
 
   /// Sunucunun yapay zekâ ile hazırladığı kısa özet maddeleri. Her madde
   /// ilan metnindeki doğrulanmış bir alıntıya dayanır; sayfada "Yapay zekâ
@@ -174,6 +178,9 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
   );
 
   Widget _content(KariyerDetail detail) {
+    final quota = detail.quota > 0 ? detail.quota : widget.cachedQuota;
+    final deadline = detail.deadline ?? widget.listing.deadline;
+    final places = detail.places.isEmpty ? widget.cachedPlaces : detail.places;
     final institutionPrefix = '${detail.institution} - ';
     final title =
         detail.institution.isNotEmpty &&
@@ -242,15 +249,15 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                     children: [
                       _fact(
                         'Toplam kontenjan',
-                        detail.quota > 0 ? '${detail.quota} kişi' : null,
+                        quota != null && quota > 0 ? '$quota kişi' : null,
                       ),
                       _fact(
                         'Son başvuru',
-                        detail.deadline == null ? null : _date(detail.deadline),
+                        deadline == null ? null : _date(deadline),
                       ),
                       _fact(
                         'Yerler',
-                        detail.places.isEmpty ? null : detail.places.join(', '),
+                        places.isEmpty ? null : places.join(', '),
                       ),
                       _fact(
                         'Yayın',
@@ -317,10 +324,8 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                                 Expanded(
                                   child: Text(
                                     line,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyLarge
-                                        ?.copyWith(fontSize: 17, height: 1.45),
+                                    style: Theme.of(context).textTheme.bodyLarge
+                                        ?.copyWith(height: 1.45),
                                   ),
                                 ),
                               ],
@@ -357,10 +362,8 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
                                 Expanded(
                                   child: Text(
                                     line,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyLarge
-                                        ?.copyWith(fontSize: 17, height: 1.45),
+                                    style: Theme.of(context).textTheme.bodyLarge
+                                        ?.copyWith(height: 1.45),
                                   ),
                                 ),
                               ],
@@ -460,12 +463,15 @@ class _KariyerDetailPageState extends State<KariyerDetailPage> {
         Text(
           '$label: $value',
           style: Theme.of(context).textTheme.bodyLarge
-              ?.copyWith(fontSize: 17, fontWeight: FontWeight.w700),
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         Text(
           '"$quote"',
-          style: Theme.of(context).textTheme.bodyMedium
-              ?.copyWith(fontSize: 15, height: 1.45, fontStyle: FontStyle.italic),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontSize: 15,
+            height: 1.45,
+            fontStyle: FontStyle.italic,
+          ),
         ),
       ],
     ),

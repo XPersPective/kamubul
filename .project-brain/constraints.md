@@ -27,6 +27,10 @@ Kullanıcı girişi yok; kurulum başına güvenli ID+secret ve FCM token. Profi
 Yalnız resmî kaynak; WAF/login/CAPTCHA aşma, arbitrary URL fetch ve gizli proxy yok. Source-native alanlarda type/range/origin; metin/AI alanlarında kaynak alıntısı, şema ve doğrulanmış değer desteği. Alan başına en az 50 örnek/kaynak değerlendirmesi, precision >=0.95 kapısı; recall ayrıca raporlanır. Alıntı tek başına doğruluk ispatı değildir. Unknown = unknown; AI kesin işe uygunluk kararı vermez. Çoklu kadro koşulları birbirine karıştırılmaz.
 
 ## C-005 Ekonomik AI
+5 Ekim kullanıcı istisnası ADR-006: ingestion koşul ayıklamasında Cloudflare
+eksik çıkarımında da ayrı günlük tavanla Qwen destekleyebilir. Sohbet Qwen
+kalır. İki çağrı sınırı D1'de içerik/çıkarım/model sözleşmesine bağlıdır;
+ücretli otomatik Cloudflare upgrade izni değildir.
 ADR-002 kullanıcı kriter asistanı kullanıcı isteği başına ayrı sınırlı inference yapabilir; aşağıdaki notice-revision maliyet ilkesi ingestion içindir. Assistant ve ingestion fallback ayrı atomik bütçe/limit kullanır.
 AI yeni veya semantik içeriği değişmiş ilan revizyonu başına; kullanıcı/etiket/refresh başına değil. UI tarih/görüntülenme gürültüsü hash'e girmez. Başarılı sonuç kalıcı; aynı (contentHash, extractionVersion, modelRevision) yeniden çağrılmaz. Başarısız çağrı kontrollü retry yapabilir. Günlük rezervasyon/bütçe, request/input/output/attempt üst sınırı. Yarım işlem veri kaybetmez.
 

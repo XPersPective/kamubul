@@ -127,7 +127,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
   List<ListingRecord> _records = const [];
   List<SavedSearch> _searches = const [];
   ListingRecord? _assistantListing;
-  String? _assistantQuestion;
   final ListingStore _store = ListingStore();
   final TextEditingController _searchController = TextEditingController();
   late final ShareService _share = widget.shareService ?? ShareService();
@@ -541,7 +540,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
       detail.body,
       for (final position in detail.positions) position.conditions,
     ].join('\n');
-    await _store.applyConditions(url, extractConditions(conditionText));
+    await _store.applyConditions(
+      url,
+      extractConditions(conditionText),
+      complete: false,
+    );
+    if (conditionText.length <= 24000) {
+      await _store.cachePendingConditionText(url, conditionText);
+    }
     await _loadLocal();
   }
 
@@ -823,7 +829,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
   @override
   void setState(VoidCallback fn) {
     super.setState(fn);
-    _visibleCache = null; // fn içinde okunmuş olabilir; değişiklikten sonra sıfırla
+    _visibleCache =
+        null; // fn içinde okunmuş olabilir; değişiklikten sonra sıfırla
     if (!_selectionRestored) return;
     final value = jsonEncode({
       'search': _activeSearchId,
@@ -2427,13 +2434,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
       ? KariyerDetailPage(
           listing: _asPublicListing(record),
           summary: record.summary,
+          cachedQuota: record.quota,
+          cachedPlaces: record.places,
           onLoaded: (detail) => _cacheDetail(record.url, detail),
-          onAskAssistant: () => _askAssistantAbout(record, suitability: true),
+          onAskAssistant: () => _askAssistantAbout(record),
         )
       : OfficialListingPage(
           listing: record,
           unavailable: record.criteriaListing?['active'] == false,
-          onAskAssistant: () => _askAssistantAbout(record, suitability: true),
+          onAskAssistant: () => _askAssistantAbout(record),
         );
 
   PublicListing _asPublicListing(ListingRecord record) => PublicListing(
@@ -2441,6 +2450,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
     category: record.category,
     url: Uri.parse(record.url),
     publishedAt: record.publishedAt,
+    deadline: record.deadline,
   );
 
   Widget _savedView() => _visibleRecords.isEmpty
@@ -2519,8 +2529,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
         _chatMessages.clear();
       }),
       profile: _assistantProfile(),
-      initialQuestion: _assistantQuestion,
-      onInitialQuestionUsed: () => setState(() => _assistantQuestion = null),
     );
   }
 
@@ -2548,14 +2556,12 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   /// İlan ayrıntısından "Asistana sor": ayrıntıyı kapatıp seçili ilanla
   /// Asistan sekmesini açar.
-  /// [suitability]: ayrıntıdaki "Bana uygun mu?" düğmesi soruyu da gönderir.
-  void _askAssistantAbout(ListingRecord record, {bool suitability = false}) {
+  void _askAssistantAbout(ListingRecord record) {
     Navigator.of(context).popUntil((route) => route.isFirst);
     setState(() {
       if (_assistantListing?.url != record.url) _chatMessages.clear();
       _assistantListing = record;
       _tab = 2;
-      _assistantQuestion = suitability ? 'Bu ilan bana uygun mu?' : null;
     });
   }
 
@@ -2875,33 +2881,32 @@ class _KamuHomePageState extends State<KamuHomePage> {
     String message, {
     required VoidCallback onPressed,
     VoidCallback? uncertainAction,
-  }) =>
-      Center(
-        // 1.3x metinde bile taşma olmasın: içerik kırpılmak yerine kayar.
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.inbox_outlined, size: 48),
-              const SizedBox(height: 12),
-              Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              if (uncertainAction != null) ...[
-                FilledButton(
-                  onPressed: uncertainAction,
-                  child: Text('$_uncertainCount ilanı göster'),
-                ),
-                const SizedBox(height: 8),
-              ],
-              OutlinedButton(
-                onPressed: onPressed,
-                child: const Text('Süzgeçleri temizle'),
-              ),
-            ],
+  }) => Center(
+    // 1.3x metinde bile taşma olmasın: içerik kırpılmak yerine kayar.
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.inbox_outlined, size: 48),
+          const SizedBox(height: 12),
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          if (uncertainAction != null) ...[
+            FilledButton(
+              onPressed: uncertainAction,
+              child: Text('$_uncertainCount ilanı göster'),
+            ),
+            const SizedBox(height: 8),
+          ],
+          OutlinedButton(
+            onPressed: onPressed,
+            child: const Text('Süzgeçleri temizle'),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   String _sourceLabel(String sourceId) => switch (sourceId) {
     'sbb' || 'kamuilan_sbb' => 'Kamu İlanları (SBB)',

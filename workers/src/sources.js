@@ -1,5 +1,5 @@
 const api = 'https://api.kariyerkapisi.gov.tr/api/';
-const hosts = new Set(['api.kariyerkapisi.gov.tr','kariyerkapisi.gov.tr','kamuilan.sbb.gov.tr']);
+const hosts = new Set(['api.kariyerkapisi.gov.tr','kariyerkapisi.gov.tr','kamuilan.sbb.gov.tr','www.ilan.gov.tr']);
 export class SourceError extends Error { constructor(code) {super(code);this.code=code;} }
 export async function sourceBytes(url, options={}) {
   const uri=new URL(url);
@@ -22,6 +22,33 @@ const post = async(route,body)=>JSON.parse(await sourceFetch(api+route,{method:'
 export const plain = value => String(value??'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<[^>]*>/g,' ').replace(/\[(?:\/?[a-z]+)(?:=[^\]]*)?\]/gi,'').replace(/&nbsp;|\u00a0/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#(\d+);/g,(_,v)=>{const n=Number(v);return n>0&&n<=0x10ffff&&!(n>=0xd800&&n<=0xdfff)?String.fromCodePoint(n):'\ufffd';}).replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
 const uuid=/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 const iso=value=>{if(typeof value!=='string')return null;const d=new Date(value);return Number.isFinite(+d)?d.toISOString():null;};
+const ilanGovApi='https://www.ilan.gov.tr/api/api/services/app';
+const ilanGovHeaders={'Accept':'text/plain','Content-Type':'application/json-patch+json','X-Requested-With':'XMLHttpRequest','X-Request-Origin':'IGT-UI'};
+export function parseIlanGovList(raw) {
+  if(!Array.isArray(raw?.result?.ads)||!Number.isInteger(raw.result.numFound)||raw.result.numFound<0)throw new SourceError('layout_changed');
+  const items=raw.result.ads.slice(0,20).flatMap(ad=>{
+    if(!ad||!/^\d{1,20}$/.test(String(ad.id))||typeof ad.title!=='string'||!ad.title.trim()||typeof ad.urlStr!=='string'||!ad.urlStr.startsWith('/ilan/'))return [];
+    const url=new URL(ad.urlStr,'https://www.ilan.gov.tr');
+    if(url.origin!=='https://www.ilan.gov.tr'||url.username||url.password||url.pathname.split('/')[2]!==String(ad.id))return [];
+    return [{id:'ilangov:'+ad.id,externalId:String(ad.id),sourceId:'ilangov',url:url.href,
+      title:plain(ad.title).slice(0,300),institution:plain(ad.advertiserName).slice(0,300),category:'Personel Alımı',
+      deadline:null,publishedAt:iso(ad.publishStartDate),places:ad.addressCityName?[plain(ad.addressCityName)]:[],
+      requirementGroups:[],summary:[],active:true}];
+  });
+  return {items,total:raw.result.numFound};
+}
+export async function fetchIlanGovPage(page=0) {
+  if(!Number.isInteger(page)||page<0||page>=10)throw new SourceError('source_page');
+  return parseIlanGovList(JSON.parse(await sourceFetch(ilanGovApi+'/Ad/AdsByFilter',{method:'POST',headers:ilanGovHeaders,body:JSON.stringify({keys:{ats:[5]},skipCount:page*20,maxResultCount:20})})));
+}
+export async function fetchIlanGovDetail(id) {
+  if(!/^\d{1,20}$/.test(String(id)))throw new SourceError('source_identity');
+  const raw=JSON.parse(await sourceFetch(ilanGovApi+'/AdDetail/GetAdDetail?id='+encodeURIComponent(id),{headers:ilanGovHeaders}));
+  if(typeof raw?.result?.content!=='string')throw new SourceError('layout_changed');
+  const text=plain(raw.result.content.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,'').replace(/<br\s*\/?>|<\/(?:p|div|tr|li|h\d)>/gi,'\n')).split('\n').map(line=>line.trim()).filter(Boolean).join('\n');
+  if(!text)throw new SourceError('source_empty');
+  return {text,detailState:'available'};
+}
 export function parseKariyerIndex(raw) {
   if(!Array.isArray(raw?.searchIlan))throw new SourceError('layout_changed');
   return raw.searchIlan.slice(0,200).filter(x=>x&&typeof x.guid==='string'&&uuid.test(x.guid)&&typeof x.ilanBaslik==='string'&&x.ilanTuru!=='Yurt Dışı Eğitim İlanları'&&iso(x.bitTarih)).map(x=>({

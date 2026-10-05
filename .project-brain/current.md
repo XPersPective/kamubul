@@ -1,5 +1,33 @@
 # Mevcut Mimari — KamuBul
 
+## 5 Ekim — ayıklama protokolü ve görsel doğrulama
+`workers/src/extract.js:handleExtract` sohbet sağlayıcısından ayrıdır:
+Cloudflare FP8 önce, eksik konu veya gerçek kota hatasında ayrı günlük20
+Qwen destek; global200 inference/gün ve kurulum40 istek/gün. Migration0020
+remote uygulandı; D1 lease ve çağrı öncesi kalıcı sayaç sözleşme başına iki
+çağrıyı korur. Hatalar/diğer cihazlar sınırı sıfırlamaz. Geçerli boş sonuçlar
+da cache; normal metin/hash+prompt/model sürümlüdür. 24k karakter üstü
+sessiz kırpılmaz; client65s. Null kaynak alanı yeniden çekim sebebi değildir.
+Mobil SQLite v11 pendingConditionText ile başarısız/quota AI sonucunu tamamlandı saymaz; sonraki deneme aynı kalıcı metni kullanır. Terminal/başarılı yanıt cache metnini temizler. Eski checked/AI verisi yeniden doğrulanır; kayıt/favoriler korunur.
+Sohbet Qwen3.6-flash kalır. ADR-006 hedef ve bilinçli sınırları kaydeder.
+
+Native Cloudflare egress: ilan.gov filtreli list HTTP200/29080byte/701ms;
+gerçek adapter ilk20/toplam162 ve resmi2244449 ayrıntı23186karakter available.
+İŞKUR HTTP500/1085ms. Kaynak adapteri/testleri var, Cron'a bağlı değil.
+Production D1 readonly24 ilan/text0; kaynak merkezi cutover hâlâ açık.
+İstemci metni canonical ilanı değiştirmez; sadece hash bağlı extraction cache.
+Gerçek x6 inference200/1grup+cache replay200; outputta genel sınav70'in yanlış
+KPSS yorumlandığı görülüp ortak doğrulayıcıya KPSS kanıtı ve eğitim
+alternatif guard'ı eklendi (x7). Son x7 canlı inference200: Ön lisans/Lisans alternatifleri, yaş34/reference-date ve KPSS alanı yok; deploy7b6d8c1e. Bu pilot precision/recall kapısı değildir.
+
+201 Flutter test PASS; 211 Worker test PASS. 11 değişen Dart alanı analyze
+no issues. Önceki geniş suite iki zaman bağımlı route test ve yedi stale
+golden nedeniyle başarısızdı: bounded5s route wait, sabit golden tarihleri,
+MaterialIcons font yükleme ve tema font ailesi korunarak düzeltildi;
+referanslar görsel incelendi. Ayrıntı liste cache'inden quota/places/deadline
+fallback alır. Asistan açılışta mesaj göndermez; okuma ölçeği1.0. Bu kaynak
+henüz yeni APK/AAB/native yayın kabulü değildir; mağaza1.1.5+10 durumu PB-024.
+
 3 Ekim 2026. Yalnız çalışan kod ve doğrulanmış dış durum; hedef `target.md`,
 uygulama sırası `tasks/`, gerekçeler `decisions/`. Önceki kontrol noktaları Git'tedir.
 

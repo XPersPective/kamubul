@@ -35,7 +35,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 10;
+  static const int _schemaVersion = 11;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -65,7 +65,8 @@ class ListingStore {
         saved INTEGER NOT NULL DEFAULT 0,
         savedAt INTEGER,
         conditionsCheckedAt INTEGER,
-        aiGroups TEXT
+        aiGroups TEXT,
+        pendingConditionText TEXT
       )
     ''');
     await db.execute('''
@@ -126,6 +127,15 @@ class ListingStore {
         'ALTER TABLE listings ADD COLUMN conditionsCheckedAt INTEGER',
       );
       await db.execute('ALTER TABLE listings ADD COLUMN aiGroups TEXT');
+    }
+    if (oldVersion < 11 && newVersion >= 11) {
+      await db.execute(
+        'ALTER TABLE listings ADD COLUMN pendingConditionText TEXT',
+      );
+      // Recheck derived results against the corrected server evidence contract.
+      await db.execute(
+        'UPDATE listings SET conditionsCheckedAt=NULL, aiGroups=NULL',
+      );
     }
   }
 
@@ -850,13 +860,17 @@ class ListingStore {
     String url,
     ConditionFields fields, {
     DateTime? at,
+    bool complete = true,
   }) async {
     final claimed = applyExtractionPolicy(fields);
     final db = await database;
     await db.update(
       'listings',
       {
-        'conditionsCheckedAt': (at ?? DateTime.now()).millisecondsSinceEpoch,
+        'conditionsCheckedAt': complete
+            ? (at ?? DateTime.now()).millisecondsSinceEpoch
+            : null,
+        if (complete) 'pendingConditionText': null,
         'kpss': ?claimed.kpssType?.value,
         'kpssQuote': ?claimed.kpssType?.quote,
         'education': ?claimed.education?.value,
@@ -866,6 +880,24 @@ class ListingStore {
         'quotaType': ?claimed.quotaType?.value,
         'quotaTypeQuote': ?claimed.quotaType?.quote,
       },
+      where: 'url = ?',
+      whereArgs: [url],
+    );
+  }
+
+  Future<String?> pendingConditionText(String url) async =>
+      (await (await database).query(
+            'listings',
+            columns: ['pendingConditionText'],
+            where: 'url = ?',
+            whereArgs: [url],
+          )).firstOrNull?['pendingConditionText']
+          as String?;
+
+  Future<void> cachePendingConditionText(String url, String text) async {
+    await (await database).update(
+      'listings',
+      {'pendingConditionText': text},
       where: 'url = ?',
       whereArgs: [url],
     );
@@ -893,7 +925,8 @@ class ListingStore {
     final db = await database;
     final rows = await db.query(
       'listings',
-      where: 'conditionsCheckedAt IS NULL AND (deadline IS NULL OR deadline > ?)',
+      where:
+          'conditionsCheckedAt IS NULL AND (deadline IS NULL OR deadline > ?)',
       whereArgs: [now.millisecondsSinceEpoch],
       orderBy: 'publishedAt DESC',
       limit: limit,

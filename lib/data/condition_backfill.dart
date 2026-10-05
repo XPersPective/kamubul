@@ -5,7 +5,7 @@ import 'listing_store.dart';
 /// Şartları henüz ayıklanmamış ilanların resmî metnini sırayla okuyup kural
 /// tabanlı çıkarıcıyı uygular (PB-025, ADR-005 1. katman). Nazik: tur başına
 /// en çok [limit] ilan, istekler arasında [gap]; bir kaynak hata verirse tur
-/// biter, ilan sonraki turda yeniden denenir. Kural boş kalırsa [aiExtract]
+/// biter, ilan sonraki turda yeniden denenir. Kural eksik kalırsa [aiExtract]
 /// (tur başına en çok [aiLimit]) denenir. Dönen değer işlenen ilan sayısı.
 Future<int> backfillConditions(
   ListingStore store, {
@@ -24,7 +24,9 @@ Future<int> backfillConditions(
   for (final record in pending) {
     final String? text;
     try {
-      text = await (readText ?? (r) => listingConditionText(store, r))(record);
+      text =
+          await store.pendingConditionText(record.url) ??
+          await (readText ?? (r) => listingConditionText(store, r))(record);
     } on Exception {
       break; // kaynak erişilemiyor: sonraki turda yeniden denenir
     }
@@ -32,19 +34,27 @@ Future<int> backfillConditions(
     final fields = text == null
         ? const ConditionFields()
         : extractConditions(text);
-    await store.applyConditions(record.url, fields, at: now);
-    // Katman 2: kural yaş/eğitim/KPSS bulamadıysa sunucuda yapay zekâ (tavanlı).
-    final ruleEmpty =
-        fields.education == null &&
-        fields.kpssType == null &&
-        fields.maxAge == null;
-    if (text != null && ruleEmpty && aiExtract != null && aiLimit > 0) {
+    // Kural sonucu yedektir; sunucu aynı metni hash cache'inden doğrular.
+    final needsAi = text != null && aiExtract != null;
+    await store.applyConditions(
+      record.url,
+      fields,
+      at: now,
+      complete: !needsAi,
+    );
+    if (needsAi && text.length <= 24000) {
+      await store.cachePendingConditionText(record.url, text);
+    }
+    if (needsAi && aiLimit > 0) {
       aiLimit--;
       final groups = await aiExtract(text);
       if (groups == null) {
         aiLimit = 0; // tavan/hata: bu turda başka istek yok
-      } else if (groups.isNotEmpty) {
+      } else {
         await store.applyAiGroups(record.url, groups);
+      }
+      if (groups != null) {
+        await store.applyConditions(record.url, fields, at: now);
       }
     }
     done++;

@@ -173,13 +173,19 @@ void main() {
   }
 
   Future<void> settleUntil(WidgetTester tester, Finder finder) async {
-    for (var i = 0; i < 50; i++) {
+    final timeout = DateTime.now().add(const Duration(seconds: 5));
+    while (DateTime.now().isBefore(timeout)) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
       await tester.pump(const Duration(milliseconds: 50));
       if (finder.evaluate().isNotEmpty) return;
     }
+    expect(
+      finder,
+      findsWidgets,
+      reason: 'Route did not appear within five seconds',
+    );
   }
 
   for (final active in [true, false]) {
@@ -328,10 +334,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Ayarlar'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Diğer uygulamalarımız'),
-        300,
-      );
+      await tester.scrollUntilVisible(find.text('Diğer uygulamalarımız'), 300);
       await tester.ensureVisible(find.text('Diğer uygulamalarımız'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Diğer uygulamalarımız'));
@@ -382,7 +385,8 @@ void main() {
     WidgetTester tester,
     bool Function() requested,
   ) async {
-    for (var i = 0; i < 50 && !requested(); i++) {
+    final timeout = DateTime.now().add(const Duration(seconds: 5));
+    while (!requested() && DateTime.now().isBefore(timeout)) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );

@@ -60,7 +60,10 @@ class AssistantClient {
   /// İlan şartlarını sunucuda yapay zekâyla ayıklar (ADR-005 katman 2).
   /// Sunucu metin hash'iyle önbellekler; tavan/hata halinde null döner.
   Future<List<Map<String, Object?>>?> extractConditions(String text) async {
-    if (!available || text.trim().length < 200) return null;
+    if (!available) {
+      return null;
+    }
+    if (text.trim().length < 200 || text.length > 24000) return const [];
     try {
       final response = await _client
           .post(
@@ -68,12 +71,16 @@ class AssistantClient {
             headers: const {'content-type': 'application/json'},
             body: jsonEncode({
               'installationId': _installationId(),
-              'text': text.length > 12000 ? text.substring(0, 12000) : text,
+              'text': text,
             }),
           )
-          .timeout(const Duration(seconds: 45));
+          .timeout(const Duration(seconds: 65));
+      if (response.statusCode == 413 || response.statusCode == 422) {
+        return const [];
+      }
       if (response.statusCode != 200) return null;
-      final groups = (jsonDecode(utf8.decode(response.bodyBytes)) as Map)['groups'];
+      final groups =
+          (jsonDecode(utf8.decode(response.bodyBytes)) as Map)['groups'];
       return groups is List
           ? [for (final g in groups.whereType<Map>()) g.cast<String, Object?>()]
           : null;

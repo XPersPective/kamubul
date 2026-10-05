@@ -37,7 +37,7 @@ class _Store implements StoreAdapter {
   Future<void> buy(StoreProduct product) async {}
 }
 
-Future<bool> proAfter(_Store adapter) async {
+Future<bool> _proAfter(_Store adapter) async {
   final store = SettingsStore()..setBool(ProSettingsKeys.proLifetime, true);
   final pro = ProController(
     store: store,
@@ -49,15 +49,15 @@ Future<bool> proAfter(_Store adapter) async {
 
 void main() {
   test('aktif aylık abonelik Pro\'yu korur', () async {
-    expect(await proAfter(_Store(owned: proMonthlyProductId)), isTrue);
+    expect(await _proAfter(_Store(owned: proMonthlyProductId)), isTrue);
   });
   test('eski ömür boyu satın alma Pro\'yu korur', () async {
-    expect(await proAfter(_Store(owned: 'kamubul_pro_lifetime')), isTrue);
+    expect(await _proAfter(_Store(owned: 'kamubul_pro_lifetime')), isTrue);
   });
   test('biten abonelik Pro\'yu düşürür', () async {
-    expect(await proAfter(_Store()), isFalse);
+    expect(await _proAfter(_Store()), isFalse);
   });
   test('mağazaya ulaşılamazsa önbellek korunur', () async {
-    expect(await proAfter(_Store(fail: true)), isTrue);
+    expect(await _proAfter(_Store(fail: true)), isTrue);
   });
 }

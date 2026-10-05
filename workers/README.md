@@ -348,3 +348,18 @@ grup üyesi varsa terminal payload da korunur. Boşaltılmış satır partial in
 çözmez; toplam satır kapasitesi açık iştir. Registry kısmı owner seçilmezse
 5 SQL, seçilirse9 SQL çalıştırır; katalog kısmı yukarıdaki en çok6 SQL ekler.
 Gerçek backlog CPU/read/write ölçümü gerekir.
+
+## Ayıklama sağlayıcıları — ADR-006
+Asistan Qwen (`AI_PROVIDER=external`). `/api/v2/extract` bağımsız Cloudflare
+FP8 (`EXTRACT_AI_PROVIDER`, `EXTRACT_AI_MODEL`) önce; eksik konu veya gerçek
+provider kotasında ayrı `EXTRACT_QWEN_DAILY=20` içinde Qwen. Global200 model
+çağrısı/gün, kurulum40 cache-miss isteği/gün; her fiziksel çağrı sayılır.
+0020 migration önce, deploy sonra. `extraction_runs` atomik90s lease ve kalıcı
+iki deneme; valid empty/partial cache, model/prompt/normalize text anahtarı.
+Bozuk sonuç cache olmaz, tavan422; concurrency409; günlük budget429. 24k
+karakter üstü413, sessiz kırpma yok. Bu limitler Neuron/para ölçümü değildir.
+Typed alan + alıntı kontrolü genel sınav puanını KPSS'ye çeviremez; farklı
+yaş referansı strict unknown. 50/source kalite kapısı ve merkezi Cron/source
+paging henüz açık; API çıkarım cache'ine istemci metni koymak canonical ilanı
+mutasyona uğratmaz. ilan.gov page/detail adapteri native egress'te çalışır,
+şimdilik production scheduled pipeline'a bağlı değildir.

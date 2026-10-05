@@ -126,3 +126,13 @@ hedef mimari kabul edilmez. Kaldırma koşulları `.project-brain/tasks/PB-019.m
 sayılmaz. Kaynak alıntısı olmayan koşul belirsizdir; AI alanlarının precision
 kapısı kapalıdır. Free modelden en az50 etiketli örnek/kaynak, recall/precision,
 neuron ve CPU ölçümü hâlâ yapılmalıdır. Kullanıcı profilleri modele gönderilmez.
+
+## 5 Ekim ayıklama ve kaynak kontrolü
+Cloudflare çıkışında ilan.gov.tr filtreli personel listesi HTTP200 (20/162),
+aynı adapter resmi2244449 ayrıntısını23186karakter okudu. Kod:
+workers/src/sources.js fetchIlanGovPage/fetchIlanGovDetail. Cron'a henüz bağlı
+DEĞİLDİR; source status hâlâ blocked. Merkezi sayfalama/ilk tarama push
+bastırma/50 örnek kalite/Free CPU kapıları PB-017'de. İŞKUR arama GET aynı
+preview'da HTTP500 verdi; Kamu filtresine ulaşılamadı, özel sektör okunmadı.
+Preview DB/FCM binding içermez. Bu sonuç eski ilan.gov erişilemiyor varsayımını
+kaldırır; full server-only cutover veya resmî yeniden yayın izni ispatı değildir.

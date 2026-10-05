@@ -79,7 +79,7 @@ ThemeData premiumTheme(ThemeData base) {
       backgroundColor: colors.surfaceContainerLow,
       selectedColor: colors.primary.withValues(alpha: dark ? 0.30 : 0.14),
       checkmarkColor: colors.primary,
-      labelStyle: TextStyle(
+      labelStyle: base.textTheme.labelLarge?.copyWith(
         color: colors.onSurface,
         fontSize: 13.5,
         fontWeight: FontWeight.w600,
@@ -101,7 +101,7 @@ ThemeData premiumTheme(ThemeData base) {
         ),
       ),
       labelTextStyle: WidgetStateProperty.resolveWith(
-        (states) => TextStyle(
+        (states) => base.textTheme.labelMedium?.copyWith(
           color: colors.onSurfaceVariant,
           fontSize: 12,
           fontWeight: states.contains(WidgetState.selected)
@@ -290,7 +290,7 @@ String? countdownLabel(DateTime? deadline, DateTime now) {
 /// İlan ayrıntısı okuma boyutu: kullanıcı bir kez ayarlar, kalıcıdır.
 abstract final class ReadingScale {
   static const _key = 'kamubul.readingScale';
-  static const min = 0.9, max = 1.6, initial = 1.1;
+  static const min = 0.9, max = 1.6, initial = 1.0;
   static final notifier = ValueNotifier<double>(initial);
   static void Function(double)? _persist;
 
