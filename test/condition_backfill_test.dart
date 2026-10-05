@@ -62,4 +62,56 @@ void main() {
       0,
     );
   });
+
+  test('kural boş kalırsa yapay zekâ grupları saklanır ve eşleştirmeye girer', () async {
+    final store = ListingStore(
+      database: await databaseFactory.openDatabase(
+        inMemoryDatabasePath,
+        options: OpenDatabaseOptions(
+          version: 10,
+          singleInstance: false,
+          onCreate: ListingStore.createSchema,
+        ),
+      ),
+    );
+    addTearDown(store.close);
+    final now = DateTime(2026, 10, 5, 9);
+    await store.mergeFeed([
+      ListingRecord(
+        url: 'https://www.ilan.gov.tr/ilan/1/x',
+        sourceId: kIlanGovSourceId,
+        title: 'BELEDİYE — Zabıta',
+        category: 'Personel',
+        publishedAt: now,
+        fetchedAt: now,
+        places: const ['İstanbul'],
+      ),
+    ]);
+    var aiCalls = 0;
+    await backfillConditions(
+      store,
+      now: now,
+      gap: Duration.zero,
+      readText: (_) async => 'Kadro ve şartlar ekteki tabloda.',
+      aiExtract: (_) async {
+        aiCalls++;
+        return [
+          {
+            'label': 'Zabıta Memuru',
+            'education': ['Lise'],
+            'quotes': {'education': 'ortaöğretim mezunu olmak'},
+          },
+        ];
+      },
+    );
+    expect(aiCalls, 1);
+    final r = (await store.allListings()).single;
+    expect(r.aiGroups.single['label'], 'Zabıta Memuru');
+    CriteriaMatch m(String edu) => SearchCriteria.parse({
+      'version': 2,
+      'education': [edu],
+    }).match(r.matchingData, now: now.toUtc());
+    expect(m('Lise'), CriteriaMatch.match);
+    expect(m('Lisans'), CriteriaMatch.noMatch);
+  });
 }

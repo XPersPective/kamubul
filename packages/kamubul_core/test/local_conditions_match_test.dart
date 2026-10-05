@@ -46,4 +46,20 @@ void main() {
     expect(inclusiveMaxAge(36, '36 yaşından gün almamış olmak'), 35);
     expect(inclusiveMaxAge(35, '35 yaşından büyük olmamak'), 35);
   });
+
+  test('başvuru dışı yaş referansı kesin eleme yapmaz', () {
+    expect(ageReferenceIsApplication('Son başvuru tarihi itibarıyla 35 yaşını doldurmamış'), isTrue);
+    expect(ageReferenceIsApplication('35 yaşını doldurmamış olmak'), isTrue);
+    expect(ageReferenceIsApplication('Sınav yılının ocak ayının birinci günü itibariyle otuz beş yaşını doldurmamış'), isFalse);
+    final r = ListingRecord(
+      url: 'u', sourceId: kIlanGovSourceId, title: 't', category: 'c',
+      publishedAt: null, fetchedAt: now, maxAge: 35,
+      maxAgeQuote: 'Sınav yılının ocak ayının birinci günü itibariyle 35 yaşını doldurmamış olmak',
+    );
+    expect(
+      SearchCriteria.parse({'version': 2, 'age': 40, 'ageAsOf': '2026-10-05'})
+          .match(r.matchingData, now: now),
+      CriteriaMatch.unknown,
+    );
+  });
 }

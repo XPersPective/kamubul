@@ -57,6 +57,31 @@ class AssistantClient {
     return id;
   }
 
+  /// İlan şartlarını sunucuda yapay zekâyla ayıklar (ADR-005 katman 2).
+  /// Sunucu metin hash'iyle önbellekler; tavan/hata halinde null döner.
+  Future<List<Map<String, Object?>>?> extractConditions(String text) async {
+    if (!available || text.trim().length < 200) return null;
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$_base/api/v2/extract'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'installationId': _installationId(),
+              'text': text.length > 12000 ? text.substring(0, 12000) : text,
+            }),
+          )
+          .timeout(const Duration(seconds: 45));
+      if (response.statusCode != 200) return null;
+      final groups = (jsonDecode(utf8.decode(response.bodyBytes)) as Map)['groups'];
+      return groups is List
+          ? [for (final g in groups.whereType<Map>()) g.cast<String, Object?>()]
+          : null;
+    } on Object {
+      return null;
+    }
+  }
+
   /// KamuBul Asistan sohbeti: seçili ilan metni ve son birkaç mesajla.
   Future<AssistantReply> chat(
     String message, {

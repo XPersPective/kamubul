@@ -137,7 +137,9 @@ class OfficialListingPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Kadro ${index + 1}',
+              group['label'] is String
+                  ? group['label'] as String
+                  : 'Kadro ${index + 1}',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             if (occupations.isNotEmpty) Text(occupations),
@@ -150,6 +152,26 @@ class OfficialListingPage extends StatelessWidget {
                 (group['kpssYear'] as int) >= 2000 &&
                 (group['kpssYear'] as int) <= 2100)
               Text('KPSS yılı: ${group['kpssYear']}'),
+            if (group['quotes'] is Map) ...[
+              const SizedBox(height: 10),
+              for (final quote in (group['quotes'] as Map).values)
+                if (quote is String)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '“$quote”',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+              const SizedBox(height: 6),
+              Text(
+                'Yapay zekâ ile ilan metninden ayıklandı',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
           ],
         ),
       ),
@@ -167,7 +189,10 @@ class OfficialListingPage extends StatelessWidget {
       _ => 'Resmî kaynak',
     };
     final theme = Theme.of(context);
-    final data = listing.criteriaListing;
+    // Sunucu projeksiyonu yoksa cihazın yapay zekâ ayıklaması (ADR-005).
+    final data =
+        listing.criteriaListing ??
+        (listing.aiGroups.isNotEmpty ? listing.matchingData : null);
     final rawGroups = data?['requirementGroups'];
     final groups = rawGroups is List ? rawGroups : const [];
     return Scaffold(

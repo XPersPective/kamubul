@@ -5,13 +5,16 @@ import 'listing_store.dart';
 /// Şartları henüz ayıklanmamış ilanların resmî metnini sırayla okuyup kural
 /// tabanlı çıkarıcıyı uygular (PB-025, ADR-005 1. katman). Nazik: tur başına
 /// en çok [limit] ilan, istekler arasında [gap]; bir kaynak hata verirse tur
-/// biter, ilan sonraki turda yeniden denenir. Dönen değer işlenen ilan sayısı.
+/// biter, ilan sonraki turda yeniden denenir. Kural boş kalırsa [aiExtract]
+/// (tur başına en çok [aiLimit]) denenir. Dönen değer işlenen ilan sayısı.
 Future<int> backfillConditions(
   ListingStore store, {
   int limit = 12,
   Duration gap = const Duration(milliseconds: 1500),
   DateTime? now,
   Future<String?> Function(ListingRecord record)? readText,
+  Future<List<Map<String, Object?>>?> Function(String text)? aiExtract,
+  int aiLimit = 6,
 }) async {
   final pending = await store.uncheckedConditions(
     now: now ?? DateTime.now(),
@@ -26,11 +29,24 @@ Future<int> backfillConditions(
       break; // kaynak erişilemiyor: sonraki turda yeniden denenir
     }
     // Metni olmayan kaynak (ör. SBB PDF) yine işaretlenir; boşuna denenmez.
-    await store.applyConditions(
-      record.url,
-      text == null ? const ConditionFields() : extractConditions(text),
-      at: now,
-    );
+    final fields = text == null
+        ? const ConditionFields()
+        : extractConditions(text);
+    await store.applyConditions(record.url, fields, at: now);
+    // Katman 2: kural yaş/eğitim/KPSS bulamadıysa sunucuda yapay zekâ (tavanlı).
+    final ruleEmpty =
+        fields.education == null &&
+        fields.kpssType == null &&
+        fields.maxAge == null;
+    if (text != null && ruleEmpty && aiExtract != null && aiLimit > 0) {
+      aiLimit--;
+      final groups = await aiExtract(text);
+      if (groups == null) {
+        aiLimit = 0; // tavan/hata: bu turda başka istek yok
+      } else if (groups.isNotEmpty) {
+        await store.applyAiGroups(record.url, groups);
+      }
+    }
     done++;
     if (gap > Duration.zero) await Future<void>.delayed(gap);
   }

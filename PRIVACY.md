@@ -36,7 +36,12 @@ Cihazdaki arama/yer imleri dışa aktarılabilir; dosyanın saklanması ve payla
 
 ### KamuBul Asistan (yapay zekâ sohbeti)
 
-Asistan sekmesinde yazdığınız mesaj, aynı sohbetteki son en fazla 4 mesaj ve bir ilan seçtiyseniz o ilanın herkese açık resmî metni KamuBul sunucusu üzerinden yapay zekâ sağlayıcısına (Alibaba Cloud Qwen, OpenAI uyumlu API) yanıt üretmek için gönderilir. Rastgele kurulum kimliği ve IP adresinden üretilen karma yalnızca günlük kullanım sınırı için sayılır; KamuBul mesaj içeriğini ve yanıtı sunucuda saklamaz. Konu dışı mesajlar ve bağlantı/komut içeren mesajlar yapay zekâya hiç gönderilmez. Sağlayıcının veri işleme kuralları kendi gizlilik politikasında yer alır. Mesajlara ad, T.C. kimlik numarası, telefon gibi kişisel bilgi yazmayın. Yanıtlar yapay zekâ ile üretilir ve hatalı olabilir; başvurmadan önce resmî ilanı kontrol edin.
+Asistan sekmesinde yazdığınız mesaj, aynı sohbetteki son en fazla 10 mesaj, bir ilan seçtiyseniz o ilanın herkese açık resmî metni ve "Bu ilan bana uygun mu?" karşılaştırması için cihazınızda kayıtlı arama kriterleriniz (yaş ve yaş tarihi, eğitim, KPSS türü/puanı/yılı, il, meslek; salt okunur) KamuBul sunucusu üzerinden yapay zekâ sağlayıcısına (Alibaba Cloud Qwen, OpenAI uyumlu API) yanıt üretmek için gönderilir. Rastgele kurulum kimliği ve IP adresinden üretilen karma yalnızca günlük kullanım sınırı için sayılır; KamuBul mesaj içeriğini ve yanıtı sunucuda saklamaz. Konu dışı mesajlar ve bağlantı/komut içeren mesajlar yapay zekâya hiç gönderilmez. Sağlayıcının veri işleme kuralları kendi gizlilik politikasında yer alır. Mesajlara ad, T.C. kimlik numarası, telefon gibi kişisel bilgi yazmayın. Yanıtlar yapay zekâ ile üretilir ve hatalı olabilir; başvurmadan önce resmî ilanı kontrol edin.
+
+
+### İlan şartlarının ayıklanması
+
+Cihazınız resmî kaynaklardan okuduğu ilanların şartlarını (yaş, eğitim, KPSS) önce kendi içinde ayıklar. Bunun yapılamadığı ilanlarda, yalnız o ilanın herkese açık resmî metni ve rastgele kurulum kimliği KamuBul sunucusuna gönderilir; sunucu şartları yapay zekâ sağlayıcısıyla ayıklar ve sonucu metnin karma değeriyle saklar ki aynı ilan için tekrar sorulmasın. Bu işlemde kişisel bilgi veya arama kriterleriniz gönderilmez; kurulum kimliği yalnız günlük kullanım sınırı için sayılır.
 
 ### Reklamsız deneme süresi
 

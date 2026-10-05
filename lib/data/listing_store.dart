@@ -64,7 +64,8 @@ class ListingStore {
         fingerprint TEXT,
         saved INTEGER NOT NULL DEFAULT 0,
         savedAt INTEGER,
-        conditionsCheckedAt INTEGER
+        conditionsCheckedAt INTEGER,
+        aiGroups TEXT
       )
     ''');
     await db.execute('''
@@ -124,6 +125,7 @@ class ListingStore {
       await db.execute(
         'ALTER TABLE listings ADD COLUMN conditionsCheckedAt INTEGER',
       );
+      await db.execute('ALTER TABLE listings ADD COLUMN aiGroups TEXT');
     }
   }
 
@@ -864,6 +866,20 @@ class ListingStore {
         'quotaType': ?claimed.quotaType?.value,
         'quotaTypeQuote': ?claimed.quotaType?.quote,
       },
+      where: 'url = ?',
+      whereArgs: [url],
+    );
+  }
+
+  /// Yapay zekâyla ayıklanmış, alıntısı sunucuda doğrulanmış koşul grupları.
+  Future<void> applyAiGroups(
+    String url,
+    List<Map<String, Object?>> groups,
+  ) async {
+    final db = await database;
+    await db.update(
+      'listings',
+      {'aiGroups': jsonEncode(groups)},
       where: 'url = ?',
       whereArgs: [url],
     );

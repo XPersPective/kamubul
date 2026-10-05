@@ -36,6 +36,7 @@ class ListingRecord {
     this.saved = false,
     this.savedAt,
     this.criteriaListing,
+    this.aiGroups = const [],
   });
 
   final String url;
@@ -66,12 +67,28 @@ class ListingRecord {
   /// V2 cache projeksiyonu (sunucu/yapay zekâ ayıklaması); varsa önceliklidir.
   final Map<String, Object?>? criteriaListing;
 
+  /// Sunucuda yapay zekâyla ayıklanan, alıntısı doğrulanmış kadro koşul
+  /// grupları (ADR-005 katman 2); yerel tek gruptan önceliklidir.
+  final List<Map<String, Object?>> aiGroups;
+
   /// Yerel kural çıkarıcı yalnız metnin TAMAMINDA tek ayrık değer ve alıntı
   /// varsa alan üretir; bu yüzden yalnız alıntılı alanlardan tek koşul grubu
   /// türetmek güvenlidir (çok kadrolu, çelişen ilanda alan zaten boştur).
   Map<String, Object?> get matchingData {
     final cached = criteriaListing;
     if (cached != null) return cached;
+    if (aiGroups.isNotEmpty) {
+      return {
+        'title': title,
+        'category': category,
+        'places': places,
+        'publishedAt': publishedAt?.toIso8601String(),
+        'deadline': deadline?.toIso8601String(),
+        'requirementGroups': [
+          for (final g in aiGroups) {'cities': places, ...g},
+        ],
+      };
+    }
     final group = <String, Object?>{
       'cities': places,
       if (education != null && educationQuote != null) 'education': [education],
@@ -82,6 +99,9 @@ class ListingRecord {
       if (maxAge != null && maxAgeQuote != null) ...{
         'ageStatus': 'known',
         'maxAge': inclusiveMaxAge(maxAge!, maxAgeQuote!),
+        // Başvuru dışı referans tarihinde bugüne göre hesap yanlış eleyebilir.
+        if (!ageReferenceIsApplication(maxAgeQuote!))
+          'ageCalculation': 'other_reference',
       },
     };
     return {
@@ -113,6 +133,7 @@ class ListingRecord {
     bool? saved,
     DateTime? savedAt,
     Map<String, Object?>? criteriaListing,
+    List<Map<String, Object?>>? aiGroups,
   }) => ListingRecord(
     url: url,
     sourceId: sourceId,
@@ -136,6 +157,7 @@ class ListingRecord {
     saved: saved ?? this.saved,
     savedAt: savedAt ?? this.savedAt,
     criteriaListing: criteriaListing ?? this.criteriaListing,
+    aiGroups: aiGroups ?? this.aiGroups,
   );
 
   bool get expired => deadline != null && deadline!.isBefore(DateTime.now());
@@ -188,7 +210,20 @@ class ListingRecord {
       fingerprint: row['fingerprint'] as String?,
       saved: row['saved'] == 1,
       savedAt: _date(row['savedAt']),
+      aiGroups: decodeGroups(row['aiGroups']),
     );
+  }
+
+  static List<Map<String, Object?>> decodeGroups(Object? raw) {
+    if (raw is! String || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is List
+          ? [for (final g in decoded.whereType<Map>()) g.cast<String, Object?>()]
+          : const [];
+    } on FormatException {
+      return const [];
+    }
   }
 
   static List<String> decodePlaces(Object? raw) {
@@ -341,4 +376,11 @@ int inclusiveMaxAge(int value, String quote) {
   return RegExp(r'doldurmam|gun almam|bitirmemi|tamamlamam').hasMatch(folded)
       ? value - 1
       : value;
+}
+
+/// Yaş sınırının referansı başvuru tarihi mi (ya da hiç belirtilmemiş mi)?
+bool ageReferenceIsApplication(String quote) {
+  final folded = foldTurkish(quote).toLowerCase();
+  return !RegExp(r'itibar|tarihinde|gunu').hasMatch(folded) ||
+      folded.contains('basvuru');
 }

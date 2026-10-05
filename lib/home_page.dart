@@ -512,7 +512,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
     if (_backfilling) return;
     _backfilling = true;
     try {
-      if (await backfillConditions(_store) > 0) await _loadLocal();
+      final done = await backfillConditions(
+        _store,
+        aiExtract: _assistantClient.extractConditions,
+      );
+      if (done > 0) await _loadLocal();
     } on Object {
       // Arka plan işi en iyi çabadır; ekranı hiç engellemez.
     } finally {
