@@ -41,6 +41,17 @@ export async function fetchIlanGovPage(page=0) {
   if(!Number.isInteger(page)||page<0||page>=10)throw new SourceError('source_page');
   return parseIlanGovList(JSON.parse(await sourceFetch(ilanGovApi+'/Ad/AdsByFilter',{method:'POST',headers:ilanGovHeaders,body:JSON.stringify({keys:{ats:[5]},skipCount:page*20,maxResultCount:20})})));
 }
+// Sayfalı tam liste (≤10×20). Kimlik tekrarı elenir; sayfa boşsa ya da toplam
+// dolunca durur. Bir sayfa hatası tüm listeyi başarısız sayar (yarım liste yok).
+export async function fetchIlanGovList() {
+  const items=[],seen=new Set();
+  for(let page=0;page<10;page++){
+    const {items:batch,total}=await fetchIlanGovPage(page);
+    for(const item of batch)if(!seen.has(item.id)){seen.add(item.id);items.push(item);}
+    if(!batch.length||items.length>=total)break;
+  }
+  return items;
+}
 export async function fetchIlanGovDetail(id) {
   if(!/^\d{1,20}$/.test(String(id)))throw new SourceError('source_identity');
   const raw=JSON.parse(await sourceFetch(ilanGovApi+'/AdDetail/GetAdDetail?id='+encodeURIComponent(id),{headers:ilanGovHeaders}));

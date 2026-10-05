@@ -1,4 +1,4 @@
-import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,sourceBytes,plain} from './sources.js';
+import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,fetchIlanGovList,fetchIlanGovDetail,sourceBytes,plain} from './sources.js';
 import {matchListing,listingAnchorKeys} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
@@ -40,7 +40,7 @@ export async function readNoticeDetail(env,base,previous={}){
       AND (source_detail_runs.input_key!=excluded.input_key OR source_detail_runs.attempts<2) RETURNING attempts`).bind(base.id,inputKey,lease,now).first();
   if(!claim)throw new Error('detail_retry_exhausted_or_busy');
   try{
-    const detail=base.sourceId==='kariyerkapisi'?await fetchKariyerDetail(base.externalId):await readSbbDetail(env,base.externalId,previous);
+    const detail=base.sourceId==='kariyerkapisi'?await fetchKariyerDetail(base.externalId):base.sourceId==='ilangov'?await fetchIlanGovDetail(base.externalId):await readSbbDetail(env,base.externalId,previous);
     if(!plain(detail.text)&&(detail.positions??[]).every(p=>!plain(p.text)))throw new Error('detail_text_empty');
     // A complete read ends the repair episode; ordinary later freshness checks remain possible.
     await env.DB.prepare('DELETE FROM source_detail_runs WHERE listing_id=? AND input_key=? AND lease_until=?').bind(base.id,inputKey,lease).run();
@@ -50,7 +50,7 @@ export async function readNoticeDetail(env,base,previous={}){
   }
 }
 export async function readSource(env){
-  const now=nowISO();let source=await env.DB.prepare("SELECT * FROM sources WHERE id IN ('kariyerkapisi','sbb') AND (lease_until IS NULL OR lease_until<?) AND next_due<=? ORDER BY CASE WHEN pending_batch IS NULL THEN 1 ELSE 0 END,next_due LIMIT 1").bind(now,now).first();
+  const now=nowISO();let source=await env.DB.prepare("SELECT * FROM sources WHERE id IN ('kariyerkapisi','sbb','ilangov') AND (lease_until IS NULL OR lease_until<?) AND next_due<=? ORDER BY CASE WHEN pending_batch IS NULL THEN 1 ELSE 0 END,next_due LIMIT 1").bind(now,now).first();
   if(!source)return;
   const leased=await env.DB.prepare('UPDATE sources SET lease_until=? WHERE id=? AND (lease_until IS NULL OR lease_until<?) RETURNING id').bind(later(5),source.id,now).first();if(!leased)return;
   try {
@@ -59,7 +59,7 @@ export async function readSource(env){
     let detailFailure=!!source.pending_batch&&source.note===detailWarning;
     if(source.pending_batch)batch=JSON.parse(source.pending_batch);
     else {
-      batch=await(source.id==='kariyerkapisi'?fetchKariyerList():fetchSbbList());offset=0;
+      batch=await(source.id==='kariyerkapisi'?fetchKariyerList():source.id==='ilangov'?fetchIlanGovList():fetchSbbList());offset=0;
     }
     const firstSnapshot=!source.baseline_at;
     if(firstSnapshot){source.baseline_at=now;batch=batch.map(base=>({...base,notificationEligible:false}));}
