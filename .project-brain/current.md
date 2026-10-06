@@ -21,17 +21,19 @@ ilan.gov native20 sayfa cursor'u kalıcı; eksik/tekrarlanan/değişen snapshot 
 hata. Kariyer/SBB liste ve Kariyer kadro sessiz slice limitleri kaldırıldı.
 İŞKUR WebForms kamu filtresi/cookie/pager adapteri mevcut, özel sektör alınmaz.
 HTML paragraf/tablo satır-hücre sınırları okunabilir metinde korunur.
-Liste30dk yenilenir; ayrıntı backlog'u sürerken yeni kimlikler yayımlanır,
-tamamlanan ayrıntı cursor'u korunur. Kaynak Queue15s pacing/turda1 ayrıntı;
-başarılı ayrıntı6h recheck. İki başarısız onarım sonrası kalıcı6h cooldown;
+Liste30dk yenilenir; ayrıntı backlog'u sürerken yeni kimlikler yayımlanır ve cursor
+konumuna eklenip sıradaki olarak okunur (a97c8bf; önce partinin sonuna ekleniyordu).
+Kaynak Queue15s pacing/turda1 ayrıntı; başarılı ayrıntı24h, başarısız/bekleyen6h recheck.
+ilan.gov'da dernek ve "Özel …" ilan verenler indekslenmez, saklıysa liste yenilemede
+tombstone (dc3f816/a97c8bf; A.Ş./vakıf kamu sayılır). İki başarısız onarım sonrası kalıcı6h cooldown;
 crash/kota eski başarılı metni silmez. İlk snapshot bildirim üretmez.
 SBB PDF reader native AI.toMarkdown:3MiB/25s fetch,45s conversion,
 120KB çıktı/20 UTC günlük rezervasyon, hash+reader cache. Gerçek SBB PDF
 conversion/kalite kanıtı henüz yok; OCR/sayfa sayısı sınırı yok.
 
-Son canlı readonly18:35 UTC: aktif ilan.gov174/text174; Kariyer30/text18
-(17 ikiz kopyası,1 native Bakırçay/8243chars/iki kadro4+2),12 metinsiz. notice-15
-backfill55/192;137 saklı metin hâlâ notice-14. Eski full pass sayıları güncel kalite değildir.
+Son canlı readonly 6 Ekim 21:40 UTC: ilan.gov API 159 ilan, D1'de eksik0; aktif200
+(ilan.gov170 metinli). Kariyer30/text18 (17 ikiz kopyası,1 native Bakırçay/8243chars/iki kadro4+2),
+12 metinsiz. notice-16 mekanik backfill 22:00 UTC'de başladı (~2 belge/3dk).
 Tam bütün kaynak/kalite kabulü açık; complete non-vacancy duyurularını da içerir.
 Kariyer sayfa/RSS200 ve güncel resmi JS APIURL/body/routes okuyucuyla aynı;
 Native Bakırçay215c245e-8d5b-4b93-bc10-0c859069aefa payload available/error yok,
@@ -52,7 +54,12 @@ Belirsiz satırda ara toplam yayımlanmaz. Tek payload quota/deadline/groups/
 applicationPeriods/fieldEvidence/extraction kart, ayrıntı ve offline'a gider.
 Mekanik backlog AI çağrıları başlamadan küçük partilerle boşaltılır.
 AI yalnız yeterlilik denetimindeki eksiklere, saklı tam metinle devreye girer.
-notice-15/x12, ayrı attempted/quality; kısmi JSON complete sayılmaz.
+notice-16/x12, ayrı attempted/quality; kısmi JSON complete sayılmaz.
+Her grup kanonik meslek taşır (criteria.js occupationsOf: etiketten, akademik unvan önceliği,
+başlık yedeği; 77c02fe). Genel şart dışı yaş kuralı adını verdiği mesleğin kadrosuna ya da tek
+kadroya bağlanır; puanlama cümlesi eğitim şartı sayılmaz (a5f0ee0). Kör etiketli 50 ilan.gov
+seti test/fixtures/ilangov-labels.json + tool/eval-labels.js (metin repoda yok): mekanik
+P/R quota1.000/0.868, deadline0.968/1.000, maxAge1.000/0.889, eğitim1.000/0.944, KPSS1.000/0.259.
 Başka pozisyon alıntısı terfi ettirilmez; tercihen eğitim zorunlu olmaz;
 birlikte gereken dereceler OR eğitim dizisine çevrilmez. Göreli/multiple tarih
 ham takvim olarak saklanır, tek son başvuru uydurulmaz.
@@ -88,10 +95,16 @@ Public v2 meta/taxonomy/listings/changes/detail + geçiş v1; immutable watermar
 ETag/CacheAPI public60s/taxonomy300s. Cookie/auth/private/no-store cache bypass;
 hata origin'i kesmez. Sayfa<=50/1.8MB; oversized413 cursor atlamaz.30day retention
 floor/base/expired-pin recovery, CAS ile pruning. Uzun vadeli yük ölçümü açık.
+changes, watermark'a kadar ilan başına yalnız en yeni satırı döndürür (d723b9f): 6 Ekim'de
+4376 değişiklik/96 MB vardı; canlı son600 seq → 193 satır/4.5 MB. Pencere içi eski revizyonlar
+depoda kalır (30 gün floor'dan sonra temizlenir); günlük büyüme izlenmeli (PB-029 A).
+İşleme işi Qwen'i beklemez: mekanik bilgiyle tamamlanıp hemen eşleşir, sonradan gelen model
+sonucu yeni match_event üretir (36f362f); mechanicalOnly sürüm backfill'i yeniden uyarı üretmez.
 Typed SearchCriteria2: aynı kadro AND/alternatif OR, match/no_match/unknown.
 77 ortak Dart/Worker/SQLite corpus +144 doğum-günü oracle; İstanbul referans tarihi,
 365/366 gün freshness, yanlış KPSS type/range/score unknown.81 city ve5education
-kimlik/alias; meslek/kurum/kategori genel sözlüğü henüz tamamlanmadı.
+kimlik/alias; meslek kanonik etiketleri ilan grubunda saklı (eşleşme fold eşitliği), kurum
+ve kategori genel sözlüğü yok.
 Authenticated own installation PUT/DELETE, version precondition ve atomik facets;
 401/cross-owner ve409/stale yarış kontrolleri. Mobile409 bir bounded retry.
 Eşleşme indexed10 owner/cursor; strict unknown push yok. Durable unique outbox,
