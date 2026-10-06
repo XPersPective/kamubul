@@ -187,7 +187,7 @@ export function mechanicalNotice(notice,text){
     const value=applicationDeadline(evidence);if(value)deadlines.push({value,quote:evidence});
     // "31 Ekim 2026 tarihinden sonra yapılan başvurular değerlendirmeye alınmaz" is a deadline too; when it contradicts
     // another stated end ("02 Kasım 2026 ... sona erecektir") no single date is shown.
-    const after=fold(line).match(/(\d{1,2})(?:[./](\d{1,2})[./]|\s+(ocak|subat|mart|nisan|mayis|haziran|temmuz|agustos|eylul|ekim|kasim|aralik)\s+)(20\d{2})\s+tarihinden\s+sonra\s+(?:yapilan|yapilacak|gelen|ulasan)\s+(?:basvuru|muracaat)/);
+    const after=/tarihinden\s+sonra/i.test(line)&&fold(line).match(/(\d{1,2})(?:[./](\d{1,2})[./]|\s+(ocak|subat|mart|nisan|mayis|haziran|temmuz|agustos|eylul|ekim|kasim|aralik)\s+)(20\d{2})\s+tarihinden\s+sonra\s+(?:yapilan|yapilacak|gelen|ulasan)\s+(?:basvuru|muracaat)/);
     if(after){const month=after[2]??['ocak','subat','mart','nisan','mayis','haziran','temmuz','agustos','eylul','ekim','kasim','aralik'].indexOf(after[3])+1,value=civilDate(after[1],month,after[4]);if(value)deadlines.push({value,quote:line.length<=400?line:after[0]});}
   }
   if(!deadlines.length&&!fields.deadline)deadlines.push(...applicationWindows(lines));
@@ -220,8 +220,9 @@ export function mechanicalNotice(notice,text){
   // position; with several positions and no name its scope stays unknown.
   const sharedText=shared.join('\n');
   for(const line of lines){
-    if(line.includes('|')||!/yas/.test(fold(line))||sharedText.includes(line))continue;
-    const rule=conditions(line);if(rule.maxAge==null&&rule.minAge==null)continue;
+    // Cheap raw-text gate before folding/parsing: only lines that state an age limit.
+    if(line.includes('|')||!/ya[şs][^.]{0,60}(?:doldur|tamamla|g[üu]n alma|bitirme|b[üu]y[üu]k|k[üu][çc][üu]k)/i.test(line))continue;
+    const rule=conditions(line);if(rule.maxAge==null&&rule.minAge==null||sharedText.includes(line))continue;
     const named=occupationsOf(line,true).length?occupationsOf(line,true):occupationsOf(line);
     const targets=named.length?groups.filter(g=>occupationsOf(g.label??'').some(o=>named.includes(o))):groups.length===1?groups:[];
     for(const group of targets)if(group.ageStatus!=='known'){for(const key of ['minAge','maxAge','ageStatus','ageCalculation'])if(rule[key]!=null)group[key]=rule[key];group.quotes={...group.quotes,age:rule.quotes.age};}
@@ -230,7 +231,7 @@ export function mechanicalNotice(notice,text){
   // each position takes the score type of its own education level.
   const scoreTypes=new Map();
   for(const line of lines){
-    if(line.length>600)continue;
+    if(line.length>600||!/mezunlar/i.test(line))continue;
     for(const m of fold(line).matchAll(/\b(on ?lisans|ortaogretim|lise|lisans)(?:\s*\([^)]*\))?\s+mezunlari\s+icin[^.;]*?p\s?(\d{1,3})\b/g))
       scoreTypes.set({'on lisans':'Ön lisans',onlisans:'Ön lisans',ortaogretim:'Lise',lise:'Lise',lisans:'Lisans'}[m[1]],{type:'P'+m[2],quote:line});
   }
