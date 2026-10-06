@@ -182,12 +182,14 @@ export function mechanicalNotice(notice,text){
   for(const field of Object.values(fields))field.origin??='mechanical';
   for(const group of groups)group.fieldOrigins=Object.fromEntries(Object.keys(group.quotes??{}).map(key=>[key,'mechanical']));
   // A correction notice amends an earlier ad; its application window belongs to the original notice.
-  return {fields,groups,register,tableAmbiguous,rows,multipleDeadlines,sharedText:shared.join('\n'),...(/duzeltme ilani/.test(title)?{kind:'amendment'}:{})};
+  // A correction lists changed or cancelled rows of an earlier notice: their counts are not new vacancies.
+  const amendment=/duzeltme ilani/.test(title);if(amendment&&fields.quota?.origin!=='source')delete fields.quota;
+  return {fields,groups,register,tableAmbiguous,rows,multipleDeadlines,sharedText:shared.join('\n'),...(amendment?{kind:'amendment'}:{})};
 }
 export function assessNotice(result,text){
   if(result.kind==='cancellation'||result.kind==='exam')return [];
   const missing=[];
-  if(!result.register&&!result.fields.quota)missing.push('quota');
+  if(!result.register&&!result.fields.quota&&result.kind!=='amendment')missing.push('quota');
   if(result.multipleDeadlines)missing.push('deadline_scope');
   else if(!result.fields.deadline?.value&&!result.fields.deadlineEstimate?.value&&result.kind!=='amendment')missing.push('deadline');
   if(result.tableAmbiguous)missing.push('table_rows');
@@ -223,7 +225,7 @@ export async function extractNotice(notice,text,env,deps){
           group.quotes={...accepted,...group.quotes};
         }
       }
-      if(!result.register&&!result.fields.quota&&rows.length&&aiTotal<=100000){result.fields.quota={value:aiTotal,quote:rows.map(g=>g.quotes.quota).join('\n'),origin:'ai'};contributed=true;}
+      if(!result.register&&result.kind!=='amendment'&&!result.fields.quota&&rows.length&&aiTotal<=100000){result.fields.quota={value:aiTotal,quote:rows.map(g=>g.quotes.quota).join('\n'),origin:'ai'};contributed=true;}
       if(contributed)method=result.rows||Object.keys(mechanicalNotice(notice,text).fields).length?'hybrid':'ai';
       missing=assessNotice(result,text);
     }

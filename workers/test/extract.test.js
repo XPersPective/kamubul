@@ -285,3 +285,15 @@ test('a bracketed application range after "Başvuru süresi" is the deadline', a
   // A results or objection date range is not an application window.
   assert.equal(mechanicalNotice({ title: 'İlan' }, 'Sınav sonuçları (01/11/2026 – 05/11/2026) arasında ilan edilir.').fields.deadline, undefined);
 });
+
+test('a correction notice lists changed rows but states no new vacancy total', async () => {
+  const { mechanicalNotice, assessNotice } = await import('../src/notice_extraction.js');
+  const text = ['İPTAL EDİLEN KADRO İLAN SATIRLARI:', 'Fakülte | Bölüm | Uzmanlık Alanı/Aranılan Şartlar | Kadro Sayısı | Kadro Unvanı',
+    'Hukuk Fakültesi | Kamu Hukuku | Hukuk Fakültesi mezunu olmak. | 1 | Arş. Gör.',
+    'Meslek Yüksekokulu | Hukuk | Hukuk Fakültesi lisans mezunu olmak. | 1 | Öğr. Gör.'].join('\n');
+  const result = mechanicalNotice({ title: 'İptal ve Düzeltme İlanı (Medipol Üniversitesi Rektörlüğü)' }, text);
+  assert.equal(result.kind, 'amendment');
+  assert.equal(result.fields.quota, undefined, 'cancelled/corrected rows are not new posts');
+  assert.equal(result.groups.length, 2, 'the changed rows stay readable');
+  assert.ok(!assessNotice(result, text).includes('quota'), 'no model call is spent on a correction total');
+});
