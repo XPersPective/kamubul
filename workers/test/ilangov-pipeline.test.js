@@ -226,3 +226,24 @@ test('ilan.gov.tr dernek/özel işveren ilanları kamu kataloğuna girmez; önce
   await readSource({...f.env,SOURCE_DETAILS_PER_TICK:'3'});
   assert.deepEqual(f.sql.prepare('SELECT id,active FROM listings ORDER BY id').all().map(r=>[r.id,r.active]),[['ilangov:21',1],['ilangov:22',0],['ilangov:24',1]]);
 });
+
+test('alerts do not wait for the Qwen budget; a later model result matches again',async t=>{
+  const f=setup(t),text='Lisans mezunu olmak. '+'Genel açıklamalar ve başvuru belgeleri. '.repeat(800),day=new Date().toISOString().slice(0,10);
+  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('ilangov:w','ilangov','w','h','2026-10-01','2026-10-01','2026-10-01',?)").run(JSON.stringify({text,places:['Ankara']}));
+  f.sql.prepare("INSERT INTO processing_jobs(id,listing_id,input_hash,input,due_at) VALUES('j','ilangov:w','h',?,'1970-01-01')").run(JSON.stringify({text,places:['Ankara']}));
+  f.sql.prepare("INSERT INTO assistant_usage(day,bucket,count) VALUES(?,'x:qwen',10)").run(day);
+  let calls=0;const env={...f.env,AI_SUMMARY_ENABLED:'0',AI_PROVIDER:'external',EXTRACT_AI_PROVIDER:'external',EXTRACT_QWEN_DAILY:'10',EXTERNAL_AI_URL:'https://model.test',EXTERNAL_AI_KEY:'test',EXTERNAL_AI_MODEL:'flash',EXTERNAL_AI_FORMAT:'openai'};
+  globalThis.fetch=async()=>{calls++;return Response.json({choices:[{message:{content:JSON.stringify({groups:[{education:['Lisans'],educationQuote:'Lisans mezunu olmak'}]})}}],usage:{prompt_tokens:100,completion_tokens:40}});};
+  await processNotice(env);
+  assert.equal(calls,0,'the daily budget is spent');
+  assert.equal(f.sql.prepare("SELECT state FROM processing_jobs WHERE id='j'").get().state,'completed');
+  const listing=f.sql.prepare("SELECT processed_hash,json_extract(payload,'$.aiStatus') status FROM listings WHERE id='ilangov:w'").get();
+  assert.equal(listing.processed_hash,'h');assert.equal(listing.status,'conditions_partial');
+  assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM match_events WHERE listing_id='ilangov:w'").get().n,1,'matched on mechanical facts now');
+  // Budget resets: the backfill asks Qwen once and its completed facts are matched again.
+  f.sql.exec("DELETE FROM assistant_usage");f.sql.exec("UPDATE listings SET conditions_due_at='1970-01-01'");
+  await canonicalBackfill(env);
+  assert.equal(calls,1);
+  assert.deepEqual(JSON.parse(f.sql.prepare("SELECT payload FROM listings WHERE id='ilangov:w'").get().payload).requirementGroups[0].education,['Lisans']);
+  assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM match_events WHERE listing_id='ilangov:w'").get().n,2);
+});

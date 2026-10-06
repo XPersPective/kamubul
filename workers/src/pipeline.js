@@ -205,8 +205,13 @@ export async function canonicalConditions(env,listingId,contentHash,text,places=
   const checked=terminal?contentHash:null,due=terminal||options.mechanicalOnly?nowISO():later(res.status===429?60:15),error=terminal||options.mechanicalOnly?null:res.body?.reason??res.body?.error??'extract_failed';
   // An unchanged result must not rewrite the payload: every payload write copies the full notice into the change log.
   if(JSON.stringify({...payload,updatedAt:null})===JSON.stringify({...notice,updatedAt:null}))await env.DB.prepare('UPDATE listings SET conditions_checked=?,conditions_due_at=?,conditions_error=? WHERE id=? AND content_hash=? AND payload=?').bind(checked,due,error,listingId,contentHash,done.payload).run();
-  else await env.DB.prepare('UPDATE listings SET payload=?,deadline=?,conditions_checked=?,conditions_due_at=?,conditions_error=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=? AND payload=?')
-    .bind(JSON.stringify(payload),payload.deadline??null,checked,due,error,nowISO(),listingId,contentHash,done.payload).run();
+  else {
+    await env.DB.prepare('UPDATE listings SET payload=?,deadline=?,conditions_checked=?,conditions_due_at=?,conditions_error=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=? AND payload=?')
+      .bind(JSON.stringify(payload),payload.deadline??null,checked,due,error,nowISO(),listingId,contentHash,done.payload).run();
+    // A model result for an already matched listing can turn "unknown" searches into matches. The outbox keeps one
+    // alert per device and listing; parser-version backfills (mechanicalOnly) do not re-alert old listings.
+    if(!options.mechanicalOnly)await env.DB.prepare("INSERT OR IGNORE INTO match_events(id,listing_id,revision,payload,created_at) SELECT id||':'||revision,id,revision,json_set(payload,'$.id',id,'$.revision',revision),updated_at FROM listings WHERE id=? AND content_hash=? AND processed_hash=content_hash AND active=1").bind(listingId,contentHash).run();
+  }
   if(res.status===200)res.body={...res.body,extraction};
   return res;
 }
@@ -287,12 +292,11 @@ export async function processNotice(env){
     // Source text is already published. Eligibility uses the shared, bounded cache;
     // an optional UI summary must not add a model call for every text chunk.
     const result=text?await canonicalConditions(env,job.listing_id,job.input_hash,text,notice.places??[]):{status:200};
-    if(result?.status!==200&&result?.status!==422){
-      await env.DB.prepare("UPDATE processing_jobs SET state='quota_wait',attempts=attempts-1,lease_until=NULL,due_at=?,error_code=? WHERE id=?").bind(later(result?.status===429?60:15),result?.body?.error??'extract_failed',job.id).run();return;
-    }
+    // Alerts never wait for Qwen: the published mechanical facts are matched now (unknown facts stay
+    // silent), canonicalBackfill retries the model, and its result re-runs matching (canonicalConditions).
     await env.DB.batch([
       env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.aiStatus',?,'$.updatedAt',?),processed_hash=?,processed_contract=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=? AND active=1")
-        .bind(text?(result.status===422?'conditions_unavailable':result.body?.extraction?.status==='partial'?'conditions_partial':'conditions_checked'):'source_only',now,job.input_hash,job.contract_key,now,job.listing_id,job.input_hash),
+        .bind(!text?'source_only':result.status===422?'conditions_unavailable':result.status!==200||result.body?.extraction?.status==='partial'?'conditions_partial':'conditions_checked',now,job.input_hash,job.contract_key,now,job.listing_id,job.input_hash),
       env.DB.prepare("UPDATE processing_jobs SET state=CASE WHEN EXISTS(SELECT 1 FROM listings WHERE id=? AND content_hash=? AND processed_hash=? AND active=1) THEN 'completed' ELSE 'superseded' END,lease_until=NULL,error_code=NULL WHERE id=?").bind(job.listing_id,job.input_hash,job.input_hash,job.id)
     ]);return;
   }
