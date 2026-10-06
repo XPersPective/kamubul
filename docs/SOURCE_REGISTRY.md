@@ -136,3 +136,20 @@ bastırma/50 örnek kalite/Free CPU kapıları PB-029'da. İŞKUR arama GET ayn�
 preview'da HTTP500 verdi; Kamu filtresine ulaşılamadı, özel sektör okunmadı.
 Preview DB/FCM binding içermez. Bu sonuç eski ilan.gov erişilemiyor varsayımını
 kaldırır; full server-only cutover veya resmî yeniden yayın izni ispatı değildir.
+
+## 6 Ekim 2026 — yeniden dağıtım kabulü
+
+PB-029 kaynak kullanım incelemesi: **izin kapısı açık**. Basın İlan Kurumu'nun
+[kendi yayımladığı İlan Portalı Yönetmeliği](https://bik.gov.tr/wp-content/uploads/2021/10/bik-ilan-portal-yonetmeligi.pdf)
+madde 9 kullanım koşullarını Genel Müdürlüğe bırakır; madde 10, Kurumun telif
+hakları kapsamındaki içeriklerin çoğaltılması/işlenmesi/dağıtılması için açık
+izin öngörür. Bu bulgu, her kamu ilanının hukuki statüsü hakkında bir karar değildir;
+KamuBul'un tam metin saklama/API/offline dağıtımının izin kapsamında olduğu
+henüz kanıtlanmadı. Kaynak linki veya robots erişimi tek başına izin kanıtı sayılmaz.
+
+[Kariyer Kapısı](https://kariyerkapisi.gov.tr/) ve [İŞKUR](https://www.iskur.gov.tr/)
+ana sayfalarında KamuBul'un kullanımına ilişkin açık yeniden dağıtım lisansı
+doğrulanamadı; [SBB](https://kamuilan.sbb.gov.tr/) inceleme isteği 403 döndü.
+Arama sonucu yokluğu izin/yasak sayılmaz; iskur.org resmî İŞKUR değildir.
+Sahip: proje sahibi, kaynak izni veya kullanımın hukuki dayanağını doğrular.
+Bu kayıt hedef mimariyi veya mevcut ingestion davranışını değiştirmez.
