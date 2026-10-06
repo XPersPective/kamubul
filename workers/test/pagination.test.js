@@ -27,9 +27,21 @@ test('large UTF8 delta pages advance only sent immutable changes, including tomb
     const after=body.appliedThrough;({body}=await fetch('changes?after='+after+'&watermark='+watermark+'&limit=50'));
     assert.equal(body.watermark,watermark);assert.ok(body.appliedThrough>after);received.push(...body.changes);
   }
-  assert.equal(received.length,9);assert.deepEqual(received.map(r=>r.seq),[1,2,3,4,5,6,7,8,9]);
+  // notice0's upsert (seq 1) is superseded by its tombstone (seq 9) within the watermark and is not replayed.
+  assert.equal(received.length,8);assert.deepEqual(received.map(r=>r.seq),[2,3,4,5,6,7,8,9]);
   assert.equal(received.at(-1).operation,'tombstone');assert.equal(received.find(r=>r.id==='notice7').item.title,'Resmî ilan notice7');
   assert.equal(body.appliedThrough,watermark);
+});
+
+test('a delta sends each listing once at its newest revision up to the watermark',async t=>{
+  const {sql,insert,fetch}=setup(t);
+  insert('busy','metin');insert('quiet','metin');
+  for(let revision=2;revision<=4;revision++)sql.prepare("UPDATE listings SET payload=json_set(payload,'$.title',?),revision=? WHERE id='busy'").run('Sürüm '+revision,revision);
+  const {body}=await fetch('changes?after=0&limit=50');
+  assert.deepEqual(body.changes.map(r=>[r.id,r.revision]),[['quiet',1],['busy',4]]);
+  assert.equal(body.appliedThrough,body.watermark);assert.equal(body.hasMore,false);
+  // A device already past the first revisions still receives the newest one.
+  assert.deepEqual((await fetch('changes?after=3&watermark=5')).body.changes.map(r=>r.revision),[4]);
 });
 
 test('large bootstrap pages retain stable watermark and listing order without losing rows',async t=>{

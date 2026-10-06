@@ -131,7 +131,9 @@ export async function fetchRequest(request,env,ctx){
       if(after>latest||watermark>latest)return json({error:'cursor_ahead'},409);
       if(watermark<after)return json({error:'watermark'},400);
       if(after<floor)return json({error:'cursor_expired'},409);
-      const {rows}=await boundedCataloguePage(env.DB,env.DB.prepare('SELECT seq,listing_id,length(CAST(payload AS BLOB)) payload_bytes FROM catalogue_changes WHERE seq>? AND seq<=? ORDER BY seq LIMIT ?').bind(after,watermark,limit));
+      // Only the newest row per listing up to the watermark is sent: a superseded revision is never the device's final
+      // state, and replaying every intermediate revision cost ~96 MB for one busy day of ~200 notices.
+      const {rows}=await boundedCataloguePage(env.DB,env.DB.prepare('SELECT seq,listing_id,length(CAST(payload AS BLOB)) payload_bytes FROM catalogue_changes c WHERE seq>? AND seq<=? AND NOT EXISTS(SELECT 1 FROM catalogue_changes n WHERE n.listing_id=c.listing_id AND n.seq>c.seq AND n.seq<=?) ORDER BY seq LIMIT ?').bind(after,watermark,watermark,limit));
       if(after<(await env.DB.prepare('SELECT floor FROM catalogue_retention WHERE id=1').first()).floor)return json({error:'cursor_expired'},409);
       const appliedThrough=rows.length?rows.at(-1).seq:watermark;
       return conditional(request,{watermark,appliedThrough,hasMore:appliedThrough<watermark,changes:rows.map(r=>({seq:r.seq,operation:r.operation,id:r.listing_id,revision:r.revision,item:JSON.parse(r.payload)}))},'"changes-'+after+'-'+watermark+'-'+limit+'"');
