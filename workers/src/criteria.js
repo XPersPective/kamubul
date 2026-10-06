@@ -14,6 +14,56 @@ export const educationValues = [
 const educationAliases = new Map(educationValues.flatMap(entry=>[entry.id,entry.label,...entry.aliases].map(value=>[fold(value),entry.id.split(':')[1]])));
 export const cityValues = cityLabels.map(label=>({id:'city:'+fold(label),label,aliases:[]}));
 const cityAliases = new Map(cityValues.flatMap(entry=>[entry.id,entry.label].map(value=>[fold(value),fold(entry.label)])));
+// Canonical occupations for the "Meslekler" filter, read from position labels over folded text.
+// Academic titles win: department names in faculty rows ("Bilgisayar Mühendisliği · Doçent") are not jobs.
+// ponytail: hand-written patterns from the live catalogue; extend the list when new labels stay unmapped.
+const academicOccupations = [
+  ['Öğretim Üyesi', /\b(?:profesor|prof\.|docent|doc\.|doktor ogretim uyesi|dr\.? ?ogr\.? ?uyesi|ogretim uyesi)/],
+  ['Öğretim Görevlisi', /\b(?:ogretim gorevlisi|ogr\.? ?gor\b)/],
+  ['Araştırma Görevlisi', /\b(?:arastirma gorevlisi|ara?s?\.? ?gor\b)/],
+];
+const jobOccupations = [
+  ['Zabıta Memuru', /\bzabita\b/],
+  ['İtfaiye Personeli', /\bitfaiye/],
+  ['Koruma ve Güvenlik Görevlisi', /\bguvenlik gorevlisi|\bkoruma ve guvenlik|\bozel guvenlik|\bbekci/],
+  ['İnfaz ve Koruma Memuru', /\binfaz (?:ve )?koruma/],
+  ['Şoför', /\bsofor|\bsurucu\b/],
+  ['Temizlik Görevlisi', /\btemizlik/],
+  ['Destek Personeli', /\bdestek personeli/],
+  ['Aşçı', /\basci(?:basi)?\b/],
+  ['Büro Personeli', /\bburo (?:personeli|memuru|gorevlisi)|\bmemur\b|\bveri hazirlama/],
+  ['Bilgisayar İşletmeni', /\bbilgisayar isletmeni/],
+  ['Zabıt / İcra Kâtibi', /\b(?:zabit|icra) katibi/],
+  ['Mübaşir', /\bmubasir/],
+  ['Muhasebeci', /\bmuhasebeci\b|\bmuhasebe (?:personeli|memuru|uzmani|yetkilisi)/],
+  ['Mühendis', /\bmuhendis(?:i|leri)?\b/],
+  ['Mimar', /\bmimar\b/],
+  ['Sağlık Teknikeri', /\bsaglik (?:teknikeri|teknisyeni)/],
+  ['Tekniker', /\bteknikeri?\b/],
+  ['Teknisyen', /\bteknisyeni?\b/],
+  ['Hemşire', /\bhemsire\b/],
+  ['Ebe', /\bebe\b/],
+  ['Tabip / Hekim', /\btabip\b|\b(?:pratisyen|uzman) hekim/],
+  ['Diş Hekimi', /\bdis hekimi\b/],
+  ['Veteriner Hekim', /\bveteriner hekim/],
+  ['Eczacı', /\beczaci\b/],
+  ['Psikolog', /\bpsikolog\b/],
+  ['Sosyal Çalışmacı', /\bsosyal calismaci/],
+  ['Fizyoterapist', /\bfizyoterapist/],
+  ['Diyetisyen', /\bdiyetisyen/],
+  ['Avukat', /\bavukat/],
+  ['Uzman Yardımcısı', /\buzman yardimcisi/],
+  ['Müfettiş / Denetçi Yardımcısı', /\b(?:mufettis|denetci|murakip) yardimcisi/],
+  ['Bilişim Personeli', /\bbilisim\b|\byazilim\b|\bprogramci|\bsistem yoneticisi|\bag yoneticisi/],
+  ['Öğretmen', /\bogretmeni?\b/],
+  ['Tercüman', /\btercuman\b/],
+  ['Proje Personeli', /\bproje personeli/],
+];
+export const occupationLabels = [...academicOccupations, ...jobOccupations].map(([label]) => label);
+export function occupationsOf(text, academicOnly = false) {
+  const value = fold(text), academic = academicOccupations.filter(([, pattern]) => pattern.test(value));
+  return (academic.length || academicOnly ? academic : jobOccupations.filter(([, pattern]) => pattern.test(value))).map(([label]) => label);
+}
 const criterionAliases = {education:educationAliases,cities:cityAliases};
 const criterionKey = (field,value) => criterionAliases[field]?.get(fold(value))??fold(value);
 const oneOf = (wanted, actual, field) => !wanted?.length || wanted.some(value => actual.map(v=>criterionKey(field,v)).includes(criterionKey(field,value)));

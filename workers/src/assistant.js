@@ -1,7 +1,7 @@
 // KamuBul Asistan: kamu ilanı takip kriteri oluşturur ve seçili ilan hakkında soruları ilan metnine
 // dayanarak yanıtlar. Kapsamı model yorumlar; uzunluk/bağlantı/komut filtresi ve kota sayaçları
 // global/IP/kurulum bazlıdır; kriter çıktısı validateCriteria ile doğrulanır.
-import { validateCriteria, cityValues, fold } from './criteria.js';
+import { validateCriteria, cityValues, fold, occupationLabels } from './criteria.js';
 import { externalAiEnabled, externalAiRun } from './external_ai.js';
 
 export const MAX_MESSAGE = 300;
@@ -36,7 +36,7 @@ export function scopeGate(message, { hasListing = false, chat = false } = {}) {
 export const refusal = 'Ben KamuBul Asistanı\'yım; yalnızca kamu ilanları, başvuru şartları ve arama kriterleriniz hakkında yardımcı olabilirim. Örnek: "Ankara\'da lisans mezunu, 28 yaşında, KPSS P3 75 puanlı bilişim ilanları".';
 
 const criteriaRules = `- Dizi alanları (cities, education, occupations, institutions, categories) HER ZAMAN dizi olmalı: ["Lisans"]. Sayılar JSON sayısı olmalı.
-- Kriter alanları yalnız: cities (il adları), education (İlkokul, Ortaokul, Lise, Ön lisans, Lisans, Yüksek lisans, Doktora), occupations, institutions, categories (işçi, personel, belediye), keyword, age (tamsayı 16-80), kpssType (P1..P999 biçimi, ör. P3), kpssScore (0-100), kpssYear, onlyKpss (boolean), last30 (boolean).`;
+- Kriter alanları yalnız: cities (il adları), education (İlkokul, Ortaokul, Lise, Ön lisans, Lisans, Yüksek lisans, Doktora), occupations (yalnız şu adlar: ${occupationLabels.join(', ')}; listede olmayan meslek için keyword kullan), institutions, categories (işçi, personel, belediye), keyword, age (tamsayı 16-80), kpssType (P1..P999 biçimi, ör. P3), kpssScore (0-100), kpssYear, onlyKpss (boolean), last30 (boolean).`;
 
 const systemPrompt = `Sen KamuBul uygulamasının kriter asistanısın. TEK görevin: kullanıcının anlattığı kamu iş ilanı takip tercihlerini yapılandırılmış kriterlere çevirmek.
 KURALLAR:

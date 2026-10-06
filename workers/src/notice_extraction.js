@@ -1,7 +1,7 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
 import {handleExtract,validateGroups,missingTopics,mentions,vacancyTotals,applicationDeadline,MIN_TEXT,MAX_TEXT} from './extract.js';
-import {fold} from './criteria.js';
-export const NOTICE_VERSION='notice-14';
+import {fold,occupationsOf} from './criteria.js';
+export const NOTICE_VERSION='notice-15';
 const countHeader=value=>/^(?:ad|adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|ogrgor|ogrgordersverecek|arsgor)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
 const datePattern=/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2})\b/g;
@@ -232,5 +232,11 @@ export async function extractNotice(notice,text,env,deps){
       missing=assessNotice(result,text);
     }
   }else if(canImprove&&!deps.mechanicalOnly)response={status:422,body:{error:text.length>MAX_TEXT?'text_oversize':'text_short'}};
-  return {...response,result:{fields:result.fields,groups:result.groups.map(({sourceText,...g})=>({...g,...(sourceText?{text:sourceText}:{}),cities:g.cities??notice.places??[]})),extraction:{version:NOTICE_VERSION,method,status:missing.length?'partial':'complete',missing,kind:result.kind??(result.register?'register':'vacancy')}}};
+  // Canonical occupations: from each position label, else from the title; structured source professions are kept.
+  // Under an academic title only academic ranks count: faculty rows name departments ("Mütercim ve Tercümanlık").
+  const title=notice.title??'',titled=occupationsOf(title),academicTitle=occupationsOf(title,true).length>0||/\bogretim elemani|\bakademik personel/.test(fold(title));
+  const professions=values=>(values??[]).flatMap(o=>{const c=occupationsOf(o);return c.length?c:[o];});
+  const groups=result.groups.map(({sourceText,...g})=>{const own=[...new Set([...occupationsOf(g.label??'',academicTitle),...professions(g.occupations)])];return {...g,...(sourceText?{text:sourceText}:{}),cities:g.cities??notice.places??[],occupations:own.length?own:titled};});
+  const occupations=[...new Set(groups.length?groups.flatMap(g=>g.occupations):[...titled,...professions(notice.occupations)])];
+  return {...response,result:{fields:result.fields,groups,occupations,extraction:{version:NOTICE_VERSION,method,status:missing.length?'partial':'complete',missing,kind:result.kind??(result.register?'register':'vacancy')}}};
 }

@@ -304,3 +304,27 @@ test('a Son Başvuru Tarihi column may spell the month out', async () => {
     'İnsanî Bilimler ve Edebiyat Fakültesi | Sosyoloji | Doktor Öğretim Üyesi | 1 | Antropoloji alanında doktora sahibi olmak. | 13 Ekim 2026'].join('\n');
   assert.equal(mechanicalNotice({ title: 'Koç Üniversitesi Öğretim Üyesi Alım İlanı' }, text).fields.deadline?.value, '2026-10-13T20:59:59.999Z');
 });
+
+test('position labels map to canonical occupations; department names are not jobs', async () => {
+  const { occupationsOf, matchListing } = await import('../src/criteria.js');
+  const { extractNotice } = await import('../src/notice_extraction.js');
+  // Live labels.
+  assert.deepEqual(occupationsOf('Destek Personeli (Temizlik Görevlisi) (Hastane)'), ['Temizlik Görevlisi', 'Destek Personeli']);
+  assert.deepEqual(occupationsOf('Destek Personeli (Erkek) (Şoför)'), ['Şoför', 'Destek Personeli']);
+  assert.deepEqual(occupationsOf('Yönetim Bilişim Sistemleri Bölümü · - · Arş. Gör.'), ['Araştırma Görevlisi']);
+  assert.deepEqual(occupationsOf('Kamu Hukuku · Ar. Gör.'), ['Araştırma Görevlisi']);
+  assert.deepEqual(occupationsOf('Bilgisayar Mühendisliği · Dr. Öğr. Üyesi'), ['Öğretim Üyesi']);
+  assert.deepEqual(occupationsOf('Teknıker'), ['Tekniker']);
+  assert.deepEqual(occupationsOf('Memur'), ['Büro Personeli']);
+  assert.deepEqual(occupationsOf('Zabıta Memuru'), ['Zabıta Memuru']);
+  for (const label of ['MUHASEBE GRUBU Genel Muhasebe Maliyet Muhasebesi', 'Muhasebe ve Finans Yönetimi programı ile', 'Bilgisayar Mühendisliği', 'Hemşirelik']) assert.deepEqual(occupationsOf(label), [], label);
+  const text = 'Fakülte | Bölüm | Kadro\nİnsan ve Toplum Bilimleri | FRANSIZCA MÜTERCİM VE TERCÜMANLIK | 1\n' + 'Genel şartlar ve başvuru belgeleri ilanın devamındadır. '.repeat(4);
+  const academic = (await extractNotice({ title: 'Hacettepe Üniversitesi Rektörlüğü Öğretim Üyesi Alım İlanı' }, text, {}, { mechanicalOnly: true, sha256: async () => '' })).result;
+  assert.ok(academic.groups.every(g => g.occupations.every(o => o === 'Öğretim Üyesi')), 'a faculty row under an academic title is not "Tercüman"');
+  const city = (await extractNotice({ title: 'Gelir İdaresi Başkanlığından 860 Gelir Uzman Yardımcısı Alımı' }, 'İl | Kadro\nFEKE | 1\nGÖLBAŞI | 2\n' + 'Genel şartlar ve başvuru belgeleri ilanın devamındadır. '.repeat(4), {}, { mechanicalOnly: true, sha256: async () => '' })).result;
+  assert.deepEqual(city.occupations, ['Uzman Yardımcısı'], 'labels that name no job inherit the title');
+  // The editor offers these labels; a saved "Zabıta Memuru" search matches a "Zabıta Memuru (Erkek)" row.
+  const listing = { title: 'Şile Belediye Başkanlığı Memur Alım İlanı', requirementGroups: [{ label: 'Zabıta Memuru (Erkek)', occupations: occupationsOf('Zabıta Memuru (Erkek)') }] };
+  assert.equal(matchListing(listing, { version: 2, occupations: ['Zabıta Memuru'] }), 'match');
+  assert.equal(matchListing(listing, { version: 2, occupations: ['Hemşire'] }), 'no_match');
+});

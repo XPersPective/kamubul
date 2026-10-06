@@ -195,8 +195,8 @@ export async function canonicalConditions(env,listingId,contentHash,text,places=
     if(wait){await env.DB.prepare('UPDATE listings SET conditions_due_at=?,conditions_error=? WHERE id=? AND content_hash=?').bind(wait,'fallback_budget',listingId,contentHash).run();return {status:429,body:{error:'fallback_budget'}};}
   }
   const res=await extractNotice({...notice,places:notice.places??places},text,env,{sha256,...options});
-  const {fields,groups,extraction}=res.result;
-  const payload={...notice,requirementGroups:groups,extraction,conditionsHash:contentHash,updatedAt:nowISO(),fieldEvidence:{...notice.fieldEvidence,...fields}};
+  const {fields,groups,occupations,extraction}=res.result;
+  const payload={...notice,requirementGroups:groups,occupations,extraction,conditionsHash:contentHash,updatedAt:nowISO(),fieldEvidence:{...notice.fieldEvidence,...fields}};
   for(const key of ['quota','deadline','deadlineEstimate','applicationPeriods'])if(!fields[key]&&notice.fieldEvidence?.[key]?.origin!=='source'&&notice.fieldEvidence?.[key]){payload[key]=null;delete payload.fieldEvidence[key];}
   for(const [key,field] of Object.entries(fields))payload[key]=field.value;
   const terminal=options.mechanicalOnly?extraction.status==='complete':res.status===200||res.status===422;
