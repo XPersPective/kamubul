@@ -77,7 +77,8 @@ function quoted(q, foldedText) {
 }
 
 const noticePrompt = `\nAyrıca ilan bilgilerini ayıkla: "quota":null veya {"value":toplam kişi sayısı,"quote":"birebir alıntı"}, "deadline":null veya {"value":"YYYY-MM-DD","quote":"son BAŞVURU tarihini belirten birebir alıntı"}. Grup sayısı kişi sayısı değildir. Bilirkişi/tercüman liste başvurusunda sayı yoksa quota null. Her groups öğesine "quota":null veya kişi sayısı ve "quotaQuote":"o satırın birebir alıntısı" ekle. Pozisyonları eğitim/yaş/KPSS yoksa bile label ve quota ile koru. Sayıları derece, sıra no, puan veya kanun numarasından türetme. Başvuru bitişini sınav/sonuç tarihinden ayır. Tüm tabloları oku; sayı yoksa tahmin etme.`;
-export const vacancyTotals=text=>[...text.matchAll(/(?:toplam\s+)?(\d{1,5})\s*(?:\([^)]*\)\s*)?(?:adet\s+)?(?:sözleşmeli\s+)?(?:personel|kişi|işçi|(?:\p{L}+\s+){0,8}(?:uzman yardımcısı|müdür yardımcısı))\s+(?:açıktan\s+)?(?:alınacak|alınacaktır|istihdam edilecek)/giu)];
+// Also "atama yapılabilecek azami kadro sayısı 15 (onbeş) adettir".
+export const vacancyTotals=text=>[...text.matchAll(/(?:toplam\s+)?(\d{1,5})\s*(?:\([^)]*\)\s*)?(?:adet\s+)?(?:sözleşmeli\s+)?(?:personel|kişi|işçi|(?:\p{L}+\s+){0,8}(?:uzman yardımcısı|müdür yardımcısı))\s+(?:açıktan\s+)?(?:alınacak|alınacaktır|istihdam edilecek)|kadro sayısı\s+(\d{1,5})\s*(?:\([^)]*\)\s*)?adet(?:tir)?\b/giu)].map(m=>(m[1]??=m[2],m));
 const applicationMonths=['ocak','şubat','mart','nisan','mayıs','haziran','temmuz','ağustos','eylül','ekim','kasım','aralık'];
 const applicationDates=/\b(?:(20\d{2})-(\d{2})-(\d{2})|(\d{1,2})[./-](\d{1,2})[./-](20\d{2})|(\d{1,2})\s+(ocak|şubat|mart|nisan|mayıs|haziran|temmuz|ağustos|eylül|ekim|kasım|aralık)\s+(20\d{2}))\b/g;
 export function applicationDeadline(quote) {

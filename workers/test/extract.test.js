@@ -355,4 +355,9 @@ test('labelled-review fixes: scoring prose, stated dates beside relative rules, 
     'a) Lisans mezunları için 2024 KPSS (B) Grubu KPSSP3 puanı esas alınacaktır.',
     'b) Ön lisans mezunları için 2024 KPSS (B) Grubu KPSSP93 puanı, ortaöğretim mezunları için KPSSP94 puanı esas alınacaktır.'].join('\n'));
   assert.deepEqual(hbv.groups.map(g => [g.label, g.kpssType ?? null]), [['Büro Personeli', 'P93'], ['Destek Personeli', 'P94'], ['Mühendis', 'P3']]);
+  // Yargıtay: numbered headings carry the counts; İletişim: "azami kadro sayısı 15 (onbeş) adettir".
+  const yargitay = mechanicalNotice({ title: 'Bilişim Personeli Alım İlanı' }, ['1. Mobil Yazılım Geliştirme Uzmanı (2 (iki) kişi - tam zamanlı)', 'Lisans mezunu olmak.',
+    '2- Siber Güvenlik Uzmanı (1 (bir) kişi - tam zamanlı)', '3- Kıdemli Siber Güvenlik Uzmanı (1(bir)kişi - tam zamanlı)'].join('\n'));
+  assert.equal(yargitay.fields.quota?.value, 4);
+  assert.equal(mechanicalNotice({ title: 'Uzman Yardımcısı Alım İlanı' }, '(1) İletişim Uzman Yardımcısı unvanıyla atama yapılabilecek azami kadro sayısı 15 (onbeş) adettir.').fields.quota?.value, 15);
 });

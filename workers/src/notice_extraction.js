@@ -160,6 +160,9 @@ export function mechanicalNotice(notice,text){
   }
   const totals=vacancyTotals(text);
   if(!fields.quota&&totals.length===1)fields.quota={value:Number(totals[0][1]),quote:totals[0][0]};
+  // "1. Mobil Yazılım Geliştirme Uzmanı (2 (iki) kişi - tam zamanlı ...)": numbered position headings carry their counts.
+  const headed=groups.some(g=>g.quota)?[]:lines.map(l=>l.match(/^\s*\d{1,2}\s*[-.)]\s*[^()|]{3,90}?\(\s*(\d{1,4})\s*(?:\([^)]*\)\s*)?kişi\b/i)).filter(Boolean);
+  if(!fields.quota&&headed.length&&new Set(headed.map(m=>m[0])).size===headed.length){const value=headed.reduce((n,m)=>n+Number(m[1]),0);if(value<=100000)fields.quota={value,quote:headed.map(m=>m[0]).join('\n')};}
   if(Number.isSafeInteger(notice.quota)&&notice.quota>0&&notice.quota<=100000&&(!notice.fieldEvidence?.quota||notice.fieldEvidence.quota.origin==='source'))fields.quota={value:notice.quota,quote:notice.quotaQuote??notice.fieldEvidence?.quota?.quote??null,origin:'source'};
   if(notice.deadline&&(!notice.fieldEvidence?.deadline||notice.fieldEvidence.deadline.origin==='source'))fields.deadline={value:notice.deadline,quote:notice.deadlineQuote??notice.fieldEvidence?.deadline?.quote??null,origin:'source'};
   const deadlines=[...columnDeadlines];
