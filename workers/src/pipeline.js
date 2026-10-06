@@ -209,14 +209,15 @@ export async function canonicalConditions(env,listingId,contentHash,text,places=
 }
 export async function mechanicalBackfill(env){
   // One stored document per turn: a large notice parses in 10-30 ms, near Free's per-invocation CPU budget.
-  const rows=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY updated_at,id LIMIT 1").bind(NOTICE_VERSION).all();
+  const rows=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND json_extract(payload,'$.twin.id') IS NULL AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY updated_at,id LIMIT 1").bind(NOTICE_VERSION).all();
   for(const row of rows.results){const notice=JSON.parse(row.payload),text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');await canonicalConditions(env,row.id,row.content_hash,text,notice.places??[],{mechanicalOnly:true});}
   return rows.results.length>0;
 }
 async function mechanicalPending(env){
-  return env.DB.prepare("SELECT 1 FROM listings WHERE active=1 AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) LIMIT 1").bind(NOTICE_VERSION).first();
+  return env.DB.prepare("SELECT 1 FROM listings WHERE active=1 AND json_extract(payload,'$.twin.id') IS NULL AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) LIMIT 1").bind(NOTICE_VERSION).first();
 }
 // Telafi: özet işinin ilk turunda geçici hata alan ilanlar her turda bir tane.
+// Twins are skipped by every extraction selector: the copied ilan.gov result is their result.
 // Kariyer Kapısı's detail API does not answer Cloudflare (HTTP 522), while most of its ads are the same
 // Official Gazette notices published on ilan.gov.tr. A Kariyer listing without its own text borrows the
 // stored text and extraction of exactly one strictly matching ilan.gov.tr notice; its identity, title and
@@ -259,7 +260,7 @@ export async function linkKariyerTwins(env){
 export async function canonicalBackfill(env){
   await linkKariyerTwins(env);
   if(await mechanicalBackfill(env))return;
-  const row=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY conditions_due_at,updated_at,id LIMIT 1").bind(nowISO(),nowISO()).first();
+  const row=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND json_extract(payload,'$.twin.id') IS NULL AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY conditions_due_at,updated_at,id LIMIT 1").bind(nowISO(),nowISO()).first();
   if(!row)return;
   const notice=JSON.parse(row.payload);
   const text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');
@@ -521,7 +522,7 @@ export async function flushOutboxBatch(env,options={}) {
 async function pendingDispatch(env,kind,now) {
   if(kind==='source')return env.DB.prepare("SELECT 1 FROM sources WHERE next_due<=? AND (lease_until IS NULL OR lease_until<?) LIMIT 1").bind(now,now).first();
   if(kind==='extract'&&await mechanicalPending(env))return {pending:true};
-  if(kind==='extract')return env.DB.prepare("SELECT 1 WHERE EXISTS(SELECT 1 FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5) OR EXISTS(SELECT 1 FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0))").bind(now,now,now,now).first();
+  if(kind==='extract')return env.DB.prepare("SELECT 1 WHERE EXISTS(SELECT 1 FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5) OR EXISTS(SELECT 1 FROM listings WHERE active=1 AND json_extract(payload,'$.twin.id') IS NULL AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0))").bind(now,now,now,now).first();
   return kind==='match'
     ?env.DB.prepare("SELECT 1 FROM match_events WHERE state='pending' OR (state='leased' AND lease_until<?) LIMIT 1").bind(now).first()
     :env.DB.prepare("SELECT 1 FROM notification_outbox WHERE (state='pending' OR (state='leased' AND lease_until<?)) AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) LIMIT 1").bind(now,now).first();

@@ -201,3 +201,13 @@ test('an unchanged mechanical result keeps revision and change log intact',async
   const after=f.sql.prepare("SELECT revision,payload FROM listings WHERE id='ilangov:2'").get();
   assert.equal(after.revision,before.revision);assert.equal(after.payload,before.payload);
 });
+
+test('Kariyer twins are not parsed again: their conditions come from the ilan.gov copy',async t=>{
+  const f=setup(t),text='Zabıta Memuru kadrosu için lise mezunu olmak. '+'Genel şartlar. '.repeat(30);
+  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('kariyerkapisi:k','kariyerkapisi','k','hk','first','first','later',?)").run(JSON.stringify({title:'K',text,twin:{id:'ilangov:1',revision:1}}));
+  const before=f.sql.prepare("SELECT revision,payload FROM listings WHERE id='kariyerkapisi:k'").get();
+  assert.equal(await mechanicalBackfill(f.env),false);
+  await canonicalBackfill(f.env);
+  const after=f.sql.prepare("SELECT revision,payload,conditions_checked c FROM listings WHERE id='kariyerkapisi:k'").get();
+  assert.equal(after.revision,before.revision);assert.equal(after.payload,before.payload);assert.equal(after.c,null);
+});
