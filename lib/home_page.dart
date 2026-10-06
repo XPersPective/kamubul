@@ -158,6 +158,20 @@ class _KamuHomePageState extends State<KamuHomePage> {
             'en': 'Blue light filter & screen dimmer: warm night mode in Kelvin, extra dim, timer',
           },
         ),
+        OtherApp(
+          id: 'halen',
+          androidPackage: 'com.crazypenguin.halenquitsmoking',
+          iconUrl: 'https://raw.githubusercontent.com/XPersPective/napp_apps/HEAD/icons/halen.png',
+          name: {
+            'tr': 'Halen: Quit Smoking Tracker',
+            'en': 'Halen: Quit Smoking Tracker',
+          },
+          description: {
+            'tr': 'Önce azalt, sonra bırak: kendini yeniden hesaplayan plan, cihazında gizli.',
+            'en': 'Cut down first, then quit — an adaptive plan that stays private on your device.',
+          },
+          order: 2,
+        ),
       ],
     );
   }
