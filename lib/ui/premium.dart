@@ -61,15 +61,15 @@ ThemeData premiumTheme(ThemeData base) {
       fillColor: colors.surfaceContainerLow,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
+        borderRadius: BorderRadius.circular(PremiumShape.buttonRadius),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
+        borderRadius: BorderRadius.circular(PremiumShape.buttonRadius),
         borderSide: BorderSide(color: colors.outlineVariant),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
+        borderRadius: BorderRadius.circular(PremiumShape.buttonRadius),
         borderSide: BorderSide(color: colors.primary, width: 1.6),
       ),
     ),

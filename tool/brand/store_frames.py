@@ -15,8 +15,8 @@ FONT_REGULAR = 'C:/Windows/Fonts/segoeui.ttf'
 
 # (ham dosya, çıktı adı, başlık, alt cümle, koyu zemin mi)
 SHOTS = [
-    ('home-light.png', '01-tum-kamu-ilanlari.png', 'Bütün kamu ilanları\ntek yerde',
-     'ilan.gov.tr, Kariyer Kapısı ve İŞKUR kamu ilanları her gün güncel.', False),
+    ('home-light.png', '01-tum-kamu-ilanlari.png', 'Kamu ilanları\ntek yerde',
+     'Resmî ilanları inceleyin, kaynakların güncel durumunu görün.', False),
     ('detail-summary.png', '02-sartlar-tek-bakista.png', 'Şartlar\ntek bakışta',
      'Kontenjan, son başvuru, eğitim, KPSS ve yaş en üstte özetlenir.', False),
     ('detail-positions.png', '03-her-pozisyon-ayri.png', 'Her pozisyon\nayrı kartta',

@@ -88,6 +88,36 @@ test('public extraction and unbounded v1 snapshot routes are not exposed',async(
   }
 });
 
+test('health reports memoised active extraction quality without exposing notice text or caching it',async()=>{
+  const sql=new DatabaseSync(':memory:');
+  sql.exec('CREATE TABLE listings(active INTEGER,payload TEXT); CREATE TABLE catalogue_changes(seq INTEGER);');
+  const insert=sql.prepare('INSERT INTO listings VALUES(?,?)');
+  for(const [active,payload] of [
+    [1,{text:'Notice A',extraction:{status:'complete',method:'mechanical'}}],
+    [1,{text:'Notice B',extraction:{status:'partial',method:'hybrid'}}],
+    [1,{positions:[{text:'Position text'}],extraction:{status:'complete',method:'ai'}}],
+    [1,{text:'  ',positions:[{text:''}]}],
+    [1,{}],
+    [0,{extraction:{status:'complete',method:'ai'}}],
+  ])insert.run(active,JSON.stringify(payload));
+  let scans=0;
+  const stub=()=>({prepare(query){return {async first(){if(query.includes('json_each'))scans++;return sql.prepare(query).get();}};}});
+  const DB=stub();
+  try {
+    for(const path of ['/api/v2/health','/v1/health']){
+      const response=await fetchRequest(new Request('https://api'+path),{DB},{});
+      assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'no-store');
+      const body=await response.json();assert.equal(body.status,'awaiting_ingestion');
+      assert.deepEqual(body.extraction,{total:5,complete:2,partial:1,ai:2,noText:2});
+      assert.doesNotMatch(JSON.stringify(body),/Notice|Position text/);
+    }
+    assert.equal(scans,1,'repeated health calls reuse the memoised payload scan');
+    sql.exec('DELETE FROM listings');
+    const empty=await (await fetchRequest(new Request('https://api/api/v2/health'),{DB:stub()},{})).json();
+    assert.deepEqual(empty.extraction,{total:0,complete:0,partial:0,ai:0,noText:0});
+  } finally {sql.close();}
+});
+
 test('quiet hours wrap midnight in Istanbul',()=>{
   assert.equal(nextAllowed({quietStart:22,quietEnd:8},new Date('2026-09-30T20:15:00Z')),'2026-10-01T05:00:00.000Z');
   assert.equal(nextAllowed({quietStart:22,quietEnd:8},now),now.toISOString());

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kamubul/listings/kariyer_detail.dart';
-import 'package:kamubul/listings/kariyer_detail_page.dart';
-import 'package:kamubul/listings/kariyer_feed.dart';
 import 'package:kamubul/listings/official_listing_page.dart';
 import 'package:kamubul/listings/listing_guide.dart';
 import 'package:kamubul/data/listing_store.dart';
@@ -356,100 +353,6 @@ void main() {
     // Bilinmeyen şart satırı gösterilmez; Asistan'a sorma önerilir.
     expect(find.text('Yaş sınırı: belirtilmemiş'), findsNothing);
     expect(find.textContaining('Asistan’a sorabilirsiniz'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  final listing = PublicListing(
-    title: 'TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)',
-    category: 'Sözleşmeli Personel',
-    url: Uri.parse('https://kariyerkapisi.gov.tr/IlanDetay?i=test'),
-    publishedAt: DateTime(2026, 9, 20),
-  );
-  final detail = KariyerDetail(
-    institution: 'TEST KURUMU REKTÖRLÜĞÜ',
-    body:
-        'Kurumumuza KPSS P3 puan türüyle 65 yaşını doldurmamış lisans mezunu '
-        'sözleşmeli personel alınacaktır. Başvurular 12 Ekim 2026 tarihine '
-        'kadar sürecektir. Adayların 2026/1 sözlü sınavına katılmaları '
-        'gerekmektedir. İletişim bilgileri kurum internet sayfasındadır.',
-    start: DateTime(2026, 9, 1),
-    deadline: DateTime(2026, 10, 12),
-    applyUrl: Uri.parse('https://kariyerkapisi.gov.tr/basvuru'),
-    positions: [
-      KariyerPosition(
-        title: 'Memur alımı',
-        profession: 'Büro personeli',
-        conditions:
-            'KPSS P3 taban puan 60 ve üzeri puan almış olmak.\n'
-            'Lisans mezunu olmak.\n'
-            '35 yaşını doldurmamış olmak.',
-        quota: 5,
-        places: const ['ANKARA', 'İZMİR'],
-      ),
-    ],
-  );
-
-  Future<void> pumpDetail(
-    WidgetTester tester, {
-    Size logicalSize = const Size(390, 844),
-    double textScale = 1.0,
-  }) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = logicalSize;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      MaterialApp(
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
-        ),
-        home: KariyerDetailPage(listing: listing, loader: (_) async => detail),
-      ),
-    );
-    await tester.pumpAndSettle();
-  }
-
-  testWidgets('ayrıntı telefon genişliğinde taşmasız yerleşir', (tester) async {
-    await pumpDetail(tester);
-    expect(find.text('Başvuru sayfasını aç'), findsOneWidget);
-    expect(find.text('TEST KURUMU REKTÖRLÜĞÜ'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('1.3x metin ölçeğinde taşma oluşmaz', (tester) async {
-    await pumpDetail(tester, textScale: 1.3);
-    // Uzun başlık ve kanıt alanları 1.3x'te de görünür ve taşmasızdır.
-    // (Büyük başlık, genişleyen ve çöken iki katmanda başlığı çizer.)
-    expect(find.text('Başvuru sayfasını aç'), findsOneWidget);
-    expect(
-      find.textContaining('TEST KURUMU - Sözleşmeli'),
-      findsAtLeastNWidgets(1),
-    );
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('tablet genişliğinde taşma oluşmaz', (tester) async {
-    await pumpDetail(tester, logicalSize: const Size(1024, 1366));
-    expect(find.text('Başvuru sayfasını aç'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('kompakt başlık sabit kalır, iki CTA kaydırmada yerinde', (
-    tester,
-  ) async {
-    await pumpDetail(tester, logicalSize: const Size(390, 844));
-    await tester.fling(
-      find.byType(CustomScrollView),
-      const Offset(0, -600),
-      2000,
-    );
-    await tester.pumpAndSettle();
-    // Kompakt başlık sabittir; telefonda dev başlık yer kaplamaz.
-    expect(find.text('İlan ayrıntısı'), findsOneWidget);
-    // Hem resmî ilan hem başvuru sayfası her zaman erişilebilir.
-    expect(find.text('İlanı aç'), findsOneWidget);
-    expect(find.text('Başvuru sayfasını aç'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

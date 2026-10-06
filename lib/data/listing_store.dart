@@ -1,13 +1,13 @@
 import 'dart:convert';
 
 import 'package:kamubul_core/data/listing_models.dart';
+import 'package:kamubul_core/listings/extract_conditions.dart';
+import 'package:kamubul_core/listings/extraction_policy.dart';
 import 'package:kamubul_core/remote/catalogue_delta.dart';
 import 'package:kamubul_core/remote/snapshot.dart' show listingFromJson;
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
-import '../listings/extract_conditions.dart';
-import '../listings/extraction_policy.dart';
 import 'dedupe.dart';
 
 export 'package:kamubul_core/data/listing_models.dart';

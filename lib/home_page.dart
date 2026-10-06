@@ -47,6 +47,9 @@ import 'ui/assistant_chat.dart';
 import 'ui/pro_page.dart';
 import 'ui/turkish.dart';
 
+part 'ui/source_status_page.dart';
+part 'ui/import_dialog.dart';
+
 class KamuHomePage extends StatefulWidget {
   const KamuHomePage({
     super.key,
@@ -611,6 +614,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
   /// Her setState'te sıfırlanır: kaydırırken her kart için ~300 ilanı yeniden
   /// eşleştirmek (O(n²)) listeyi takılarak kaydırıyordu.
   List<ListingRecord>? _visibleCache;
+  final _matchCache = <ListingRecord, CriteriaMatch>{};
+  final _profileMatchCache = <ListingRecord, bool>{};
 
   List<ListingRecord> get _visibleRecords =>
       _visibleCache ??= _computeVisibleRecords();
@@ -782,6 +787,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
     super.setState(fn);
     _visibleCache =
         null; // fn içinde okunmuş olabilir; değişiklikten sonra sıfırla
+    _matchCache.clear();
+    _profileMatchCache.clear();
     if (!_selectionRestored) return;
     final value = jsonEncode({
       'search': _activeSearchId,
@@ -841,7 +848,10 @@ class _KamuHomePageState extends State<KamuHomePage> {
     _quickCriteria = SearchCriteria.parse(values);
   }
 
-  CriteriaMatch _matchVisible(ListingRecord record) {
+  CriteriaMatch _matchVisible(ListingRecord record) =>
+      _matchCache.putIfAbsent(record, () => _computeVisibleMatch(record));
+
+  CriteriaMatch _computeVisibleMatch(ListingRecord record) {
     final active = _activeSearch;
     if (active != null) return active.matchListing(record, now: DateTime.now());
     final quick = _quickCriteria;
@@ -2140,22 +2150,25 @@ class _KamuHomePageState extends State<KamuHomePage> {
   Widget _listingCard(ListingRecord record) {
     final unresolved = _matchVisible(record) == CriteriaMatch.unknown;
     final expired = record.expired;
-    final profileMatch = _searches.any(
-      (search) =>
-          !search.hasInvalidCriteria &&
-          search.name == 'Sizin için' &&
-          ((search.criteria?.values.keys.any(
-                    (key) => !['version', 'keywordScope'].contains(key),
-                  ) ??
-                  false) ||
-              [
-                'sehir',
-                'yas',
-                'egitim',
-                'kpss',
-              ].any((key) => (search.filters[key] ?? '').isNotEmpty)) &&
-          search.matchListing(record, now: DateTime.now()) ==
-              CriteriaMatch.match,
+    final profileMatch = _profileMatchCache.putIfAbsent(
+      record,
+      () => _searches.any(
+        (search) =>
+            !search.hasInvalidCriteria &&
+            search.name == 'Sizin için' &&
+            ((search.criteria?.values.keys.any(
+                      (key) => !['version', 'keywordScope'].contains(key),
+                    ) ??
+                    false) ||
+                [
+                  'sehir',
+                  'yas',
+                  'egitim',
+                  'kpss',
+                ].any((key) => (search.filters[key] ?? '').isNotEmpty)) &&
+            search.matchListing(record, now: DateTime.now()) ==
+                CriteriaMatch.match,
+      ),
     );
     final scheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
@@ -2830,147 +2843,4 @@ class _KamuHomePageState extends State<KamuHomePage> {
   String _date(DateTime? value) => value == null
       ? 'Yayın tarihi belirtilmemiş'
       : '${value.day}.${value.month}.${value.year}';
-}
-
-class _SourcesPage extends StatelessWidget {
-  const _SourcesPage({
-    required this.open,
-    required this.checkedAt,
-    required this.failedSources,
-    this.sourceStatuses = const [],
-  });
-  final Future<void> Function(Uri) open;
-  final DateTime? checkedAt;
-  final List<String> failedSources;
-
-  /// Sunucunun bildirdiği kaynak durumları (boşsa sunucu kapalı/okunamadı).
-  final List<SourceStatus> sourceStatuses;
-
-  SourceStatus? _serverStatus(String id) =>
-      sourceStatuses.where((s) => s.id == id).firstOrNull ??
-      (id == 'sbb'
-          ? sourceStatuses.where((s) => s.id == 'kamuilan_sbb').firstOrNull
-          : null);
-  String? _serverNote(String id) => _serverStatus(id)?.note;
-  String _serverLabel(String id) => switch (_serverStatus(id)?.state) {
-    SourceState.ok => 'Listeye erişildi',
-    SourceState.failed => 'Kaynak yenilenemedi',
-    SourceState.blocked => 'Kaynağa erişim engellendi',
-    SourceState.disabled => 'Kaynak kapalı',
-    null => 'Kaynak henüz denetlenmedi',
-  };
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Resmî kaynaklar')),
-    body: ListView(
-      children: [
-        ListTile(
-          leading: const Icon(Icons.update_outlined),
-          title: Text(
-            sourceStatuses.isEmpty ? 'Son denetim' : 'Son başarılı eşitleme',
-          ),
-          subtitle: Text(
-            checkedAt == null
-                ? 'Bu oturumda henüz denetlenmedi'
-                : '${checkedAt!.day}.${checkedAt!.month}.${checkedAt!.year} '
-                      '${checkedAt!.hour.toString().padLeft(2, '0')}:${checkedAt!.minute.toString().padLeft(2, '0')}',
-          ),
-        ),
-        for (final (name, id, description) in [
-          (
-            'Kariyer Kapısı',
-            'kariyerkapisi',
-            'Resmî liste ve ilan metinleri sunucuda okunur; ayrıntılar cihazda saklanır.',
-          ),
-          (
-            'Kamu İlanları (SBB)',
-            'sbb',
-            'Güncel yıl listesi; asıl ilan resmî PDF belgedir.',
-          ),
-          (
-            'ilan.gov.tr',
-            kIlanGovSourceId,
-            'Personel alımı ilanları (belediye, üniversite, Resmî Gazete) '
-                'sunucuda resmî portaldan okunur.',
-          ),
-          (
-            'İŞKUR',
-            kIskurSourceId,
-            'Yalnız kamu işçi alımları (belediye vb.); özel sektör ilanları '
-                'alınmaz.',
-          ),
-        ])
-          ListTile(
-            leading: Icon(
-              _serverStatus(id) != null
-                  ? _serverStatus(id)!.state == SourceState.ok
-                        ? Icons.check_circle_outline
-                        : Icons.error_outline
-                  : Icons.help_outline,
-            ),
-            title: Text(name),
-            subtitle: Text(
-              _serverStatus(id) != null
-                  ? '${_serverLabel(id)}. ${_serverNote(id) ?? description}'
-                  : checkedAt != null && failedSources.contains(name)
-                  ? 'Son denetim başarısız; önbellek korunuyor. $description'
-                  : 'Kaynak henüz denetlenmedi. $description',
-            ),
-          ),
-        const ListTile(
-          leading: Icon(Icons.location_city_outlined),
-          title: Text('Belediyeler'),
-          subtitle: Text(
-            'Belediye personel ilanları ilan.gov.tr (Basın İlan Kurumu) ve '
-            'İŞKUR kamu ilanlarıyla gelir; "Belediye" süzgeciyle bulunur. '
-            'İlanını yalnız kendi sitesinde yayımlayan belediyeler şimdilik '
-            'kapsam dışıdır.',
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-/// Yedek JSON'unun yapıştırıldığı içe aktarma penceresi; metin denetçisi
-/// kendi ömründe tutulur.
-class _ImportDialog extends StatefulWidget {
-  const _ImportDialog();
-
-  @override
-  State<_ImportDialog> createState() => _ImportDialogState();
-}
-
-class _ImportDialogState extends State<_ImportDialog> {
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Verileri içe aktar'),
-    content: TextField(
-      controller: _controller,
-      maxLines: 6,
-      decoration: const InputDecoration(
-        labelText: 'Yedek JSON',
-        helperText: 'Yalnızca KamuBul yedek dosyası kabul edilir.',
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Vazgeç'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.of(context).pop(_controller.text),
-        child: const Text('İçe aktar'),
-      ),
-    ],
-  );
 }

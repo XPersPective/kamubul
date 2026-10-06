@@ -112,7 +112,9 @@ export async function fetchRequest(request,env,ctx){
     }
     if(request.method!=='GET')return json({error:'method_not_allowed'},405,{'Allow':'GET'});
     if(path==='/api/v2/health'||path==='/v1/health') {
-      const seq=await latestSeq(env.DB);return json({status:seq?'ok':'awaiting_ingestion',latestSeq:seq,fcmConfigured:!!(env.FCM_PRIVATE_KEY&&env.FCM_CLIENT_EMAIL),aiConfigured:!!env.AI});
+      const seq=await latestSeq(env.DB);
+      const extraction=await extractionSummary(env.DB);
+      return json({status:seq?'ok':'awaiting_ingestion',latestSeq:seq,fcmConfigured:!!(env.FCM_PRIVATE_KEY&&env.FCM_CLIENT_EMAIL),aiConfigured:!!env.AI,extraction});
     }
     if(path==='/api/v2/meta') {
       const {n:seq,oldest:minimum,floor}=await catalogueBounds(env.DB);const sources=(await env.DB.prepare("SELECT id,name,CASE WHEN state IN ('ok','failed','blocked','disabled') THEN state WHEN state='processing' AND last_success IS NOT NULL THEN 'ok' ELSE 'failed' END state,last_attempt,last_success,note FROM sources").all()).results;
@@ -178,6 +180,20 @@ export async function fetchRequest(request,env,ctx){
     if(error instanceof SyntaxError||['criteria','unknown_criterion','registration','search','mode','content_type','body_oversize','age','ageAsOf','kpssScore','kpssType','kpssYear','version','cities','categories','occupations','institutions','education','keyword','keywordScope','onlyKpss','last30'].includes(error.message))return json({error:'invalid_request'},400);
     console.error('api_failure',error.name);return json({error:'service_unavailable'},503);
   }
+}
+// Public health scans every active payload; an isolate memo bounds that D1 scan to once per 5 minutes per isolate.
+let extractionMemo={db:null,at:0,value:null};
+async function extractionSummary(db){
+  if(extractionMemo.db===db&&Date.now()-extractionMemo.at<300000)return extractionMemo.value;
+  const value=await db.prepare(`SELECT COUNT(*) total,
+    COUNT(CASE WHEN json_extract(payload,'$.extraction.status')='complete' THEN 1 END) complete,
+    COUNT(CASE WHEN json_extract(payload,'$.extraction.status')='partial' THEN 1 END) partial,
+    COUNT(CASE WHEN json_extract(payload,'$.extraction.method') IN ('ai','hybrid') THEN 1 END) ai,
+    COUNT(CASE WHEN COALESCE(trim(json_extract(payload,'$.text')),'')='' AND NOT EXISTS
+      (SELECT 1 FROM json_each(payload,'$.positions') WHERE COALESCE(trim(json_extract(value,'$.text')),'')!='') THEN 1 END) noText
+    FROM listings WHERE active=1`).first();
+  extractionMemo={db,at:Date.now(),value};
+  return value;
 }
 function conditional(request,body,etag){const headers={'ETag':etag,'Cache-Control':'public, max-age=60, s-maxage=60'};return request.headers.get('if-none-match')===etag?new Response(null,{status:304,headers}):json(body,200,headers);}
 export async function cachedFetch(request,env,ctx){

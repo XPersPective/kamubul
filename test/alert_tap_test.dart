@@ -8,7 +8,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/data/remote_sync.dart';
 import 'package:kamubul/home_page.dart';
-import 'package:kamubul/listings/kariyer_detail_page.dart';
 import 'package:kamubul/listings/official_listing_page.dart';
 import 'package:kamubul/notifications/alert_service.dart';
 import 'package:kamubul/notifications/notification_center_page.dart';
@@ -275,7 +274,6 @@ void main() {
         await tester.tap(find.text('CANONICAL CARD'));
         await tester.pumpAndSettle();
         expect(find.byType(OfficialListingPage), findsOneWidget);
-        expect(find.byType(KariyerDetailPage), findsNothing);
         expect(find.text('Yapay zekâ özeti'), findsOneWidget);
         expect(
           find.textContaining('artık yayında değil'),
@@ -570,7 +568,6 @@ void main() {
     alertTapUrl.value = 'https://kariyerkapisi.gov.tr/ilan/1';
     await settleUntil(tester, find.byType(OfficialListingPage));
     expect(find.byType(OfficialListingPage), findsOneWidget);
-    expect(find.byType(KariyerDetailPage), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -592,7 +589,6 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 50));
     }
-    expect(find.byType(KariyerDetailPage), findsNothing);
     expect(find.byType(OfficialListingPage), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -634,7 +630,6 @@ void main() {
       );
       await settleUntil(tester, find.byType(OfficialListingPage));
       expect(find.byType(OfficialListingPage), findsOneWidget);
-      expect(find.byType(KariyerDetailPage), findsNothing);
       expect(find.text('SUNUCU İLANI'), findsOneWidget);
       expect(find.textContaining('artık yayında değil'), findsOneWidget);
       await tester.scrollUntilVisible(
@@ -738,7 +733,6 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect(find.byType(KariyerDetailPage), findsNothing);
         expect(tester.takeException(), isNull);
       },
     );
