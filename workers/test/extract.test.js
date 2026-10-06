@@ -328,3 +328,23 @@ test('position labels map to canonical occupations; department names are not job
   assert.equal(matchListing(listing, { version: 2, occupations: ['Zabıta Memuru'] }), 'match');
   assert.equal(matchListing(listing, { version: 2, occupations: ['Hemşire'] }), 'no_match');
 });
+
+test('labelled-review fixes: scoring prose, stated dates beside relative rules, paired and scoped age limits', async () => {
+  const { mechanicalNotice } = await import('../src/notice_extraction.js');
+  // TKGM: a scoring sentence that mentions "yüksek lisans mezunu" is not the education requirement.
+  const scoring = mechanicalNotice({ title: 'Bilişim Personeli Alım İlanı' }, 'Bilgisayar mühendisliği lisans programından mezun olmak.\nSıralama; programlama dili sayısı, yüksek lisans mezunu olunması ve dil puanı dikkate alınmak suretiyle değerlendirmeye tabi tutulacaktır.');
+  assert.deepEqual(scoring.groups[0].education, ['Lisans']);
+  // Tarsus: "en az 15 gün" counted from 21.09 gives 05.10; the stated 06.10 is the same rule counted inclusively.
+  const tarsus = 'Başvuru süresi, ilanın Resmî Gazete’de yayımlandığı tarih itibariyle en az 15 (on beş) gündür.\nSon Başvuru Tarihi : 06.10.2026 (Mesai Bitimi)';
+  assert.equal(mechanicalNotice({ title: 'Öğretim Üyesi Alım İlanı', publishedAt: '2026-09-21T00:00:01.000Z' }, tarsus).fields.deadline?.value, '2026-10-06T20:59:59.999Z');
+  assert.equal(mechanicalNotice({ title: 'Öğretim Üyesi Alım İlanı' }, tarsus).fields.deadline?.value, '2026-10-06T20:59:59.999Z', 'an uncomputable relative rule cannot contradict the stated date');
+  // TTK: one clause with a lower and an upper bound.
+  const ttk = mechanicalNotice({ title: 'İşçi Alım İlanı' }, '-Başvuru tarihinin son günü itibariyle 18 yaşını tamamlamış, başvuru tarihinin ilk günü itibariyle 32 yaşından gün almamış olmak,');
+  assert.equal(ttk.groups[0].minAge, 18); assert.equal(ttk.groups[0].maxAge, 31);
+  // Şile: an age rule naming the zabıta posts binds only them.
+  const sile = mechanicalNotice({ title: 'Memur Alım İlanı' }, ['Sıra No | Kadro Ünvanı | Sınıfı | Kadro Derecesi | Adedi | Niteliği',
+    '1 | Zabıta Memuru | GİH | 9 | 2 | Herhangi bir lisans programından mezun olmak.',
+    '2 | Tekniker | TH | 10 | 4 | Harita önlisans programından mezun olmak.',
+    'c) Zabıta memuru kadrolarına başvuracaklar için sınavın yapıldığı tarihte 30 yaşını doldurmamış olmak,'].join('\n'));
+  assert.deepEqual(sile.groups.map(g => [g.label, g.maxAge ?? null]), [['Zabıta Memuru', 29], ['Tekniker', null]]);
+});

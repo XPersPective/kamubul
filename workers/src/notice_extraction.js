@@ -1,7 +1,7 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
 import {handleExtract,validateGroups,missingTopics,mentions,vacancyTotals,applicationDeadline,MIN_TEXT,MAX_TEXT} from './extract.js';
 import {fold,occupationsOf} from './criteria.js';
-export const NOTICE_VERSION='notice-15';
+export const NOTICE_VERSION='notice-16';
 const countHeader=value=>/^(?:ad|adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|ogrgor|ogrgordersverecek|arsgor)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
 const datePattern=/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2})\b/g;
@@ -9,12 +9,19 @@ function civilDate(day,month,year){const d=`${year}-${String(month).padStart(2,'
 function conditions(text){
   const raw={},clauses=text.split(/\n|\||•|(?<=[.;])\s+/);
   // ponytail: explicit requirement clauses only; ambiguous/scoped prose goes to Qwen, never inferred from document checklists.
-  const educationClauses=clauses.filter(s=>/mezunu|mezun (?:olmak|olmus)|derecesine sahip|doktorasini|doktora yapm|lisans.*yapmis|docentlik.*(?:unvan|almi)/.test(fold(s)));
+  // "yüksek lisans mezunu olunması ... değerlendirmeye tabi tutulacaktır", "tercih sebebidir": scoring, not a requirement.
+  const educationClauses=clauses.filter(s=>/mezunu|mezun (?:olmak|olmus)|derecesine sahip|doktorasini|doktora yapm|lisans.*yapmis|docentlik.*(?:unvan|almi)/.test(fold(s))&&!/degerlendirmeye tabi|dikkate alin|tercih (?:sebebi|nedeni|edil)|ek puan/.test(fold(s)));
   if(educationClauses.length){const clause=educationClauses[0],quote=text.slice(text.indexOf(clause),text.lastIndexOf(educationClauses.at(-1))+educationClauses.at(-1).length),at=clause.search(/lisans|doktora|lise|ortaöğretim|fakülte|ilkokul|ortaokul|ilköğretim/i);raw.education=['İlkokul','Ortaokul','Lise','Ön lisans','Lisans','Yüksek lisans','Doktora'];raw.educationQuote=quote.length<=400?quote:clause.slice(Math.max(0,at-30),Math.max(0,at-30)+400);}
   const k=text.match(/KPSS puanı olmayan[^.\n]{0,300}?dikkate alınır/i)?.[0]??text.match(/KPSS[^.\n|]{0,250}?sınava girmiş olmak/i)?.[0]??clauses.find(s=>/kpss/i.test(s)&&/puan|aranm|istenm|sınav/.test(s));
   if(k&&k.length<=400){raw.kpssQuote=k;raw.kpssStatus=/aranm|istenm|muaf|şartı yok|puanı olmayan/.test(k)?'not_required':'required';raw.kpssType=k.match(/\bP\s?(\d{1,3})\b/i)?.[0].replace(/\s/g,'').toUpperCase();const score=k.match(/(?:en az|asgari)\s+(\d{1,3}(?:[.,]\d+)?)\s*puan/i)??k.match(/\b(\d{1,3}(?:[.,]\d+)?)\s*(?:\([^)]*\)\s*)?ve üzeri puan/i);if(score)raw.kpssScore=Number(score[1].replace(',','.'));}
   const a=clauses.find(s=>/yas/.test(fold(s))&&/doldur|tamamla|bitirmem|gun alm|buyuk|kucuk|asmam/.test(fold(s)));
-  if(a&&a.length<=400){const nums=Array.from({length:55},(_,i)=>i+16).filter(n=>mentions(a,n));if(nums.length===1){if(/doldurmam|bitirmem|gun almam|asmam|buyuk olmam/.test(fold(a)))raw.maxAge=nums[0];else if(/doldurmus|tamamlamis|kucuk olmam/.test(fold(a)))raw.minAge=nums[0];}raw.ageQuote=a;}
+  if(a&&a.length<=400){const nums=Array.from({length:55},(_,i)=>i+16).filter(n=>mentions(a,n));if(nums.length===1){if(/doldurmam|bitirmem|gun almam|asmam|buyuk olmam/.test(fold(a)))raw.maxAge=nums[0];else if(/doldurmus|tamamlamis|kucuk olmam/.test(fold(a)))raw.minAge=nums[0];}
+    else if(nums.length===2){
+      // "18 yaşını tamamlamış, ... 32 yaşından gün almamış olmak": a lower and an upper bound in one clause.
+      const bound=n=>fold(a).match(new RegExp(`\\b${n}\\b[^\\d]{0,40}?yas\\w*\\s+(doldurmamis|gun almamis|bitirmemis|doldurmus|tamamlamis)`))?.[1]??'';
+      if(/doldurmus|tamamlamis/.test(bound(nums[0]))&&/doldurmamis|gun almamis|bitirmemis/.test(bound(nums[1]))){raw.minAge=nums[0];raw.maxAge=nums[1];}
+    }
+    raw.ageQuote=a;}
   return validateGroups({groups:[raw]},text)[0]??{};
 }
 // "Resmî Gazete'de yayımından itibaren 15 gün": the publication day counts as day one unless
@@ -167,7 +174,11 @@ export function mechanicalNotice(notice,text){
   const estimates=relativeDeadlines(lines,notice,text),relative=estimates.map(e=>e.quote);
   const estimate=estimates.length&&estimates.every(e=>e.value&&e.value===estimates[0].value)?estimates[0]:null;
   // A native "Son Başvuru Tarihi" outranks a relative rule; a differing explicit date in the text stays a scoped calendar.
-  const relativeConflict=estimates.length>0&&fields.deadline?.origin!=='source'&&(!estimate||deadlineDays.size>0&&!deadlineDays.has(estimate.value.slice(0,10)));
+  // "en az 15 gündür" without a Gazette date cannot contradict the one stated "Son Başvuru Tarihi : 06.10.2026".
+  const uncheckable=deadlineDays.size===1&&estimates.every(e=>!e.value)&&deadlines.some(d=>/son\s*basvuru|basvuru bitis/.test(fold(d.quote)));
+  // One day apart is the inclusive/exclusive counting of the same rule (21.09 + 15 days → 05.10 or 06.10): the stated date wins.
+  const agrees=estimate&&[...deadlineDays].every(d=>Math.abs(Date.parse(d)-Date.parse(estimate.value.slice(0,10)))<=86400000);
+  const relativeConflict=estimates.length>0&&fields.deadline?.origin!=='source'&&(!estimate&&!uncheckable||estimate&&deadlineDays.size>0&&!agrees);
   const multipleDeadlines=relativeConflict||deadlineDays.size>1||deadlineTimes.size>1;
   if(estimate&&!multipleDeadlines&&!fields.deadline)fields.deadlineEstimate={value:estimate.value,quote:estimate.quote,origin:'computed',base:estimate.base,days:estimate.days};
   // A relative civil-day rule does not establish an inclusive/exclusive counting convention.
@@ -180,6 +191,17 @@ export function mechanicalNotice(notice,text){
     const existing={education:group.education?.length||group.educationDescription,kpss:group.kpssStatus,age:group.ageStatus};
     for(const [key,value] of Object.entries(general)){const topic=key.startsWith('education')?'education':key.startsWith('kpss')?'kpss':'age';if(key!=='quotes'&&!existing[topic])group[key]=value;}
     group.quotes={...Object.fromEntries(Object.entries(general.quotes??{}).filter(([key])=>!existing[key])),...group.quotes};
+  }
+  // An age rule outside the general conditions ("Zabıta memuru kadrolarına başvuracaklar için ... 30 yaşını doldurmamış",
+  // "Araştırma görevlisi kadrosuna ... 35 yaşını") binds the positions whose canonical occupation it names, or the only
+  // position; with several positions and no name its scope stays unknown.
+  const sharedText=shared.join('\n');
+  for(const line of lines){
+    if(line.includes('|')||!/yas/.test(fold(line))||sharedText.includes(line))continue;
+    const rule=conditions(line);if(rule.maxAge==null&&rule.minAge==null)continue;
+    const named=occupationsOf(line,true).length?occupationsOf(line,true):occupationsOf(line);
+    const targets=named.length?groups.filter(g=>occupationsOf(g.label??'').some(o=>named.includes(o))):groups.length===1?groups:[];
+    for(const group of targets)if(group.ageStatus!=='known'){for(const key of ['minAge','maxAge','ageStatus','ageCalculation'])if(rule[key]!=null)group[key]=rule[key];group.quotes={...group.quotes,age:rule.quotes.age};}
   }
   for(const field of Object.values(fields))field.origin??='mechanical';
   for(const group of groups)group.fieldOrigins=Object.fromEntries(Object.keys(group.quotes??{}).map(key=>[key,'mechanical']));

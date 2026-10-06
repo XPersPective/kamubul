@@ -1,0 +1,518 @@
+{
+ "set": "ilan.gov.tr blind labels, 2026-10-07",
+ "sample": "50 notices with stored text from the live catalogue (6 Oct 21:40 UTC), sorted by id and shuffled with Python random.Random(20261007); labels read from the source text only, never from extractor output",
+ "rules": "Blind labels from source text only (label_view.py, seed 20261007). quota: stated total or sum of position-row counts, null for exams/registers/corrections or when no count is stated. deadline: explicit final application date (YYYY-MM-DD), null when relative or absent. academic: Prof/Doç/Dr.Öğr.Üyesi/Öğr.Gör./Arş.Gör. notices; edu and kpss are labelled only for non-academic notices (null = not labelled). maxAge: completed-age limits stated as requirements ('35 yaşını doldurmamış' -> 34), union over positions. kpss: required KPSS score types, union.",
+ "labels": {
+  "ilangov:2232103": {
+   "quota": 2,
+   "deadline": "2026-11-06",
+   "academic": false,
+   "edu": [
+    "Lisans"
+   ],
+   "maxAge": [],
+   "kpss": [
+    "P3"
+   ]
+  },
+  "ilangov:2243169": {
+   "quota": 3,
+   "deadline": "2026-10-16",
+   "academic": true,
+   "edu": null,
+   "maxAge": [
+    34
+   ],
+   "kpss": null,
+   "note": "explicit 'Başvuru Bitiş Tarihi : 16.10.2026' beside the relative rule (first pass missed the line)"
+  },
+  "ilangov:2236908": {
+   "quota": 2,
+   "deadline": "2026-10-12",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2238204": {
+   "skip": "private advertiser, excluded from the catalogue by policy (dc3f816)"
+  },
+  "ilangov:2242968": {
+   "quota": 1,
+   "deadline": "2026-10-16",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2235016": {
+   "quota": 25,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "deadline relative: 15 days from Resmî Gazete"
+  },
+  "ilangov:2242997": {
+   "quota": 1,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "deadline relative"
+  },
+  "ilangov:2238535": {
+   "quota": 1,
+   "deadline": "2026-10-13",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2236965": {
+   "quota": 22,
+   "deadline": "2026-10-12",
+   "academic": true,
+   "edu": null,
+   "maxAge": [
+    34
+   ],
+   "kpss": null,
+   "note": "explicit 'Son Başvuru Tarihi : 12.10.2026' beside the relative rule (first pass missed the line)"
+  },
+  "ilangov:2235010": {
+   "quota": 71,
+   "deadline": "2026-10-09",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2242967": {
+   "quota": 9,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "deadline relative: 15 days from ilan"
+  },
+  "ilangov:2232010": {
+   "quota": 1,
+   "deadline": "2026-11-04",
+   "academic": false,
+   "edu": [
+    "Lisans"
+   ],
+   "maxAge": [],
+   "kpss": [
+    "P3"
+   ]
+  },
+  "ilangov:2228953": {
+   "quota": 11,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "deadline relative"
+  },
+  "ilangov:2230475": {
+   "quota": null,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "cancellation notice"
+  },
+  "ilangov:2240064": {
+   "quota": 105,
+   "deadline": "2026-11-04",
+   "academic": false,
+   "edu": [],
+   "maxAge": [],
+   "kpss": [],
+   "note": "undergraduate students (3rd/4th year), no graduation level"
+  },
+  "ilangov:2246147": {
+   "quota": null,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "cancellation and correction of earlier rows"
+  },
+  "ilangov:2246314": {
+   "quota": null,
+   "deadline": null,
+   "academic": false,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "cancellation notice"
+  },
+  "ilangov:2244739": {
+   "quota": 5,
+   "deadline": "2026-10-11",
+   "academic": false,
+   "edu": [
+    "Lisans"
+   ],
+   "maxAge": [],
+   "kpss": null,
+   "note": "KPSS P3 is scored but optional (missing counts as 70): not labelled"
+  },
+  "ilangov:2246165": {
+   "quota": null,
+   "deadline": "2026-11-04",
+   "academic": false,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "correction restating the application window"
+  },
+  "ilangov:2240029": {
+   "quota": 26,
+   "deadline": "2026-10-14",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2240028": {
+   "quota": null,
+   "deadline": null,
+   "academic": false,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "cancellation notice"
+  },
+  "ilangov:2240448": {
+   "quota": null,
+   "deadline": "2026-10-31",
+   "academic": false,
+   "edu": [
+    "İlkokul"
+   ],
+   "maxAge": [],
+   "kpss": [],
+   "note": "interpreter expert register, not employment"
+  },
+  "ilangov:2220817": {
+   "quota": 14,
+   "deadline": "2026-10-26",
+   "academic": false,
+   "edu": [
+    "Lisans"
+   ],
+   "maxAge": [
+    34
+   ],
+   "kpss": [
+    "P3",
+    "P4",
+    "P14",
+    "P15",
+    "P16",
+    "P19",
+    "P20",
+    "P21",
+    "P24",
+    "P25",
+    "P26",
+    "P39",
+    "P40",
+    "P41",
+    "P44",
+    "P45",
+    "P46"
+   ]
+  },
+  "ilangov:2235092": {
+   "quota": 52,
+   "deadline": "2026-10-09",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2246305": {
+   "quota": 4,
+   "deadline": "2026-10-23",
+   "academic": false,
+   "edu": [
+    "Lisans"
+   ],
+   "maxAge": [],
+   "kpss": null,
+   "note": "KPSS P3 scored but optional (missing counts as 70): not labelled"
+  },
+  "ilangov:2244748": {
+   "quota": 15,
+   "deadline": "2026-10-19",
+   "academic": true,
+   "edu": null,
+   "maxAge": [
+    34
+   ],
+   "kpss": null
+  },
+  "ilangov:2243042": {
+   "quota": 1,
+   "deadline": "2026-11-04",
+   "academic": false,
+   "edu": [
+    "Lise"
+   ],
+   "maxAge": [],
+   "kpss": [
+    "P94"
+   ]
+  },
+  "ilangov:2237154": {
+   "quota": 5,
+   "deadline": "2026-10-10",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2233503": {
+   "quota": 2,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "no stated application date"
+  },
+  "ilangov:2243000": {
+   "quota": 9,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "deadline relative"
+  },
+  "ilangov:2237196": {
+   "quota": null,
+   "deadline": null,
+   "academic": false,
+   "edu": [
+    "İlkokul"
+   ],
+   "maxAge": [],
+   "kpss": [],
+   "note": "interpreter expert register; source states both 31 Ekim and 02 Kasım as the end"
+  },
+  "ilangov:2243178": {
+   "quota": 4,
+   "deadline": "2026-10-16",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2238619": {
+   "quota": 40,
+   "deadline": "2026-10-13",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "implicit count: one post per row, no count column"
+  },
+  "ilangov:2227279": {
+   "quota": 15,
+   "deadline": "2026-10-20",
+   "academic": false,
+   "edu": [
+    "Lisans"
+   ],
+   "maxAge": [
+    34
+   ],
+   "kpss": [],
+   "note": "KPSS explicitly not required"
+  },
+  "ilangov:2236970": {
+   "quota": 2,
+   "deadline": "2026-10-12",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2240087": {
+   "quota": null,
+   "deadline": null,
+   "academic": false,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "cancellation notice"
+  },
+  "ilangov:2176787": {
+   "quota": null,
+   "deadline": null,
+   "academic": false,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "professional exam, two scoped application windows"
+  },
+  "ilangov:2236933": {
+   "quota": 3,
+   "deadline": "2026-10-12",
+   "academic": false,
+   "edu": [
+    "Ön lisans"
+   ],
+   "maxAge": [],
+   "kpss": [
+    "P93"
+   ]
+  },
+  "ilangov:2232058": {
+   "quota": null,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "cancellation notice"
+  },
+  "ilangov:2236934": {
+   "quota": 19,
+   "deadline": "2026-10-19",
+   "academic": false,
+   "edu": [
+    "Lisans"
+   ],
+   "maxAge": [],
+   "kpss": null,
+   "note": "KPSS P3 scored but optional (missing counts as 70): not labelled"
+  },
+  "ilangov:2242996": {
+   "quota": 6,
+   "deadline": "2026-11-13",
+   "academic": false,
+   "edu": [
+    "Lisans",
+    "Ön lisans"
+   ],
+   "maxAge": [
+    29
+   ],
+   "kpss": [
+    "P3",
+    "P93"
+   ]
+  },
+  "ilangov:2228897": {
+   "quota": 1,
+   "deadline": "2026-10-27",
+   "academic": false,
+   "edu": [
+    "Ön lisans"
+   ],
+   "maxAge": [
+    29
+   ],
+   "kpss": [
+    "P93"
+   ]
+  },
+  "ilangov:2244776": {
+   "quota": 27,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "deadline relative"
+  },
+  "ilangov:2236986": {
+   "quota": 18,
+   "deadline": "2026-10-12",
+   "academic": false,
+   "edu": [
+    "Ön lisans",
+    "Lisans",
+    "Lise"
+   ],
+   "maxAge": [
+    34
+   ],
+   "kpss": [
+    "P3",
+    "P93",
+    "P94"
+   ]
+  },
+  "ilangov:2239996": {
+   "quota": 57,
+   "deadline": "2026-10-09",
+   "academic": false,
+   "edu": [
+    "Lise"
+   ],
+   "maxAge": [
+    31
+   ],
+   "kpss": [],
+   "note": "worker hiring through İŞKUR; '32 yaşından gün almamış'"
+  },
+  "ilangov:2229096": {
+   "quota": 9,
+   "deadline": "2026-10-06",
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null
+  },
+  "ilangov:2237111": {
+   "quota": 4,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "deadline relative"
+  },
+  "ilangov:2244784": {
+   "quota": 29,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "deadline relative"
+  },
+  "ilangov:2228942": {
+   "quota": 13,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "deadline relative"
+  },
+  "ilangov:2244914": {
+   "quota": null,
+   "deadline": null,
+   "academic": true,
+   "edu": null,
+   "maxAge": [],
+   "kpss": null,
+   "note": "cancellation notice"
+  }
+ }
+}
