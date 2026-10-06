@@ -48,21 +48,18 @@ extension _HomeSearches on _KamuHomePageState {
             await _loadLocal();
           },
           itemBuilder: (menuContext) => [
-            PopupMenuItem(
-              value: 'instant',
-              enabled: !search.hasInvalidCriteria,
-              child: const Text('Anlık bildirim'),
-            ),
-            PopupMenuItem(
-              value: 'digest',
-              enabled: !search.hasInvalidCriteria,
-              child: const Text('Günlük özet'),
-            ),
-            PopupMenuItem(
-              value: 'off',
-              enabled: !search.hasInvalidCriteria,
-              child: const Text('Bildirim kapalı'),
-            ),
+            // Geçerli bildirim biçimi işaretli görünür.
+            for (final (value, mode, label) in const [
+              ('instant', SearchAlertMode.instant, 'Anlık bildirim'),
+              ('digest', SearchAlertMode.digest, 'Günlük özet'),
+              ('off', SearchAlertMode.off, 'Bildirim kapalı'),
+            ])
+              CheckedPopupMenuItem(
+                value: value,
+                enabled: !search.hasInvalidCriteria,
+                checked: alertModeOf(search.filters) == mode,
+                child: Text(label),
+              ),
             const PopupMenuDivider(),
             const PopupMenuItem(value: 'edit', child: Text('Düzenle')),
             PopupMenuItem(
@@ -635,13 +632,18 @@ extension _HomeSearches on _KamuHomePageState {
     if (criteria['last30'] == true) parts.add('son 30 gün');
     final yas = criteria['age'];
     if (yas != null) {
-      parts.add('yaş $yas (${criteria['ageAsOf']})');
+      final asOf = DateTime.tryParse('${criteria['ageAsOf']}');
+      parts.add(
+        asOf == null ? 'yaş $yas' : 'yaş $yas (${_date(asOf)} itibarıyla)',
+      );
     }
     final kpss = criteria['kpssType'] as String?;
     if (kpss != null && kpss.isNotEmpty) parts.add('KPSS $kpss');
     final score = criteria['kpssScore'];
     final year = criteria['kpssYear'];
-    if (score != null) parts.add('$score puan');
+    if (score is num) {
+      parts.add('${score % 1 == 0 ? score.toInt() : score} puan');
+    }
     if (year != null) parts.add('$year sınavı');
     return parts.isEmpty ? 'Süzgeç yok' : parts.join(' • ');
   }

@@ -1294,7 +1294,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                 padding: const EdgeInsets.only(right: 8),
                 child: InputChip(
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  label: Text('Yaş uyarı: $_ageFilter'),
+                  label: Text('Yaş: $_ageFilter'),
                   onDeleted: () => setState(() {
                     _ageFilter = null;
                     _ageAsOf = null;
