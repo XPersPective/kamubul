@@ -215,3 +215,14 @@ test('Kariyer twins are not parsed again: their conditions come from the ilan.go
   const after=f.sql.prepare("SELECT revision,payload,conditions_checked c FROM listings WHERE id='kariyerkapisi:k'").get();
   assert.equal(after.revision,before.revision);assert.equal(after.payload,before.payload);assert.equal(after.c,null);
 });
+
+test('ilan.gov.tr dernek/özel işveren ilanları kamu kataloğuna girmez; önceden kaydedilen kaldırılır',async t=>{
+  const f=setup(t);
+  const ad=(id,advertiserName)=>({id,title:'Personel alım ilanı '+id,urlStr:`/ilan/${id}/x`,advertiserName,publishStartDate:'2026-10-01'});
+  f.sql.exec(`INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('ilangov:22','ilangov','22','h','2026-10-01','2026-10-01','2999-01-01','{"id":"ilangov:22"}')`);
+  globalThis.fetch=async url=>String(url).includes('AdsByFilter')
+    ?Response.json({result:{numFound:4,ads:[ad(21,'TEST BELEDİYE BAŞKANLIĞI'),ad(22,'POSOF İLİM VE KÜLTÜR DERNEĞİ'),ad(23,'ÖZEL FATİH ORTAOKUL ERKEK ÖĞRENCİ YURDU'),ad(24,'BORU HATLARI İLE PETROL TAŞIMA A.Ş.')]}})
+    :Response.json({result:{content:'<p>Resmî kamu personeli ilan metni</p>'}});
+  await readSource({...f.env,SOURCE_DETAILS_PER_TICK:'3'});
+  assert.deepEqual(f.sql.prepare('SELECT id,active FROM listings ORDER BY id').all().map(r=>[r.id,r.active]),[['ilangov:21',1],['ilangov:22',0],['ilangov:24',1]]);
+});

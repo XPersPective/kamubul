@@ -35,6 +35,9 @@ const uuid=/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 const iso=value=>{if(typeof value!=='string')return null;const d=new Date(value);return Number.isFinite(+d)?d.toISOString():null;};
 const ilanGovApi='https://www.ilan.gov.tr/api/api/services/app';
 const ilanGovHeaders={'Accept':'text/plain','Content-Type':'application/json-patch+json','X-Requested-With':'XMLHttpRequest','X-Request-Origin':'IGT-UI'};
+// ilan.gov.tr also files associations and private schools/dormitories as personnel ads; KamuBul lists public employers.
+// ponytail: only names that are unambiguously private; A.Ş. (BOTAŞ, PTT) and vakıf (SYDV) advertisers are public.
+export const privateEmployer = name => /\bdernegi\b|\bdernek\b|^ozel\s/.test(fold(name));
 export function parseIlanGovList(raw) {
   if(!Array.isArray(raw?.result?.ads)||!Number.isSafeInteger(raw.result.numFound)||raw.result.numFound<0)throw new SourceError('layout_changed');
   const items=raw.result.ads.map(ad=>{

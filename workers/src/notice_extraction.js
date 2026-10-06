@@ -110,7 +110,9 @@ export function mechanicalNotice(notice,text){
     }
     if(/^toplam\b/.test(fold(cells[0])))continue;
     const deadlineColumn=headers.findIndex(h=>/^(?:son basvuru tarihi|basvuru bitis tarihi)/.test(fold(h)));
-    if(cells.length===headers.length&&deadlineColumn>=0){const dates=[...cells[deadlineColumn].matchAll(datePattern)];if(dates.length===1){const m=dates[0],value=civilDate(m[1],m[2],m[3]);if(value)columnDeadlines.push({value,quote:cells[deadlineColumn]});}}
+    if(cells.length===headers.length&&deadlineColumn>=0){const dates=[...cells[deadlineColumn].matchAll(datePattern)];if(dates.length===1){const m=dates[0],value=civilDate(m[1],m[2],m[3]);if(value)columnDeadlines.push({value,quote:cells[deadlineColumn]});}else if(!dates.length){
+      // "13 Ekim 2026" under Son Başvuru Tarihi: the shared deadline parser reads Turkish month names.
+      const value=applicationDeadline('Son başvuru tarihi '+cells[deadlineColumn]);if(value)columnDeadlines.push({value,quote:cells[deadlineColumn]});}}
     if(matrix.length){
       if(cells.length!==headers.length){if(cells.some(s=>/^\d/.test(s)))tableAmbiguous=true;continue;}
       if(matrix.some(i=>cells[i]&&!/^(?:-|\d+(?:\s*\(\*\))?)$/.test(cells[i]))){tableAmbiguous=true;continue;}

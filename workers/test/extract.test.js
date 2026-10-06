@@ -297,3 +297,10 @@ test('a correction notice lists changed rows but states no new vacancy total', a
   assert.equal(result.groups.length, 2, 'the changed rows stay readable');
   assert.ok(!assessNotice(result, text).includes('quota'), 'no model call is spent on a correction total');
 });
+
+test('a Son Başvuru Tarihi column may spell the month out', async () => {
+  const { mechanicalNotice } = await import('../src/notice_extraction.js');
+  const text = ['Fakülte | Bölüm- Ana Bilim Dalı | Ünvan | Kadro | Özel Koşullar | Son Başvuru Tarihi', '',
+    'İnsanî Bilimler ve Edebiyat Fakültesi | Sosyoloji | Doktor Öğretim Üyesi | 1 | Antropoloji alanında doktora sahibi olmak. | 13 Ekim 2026'].join('\n');
+  assert.equal(mechanicalNotice({ title: 'Koç Üniversitesi Öğretim Üyesi Alım İlanı' }, text).fields.deadline?.value, '2026-10-13T20:59:59.999Z');
+});

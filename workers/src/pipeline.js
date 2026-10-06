@@ -1,4 +1,4 @@
-import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,fetchIlanGovPage,fetchIlanGovDetail,fetchIskurList,fetchIskurDetail,sourceBytes,plain,SourceError} from './sources.js';
+import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,fetchIlanGovPage,fetchIlanGovDetail,fetchIskurList,fetchIskurDetail,sourceBytes,plain,SourceError,privateEmployer} from './sources.js';
 import {matchListing,listingAnchorKeys,fold} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
@@ -85,12 +85,13 @@ export async function readSource(env){
       }else offset=0;
       refreshed=true;
     }
+    const excluded=item=>source.id==='ilangov'&&privateEmployer(item.institution);
     const firstSnapshot=!source.baseline_at;
     if(firstSnapshot){source.baseline_at=now;batch=batch.map(base=>({...base,notificationEligible:false}));}
     if(refreshed||firstSnapshot){
       // Publish every native identity before detail/AI; no model quota hides an ad.
       // Existing successful text/conditions are never overwritten by index fields.
-      const index=batch.map(({requirementGroups,summary,...item})=>({...item,notificationEligible:item.notificationEligible??(Date.parse(item.publishedAt)>Date.parse(source.baseline_at)&&Date.parse(item.publishedAt)<=Date.parse(now)),detailState:'pending',firstSeenAt:now,updatedAt:now}));
+      const index=batch.filter(item=>!excluded(item)).map(({requirementGroups,summary,...item})=>({...item,notificationEligible:item.notificationEligible??(Date.parse(item.publishedAt)>Date.parse(source.baseline_at)&&Date.parse(item.publishedAt)<=Date.parse(now)),detailState:'pending',firstSeenAt:now,updatedAt:now}));
       await env.DB.batch([
         env.DB.prepare('UPDATE sources SET pending_batch=?,batch_offset=?,last_attempt=?,baseline_at=COALESCE(baseline_at,?) WHERE id=?').bind(JSON.stringify(batch),offset,now,source.baseline_at,source.id),
         env.DB.prepare(`INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,deadline,payload)
@@ -103,6 +104,8 @@ export async function readSource(env){
     const perTick=Math.min(3,Math.max(1,Number(env.SOURCE_DETAILS_PER_TICK)||1)),end=Math.min(batch.length,offset+10);let fetched=0;
     for(;offset<end&&fetched<perTick;offset++) {
       const base=batch[offset];
+      // A private advertiser stored before this rule leaves the catalogue once (tombstone).
+      if(excluded(base)){await env.DB.prepare('UPDATE listings SET active=0,revision=revision+1,updated_at=? WHERE id=? AND active=1').bind(now,base.id).run();continue;}
       if(base.deadline&&new Date(base.deadline)<new Date())continue;
       const old=await env.DB.prepare('SELECT content_hash,recheck_at,payload,first_seen FROM listings WHERE id=?').bind(base.id).first();
       if(old&&old.recheck_at>now)continue;
