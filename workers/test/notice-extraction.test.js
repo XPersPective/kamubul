@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
 import {mechanicalNotice,assessNotice,extractNotice} from '../src/notice_extraction.js';
 import {parseIlanGovDetail} from '../src/sources.js';
-import {validateNoticeFields} from '../src/extract.js';
+import {validateNoticeFields,applicationDeadline} from '../src/extract.js';
 import {validateGroups} from '../src/extract.js';
 const corpus=JSON.parse(readFileSync(new URL('./fixtures/ilangov-details.json',import.meta.url))).notices;
 const quotas={'2242968':1,'2244776':27,'2244748':15,'2244739':5,'2236938':7,'2234989':5};
@@ -61,6 +61,30 @@ test('AI metadata requires source evidence and valid application date',()=>{
   assert.deepEqual(validateNoticeFields({quota:{value:99,quote:'Toplam 5 personel alınacaktır.'},deadline:{value:'2026-10-22',quote:'Giriş Sınavı Tarihi: 22.10.2026'}},'Toplam 5 personel alınacaktır. Giriş Sınavı Tarihi: 22.10.2026'),{});
   const fields=validateNoticeFields({quota:{value:5,quote:'Toplam 5 personel alınacaktır.'},deadline:{value:'2026-10-11',quote:'Son başvuru tarihi: 11.10.2026'}},'Toplam 5 personel alınacaktır. Son başvuru tarihi: 11.10.2026');assert.equal(fields.quota.value,5);assert.ok(fields.deadline.value.startsWith('2026-10-11'));
 });
+test('mechanical and AI deadlines share Turkish dates, range endpoints and exact application times',()=>{
+  for(const [quote,date,iso] of [
+    ['Son Başvuru Tarihi: 14 Ekim 2026 saat 17:30','2026-10-14','2026-10-14T14:30:00.000Z'],
+    ['Başvuru Tarihleri: 12/10/2026 – 27/10/2026','2026-10-27','2026-10-27T20:59:59.999Z'],
+    ['Başvuru Tarihleri: 16 – 23 Ekim 2026','2026-10-23','2026-10-23T20:59:59.999Z'],
+    ['Son Başvuru Tarihi: 14.10.2026 Ön Değerlendirme Sonuç Açıklama Tarihi: 15.10.2026','2026-10-14','2026-10-14T20:59:59.999Z'],
+  ]){
+    assert.equal(applicationDeadline(quote),iso);assert.equal(mechanicalNotice({title:'İlan'},quote).fields.deadline.value,iso);
+    assert.equal(validateNoticeFields({deadline:{value:date,quote}},quote).deadline.value,iso);
+  }
+  for(const [quote,wrong] of [
+    ['Başvuru Tarihleri: 12/10/2026 – 27/10/2026','2026-10-12'],
+    ['Son Başvuru Tarihi: 14.10.2026 Ön Değerlendirme Sonuç Açıklama Tarihi: 15.10.2026','2026-10-15'],
+    ['Son Başvuru Tarihi: 31 Şubat 2026','2026-02-28'],
+    ['Başvuru tarihi yayım tarihinden itibaren 15 gün; 05.10.2026','2026-10-05'],
+  ])assert.equal(validateNoticeFields({deadline:{value:wrong,quote}},quote).deadline,undefined);
+  assert.equal(applicationDeadline('Son Başvuru Tarihi: 14.10.2026 veya 15.10.2026'),null);
+  assert.equal(applicationDeadline('Komisyonumuzca başvurular, 30 Kasım 2026 tarihine kadar değerlendirilecektir.'),null);
+  assert.equal(applicationDeadline('Başvurular, komisyon tarafından 30.11.2026 tarihine kadar değerlendirilerek karar verilir.'),null);
+  assert.equal(applicationDeadline('Ön başvuru ücretini, 20-23 Ekim 2026 tarihleri arasında yatıracaklardır.'),null);
+  assert.equal(applicationDeadline('Başvuru Tarihi: Başvuruları 15.10.2026 günü başlayıp 31.10.2026 günü sona erecektir.'),'2026-10-31T20:59:59.999Z');
+  assert.equal(applicationDeadline('Başvurular yayımlandığı tarihten itibaren 28.09.2026/12.10.2026 tarihleri arasında kabul edilir.'),'2026-10-12T20:59:59.999Z');
+  const scoped=mechanicalNotice({title:'Personel'},'Mühendis Son Başvuru Tarihi: 14.10.2026 saat 13:00\nTekniker Son Başvuru Tarihi: 14.10.2026 saat 17:00');assert.equal(scoped.fields.deadline.value,null);assert.equal(scoped.fields.applicationPeriods.value.length,2);
+});
 test('preferred degree is not mandatory and conjunctive degrees are not eligibility alternatives',()=>{
   const preferred='Lisans derecesine sahip olmak ve tercihen tezli yüksek lisans derecesine sahip olmak.';
   assert.deepEqual(validateGroups({groups:[{education:['Lisans','Yüksek lisans'],educationQuote:preferred}]},preferred)[0].education,['Lisans']);
@@ -102,5 +126,27 @@ test('explicit cancellation and professional certification exams never consume v
     assert.equal(res.result.extraction.kind,kind);assert.equal(res.result.fields.quota.value,null);assert.equal(res.result.fields.notificationEligible.value,false);assert.deepEqual(res.result.groups,[]);
   }
   assert.equal(mechanicalNotice({title:'Uzman Yardımcılığı Giriş Sınavı Duyurusu'},'Lisans mezunu olmak.').kind,undefined,'hiring entry exams remain vacancies');
+});
+test('vertical official position tables retain independent counts and condition scopes',()=>{
+  const text='İLAN NO | 20260201\nPOZİSYON ADI | Büro Personeli\nÖĞRENİM | Önlisans\nADEDİ | 2\nARANILAN ŞARTLAR | Yönetim ön lisans programlarından mezun olmak.\nİLAN NO | 20260202\nPOZİSYON ADI | Tekniker\nÖĞRENİM | Önlisans\nADEDİ | 1\nARANILAN ŞARTLAR | Bilgisayar Programcılığı ön lisans mezunu olmak.\nSon Başvuru Tarihi: 12.10.2026';
+  const r=mechanicalNotice({title:'Personel'},text);assert.equal(r.fields.quota.value,3);assert.equal(r.tableAmbiguous,false);assert.deepEqual(r.groups.map(g=>[g.label,g.quota]),[['Büro Personeli',2],['Tekniker',1]]);assert.ok(r.groups[0].sourceText.includes('Yönetim'));assert.ok(!r.groups[0].sourceText.includes('Bilgisayar'));assert.deepEqual(assessNotice(r,text),[]);
+  assert.equal(mechanicalNotice({title:'Personel'},text.replaceAll('\n','\n\n')).fields.quota.value,3,'official HTML introduces blank lines between keyed rows');
+  const long='Mezun olunan programın adı ve ayrıntıları, '.repeat(15)+'yönetim ön lisans programlarından mezun olmak. 2024 yılı KPSS P93 puan türünden sınava girmiş olmak, görevini yapmasına engel sağlık sorunu bulunmamak.';
+  const requirement=mechanicalNotice({title:'Personel'},text.replace('Yönetim ön lisans programlarından mezun olmak.',long)).groups[0];assert.equal(requirement.kpssStatus,'required');assert.equal(requirement.kpssType,'P93');assert.equal(requirement.kpssScore,undefined,'a participation requirement does not create a minimum score');
+  const partial=mechanicalNotice({title:'Personel'},text.replace('ADEDİ | 1','ADEDİ | belirsiz'));assert.equal(partial.fields.quota,undefined);assert.equal(partial.tableAmbiguous,true);
+  const repeated=mechanicalNotice({title:'Personel'},text.replace('ADEDİ | 1','ADEDİ | 1\nADEDİ | 2'));assert.equal(repeated.fields.quota,undefined);
+  const exam='Gruplar | Öğrenim Dalları (Lisans) | KPSS Puan Türü | KPSS Taban Puanı | Atama Yapılabilecek Boş Kadro Sayısı | Sözlü Sınava Katılabilecek Azami Aday Sayısı\n1. Grup | Hukuk fakültelerinden mezun olmak. | KPSSP-4 | 80 | 5 | 20';
+  assert.equal(mechanicalNotice({title:'Uzman Yardımcılığı'},exam).fields.quota.value,5,'vacancies are independent from invited exam candidates');
+});
+test('explicit hiring totals include professional titles but never exam attendance or old law numbers',()=>{
+  const adalet='1- Bakanlığımızca, yazılı ve sözlü sınavlar ile 150 İcra Müdür ve İcra Müdür Yardımcısı açıktan alınacaktır.';
+  assert.equal(mechanicalNotice({title:'Personel'},adalet).fields.quota.value,150);
+  const gib='Başkanlığımızca aşağıdaki tabloda belirtilen yerlere atanmak üzere, 860 (sekiz yüz altmış) Gelir Uzman Yardımcısı alınacaktır.';
+  assert.equal(mechanicalNotice({title:'Personel'},gib).fields.quota.value,860);
+  const exam='657 sayılı Kanuna göre; 800 kişi sınava çağrılacak, 40 adet Uzman Yardımcısı alınacaktır.';
+  assert.equal(mechanicalNotice({title:'Personel'},exam).fields.quota.value,40);
+  assert.equal(mechanicalNotice({title:'Personel'},'800 kişi sınava çağrılacaktır.').fields.quota,undefined);
+  for(const quote of ['En yüksek puanlı 800 kişi sınava çağrılacaktır.','Sınava katılabilecek aday kontenjanı: 800'])assert.equal(validateNoticeFields({quota:{value:800,quote}},quote).quota,undefined);
+  assert.equal(validateNoticeFields({quota:{value:860,quote:gib}},gib).quota.value,860);
 });
 

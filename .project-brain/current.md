@@ -7,7 +7,7 @@ ve eski CF-first model sırası geçersizdir. Tam üretim kabulü henüz tamamla
 
 ## Sunucu ve kaynak verisi
 Kalıcı Worker: https://kamubul-api.devx8585.workers.dev, son deployment
-1b256059-b47e-4d25-b5cf-5be90892bb74; /api/v2/health200, AI/FCM configured.
+5b5763f5-fcd1-4b62-b6aa-1fe5acc60402; /api/v2/health200, AI/FCM configured.
 D1 kamubul (371092dd-2cc7-487f-b971-84c2499bbc7d), migration0001–0029 remote.
 Queue kamubul-work, batch1/concurrency1/retry0. Cron her dakika recovery;
 source/extract/match/send generation+lease, atomik3000 UTC günlük görev sınırı.
@@ -29,10 +29,12 @@ SBB PDF reader native AI.toMarkdown:3MiB/25s fetch,45s conversion,
 120KB çıktı/20 UTC günlük rezervasyon, hash+reader cache. Gerçek SBB PDF
 conversion/kalite kanıtı henüz yok; OCR/sayfa sayısı sınırı yok.
 
-Son canlı readonly: aktif ilan.gov168/text168; Kariyer30/text0. notice-8 mekanik
-yeniden denetimi168/168 tamamlandı (45 complete/123 partial). Complete içinde
-kontenjanı uygulanmayan iptal/mesleki sınav duyuruları vardır; açık ilan sayısı
-olarak sunulmaz. Bu tüm kaynakların tam-metin veya kalite kabulü değildir.
+Son canlı readonly02:10 UTC: aktif ilan.gov165/text165; Kariyer30/text0.
+Önceki168/text168 içinden İstanbul/Tekirdağ/TÜBİTAK3 ilanı yeni kanıtlı bitiş
+zamanı geçtiği için mevcut expiry politikasıyla inactive oldu; metinleri D1'de.
+Bu kaynak veya kimlik atlama değildir. notice-12 saklı metin backfill'i sürer;
+eski notice-8 full pass45complete/123partial artık güncel kalite sayısı değildir.
+Tam bütün kaynak/kalite kabulü açık; complete non-vacancy duyurularını da içerir.
 Kariyer sayfa/RSS200 ve güncel resmi JS APIURL/body/routes okuyucuyla aynı;
 detay API'sinin geçerli ilan yanıtı henüz alınmadı. SBB/İŞKUR okuyucularının
 geçerli liste yanıtı kabulü de açık. IP/ülke nedeni çıkarılmaz, kullanıcıdan
@@ -47,7 +49,7 @@ Belirsiz satırda ara toplam yayımlanmaz. Tek payload quota/deadline/groups/
 applicationPeriods/fieldEvidence/extraction kart, ayrıntı ve offline'a gider.
 Mekanik backlog AI çağrıları başlamadan küçük partilerle boşaltılır.
 AI yalnız yeterlilik denetimindeki eksiklere, saklı tam metinle devreye girer.
-notice-8/x11, ayrı attempted/quality; kısmi JSON complete sayılmaz.
+notice-12/x11, ayrı attempted/quality; kısmi JSON complete sayılmaz.
 Başka pozisyon alıntısı terfi ettirilmez; tercihen eğitim zorunlu olmaz;
 birlikte gereken dereceler OR eğitim dizisine çevrilmez. Göreli/multiple tarih
 ham takvim olarak saklanır, tek son başvuru uydurulmaz.
@@ -111,7 +113,7 @@ Dört atlanabilir onboarding, typed kriter editörü, ışık/koyu/responsive go
 7gün reklamsız deneme, Play aylık Pro ve mevcut reklam politikası korunur.
 PRIVACY.md ve canlı privacy HTML5 Ekim sunucu/Qwen/aggregate token açıklamalı.
 
-PB-027:265 Worker/213 Flutter/208 core/30 targeted mobile PASS; analyze temiz.
+PB-027:269 Worker/213 Flutter/208 core/30 targeted mobile PASS; analyze temiz.
 Signed1.1.9+14 source3ea2e20, build C:/Users/rubicon/.codex/builds/kamubul-1.1.9;
 AAB SHA2562ef80a7bf29ea1734244d4c0acef5948b073c780b07018e5efd10db6dab2607b.
 APK v2 signature/ZIP16KB, AAB signature/12ELF/3ABI LOAD>=16KB ve kalıcı cert PASS.
@@ -123,7 +125,7 @@ Play production+internal14 update/validate/commit ve fresh API AAB hash PASS.
 UI internal1.1.9/code14 "Dahili test kullanıcıları tarafından kullanılabilir";
 production14 "İncelemede"; Google onayı/genel mağaza erişimi ayrı ve bekliyor.
 Download https://play.google.com/apps/internaltest/4701555814809167145;
-proof C:/Users/rubicon/.codex/builds/kamubul-play-1.1.9-internal.jpg.
+proof C:/Users/rubicon/.codex/builds/kamubul-play-1.1.9-current.jpg.
 Gerçek metadata-mode Qwen fallback/cache replay doğrulandı; canlı ağırlık70
 yanlış yorumu ortak doğrulamada düzeltildi. Native Malazgirt notice-5 hybrid
 partial halinde AI/hata olabilir ve eksik bilgi ibareleri görüntülendi.
@@ -157,4 +159,17 @@ gerçek stage CPU/Qwen Credits kalibrasyonu/FCM fanout lifecycle;
 Play server Pro doğrulaması, eski shared anahtarın owner rotation'ı,
 post-trial real ad/Pro restore/AdMob store linkage; Google production14 onayı.
 Deferred: iOS/APNs/sesli giriş/AI kişisel sıralama. Strateji docs/SERVER_INGESTION_STRATEGY.md;
-aktif detay PB-026, kalan geçmiş kullanıcı maddeleri PB-024/025'te kaybolmadan tutulur.
+aktif ayıklama PB-027, kaynak kapsamı PB-026, kalan geçmiş kullanıcı maddeleri PB-024/025'te kaybolmadan tutulur.
+
+PB-027 son ek: applicationDeadline ortak mekanik/AI doğrulaması; Türkçe ay,
+aralık SON tarihi ve saniye/saat İstanbul kabul edilir. Başlangıç/itiraz/sonuç/
+belge teslimi/ödeme tarihi son başvuru değildir; aynı gün farklı saatler scoped.
+Eski cache deadline/quota aynı alıntı kuralıyla inference olmadan temizlenir;
+x11 cache anahtarı korunur. Sınava çağrılacak800 aday quota800 sayılmaz.
+Düzce dikey İlanNo/PozisyonAdı/Adedi gerçek metinde3 (2+1); Özelleştirme14;
+Adalet150; GİB860 açık istihdam cümlesinden. Live backfill kabulü PB-027'de.
+Kariyer server Browser Run iki timeout, hiçbir fulltext kanıtı yok; desktop
+resmi Bitlis DOM yalnız debugging. Geçerli server source yanıtı açık.
+Brain aynı anda yalnız PB-027 IN_PROGRESS; diğer unfinished görevler PLANNED,
+PB-026 kaynak yanıtı BLOCKED. Eski phone fallback/13/provider-yok günlükleri
+Git geçmişinde; kullanıcı geri bildirimleri PB-024/025 korunur.

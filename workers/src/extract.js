@@ -77,16 +77,34 @@ function quoted(q, foldedText) {
 }
 
 const noticePrompt = `\nAyrıca ilan bilgilerini ayıkla: "quota":null veya {"value":toplam kişi sayısı,"quote":"birebir alıntı"}, "deadline":null veya {"value":"YYYY-MM-DD","quote":"son BAŞVURU tarihini belirten birebir alıntı"}. Grup sayısı kişi sayısı değildir. Bilirkişi/tercüman liste başvurusunda sayı yoksa quota null. Her groups öğesine "quota":null veya kişi sayısı ve "quotaQuote":"o satırın birebir alıntısı" ekle. Pozisyonları eğitim/yaş/KPSS yoksa bile label ve quota ile koru. Sayıları derece, sıra no, puan veya kanun numarasından türetme. Başvuru bitişini sınav/sonuç tarihinden ayır. Tüm tabloları oku; sayı yoksa tahmin etme.`;
+export const vacancyTotals=text=>[...text.matchAll(/(?:toplam\s+)?(\d{1,5})\s*(?:\([^)]*\)\s*)?(?:adet\s+)?(?:sözleşmeli\s+)?(?:personel|kişi|işçi|(?:\p{L}+\s+){0,8}(?:uzman yardımcısı|müdür yardımcısı))\s+(?:açıktan\s+)?(?:alınacak|alınacaktır|istihdam edilecek)/giu)];
+const applicationMonths=['ocak','şubat','mart','nisan','mayıs','haziran','temmuz','ağustos','eylül','ekim','kasım','aralık'];
+const applicationDates=/\b(?:(20\d{2})-(\d{2})-(\d{2})|(\d{1,2})[./-](\d{1,2})[./-](20\d{2})|(\d{1,2})\s+(ocak|şubat|mart|nisan|mayıs|haziran|temmuz|ağustos|eylül|ekim|kasım|aralık)\s+(20\d{2}))\b/g;
+export function applicationDeadline(quote) {
+  let evidence=fold(quote);
+  if(!/son\s*başvuru|başvuru.*(?:bitiş|sona erecek|tarihleri|tarihine kadar)|müracaat.*tarihine kadar/.test(evidence))return null;
+  const endpoint=evidence.search(/son\s*başvuru|başvuru bitiş/);
+  if(endpoint>=0)evidence=evidence.slice(endpoint);
+  else if(/(?:yayın|yayım).*itibaren\s+\d+\.?\s*(?:\([^)]*\)\s*)?gün/.test(evidence))return null;
+  evidence=evidence.split(/ön değerlendirme|nihai değerlendirme|sonuç açıklama|giriş sınavı|yazılı sınav|sözlü sınav/)[0];
+  const dates=[...evidence.matchAll(applicationDates)].map(m=>{const y=m[1]??m[6]??m[9],month=m[2]??m[5]??applicationMonths.indexOf(m[8])+1,day=m[3]??m[4]??m[7];return {value:`${y}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`,start:m.index,end:m.index+m[0].length};});
+  if(!dates.length||dates.some(d=>!Number.isFinite(Date.parse(d.value))||new Date(d.value).toISOString().slice(0,10)!==d.value))return null;
+  if(endpoint<0&&(/itiraz|sonuç|değerlendirme|teslim|doküman|belge|sonrasında|ücret|bedeli/.test(evidence.slice(0,dates[0].start))||/değerlendiril|değerlendirilecek|ücret|yatır/.test(evidence.slice(dates.at(-1).end).split(/[.!?]\s/)[0])))return null;
+  // ponytail: two explicit dates require a single application range; scoped calendars stay readable, never guessed.
+  if(new Set(dates.map(d=>d.value)).size>1&&(endpoint>=0||dates.length!==2||!/tarihleri|tarihinden.*tarihine kadar|başlay.*sona erece/.test(evidence)))return null;
+  const chosen=dates.at(-1),time=evidence.slice(chosen.end).match(/^[^\d]{0,60}?(?:saat\s*)?(\d{1,2})[:.](\d{2})(?::(\d{2}))?(?!\d)/);
+  if(!time)return chosen.value+'T20:59:59.999Z';
+  if(Number(time[1])>23||Number(time[2])>59||Number(time[3]??0)>59)return null;
+  const d=new Date(chosen.value);d.setUTCHours(Number(time[1])-3,Number(time[2]),Number(time[3]??0),0);return d.toISOString();
+}
 export function validateNoticeFields(raw, text) {
   const fields = {}, t = fold(text);
   const q = quoted(raw?.quota?.quote, t), n = raw?.quota?.value;
-  const counts=q?[...q.matchAll(/(?:toplam|kontenjan(?:ı)?|kadro sayısı)\s*[:|]?\s*(\d+)|(\d+)\s*(?:\([^)]*\)\s*)?(?:adet\s*)?(?:sözleşmeli\s*)?(?:personel|kişi|işçi)/gi)].map(m=>Number(m[1]??m[2])):[];
+  const counts=q?[...vacancyTotals(q).map(m=>Number(m[1])),...(!/sınava katıl|sınava çağ|aday sayısı|aday kontenjanı/.test(fold(q))?[...q.matchAll(/(?:toplam|kontenjan(?:ı)?|kadro sayısı)\s*[:|]?\s*(\d+)/gi)].map(m=>Number(m[1])):[])]:[];
   if (q && Number.isSafeInteger(n) && n > 0 && n <= 100000 && counts.includes(n)) fields.quota = {value:n,quote:q};
   const d = raw?.deadline?.value, dq = quoted(raw?.deadline?.quote,t);
-  if (dq && typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Date.parse(d)) && new Date(d).toISOString().slice(0,10) === d && /son\s*başvuru|başvuru.*(?:bitiş|sona erecek|tarihleri arasında|tarihine kadar)|müracaat.*tarihine kadar/.test(fold(dq))) {
-    const [y,m,day]=d.split('-');
-    if (new RegExp(`(?<!\\d)0?${Number(day)}[./-]0?${Number(m)}[./-]${y}(?!\\d)`).test(dq) || dq.includes(d)) fields.deadline={value:d+'T20:59:59.999Z',quote:dq};
-  }
+  const deadline=dq?applicationDeadline(dq):null;
+  if(deadline&&typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&new Date(Date.parse(deadline)+3*3600000).toISOString().slice(0,10)===d)fields.deadline={value:deadline,quote:dq};
   return fields;
 }
 
@@ -198,7 +216,31 @@ export async function handleExtract(body, env, deps) {
   const external = env.EXTRACT_AI_PROVIDER === 'external' && externalAiEnabled(env);
   const model = external ? env.EXTERNAL_AI_MODEL : env.EXTRACT_AI_MODEL ?? env.AI_MODEL;
   const hash = await deps.sha256(JSON.stringify([VERSION,body.noticeMode?'notice':'conditions', external ? 'external' : 'cloudflare', model, env.EXTRACT_QWEN_DAILY ? env.EXTERNAL_AI_MODEL : null, text]));
-  const cachedBody = value => {const saved=JSON.parse(value),body=Array.isArray(saved)?{groups:saved}:{...saved};body.groups=body.groups.map(g=>{const q=g.quotes?.kpss;if(!q)return g;const clean={...g,quotes:{...g.quotes},quoteScopes:{...g.quoteScopes}};if(weightingOnly(q)){for(const key of Object.keys(clean))if(key.startsWith('kpss'))delete clean[key];delete clean.quotes.kpss;delete clean.quoteScopes.kpss;}else if(clean.kpssScore!=null&&(!kpssScoreEvidence(q)||!mentions(kpssScoreEvidence(q),clean.kpssScore)))delete clean.kpssScore;return clean;});return body;};
+  const cachedBody = value => {
+    const saved=JSON.parse(value),body=Array.isArray(saved)?{groups:saved}:{...saved};
+    body.groups=body.groups.map(g=>{
+      const q=g.quotes?.kpss;if(!q)return g;
+      const clean={...g,quotes:{...g.quotes},quoteScopes:{...g.quoteScopes}};
+      if(weightingOnly(q)){
+        for(const key of Object.keys(clean))if(key.startsWith('kpss'))delete clean[key];
+        delete clean.quotes.kpss;delete clean.quoteScopes.kpss;
+      }else if(clean.kpssScore!=null&&(!kpssScoreEvidence(q)||!mentions(kpssScoreEvidence(q),clean.kpssScore)))delete clean.kpssScore;
+      return clean;
+    });
+    if(body.fields?.quota){
+      body.fields={...body.fields};const checked=validateNoticeFields({quota:body.fields.quota},text).quota;
+      delete body.fields.quota;if(checked)body.fields.quota=checked;
+    }
+    if(body.fields?.deadline){
+      const previous=body.fields.deadline,parsed=Date.parse(previous.value);
+      body.fields={...body.fields};delete body.fields.deadline;
+      if(Number.isFinite(parsed)){
+        const date=new Date(parsed+3*3600000).toISOString().slice(0,10),checked=validateNoticeFields({deadline:{value:date,quote:previous.quote}},text).deadline;
+        if(checked)body.fields.deadline=checked;
+      }
+    }
+    return body;
+  };
   const hit = await env.DB.prepare('SELECT groups FROM extraction_cache WHERE hash=?').bind(hash).first();
   if (hit) return { status: 200, body: { ...cachedBody(hit.groups), cached: true } };
   if ((!external && !env.AI) || !model) return { status: 503, body: { error: 'extract_unavailable' } };

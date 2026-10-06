@@ -1,7 +1,7 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
-import {handleExtract,validateGroups,missingTopics,mentions,MIN_TEXT,MAX_TEXT} from './extract.js';
+import {handleExtract,validateGroups,missingTopics,mentions,vacancyTotals,applicationDeadline,MIN_TEXT,MAX_TEXT} from './extract.js';
 import {fold} from './criteria.js';
-export const NOTICE_VERSION='notice-8';
+export const NOTICE_VERSION='notice-12';
 const countHeader=value=>/^(?:ad|adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|ogrgor|ogrgordersverecek|arsgor)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
 const datePattern=/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2})\b/g;
@@ -11,7 +11,7 @@ function conditions(text){
   // ponytail: explicit requirement clauses only; ambiguous/scoped prose goes to Qwen, never inferred from document checklists.
   const educationClauses=clauses.filter(s=>/mezunu|mezun (?:olmak|olmus)|derecesine sahip|doktorasini|doktora yapm|lisans.*yapmis|docentlik.*(?:unvan|almi)/.test(fold(s)));
   if(educationClauses.length){const clause=educationClauses[0],quote=text.slice(text.indexOf(clause),text.lastIndexOf(educationClauses.at(-1))+educationClauses.at(-1).length),at=clause.search(/lisans|doktora|lise|ortaöğretim|fakülte/i);raw.education=['Lise','Ön lisans','Lisans','Yüksek lisans','Doktora'];raw.educationQuote=quote.length<=400?quote:clause.slice(Math.max(0,at-30),Math.max(0,at-30)+400);}
-  const k=text.match(/KPSS puanı olmayan[^.\n]{0,300}?dikkate alınır/i)?.[0]??clauses.find(s=>/kpss/i.test(s)&&/puan|aranm|istenm|sınav/.test(s));
+  const k=text.match(/KPSS puanı olmayan[^.\n]{0,300}?dikkate alınır/i)?.[0]??text.match(/KPSS[^.\n|]{0,250}?sınava girmiş olmak/i)?.[0]??clauses.find(s=>/kpss/i.test(s)&&/puan|aranm|istenm|sınav/.test(s));
   if(k&&k.length<=400){raw.kpssQuote=k;raw.kpssStatus=/aranm|istenm|muaf|şartı yok|puanı olmayan/.test(k)?'not_required':'required';raw.kpssType=k.match(/\bP\s?(\d{1,3})\b/i)?.[0].replace(/\s/g,'').toUpperCase();const score=k.match(/(?:en az|asgari)\s+(\d{1,3}(?:[.,]\d+)?)\s*puan/i)??k.match(/\b(\d{1,3}(?:[.,]\d+)?)\s*(?:\([^)]*\)\s*)?ve üzeri puan/i);if(score)raw.kpssScore=Number(score[1].replace(',','.'));}
   const a=clauses.find(s=>/yas/.test(fold(s))&&/doldur|tamamla|bitirmem|gun alm|buyuk|kucuk|asmam/.test(fold(s)));
   if(a&&a.length<=400){const nums=Array.from({length:55},(_,i)=>i+16).filter(n=>mentions(a,n));if(nums.length===1){if(/doldurmam|bitirmem|gun almam|asmam|buyuk olmam/.test(fold(a)))raw.maxAge=nums[0];else if(/doldurmus|tamamlamis|kucuk olmam/.test(fold(a)))raw.minAge=nums[0];}raw.ageQuote=a;}
@@ -21,11 +21,23 @@ export function mechanicalNotice(notice,text){
   const title=fold(notice.title),kind=/iptal ilani/.test(title)?'cancellation':/sinav/.test(title)&&/serbest muhasebeci mali musavirlik|yeminli mali musavirlik|aktuerlik/.test(title)?'exam':null;
   if(kind)return {fields:{quota:{value:null,quote:notice.title,origin:'mechanical'},deadline:{value:null,quote:notice.title,origin:'mechanical'},notificationEligible:{value:false,quote:notice.title,origin:'mechanical'}},groups:[],rows:0,kind};
   const fields={}, groups=[], lines=text.split('\n'),seenRows=new Map(),columnDeadlines=[];let headers=null,count=-1,matrix=[],rows=0,tableAmbiguous=false,tableNumber=0;
+  const verticalLines=new Set();
+  for(let start=0;start<lines.length;start++){
+    if(!/^ilan no\s*\|/.test(fold(lines[start])))continue;
+    let end=start+1;while(end<lines.length&&(!lines[end].trim()||lines[end].split('|').length===2&&!/^ilan no\s*\|/.test(fold(lines[end]))))end++;
+    const block=lines.slice(start,end),cells=block.filter(line=>line.includes('|')).map(line=>line.split('|').map(s=>s.trim())),labels=cells.filter(([key])=>/^(?:pozisyon adi|kadro unvani)$/.test(fold(key))),counts=cells.filter(([key])=>countHeader(key));
+    if(!labels.length)continue;
+    for(let i=start;i<end;i++)verticalLines.add(i);
+    const quota=counts.length===1&&/^\d+$/.test(counts[0][1])?Number(counts[0][1]):0;
+    if(labels.length!==1||!labels[0][1]||quota<1||quota>100000){tableAmbiguous=true;continue;}
+    const sourceText=block.join('\n'),parsed=conditions(sourceText);groups.push({label:labels[0][1],quota,...parsed,quotes:{...parsed.quotes,quota:counts[0].join(' | ')},sourceText});rows++;
+  }
   const tableStart=lines.findIndex(l=>l.split('|').some(countHeader)||l.split('|').filter(academicHeader).length>=2);
   const shared=[];if(tableStart>0)shared.push(lines.slice(0,tableStart).join('\n').split(/\n[^\n]{0,30}ÖZEL ŞARTLAR/i)[0]);
   for(let i=0;i<lines.length;i++)if(lines[i].length<120&&/genel sartlar/.test(fold(lines[i]))){const section=[];for(let j=i+1;j<lines.length;j++){if(lines[j].length<120&&/ozel sart|basvuru|istenilen belg|degerlendirme/.test(fold(lines[j])))break;section.push(lines[j]);}shared.push(section.join('\n'));}
   const register=/tercuman|bilirkisi/.test(fold(notice.title))&&(/liste|basvuru/.test(fold(notice.title))||/(?:tercuman|bilirkisi)[^\n]{0,100}liste/.test(fold(text)));
-  for(const line of lines){
+  for(const [lineIndex,line] of lines.entries()){
+    if(verticalLines.has(lineIndex))continue;
     const cells=line.split('|').map(s=>s.trim());
     if(cells.length<2)continue;
     let index=cells.findIndex(countHeader);
@@ -52,7 +64,7 @@ export function mechanicalNotice(notice,text){
     const number=cells[count].match(/^(\d+)(?:\s*\((?:Erkek|Kadın|Erkek-Kadın|Kadın-Erkek)\))?$/i);
     if(!number){if(cells.some((s,i)=>s&&/unvan|pozisyon|meslek/.test(fold(headers[i]))))tableAmbiguous=true;continue;}
     const quota=Number(number[1]);if(quota<1||quota>100000){tableAmbiguous=true;continue;}
-    const label=cells.filter((s,i)=>i!==count&&/unvan|pozisyon|bolum|program|anabilim|anasanat|meslek adi|ogrenim dali|atama yapilacak yer/.test(fold(headers[i]))).join(' · ');
+    const label=cells.filter((s,i)=>i!==count&&/unvan|pozisyon|bolum|program|anabilim|anasanat|meslek adi|ogrenim dal(?:i|lari)|atama yapilacak yer/.test(fold(headers[i]))).join(' · ');
     if(!label){tableAmbiguous=true;continue;}
     const rowKey=headers.join('|')+'\n'+line;
     if(seenRows.has(rowKey)&&seenRows.get(rowKey)<tableNumber)continue;seenRows.set(rowKey,tableNumber);
@@ -76,24 +88,20 @@ export function mechanicalNotice(notice,text){
     const start=starts[0].i,end=headings.find(h=>h.i>start&&(groups.some(g=>fold(h.line).includes(fold(g.label)))||h.line===h.line.toLocaleUpperCase('tr')&&/\p{L}/u.test(h.line)))?.i;
     if(end!==undefined)group.sourceText+='\n\n'+lines.slice(start,end).join('\n').trim();
   }
-  const totals=[...text.matchAll(/(?:toplam\s+)?(\d{1,5})\s*(?:\([^)]*\)\s*)?(?:adet\s+)?(?:sözleşmeli\s+)?(?:personel|kişi|işçi)\s+(?:alınacak|alınacaktır|istihdam edilecek)/gi)];
+  const totals=vacancyTotals(text);
   if(!fields.quota&&totals.length===1)fields.quota={value:Number(totals[0][1]),quote:totals[0][0]};
   if(Number.isSafeInteger(notice.quota)&&notice.quota>0&&notice.quota<=100000&&(!notice.fieldEvidence?.quota||notice.fieldEvidence.quota.origin==='source'))fields.quota={value:notice.quota,quote:notice.quotaQuote??notice.fieldEvidence?.quota?.quote??null,origin:'source'};
   if(notice.deadline&&(!notice.fieldEvidence?.deadline||notice.fieldEvidence.deadline.origin==='source'))fields.deadline={value:notice.deadline,quote:notice.deadlineQuote??notice.fieldEvidence?.deadline?.quote??null,origin:'source'};
   const deadlines=[...columnDeadlines];
   for(const line of lines){
-    if(!/son\s*basvuru\s*tarihi|basvuru bitis tarihi|basvurular[^\n]*\d{1,2}[./-]\d{1,2}[./-]20\d{2}[^\n]*tarihleri arasinda/.test(fold(line)))continue;
-    const cells=line.split('|'),label=cells.findIndex(c=>/son\s*basvuru\s*tarihi|basvuru bitis tarihi/.test(fold(c)));
-    const selected=label>=0?cells.slice(label,label+2).join('|'):line,endpoint=selected.search(/son\s*başvuru\s*tarihi|başvuru bitiş tarihi/i);
-    const evidence=endpoint>=0?selected.slice(endpoint).split(/ön değerlendirme|nihai değerlendirme|sonuç açıklama|giriş sınavı/i)[0]:selected;
-    const dates=[...evidence.matchAll(datePattern)].map(m=>civilDate(m[1],m[2],m[3])).filter(Boolean);
-    const months=['ocak','subat','mart','nisan','mayis','haziran','temmuz','agustos','eylul','ekim','kasim','aralik'];
-    for(const m of fold(evidence).matchAll(/\b(\d{1,2})\s+(ocak|subat|mart|nisan|mayis|haziran|temmuz|agustos|eylul|ekim|kasim|aralik)\s+(20\d{2})\b/g)){const date=civilDate(m[1],months.indexOf(m[2])+1,m[3]);if(date)dates.push(date);}
-    if(dates.length)deadlines.push({value:dates.at(-1),quote:evidence});
+    const cells=line.split('|'),label=cells.findIndex(c=>/son\s*basvuru|basvuru bitis/.test(fold(c))),evidence=label>=0?cells.slice(label,label+2).join('|'):line;
+    const value=applicationDeadline(evidence);if(value)deadlines.push({value,quote:evidence});
   }
-  if(!fields.deadline&&new Set(deadlines.map(d=>d.value)).size===1){fields.deadline={...(deadlines.find(d=>/son\s*başvuru/i.test(d.quote))??deadlines[0])};const time=fields.deadline.quote.match(/(?:saat|mesai bitimi[^\d]*)\s*(\d{1,2})[:.](\d{2})/i);if(time&&Number(time[1])<24&&Number(time[2])<60){const d=new Date(fields.deadline.value);d.setUTCHours(Number(time[1])-3,Number(time[2]),0,0);fields.deadline.value=d.toISOString();}}
+  const deadlineDays=new Set(deadlines.map(d=>new Date(Date.parse(d.value)+3*3600000).toISOString().slice(0,10)));
+  const deadlineTimes=new Set(deadlines.filter(d=>!d.value.endsWith('T20:59:59.999Z')).map(d=>d.value));
+  if(!fields.deadline&&deadlineDays.size===1&&deadlineTimes.size<=1)fields.deadline={...(deadlines.find(d=>deadlineTimes.has(d.value))??deadlines.find(d=>/son\s*başvuru/i.test(d.quote))??deadlines[0])};
   const relative=lines.filter(l=>/(?:yayin|yayim).*itibaren\s+\d+\.?\s*gun/.test(fold(l))&&/basvur|aday|dilekce|teslim/.test(fold(l)));
-  const multipleDeadlines=relative.length>0||new Set(deadlines.map(d=>d.value)).size>1;
+  const multipleDeadlines=relative.length>0||deadlineDays.size>1||deadlineTimes.size>1;
   // A relative civil-day rule does not establish an inclusive/exclusive counting convention.
   if(multipleDeadlines){fields.applicationPeriods={value:[...deadlines.map(d=>({deadline:d.value,text:d.quote})),...relative.map(text=>({deadline:null,text,reference:notice.gazettePublishedQuote??null}))],quote:null};fields.deadline={value:null,quote:null};}
   if(!groups.length&&!headers){const general=conditions(text);if(Object.keys(general).length)groups.push({...general,label:'Başvuru koşulları'});}

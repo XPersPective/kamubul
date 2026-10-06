@@ -44,6 +44,13 @@ test('written compound numbers do not validate their tens or ones separately',()
     assert.equal(mentions(quote,35),true);assert.equal(mentions(quote,30),false);assert.equal(mentions(quote,5),false);
   }
 });
+test('old cached application dates are checked without another inference or token reservation',async()=>{
+  const quote='Son Başvuru Tarihi: 14.10.2026 Ön Değerlendirme Sonuç Açıklama Tarihi: 15.10.2026',quotaQuote='En yüksek puanlı 800 kişi sınava çağrılacaktır.',text=quote+'. '+quotaQuote+' '+TEXT;
+  const db=fakeDb(),hash=await sha256(JSON.stringify(['x11','notice','external','m',null,text]));
+  db.sql.prepare('INSERT INTO extraction_cache(hash,groups,created_at) VALUES(?,?,?)').run(hash,JSON.stringify({groups:[],fields:{deadline:{value:'2026-10-15T20:59:59.999Z',quote},quota:{value:800,quote:quotaQuote}}}),'now');
+  const result=await handleExtract({installationId:id,text,noticeMode:true},env(db),{sha256,fetch:()=>assert.fail('cached validation must not infer')});
+  assert.equal(result.body.cached,true);assert.equal(result.body.fields.deadline,undefined);assert.equal(result.body.fields.quota,undefined);assert.equal(db.sql.prepare('SELECT count(*) n FROM assistant_usage').get().n,0);db.sql.close();
+});
 
 test('alıntısı metinde olmayan değer atılır; sınır "doldurmamış" N-1 olur', () => {
   const groups = validateGroups({ groups: [
