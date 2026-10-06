@@ -1009,14 +1009,17 @@ test('a text-less Kariyer listing borrows exactly one strict ilan.gov twin and k
   insert('kariyerkapisi:2','kariyerkapisi',{...kariyer,title:'MİLLİ SAVUNMA BAKANLIĞI - 2026 YILI HUKUK SINIFI SUBAY ADAYI TEMİNİ'});
   insert('ilangov:1','ilangov',{title:'Türkiye Uluslararası İslam, Bilim ve Teknoloji Üniversitesi Rektörlüğü Sözleşmeli Personel Alım İlanı',url:'https://www.ilan.gov.tr/ilan/1',publishedAt:'2026-09-27T21:00:00.000Z',text:'Toplam 7 sözleşmeli personel alınacaktır.',quota:7,deadline:'2026-10-12T10:00:00.000Z',extraction:{version:'notice-13',status:'complete'}});
   insert('ilangov:2','ilangov',{title:'Düzeltme İlanı (Türkiye Uluslararası İslam, Bilim ve Teknoloji Üniversitesi Sözleşmeli Personel)',publishedAt:'2026-09-30T21:00:00.000Z',text:'Düzeltme.'});
-  await linkKariyerTwins({DB});
+  // Outside the half-hourly scan window an unmatched row waits; inside it the twin is borrowed.
+  await linkKariyerTwins({DB},10*60000);
+  assert.equal(JSON.parse(sql.prepare("SELECT payload FROM listings WHERE id='kariyerkapisi:1'").get().payload).text,undefined);
+  await linkKariyerTwins({DB},30*60000);
   const linked=JSON.parse(sql.prepare("SELECT payload FROM listings WHERE id='kariyerkapisi:1'").get().payload);
   assert.equal(linked.text,'Toplam 7 sözleşmeli personel alınacaktır.');assert.equal(linked.quota,7);assert.equal(linked.twin.id,'ilangov:1');
   assert.equal(linked.url,kariyer.url);assert.match(linked.title,/^TÜRKİYE ULUSLARARASI/);
   assert.equal(sql.prepare("SELECT deadline FROM listings WHERE id='kariyerkapisi:1'").get().deadline,'2026-10-12T10:00:00.000Z');
   assert.equal(JSON.parse(sql.prepare("SELECT payload FROM listings WHERE id='kariyerkapisi:2'").get().payload).text,undefined);
   const revision=sql.prepare("SELECT revision FROM listings WHERE id='kariyerkapisi:1'").get().revision;
-  await linkKariyerTwins({DB});
+  await linkKariyerTwins({DB},0);
   assert.equal(sql.prepare("SELECT revision FROM listings WHERE id='kariyerkapisi:1'").get().revision,revision,'unchanged twin is not rewritten');
   // Two equally plausible notices are ambiguous: no borrowed text.
   assert.equal(kariyerTwin({title:'ANKARA ÜNİVERSİTESİ REKTÖRLÜĞÜ - SÖZLEŞMELİ PERSONEL',publishedAt:'2026-10-12T00:00:00Z'},[{id:'a',title:'Ankara Üniversitesi Sözleşmeli Personel Alım İlanı',publishedAt:'2026-10-01T00:00:00Z'},{id:'b',title:'Ankara Üniversitesi Sözleşmeli Personel İlanı',publishedAt:'2026-10-02T00:00:00Z'}]),null);

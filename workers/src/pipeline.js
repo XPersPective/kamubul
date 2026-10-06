@@ -242,14 +242,21 @@ export function kariyerTwin(kariyer,candidates){
   });
   return matches.length===1?matches[0]:null;
 }
-export async function linkKariyerTwins(env){
-  const rows=(await env.DB.prepare(`SELECT k.id,k.payload FROM listings k WHERE k.active=1 AND k.source_id='kariyerkapisi' AND (json_extract(k.payload,'$.text') IS NULL OR
-    (json_extract(k.payload,'$.twin.id') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM listings t WHERE t.id=json_extract(k.payload,'$.twin.id') AND t.active=1 AND t.revision=json_extract(k.payload,'$.twin.revision'))))`).all()).results;
+export async function linkKariyerTwins(env,now=Date.now()){
+  // Stale twins relink every turn; rows still without a twin are re-scanned once per 30 minutes (new ilan.gov
+  // notices arrive at that cadence). ponytail: eight relinks per call keep a version bump under D1 Free's 50 queries.
+  const scanUnmatched=Math.floor(now/60000)%30<3?1:0;
+  const rows=(await env.DB.prepare(`SELECT k.id,k.payload FROM listings k WHERE k.active=1 AND k.source_id='kariyerkapisi' AND ((? AND json_extract(k.payload,'$.text') IS NULL) OR
+    (json_extract(k.payload,'$.twin.id') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM listings t WHERE t.id=json_extract(k.payload,'$.twin.id') AND t.active=1 AND t.revision=json_extract(k.payload,'$.twin.revision'))))
+    ORDER BY json_extract(k.payload,'$.twin.id') IS NULL,k.id LIMIT 20`).bind(scanUnmatched).all()).results;
   if(!rows.length)return;
   const candidates=(await env.DB.prepare("SELECT id,revision,json_extract(payload,'$.title') title,json_extract(payload,'$.institution') institution,json_extract(payload,'$.publishedAt') publishedAt FROM listings WHERE active=1 AND source_id='ilangov' AND json_extract(payload,'$.text') IS NOT NULL").all()).results;
+  let writes=0;
   for(const row of rows){
+    if(writes>=8)break;
     const notice=JSON.parse(row.payload),twin=kariyerTwin(notice,candidates),now=nowISO();
     if(!twin&&!notice.twin)continue;
+    writes++;
     const source=twin?JSON.parse((await env.DB.prepare('SELECT payload FROM listings WHERE id=?').bind(twin.id).first()).payload):{};
     const payload={...notice,updatedAt:now};
     for(const key of twinFields){if(source[key]!==undefined)payload[key]=source[key];else if(notice.twin)delete payload[key];}
