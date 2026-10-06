@@ -370,4 +370,9 @@ test('labelled-review fixes: scoring prose, stated dates beside relative rules, 
   const comu = mechanicalNotice({ title: 'Öğretim Elemanı Alım İlanı' }, ['İLAN NO | BÖLÜM | BİRİM | ÖĞR.GÖR. (UYGULAMALI BİRİM) | DER. | ARŞ.GÖR. | DER. | ALES',
     '3 | - | BİLİMSEL ARAŞTIRMA PROJELERİ | 1 | 1 | - | - | 70'].join('\n'));
   assert.equal(comu.fields.quota?.value, 1);
+  // Osmaniye: the source states two different ends; no single deadline is shown.
+  const osmaniye = mechanicalNotice({ title: '2027 Yılı Tercüman Bilirkişi İlanı' }, ['31 Ekim 2026 tarihinden sonra yapılan başvurular değerlendirmeye alınmaz.',
+    'Başvuru Tarihi : Başvurular 15 Ekim 2026 Perşembe günü başlayıp, 02 Kasım 2026 Pazartesi günü mesai bitiminde sona erecektir.'].join('\n'));
+  assert.equal(osmaniye.fields.deadline?.value ?? null, null); assert.equal(osmaniye.fields.applicationPeriods?.value.length, 2);
+  assert.equal(mechanicalNotice({ title: 'İlan' }, '15.10.2026 tarihinden sonra yapılan başvurular kabul edilmeyecektir.').fields.deadline?.value, '2026-10-15T20:59:59.999Z');
 });

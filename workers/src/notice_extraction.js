@@ -1,7 +1,7 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
 import {handleExtract,validateGroups,missingTopics,mentions,vacancyTotals,applicationDeadline,MIN_TEXT,MAX_TEXT} from './extract.js';
 import {fold,occupationsOf} from './criteria.js';
-export const NOTICE_VERSION='notice-17';
+export const NOTICE_VERSION='notice-18';
 const countHeader=value=>/^(?:ad|adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 // Rank columns whose cells are counts; "ÖĞR.GÖR. (UYGULAMALI BİRİM)" is the YÖK position type beside "(DERS VERECEK)".
 const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|(?:ogrgor|ogretimgorevlisi)(?:dersverecek|uygulamalibirim)?|arsgor|arastirmagorevlisi)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
@@ -177,6 +177,10 @@ export function mechanicalNotice(notice,text){
   for(const line of lines){
     const cells=line.split('|'),label=cells.findIndex(c=>/son\s*basvuru|basvuru bitis/.test(fold(c))),evidence=label>=0?cells.slice(label,label+2).join('|'):line;
     const value=applicationDeadline(evidence);if(value)deadlines.push({value,quote:evidence});
+    // "31 Ekim 2026 tarihinden sonra yapılan başvurular değerlendirmeye alınmaz" is a deadline too; when it contradicts
+    // another stated end ("02 Kasım 2026 ... sona erecektir") no single date is shown.
+    const after=fold(line).match(/(\d{1,2})(?:[./](\d{1,2})[./]|\s+(ocak|subat|mart|nisan|mayis|haziran|temmuz|agustos|eylul|ekim|kasim|aralik)\s+)(20\d{2})\s+tarihinden\s+sonra\s+(?:yapilan|yapilacak|gelen|ulasan)\s+(?:basvuru|muracaat)/);
+    if(after){const month=after[2]??['ocak','subat','mart','nisan','mayis','haziran','temmuz','agustos','eylul','ekim','kasim','aralik'].indexOf(after[3])+1,value=civilDate(after[1],month,after[4]);if(value)deadlines.push({value,quote:line.length<=400?line:after[0]});}
   }
   if(!deadlines.length&&!fields.deadline)deadlines.push(...applicationWindows(lines));
   const deadlineDays=new Set(deadlines.map(d=>new Date(Date.parse(d.value)+3*3600000).toISOString().slice(0,10)));
