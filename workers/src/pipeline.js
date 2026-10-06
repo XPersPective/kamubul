@@ -588,9 +588,10 @@ export async function handleWorkQueue(batch,env,options={}) {
 export async function maintainCatalogue(env,now=new Date()){
   let state=await env.DB.prepare('SELECT floor,gc_after,(SELECT COALESCE(MAX(seq),0) FROM catalogue_changes) latest FROM catalogue_retention WHERE id=1').first();
   if(!state||!state.latest)return;
-  // 30 days of deltas: every change row stores a full notice copy and D1 Free caps a database at 500 MB;
-  // a device offline for longer re-bootstraps the current catalogue instead of replaying deltas.
-  const cutoff=+now-30*86400000;
+  // 7 days of deltas: every change row stores a full notice copy and D1 Free caps a database at 500 MB (6 Oct alone
+  // logged 96 MB). A delta now sends one row per listing, so it is never larger than the bootstrap a device offline
+  // for longer downloads instead.
+  const cutoff=+now-7*86400000;
   const pending=(await env.DB.prepare('SELECT seq,committed_at FROM catalogue_changes WHERE seq>? AND seq<? ORDER BY seq LIMIT 50').bind(state.floor,state.latest).all()).results;
   let floor=state.floor;
   // Advance only across a contiguous old prefix; never cross a recent/invalid timestamp or remove the latest sequence.

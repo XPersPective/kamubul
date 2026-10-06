@@ -90,14 +90,14 @@ regression vardır. Kaynağa gitmez, seçili ilan açılışında otomatik soru 
 ## Kalıcı katalog, eşleşme ve bildirim
 Kapasite 6 Ekim: Free'de CPU/çağrı ort.22 ms ve D1 yazma 72k/gün ölçüldü; ikiz tarama memo,
 bütçe-bekleme yoklaması, değişmeyen sonuçta revizyon yazmama, backfill 1 belge/tur, ikizlerin
-ayıklamadan çıkması ve 30 gün delta saklama ile düşürüldü (PB-029'da ölçüm ayrıntısı).
+ayıklamadan çıkması ve delta saklama (90→30→7 gün) ile düşürüldü (PB-029'da ölçüm ayrıntısı).
 Public v2 meta/taxonomy/listings/changes/detail + geçiş v1; immutable watermark,
 ETag/CacheAPI public60s/taxonomy300s. Cookie/auth/private/no-store cache bypass;
-hata origin'i kesmez. Sayfa<=50/1.8MB; oversized413 cursor atlamaz.30day retention
+hata origin'i kesmez. Sayfa<=50/1.8MB; oversized413 cursor atlamaz.7day retention
 floor/base/expired-pin recovery, CAS ile pruning. Uzun vadeli yük ölçümü açık.
 changes, watermark'a kadar ilan başına yalnız en yeni satırı döndürür (d723b9f): 6 Ekim'de
 4376 değişiklik/96 MB vardı; canlı son600 seq → 193 satır/4.5 MB. Pencere içi eski revizyonlar
-depoda kalır (30 gün floor'dan sonra temizlenir); günlük büyüme izlenmeli (PB-029 A).
+depoda kalır (7 gün floor'dan sonra saatte en çok 20 silinir); D1 boyutu izlenmeli (PB-029 A).
 İşleme işi Qwen'i beklemez: mekanik bilgiyle tamamlanıp hemen eşleşir, sonradan gelen model
 sonucu yeni match_event üretir (36f362f); mechanicalOnly sürüm backfill'i yeniden uyarı üretmez.
 Typed SearchCriteria2: aynı kadro AND/alternatif OR, match/no_match/unknown.
