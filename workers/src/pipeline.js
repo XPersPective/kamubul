@@ -9,6 +9,9 @@ const aiProvider=env=>externalAiEnabled(env)?'external':'cloudflare';
 const aiModel=env=>externalAiEnabled(env)?env.EXTERNAL_AI_MODEL:env.AI_MODEL;
 
 const later=minutes=>new Date(Date.now()+minutes*60000).toISOString();
+// A read notice is re-read daily: with one detail per three-minute turn, a six-hour recheck kept every pass a full
+// refetch (~170 notices ≈ 8.5 h). Corrections arrive as separate notices. ponytail: raise the turn budget, not this, if edits matter sooner.
+const detailRecheck=()=>later(1440);
 const safeError=e=>/^\w{1,70}$/.test(e.message)?e.message:'operation_failed';
 // Bump when the prompt/validator changes; old partial work needs explicit reprocessing, not mixed excerpts.
 export const aiExtractionRevision=2;
@@ -57,6 +60,7 @@ export async function readSource(env){
   const leased=await env.DB.prepare('UPDATE sources SET lease_until=? WHERE id=? AND (lease_until IS NULL OR lease_until<?) RETURNING id').bind(later(5),source.id,now).first();if(!leased)return;
   try {
     let batch,offset=source.batch_offset;
+    const excluded=item=>source.id==='ilangov'&&privateEmployer(item.institution);
     const detailWarning='Ayrıntı yenilemesi başarısız; önceki ilan bilgileri korunuyor.';
     let detailFailure=!!source.pending_batch&&source.note===detailWarning;
     const refreshList=!source.pending_batch||source.pending_list||(source.last_attempt&&Date.parse(source.last_attempt)<Date.now()-(Number(env.SOURCE_INTERVAL_MINUTES)||30)*60000);
@@ -78,14 +82,17 @@ export async function readSource(env){
         await env.DB.prepare('UPDATE sources SET pending_list=NULL,list_page=0,list_total=NULL WHERE id=?').bind(source.id).run();
       }else batch=await(source.id==='kariyerkapisi'?fetchKariyerList():source.id==='iskur'?fetchIskurList():fetchSbbList());
       const fresh=batch;
+      // Private advertisers in the complete snapshot leave the catalogue now, not when the detail cursor reaches them.
+      const privateIds=fresh.filter(excluded).map(item=>item.id);
+      if(privateIds.length)await env.DB.prepare('UPDATE listings SET active=0,revision=revision+1,updated_at=? WHERE active=1 AND id IN (SELECT value FROM json_each(?))').bind(now,JSON.stringify(privateIds)).run();
       if(source.pending_batch){
         const old=JSON.parse(source.pending_batch),byId=new Map(fresh.map(item=>[item.id,item]));
         batch=old.map(item=>byId.has(item.id)?{...item,...byId.get(item.id)}:item);
-        const existing=new Set(old.map(item=>item.id));batch.push(...fresh.filter(item=>!existing.has(item.id)));
+        // New identities are read next, not after a backlog of rechecks: their details drive matching and alerts.
+        const existing=new Set(old.map(item=>item.id));batch.splice(offset,0,...fresh.filter(item=>!existing.has(item.id)));
       }else offset=0;
       refreshed=true;
     }
-    const excluded=item=>source.id==='ilangov'&&privateEmployer(item.institution);
     const firstSnapshot=!source.baseline_at;
     if(firstSnapshot){source.baseline_at=now;batch=batch.map(base=>({...base,notificationEligible:false}));}
     if(refreshed||firstSnapshot){
@@ -123,13 +130,13 @@ export async function readSource(env){
       const publishedAt=Date.parse(base.publishedAt);
       const notificationEligible=previous.notificationEligible??base.notificationEligible??(publishedAt>Date.parse(source.baseline_at)&&publishedAt<=Date.parse(now));
       const notice={...base,...detail,notificationEligible,firstSeenAt:old?.first_seen??now,updatedAt:now};
-      const input=semanticInput(notice),hash=await sha256(input);
+      const input=semanticInput(notice),hash=await sha256(input),recheck=notice.detailState==='available'?detailRecheck():later(360);
       if(old?.content_hash===hash){
         const metadata=['publishedAt','start','url','detailState','documentHash','documentReader','notificationEligible'];
         if(metadata.some(k=>(previous[k]??null)!==(notice[k]??null))){
           const refreshed={...previous,updatedAt:now};for(const k of metadata)refreshed[k]=notice[k]??null;
-          await env.DB.prepare('UPDATE listings SET payload=?,revision=revision+1,updated_at=?,recheck_at=? WHERE id=?').bind(JSON.stringify(refreshed),now,later(360),base.id).run();
-        }else await env.DB.prepare('UPDATE listings SET recheck_at=? WHERE id=?').bind(later(360),base.id).run();
+          await env.DB.prepare('UPDATE listings SET payload=?,revision=revision+1,updated_at=?,recheck_at=? WHERE id=?').bind(JSON.stringify(refreshed),now,recheck,base.id).run();
+        }else await env.DB.prepare('UPDATE listings SET recheck_at=? WHERE id=?').bind(recheck,base.id).run();
         continue;
       }
       // Structured source fields survive AI failures. Original detail remains available.
@@ -141,7 +148,7 @@ export async function readSource(env){
       await env.DB.batch([
         env.DB.prepare(`INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,deadline,payload) VALUES(?,?,?,?,?,?,?,?,?)
           ON CONFLICT(id) DO UPDATE SET content_hash=excluded.content_hash,updated_at=excluded.updated_at,recheck_at=excluded.recheck_at,deadline=excluded.deadline,active=1,conditions_due_at='1970-01-01T00:00:00.000Z',revision=listings.revision+1,payload=json_set(excluded.payload,'$.firstSeenAt',listings.first_seen)`)
-          .bind(base.id,source.id,base.externalId,hash,now,now,later(360),notice.deadline,JSON.stringify(notice)),
+          .bind(base.id,source.id,base.externalId,hash,now,now,recheck,notice.deadline,JSON.stringify(notice)),
         env.DB.prepare(`INSERT OR IGNORE INTO processing_jobs(id,listing_id,input_hash,input,due_at,contract_key) VALUES(?,?,?,?,?,?)`).bind(JSON.stringify([base.id,hash,key]),base.id,hash,JSON.stringify({...notice,...(contract?{aiContract:contract}:{})}),now,key)
       ]);
     }

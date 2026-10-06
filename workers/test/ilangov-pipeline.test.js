@@ -66,8 +66,12 @@ test('new native identities are published while the older detail backlog is stil
   assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM listings').get().n,3);
   const source=f.sql.prepare("SELECT * FROM sources WHERE id='ilangov'").get();
   assert.equal(source.batch_offset,2,'refresh preserves the completed detail cursor');
-  assert.deepEqual(JSON.parse(source.pending_batch).map(item=>item.id),['ilangov:11','ilangov:12','ilangov:13']);
-  assert.equal(JSON.parse(f.sql.prepare("SELECT payload FROM listings WHERE id='ilangov:13'").get().payload).detailState,'pending');
+  // The new identity is read next; the older recheck backlog (12) waits.
+  assert.deepEqual(JSON.parse(source.pending_batch).map(item=>item.id),['ilangov:11','ilangov:13','ilangov:12']);
+  assert.equal(JSON.parse(f.sql.prepare("SELECT payload FROM listings WHERE id='ilangov:13'").get().payload).detailState,'available');
+  assert.equal(JSON.parse(f.sql.prepare("SELECT payload FROM listings WHERE id='ilangov:12'").get().payload).detailState,'pending');
+  const recheck=f.sql.prepare("SELECT recheck_at FROM listings WHERE id='ilangov:13'").get().recheck_at;
+  assert.ok(Date.parse(recheck)-Date.now()>20*3600000,'a read notice is rechecked daily, not every six hours');
   await readSource(f.env);
   assert.equal(f.sql.prepare("SELECT pending_batch FROM sources WHERE id='ilangov'").get().pending_batch,null);
   assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM processing_jobs').get().n,3);
