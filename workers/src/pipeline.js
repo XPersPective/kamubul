@@ -68,17 +68,25 @@ export async function readSource(env){
     if(!refreshList)batch=JSON.parse(source.pending_batch);
     else {
       if(source.id==='ilangov'){
-        const page=await fetchIlanGovPage(source.list_page);
+        // ponytail: three 20-ad pages (~10 KB JSON each) per turn. One page per turn took ~45 min per snapshot while
+        // sharing the slot with failing sources, and every total change on the way (midnight expiries) restarted it.
         batch=source.pending_list?JSON.parse(source.pending_list):[];
-        if(source.list_total!==null&&source.list_total!==page.total)throw new SourceError('source_snapshot_changed');
-        const seen=new Set(batch.map(item=>item.id));
-        if(page.items.some(item=>seen.has(item.id)))throw new SourceError('source_snapshot_changed');
-        batch.push(...page.items);
-        if(batch.length<page.total){
-          if(!page.items.length||source.list_page>=999)throw new SourceError('source_incomplete');
-          await env.DB.prepare("UPDATE sources SET pending_list=?,list_page=list_page+1,list_total=?,next_due=?,lease_until=NULL,state='processing',last_attempt=? WHERE id=?").bind(JSON.stringify(batch),page.total,now,now,source.id).run();return;
+        let listPage=source.list_page,total=source.list_total;
+        for(let n=0;n<3;n++){
+          const page=await fetchIlanGovPage(listPage);
+          if(total!==null&&total!==page.total)throw new SourceError('source_snapshot_changed');
+          total=page.total;
+          const seen=new Set(batch.map(item=>item.id));
+          if(page.items.some(item=>seen.has(item.id)))throw new SourceError('source_snapshot_changed');
+          batch.push(...page.items);
+          if(batch.length>=total)break;
+          if(!page.items.length||listPage>=999)throw new SourceError('source_incomplete');
+          listPage++;
         }
-        if(batch.length!==page.total)throw new SourceError('source_incomplete');
+        if(batch.length<total){
+          await env.DB.prepare("UPDATE sources SET pending_list=?,list_page=?,list_total=?,next_due=?,lease_until=NULL,state='processing',last_attempt=? WHERE id=?").bind(JSON.stringify(batch),listPage,total,now,now,source.id).run();return;
+        }
+        if(batch.length!==total)throw new SourceError('source_incomplete');
         await env.DB.prepare('UPDATE sources SET pending_list=NULL,list_page=0,list_total=NULL WHERE id=?').bind(source.id).run();
       }else batch=await(source.id==='kariyerkapisi'?fetchKariyerList():source.id==='iskur'?fetchIskurList():fetchSbbList());
       const fresh=batch;

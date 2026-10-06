@@ -43,14 +43,15 @@ test('durable source pages resume across ticks and never skip the server native 
   globalThis.fetch=async(url,options)=>{
     if(String(url).includes('AdsByFilter')){
       const body=JSON.parse(options.body);skips.push(body.skipCount);assert.equal(body.maxResultCount,20);
-      return Response.json({result:{numFound:41,ads:Array.from({length:Math.min(20,41-body.skipCount)},(_,i)=>({id:body.skipCount+i+1,title:'Kamu personeli '+i,urlStr:'/ilan/'+(body.skipCount+i+1)+'/kamu',publishStartDate:'2026-10-01'}))}});
+      return Response.json({result:{numFound:81,ads:Array.from({length:Math.min(20,81-body.skipCount)},(_,i)=>({id:body.skipCount+i+1,title:'Kamu personeli '+i,urlStr:'/ilan/'+(body.skipCount+i+1)+'/kamu',publishStartDate:'2026-10-01'}))}});
     }
     return Response.json({result:{content:'<p>Resmî kamu personeli ilan metni</p>'}});
   };
+  // Three native pages per turn: 81 records take two turns, and nothing is published before the snapshot is complete.
   await readSource(f.env);assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM listings').get().n,0);
-  await readSource(f.env);assert.equal(f.sql.prepare("SELECT list_page FROM sources WHERE id='ilangov'").get().list_page,2);
+  assert.equal(f.sql.prepare("SELECT list_page FROM sources WHERE id='ilangov'").get().list_page,3);
   await readSource(f.env);
-  assert.deepEqual(skips,[0,20,40]);assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM listings').get().n,41);
+  assert.deepEqual(skips,[0,20,40,60,80]);assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM listings').get().n,81);
   assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM listings WHERE json_extract(payload,'$.text') IS NOT NULL").get().n,1);
 });
 
