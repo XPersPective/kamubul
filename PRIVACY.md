@@ -1,6 +1,6 @@
 # KamuBul gizlilik açıklaması
 
-Son güncelleme: 5 Ekim 2026. KamuBul, crazypenguin tarafından geliştirilen bağımsız bir ilan uygulamasıdır; hesap veya giriş istemez. Kayıtlı aramalar, yaş/KPSS gibi kriterler, yer imleri ve tema tercihi cihazda saklanır. Sunucu bildirimlerini açmadığınız sürece kayıtlı aramalarınız KamuBul sunucusuna yüklenmez. Bu açıklama mevcut Cloudflare/FCM sürümünü anlatır; mağaza beyanlarının tamamlandığı anlamına gelmez.
+Son güncelleme: 6 Ekim 2026. KamuBul, crazypenguin tarafından geliştirilen bağımsız bir ilan uygulamasıdır; hesap veya giriş istemez. Kayıtlı aramalar, yaş/KPSS gibi kriterler, yer imleri ve tema tercihi cihazda saklanır. Sunucu bildirimlerini açmadığınız sürece kayıtlı aramalarınız KamuBul sunucusuna yüklenmez. Bu açıklama mevcut Cloudflare/FCM sürümünü anlatır; mağaza beyanlarının tamamlandığı anlamına gelmez.
 
 ## İlan kataloğu
 
@@ -28,7 +28,7 @@ Sunucu bildirimi anahtarını kapatmak yerel tercihi kapatır; sunucudaki kurulu
 
 120 gün güncellenmeyen kurulumlar otomatik temizlemeye uygun olur; sınırlı bakım ve devam eden işlem kilitleri nedeniyle temizlik tam 120. günde bitmiş olmayabilir. Tamamlanmış bildirim içerikleri 90 gün sonra sınırlı bakımda küçültülür. Tekrar gönderimi önleyen kimlik/durum kayıtları kurulum silinene kadar kalabilir. Bekleyen işler bu içerik temizliğiyle atılmaz. “Bildirim geçmişini temizle” cihazdaki görünümü temizler; sunucu kurulumunu silmek için sunucu bildirimi kapatılır.
 
-Cihazdaki arama/yer imleri dışa aktarılabilir; dosyanın saklanması ve paylaşılması sizin kontrolünüzdedir. Kurulum gizli anahtarı dışa aktarma dosyasına eklenmez; güvenli cihaz deposunda tutulur. Android yedek/cihaz aktarım kuralları bu depoyu dışlar. Uygulamayı kaldırmak sunucuya silme isteği göndermez; kaldırmadan önce sunucu bildirimini kapatabilirsiniz. Aksi halde stale-kurulum temizliği uygulanır.
+Kayıtlı aramalarınız ve kaydettiğiniz ilanlar yalnız cihazdaki uygulama verisinde tutulur; uygulama bunları dışa aktarmaz. Kurulum gizli anahtarı güvenli cihaz deposunda tutulur. Android yedek/cihaz aktarım kuralları bu depoyu dışlar. Uygulamayı kaldırmak sunucuya silme isteği göndermez; kaldırmadan önce sunucu bildirimini kapatabilirsiniz. Aksi halde stale-kurulum temizliği uygulanır.
 
 ## Yapay zekâ
 

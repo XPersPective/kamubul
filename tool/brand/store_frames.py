@@ -2,6 +2,7 @@
 
 Kullanım: python tool/brand/store_frames.py <ham-görüntü-klasörü> <çıktı-klasörü>
 Ham klasörde SHOTS listesindeki adlarla 1080x2400 civarı emülatör görüntüleri bulunur.
+home-light.png varsa aynı dille 1024x500 featureGraphic.png da üretilir.
 Görüntüler gerçek uygulamadan alınır; metinler yalnız var olan özellikleri anlatır.
 """
 import sys
@@ -12,6 +13,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 W, H = 1080, 1920
 FONT_BOLD = 'C:/Windows/Fonts/segoeuib.ttf'
 FONT_REGULAR = 'C:/Windows/Fonts/segoeui.ttf'
+ICON = Path(__file__).resolve().parents[2] / 'assets' / 'brand' / 'kamubul_icon.png'
 
 # (ham dosya, çıktı adı, başlık, alt cümle, koyu zemin mi)
 SHOTS = [
@@ -34,18 +36,18 @@ SHOTS = [
 ]
 
 
-def gradient(dark: bool) -> Image.Image:
+def gradient(dark: bool, w: int = W, h: int = H) -> Image.Image:
     top, bottom = ((0x0B, 0x15, 0x20), (0x17, 0x3C, 0x53)) if dark else ((0x17, 0x65, 0x9C), (0x0E, 0x2A, 0x3D))
-    base = Image.new('RGB', (W, H))
+    base = Image.new('RGB', (w, h))
     draw = ImageDraw.Draw(base)
-    for y in range(H):
-        t = y / (H - 1)
-        draw.line([(0, y), (W, y)], fill=tuple(round(a + (b - a) * t) for a, b in zip(top, bottom)))
+    for y in range(h):
+        t = y / (h - 1)
+        draw.line([(0, y), (w, y)], fill=tuple(round(a + (b - a) * t) for a, b in zip(top, bottom)))
     # Yumuşak ışık halkası: düz zeminden daha derinlikli bir yüzey.
-    glow = Image.new('L', (W, H), 0)
-    ImageDraw.Draw(glow).ellipse((-260, -420, W + 260, 760), fill=70)
-    glow = glow.filter(ImageFilter.GaussianBlur(160))
-    return Image.composite(Image.new('RGB', (W, H), (255, 255, 255)), base, glow.point(lambda v: v // 3))
+    glow = Image.new('L', (w, h), 0)
+    ImageDraw.Draw(glow).ellipse((-260, -420 * h // H, w + 260, 760 * h // H), fill=70)
+    glow = glow.filter(ImageFilter.GaussianBlur(160 * h // H or 1))
+    return Image.composite(Image.new('RGB', (w, h), (255, 255, 255)), base, glow.point(lambda v: v // 3))
 
 
 def rounded(image: Image.Image, radius: int) -> Image.Image:
@@ -98,6 +100,36 @@ def frame(raw: Path, title: str, subtitle: str, dark: bool) -> Image.Image:
     return canvas.convert('RGB')
 
 
+def device(raw: Path, screen_w: int, screen_h: int, bezel: int, radius: int) -> Image.Image:
+    """Gerçek ekranın üst kısmı ince koyu çerçeve içinde."""
+    shot = Image.open(raw).convert('RGB')
+    shot = shot.resize((screen_w, round(shot.height * screen_w / shot.width)), Image.LANCZOS).crop((0, 0, screen_w, screen_h))
+    body = rounded(Image.new('RGBA', (screen_w + 2 * bezel, screen_h + 2 * bezel), (12, 18, 26, 255)), radius)
+    body.alpha_composite(rounded(shot, radius - bezel), (bezel, bezel))
+    return body
+
+
+def feature_graphic(raw: Path) -> Image.Image:
+    fw, fh = 1024, 500
+    canvas = gradient(False, fw, fh).convert('RGBA')
+    draw = ImageDraw.Draw(canvas)
+    icon = rounded(Image.open(ICON).convert('RGB').resize((84, 84), Image.LANCZOS), 22)
+    canvas.alpha_composite(icon, (64, 64))
+    draw.text((168, 76), 'KamuBul', font=ImageFont.truetype(FONT_BOLD, 44), fill='white')
+    headline = ImageFont.truetype(FONT_BOLD, 62)
+    for i, line in enumerate(('Kamu ilanları', 'tek yerde')):
+        draw.text((64, 186 + i * 74), line, font=headline, fill='white')
+    draw.text((66, 352), 'Memur · İşçi · KPSS · Belediye', font=ImageFont.truetype(FONT_REGULAR, 30), fill=(220, 235, 248))
+    # Telefon sağda, alttan taşar: üst kısmı gerçek ana ekranı gösterir.
+    phone = device(raw, 300, 560, 12, 44)
+    x, top = 680, 56
+    shadow = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle((x + 8, top + 22, x + phone.width - 8, fh + 80), 44, fill=(0, 0, 0, 120))
+    canvas.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(28)))
+    canvas.alpha_composite(phone, (x, top))
+    return canvas.convert('RGB')
+
+
 def main() -> None:
     source, target = Path(sys.argv[1]), Path(sys.argv[2])
     target.mkdir(parents=True, exist_ok=True)
@@ -107,6 +139,9 @@ def main() -> None:
             continue
         frame(source / raw, title, subtitle, dark).save(target / name, optimize=True)
         print('hazır', name)
+    if (source / 'home-light.png').is_file():
+        feature_graphic(source / 'home-light.png').save(target / 'featureGraphic.png', optimize=True)
+        print('hazır featureGraphic.png')
 
 
 if __name__ == '__main__':
