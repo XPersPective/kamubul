@@ -282,6 +282,59 @@ void main() {
     },
   );
 
+  test(
+    'uzun aradan sonra yüzlerce revizyon yerine güncel katalog bir kez indirilir',
+    () async {
+      final store = await freshStore();
+      await syncRemoteV2Catalogue(
+        store: store,
+        client: client(metadataBody()),
+        now: now,
+      );
+      final paths = <String>[];
+      final remote = RemoteCatalogueClient(
+        baseUrl: Uri.parse('https://kamubul.example'),
+        client: MockClient((request) async {
+          paths.add(request.url.path);
+          if (request.url.path == '/api/v2/meta') {
+            final meta = jsonDecode(metadataBody()) as Map;
+            meta['latestSeq'] = 1001;
+            return http.Response(
+              jsonEncode(meta),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }
+          expect(request.url.path, '/api/v2/listings');
+          expect(request.url.queryParameters['watermark'], '1001');
+          return http.Response(
+            jsonEncode({
+              'watermark': 1001,
+              'next': null,
+              'items': [
+                {
+                  'id': 'stable',
+                  'revision': 9,
+                  'url': _url,
+                  'sourceId': kKariyerSourceId,
+                  'title': 'Güncel ilan',
+                  'category': 'Personel',
+                  'updatedAt': '2026-10-06T08:00:00Z',
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
+      );
+      await syncRemoteV2Catalogue(store: store, client: remote, now: now);
+      expect(paths.where((p) => p == '/api/v2/changes'), isEmpty);
+      expect(await store.remoteCursor(), 1001);
+      expect((await store.allListings()).single.title, 'Güncel ilan');
+    },
+  );
+
   test('kalıcı metadata ETag ile 304 okur; değişiklik yoksa katalog tekrar indirilmez', () async {
     final store = await freshStore();
     final requests = <http.Request>[];

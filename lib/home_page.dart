@@ -628,6 +628,11 @@ class _KamuHomePageState extends State<KamuHomePage> {
       if (_tab == 1 && !record.saved) continue;
       final twin = record.twin?.id;
       if (_tab != 1 && twin != null && ids.contains(twin)) continue;
+      // Telefonun eski kaynak okuyucusundan kalan, sunucuda karşılığı olmayan
+      // kayıtlar listede gösterilmez; kaydedilmişse Kaydedilenler'de durur.
+      if (_tab != 1 && record.criteriaListing == null && !record.saved) {
+        continue;
+      }
       final match = _matchVisible(record);
       if (match == CriteriaMatch.match) {
         matched.add(record);

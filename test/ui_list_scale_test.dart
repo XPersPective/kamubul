@@ -109,6 +109,9 @@ void main() {
           deadline: null,
           quota: 2,
           places: const ['İZMİR', 'KARŞIYAKA'],
+          // Sunucu kaydı olmayan yerel satır yalnız kaydedilmişse listelenir.
+          saved: true,
+          savedAt: now,
         ),
       ],
       // İçe aktarma gibi: yerel önbudama yapılmaz.

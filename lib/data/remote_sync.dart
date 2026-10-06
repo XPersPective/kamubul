@@ -15,6 +15,10 @@ import 'listing_store.dart';
 /// Boşsa uzak katalog kapalıdır; mevcut çevrimdışı önbellek gösterilir.
 const String kApiBaseUrl = String.fromEnvironment('KAMUBUL_API');
 
+/// Bu kadar değişiklik birikmişse delta yerine güncel katalog indirilir:
+/// katalog yüzlerce ilandır, ama her yeniden ayıklama tüm ilanları revize eder.
+const _bootstrapGap = 300;
+
 String catalogueOrigin(RemoteCatalogueClient client) {
   final base = client.baseUrl;
   return base
@@ -64,10 +68,14 @@ Future<CatalogueMetadata> syncRemoteV2Catalogue({
         throw const RemoteCatalogueException('metadata missing after 304');
       }
       final cursor = await store.remoteCursor(expectedGeneration: generation);
+      // Uzun aradan sonra (ör. sunucu tüm ilanları yeniden ayıkladığında) her
+      // revizyonu tek tek indirmek yerine güncel katalog bir kez alınır.
+      final largeBacklog = metadata.latestSeq - cursor > _bootstrapGap;
       if (attempt > 0 ||
           (cursor == 0 && cached.metadata == null) ||
           cursor > metadata.latestSeq ||
           cursor + 1 < metadata.oldestRetainedSeq ||
+          largeBacklog ||
           cached.pendingBootstrap) {
         await syncRemoteBootstrap(
           store: store,
