@@ -2130,6 +2130,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
     );
     final scheme = Theme.of(context).colorScheme;
     final days = deadlineDays(record.deadline, DateTime.now());
+    final periods = record.criteriaListing?['applicationPeriods'];
+    final variedDeadlines =
+        periods is List &&
+        periods.any(
+          (p) =>
+              p is Map &&
+              p['text'] is String &&
+              (p['text'] as String).trim().isNotEmpty,
+        );
     final facts = <Widget>[
       if (record.quota != null)
         _factChip(Icons.groups_outlined, '${record.quota} kişi'),
@@ -2216,6 +2225,15 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ),
+              if (record.conditionsCaption != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, right: 10),
+                  child: Text(
+                    record.conditionsCaption!,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ),
               if (unresolved)
                 Padding(
                   padding: const EdgeInsets.only(top: 8, right: 10),
@@ -2262,7 +2280,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   runSpacing: 6,
                   children: [
                     DeadlinePill(
-                      text: record.deadline == null
+                      text: variedDeadlines
+                          ? 'Başvuru takvimini inceleyin'
+                          : record.deadline == null
                           ? 'Son tarih belirtilmemiş'
                           : '${_date(record.deadline)} • ${countdownLabel(record.deadline, DateTime.now())}',
                       daysLeft: days,

@@ -7,6 +7,11 @@ tüketimli ayıklama ve soru yanıtı için; deterministik kaynak verisi önceli
 aynı metne ayrı çok parçalı AI özet işi gerekmez. Kaynak erişiminde IP/ülke
 engeli varsayımı kullanılmaz; gerçek çağrı ve iş kuyruğu doğrulanır.
 
+Son kullanıcı düzeltmesi (5 Ekim, PB-027): mekanik ayıklama önce ve yeterlilik
+denetimi; eksikse Qwen saklı tam metni okuyarak tamamlar. Tek kanıtlı sonuç
+kontenjan/tarih/pozisyon/şart bilgilerini hem karta hem ayrıntıya taşır.
+AI katkısı açıkça belirtilir; eksik sonuç tamamlandı sayılmaz.
+
 ## 1. Amaç ve kapsam
 3 Ekim tasarım yönü: kullanıcı premium arayüz skill'i aranıp kullanıcı
 skills klasörüne kurulmasını ve gerçek Flutter arayüzüne uygulanmasını istedi.

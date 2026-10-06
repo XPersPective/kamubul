@@ -3,7 +3,7 @@ import {matchListing,listingAnchorKeys} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
 import {externalAiEnabled,externalAiRun} from './external_ai.js';
-import {handleExtract,MIN_TEXT,MAX_TEXT} from './extract.js';
+import {extractNotice,NOTICE_VERSION} from './notice_extraction.js';
 const aiProvider=env=>externalAiEnabled(env)?'external':'cloudflare';
 const aiModel=env=>externalAiEnabled(env)?env.EXTERNAL_AI_MODEL:env.AI_MODEL;
 
@@ -11,7 +11,7 @@ const later=minutes=>new Date(Date.now()+minutes*60000).toISOString();
 const safeError=e=>/^\w{1,70}$/.test(e.message)?e.message:'operation_failed';
 // Bump when the prompt/validator changes; old partial work needs explicit reprocessing, not mixed excerpts.
 export const aiExtractionRevision=2;
-export function semanticInput(notice){return JSON.stringify({title:notice.title,category:notice.category,deadline:notice.deadline,institution:notice.institution??'',applyUrl:notice.applyUrl??null,quota:notice.quota??null,places:[...(notice.places??[])].sort(),text:plain(notice.text),positions:(notice.positions??[]).map(p=>({title:p.title,profession:p.profession,text:plain(p.text),places:[...(p.places??[])].sort(),quota:p.quota}))});}
+export function semanticInput(notice){return JSON.stringify({title:notice.title,category:notice.category,deadline:notice.deadline,...(notice.gazettePublishedAt?{gazettePublishedAt:notice.gazettePublishedAt}:{}),institution:notice.institution??'',applyUrl:notice.applyUrl??null,quota:notice.quota??null,places:[...(notice.places??[])].sort(),text:plain(notice.text),positions:(notice.positions??[]).map(p=>({title:p.title,profession:p.profession,text:plain(p.text),places:[...(p.places??[])].sort(),quota:p.quota}))});}
 export async function readSbbDetail(env,id,previous={}){
   if(typeof id!=='string'||!id.length||id.length>1024)throw new Error('pdf_identity');
   const bytes=await sourceBytes('https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod='+encodeURIComponent(id));
@@ -136,7 +136,7 @@ export async function readSource(env){
       const key=contract?JSON.stringify([contract.provider,contract.model,contract.extractionRevision]):'source-only';
       await env.DB.batch([
         env.DB.prepare(`INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,deadline,payload) VALUES(?,?,?,?,?,?,?,?,?)
-          ON CONFLICT(id) DO UPDATE SET content_hash=excluded.content_hash,updated_at=excluded.updated_at,recheck_at=excluded.recheck_at,deadline=excluded.deadline,active=1,revision=listings.revision+1,payload=json_set(excluded.payload,'$.firstSeenAt',listings.first_seen)`)
+          ON CONFLICT(id) DO UPDATE SET content_hash=excluded.content_hash,updated_at=excluded.updated_at,recheck_at=excluded.recheck_at,deadline=excluded.deadline,active=1,conditions_due_at='1970-01-01T00:00:00.000Z',revision=listings.revision+1,payload=json_set(excluded.payload,'$.firstSeenAt',listings.first_seen)`)
           .bind(base.id,source.id,base.externalId,hash,now,now,later(360),notice.deadline,JSON.stringify(notice)),
         env.DB.prepare(`INSERT OR IGNORE INTO processing_jobs(id,listing_id,input_hash,input,due_at,contract_key) VALUES(?,?,?,?,?,?)`).bind(JSON.stringify([base.id,hash,key]),base.id,hash,JSON.stringify({...notice,...(contract?{aiContract:contract}:{})}),now,key)
       ]);
@@ -180,30 +180,31 @@ export function splitAiText(text){
 // Kanonik şart ayıklaması (ADR-005/006): içerik başına bir kez, özet işinden ve
 // bildirim eşleştirmesinden ÖNCE; sonuç requirementGroups'a yazılır, değişiklik
 // tetikleyicisiyle istemcilere yayılır. Başarısız/limitte alanlar bilinmiyor kalır.
-export async function canonicalConditions(env,listingId,contentHash,text,places=[]){
-  const done=await env.DB.prepare("SELECT conditions_checked c,json_extract(payload,'$.requirementGroups') g FROM listings WHERE id=? AND content_hash=?").bind(listingId,contentHash).first();
-  if(!done||done.c===contentHash)return {status:200};
-  const checked=()=>env.DB.prepare('UPDATE listings SET conditions_checked=? WHERE id=? AND content_hash=?').bind(contentHash,listingId,contentHash).run();
-  const normalized=String(text).replace(/\s+/g,' ').trim();
-  if(normalized.length<MIN_TEXT||normalized.length>MAX_TEXT){await checked();return {status:200};}
-  const res=await handleExtract({installationId:'0'.repeat(32),text},env,{sha256,internal:true});
-  // Geçici durumlar (tavan, meşgul, sağlayıcı hatası) işaretlenmez; telafi aşaması yeniden dener.
-  if(res.status!==200&&res.status!==422){
-    await env.DB.prepare('UPDATE listings SET conditions_due_at=?,conditions_error=? WHERE id=? AND content_hash=?').bind(later(res.status===429?60:15),res.body?.reason??res.body?.error??'extract_failed',listingId,contentHash).run();
-    return res;
-  }
-  const groups=res.status===200?res.body.groups:[];
-  // Boş sonuçta payload yazılmaz (revizyon değişmez); yalnız denetim işareti.
-  if(!groups.length){await checked();return res;}
-  const existing=JSON.parse(done.g??'[]');
-  // Yalnız kaynağın yapısal alanları (il, meslek) korunur; eski AI değerleri yeni okumayla değişir.
-  const merged=groups.map((g,i)=>{const e=groups.length===existing.length?existing[i]:{};return {cities:e.cities??places,...(e.occupations?{occupations:e.occupations}:{}),...g};});
-  await env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.requirementGroups',json(?),'$.conditionsHash',?),conditions_checked=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=?")
-    .bind(JSON.stringify(merged),contentHash,contentHash,nowISO(),listingId,contentHash).run();
+export async function canonicalConditions(env,listingId,contentHash,text,places=[],options={}){
+  const done=await env.DB.prepare('SELECT conditions_checked c,payload FROM listings WHERE id=? AND content_hash=?').bind(listingId,contentHash).first();
+  if(!done)return {status:200};
+  const notice=JSON.parse(done.payload);
+  if(done.c===contentHash&&notice.extraction?.version===NOTICE_VERSION)return {status:200,body:{extraction:notice.extraction}};
+  const res=await extractNotice({...notice,places:notice.places??places},text,env,{sha256,...options});
+  const {fields,groups,extraction}=res.result;
+  const payload={...notice,requirementGroups:groups,extraction,conditionsHash:contentHash,updatedAt:nowISO(),fieldEvidence:{...notice.fieldEvidence,...fields}};
+  for(const [key,field] of Object.entries(fields))payload[key]=field.value;
+  const terminal=options.mechanicalOnly?extraction.status==='complete':res.status===200||res.status===422;
+  // checked suppresses duplicate attempts; extraction.status alone denotes quality.
+  // Partial mechanical facts are published even while Qwen waits for its budget.
+  await env.DB.prepare('UPDATE listings SET payload=?,deadline=?,conditions_checked=?,conditions_due_at=?,conditions_error=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=? AND payload=?')
+    .bind(JSON.stringify(payload),payload.deadline??null,terminal?contentHash:null,terminal||options.mechanicalOnly?nowISO():later(res.status===429?60:15),terminal||options.mechanicalOnly?null:res.body?.reason??res.body?.error??'extract_failed',nowISO(),listingId,contentHash,done.payload).run();
+  if(res.status===200)res.body={...res.body,extraction};
   return res;
+}
+export async function mechanicalBackfill(env){
+  // ponytail: three stored documents per queue turn; retain the cursor in rows rather than risking an unbounded CPU batch.
+  const rows=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY updated_at,id LIMIT 3").bind(NOTICE_VERSION).all();
+  for(const row of rows.results){const notice=JSON.parse(row.payload),text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');await canonicalConditions(env,row.id,row.content_hash,text,notice.places??[],{mechanicalOnly:true});}
 }
 // Telafi: özet işinin ilk turunda geçici hata alan ilanlar her turda bir tane.
 export async function canonicalBackfill(env){
+  await mechanicalBackfill(env);
   const row=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY conditions_due_at,updated_at,id LIMIT 1").bind(nowISO(),nowISO()).first();
   if(!row)return;
   const notice=JSON.parse(row.payload);
@@ -211,7 +212,7 @@ export async function canonicalBackfill(env){
   await canonicalConditions(env,row.id,row.content_hash,text,notice.places??[]);
 }
 export async function processNotice(env){
-  if(!env.AI&&!externalAiEnabled(env))return;
+  if(env.AI_SUMMARY_ENABLED==='0')await mechanicalBackfill(env);
   const now=nowISO();const job=await env.DB.prepare("UPDATE processing_jobs SET state='leased',lease_until=?,attempts=attempts+1 WHERE id=(SELECT j.id FROM processing_jobs j WHERE (j.state IN ('pending','quota_wait') OR (j.state='leased' AND j.lease_until<?)) AND j.due_at<=? AND j.attempts<5 AND NOT EXISTS(SELECT 1 FROM processing_jobs other WHERE other.listing_id=j.listing_id AND other.state='leased' AND other.lease_until>=?) ORDER BY j.due_at,j.id LIMIT 1) RETURNING *").bind(later(4),now,now,now).first();
   if(!job)return;
   const current=await env.DB.prepare('SELECT content_hash,processed_hash,processed_contract,reprocess_contract,first_seen,active,deadline FROM listings WHERE id=?').bind(job.listing_id).first();
@@ -226,12 +227,12 @@ export async function processNotice(env){
     }
     await env.DB.batch([
       env.DB.prepare("UPDATE listings SET payload=json_set(payload,'$.aiStatus',?,'$.updatedAt',?),processed_hash=?,processed_contract=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=? AND active=1")
-        .bind(text?(result.status===422?'conditions_unavailable':'conditions_checked'):'source_only',now,job.input_hash,job.contract_key,now,job.listing_id,job.input_hash),
+        .bind(text?(result.status===422?'conditions_unavailable':result.body?.extraction?.status==='partial'?'conditions_partial':'conditions_checked'):'source_only',now,job.input_hash,job.contract_key,now,job.listing_id,job.input_hash),
       env.DB.prepare("UPDATE processing_jobs SET state=CASE WHEN EXISTS(SELECT 1 FROM listings WHERE id=? AND content_hash=? AND processed_hash=? AND active=1) THEN 'completed' ELSE 'superseded' END,lease_until=NULL,error_code=NULL WHERE id=?").bind(job.listing_id,job.input_hash,job.input_hash,job.id)
     ]);return;
   }
   let chunks;try{chunks=splitAiText(text);}catch(e){await env.DB.prepare("UPDATE processing_jobs SET state='failed',error_code=?,lease_until=NULL WHERE id=?").bind(safeError(e),job.id).run();return;}
-  if(text.length&&!aiProgress){
+  if(text.length&&!aiProgress&&job.purpose!=='reprocess'){
     try{await canonicalConditions(env,job.listing_id,job.input_hash,text,notice.places??[]);}
     catch(e){console.error('canonical_conditions_failed',safeError(e));}
   }
@@ -465,7 +466,7 @@ export async function flushOutboxBatch(env,options={}) {
 }
 async function pendingDispatch(env,kind,now) {
   if(kind==='source')return env.DB.prepare("SELECT 1 FROM sources WHERE next_due<=? AND (lease_until IS NULL OR lease_until<?) LIMIT 1").bind(now,now).first();
-  if(kind==='extract')return env.DB.prepare("SELECT 1 WHERE EXISTS(SELECT 1 FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5) OR EXISTS(SELECT 1 FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND json_extract(payload,'$.text') IS NOT NULL)").bind(now,now,now,now).first();
+  if(kind==='extract')return env.DB.prepare("SELECT 1 WHERE EXISTS(SELECT 1 FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5) OR EXISTS(SELECT 1 FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0))").bind(now,now,now,now).first();
   return kind==='match'
     ?env.DB.prepare("SELECT 1 FROM match_events WHERE state='pending' OR (state='leased' AND lease_until<?) LIMIT 1").bind(now).first()
     :env.DB.prepare("SELECT 1 FROM notification_outbox WHERE (state='pending' OR (state='leased' AND lease_until<?)) AND due_at<=? AND (delivery_id IS NULL OR delivery_id=id) LIMIT 1").bind(now,now).first();

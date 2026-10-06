@@ -1,5 +1,31 @@
 # Sunucuda ilan toplama ve Qwen bütçesi
 
+## Mekanik önce — PB-027
+Her saklı belge önce kaynak alanları ve başlıklı tablo sütunlarıyla ayıklanır.
+Derece, aday/sınav sayısı, sıra numarası ve tekrarlanan aynı tablo toplam
+kontenjana katılmaz. Eksik/sayısı okunmayan pozisyon varsa satırların ara toplamı
+ilan toplamı diye yayımlanmaz. Kaynakta yazan başvuru tarihi ve saati korunur;
+sınav, belge teslimi veya yayım tarihi son başvuru yerine kullanılmaz.
+Göreli gün hesabı ve birden fazla pozisyon takvimi tek kesin tarihe indirgenmez.
+
+Yeterlilik denetimi eksik alanları kaydeder. Mekanik bilgiler AI kuyruğunu
+beklemeden küçük sunucu partileriyle yayımlanır. Yalnız eksik belgeler Qwen'e
+saklı tam metinle gider. Metin/model/sözleşme önbelleği ve iki deneme tavanı
+korunur; aynı ilana kullanıcı tıklaması ayıklama veya kaynak isteği başlatmaz.
+AI şartı başka tablo satırından alınamaz. Geçerli fakat kısmi yanıt kalıcı
+`extraction.status=partial` olarak görünür; sınırsız yeniden inference yapılmaz.
+
+Tek kanonik payload `quota`, `deadline`, `requirementGroups`, `fieldEvidence`,
+`applicationPeriods` ve `extraction` alanlarıyla kart/ayrıntı/offline eşitliğini
+sağlar. AI katkısı varsa uygulama “Yapay zekâ ile ayıklandı; hata olabilir.” der.
+Koşul grubu sayısı kişi sayısı değildir; bilirkişi listesinde bilinmeyen kontenjan
+bilinmiyor kalır. Her pozisyonun tam kaynak koşulu ve ilanın özgün metni saklanır.
+
+Gerçek regression corpus: workers/test/fixtures/ilangov-details.json (yedi
+resmî ilan). Sabancı1, Ahi Evran27/15, Bakanlık5, TİBU7, Eskişehir5 kontenjanları
+mekanik doğrulanır. Ahi göreli süre ve Eskişehir farklı takvimleri açık kısmi
+bilgidir; kesin tarih uydurulmaz.
+
 ## Sorumluluk
 Kaynak → Cloudflare kaynak işi → D1 tam metin → paylaşılan ayıklama → API →
 SQLite → ayrıntı/Asistan. Telefon resmî kaynakları otomatik okumaz; yalnız

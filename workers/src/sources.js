@@ -65,13 +65,29 @@ export async function fetchIlanGovList() {
   }
   throw new SourceError('source_page_limit');
 }
-export async function fetchIlanGovDetail(id) {
-  if(!/^\d{1,20}$/.test(String(id)))throw new SourceError('source_identity');
-  const raw=JSON.parse(await sourceFetch(ilanGovApi+'/AdDetail/GetAdDetail?id='+encodeURIComponent(id),{headers:ilanGovHeaders}));
+export function parseIlanGovDetail(raw,id) {
   if(typeof raw?.result?.content!=='string')throw new SourceError('layout_changed');
+  if(id!==undefined&&raw.result.id!==undefined&&String(raw.result.id)!==String(id))throw new SourceError('source_identity');
   const text=plain(raw.result.content);
   if(!text)throw new SourceError('source_empty');
-  return {text,detailState:'available'};
+  const detail={text,detailState:'available'};
+  // Only the explicit application deadline is native evidence; publisher endDate is an ad display period.
+  for(const [label,field] of [['son basvuru tarihi','deadline'],['resmi gazete yayim tarihi','gazettePublishedAt']]){
+    const filters=Array.isArray(raw.result.adTypeFilters)?raw.result.adTypeFilters.filter(f=>fold(f?.key)===label):[];
+    if(filters.length!==1||typeof filters[0].value!=='string')continue;
+    const date=filters[0].value.trim().match(/^(\d{1,2})\.(\d{1,2})\.(20\d{2})$/);
+    if(date){
+      const d=new Date(Date.UTC(Number(date[3]),Number(date[2])-1,Number(date[1])));
+      if(d.getUTCFullYear()!==Number(date[3])||d.getUTCMonth()!==Number(date[2])-1||d.getUTCDate()!==Number(date[1]))continue;
+      detail[field]=field==='deadline'?new Date(+d+21*3600000-1000).toISOString():d.toISOString().slice(0,10);
+      if(field==='gazettePublishedAt')detail.gazettePublishedQuote=filters[0].key+': '+filters[0].value;
+    }
+  }
+  return detail;
+}
+export async function fetchIlanGovDetail(id) {
+  if(!/^\d{1,20}$/.test(String(id)))throw new SourceError('source_identity');
+  return parseIlanGovDetail(JSON.parse(await sourceFetch(ilanGovApi+'/AdDetail/GetAdDetail?id='+encodeURIComponent(id),{headers:ilanGovHeaders})),id);
 }
 export function parseKariyerIndex(raw) {
   if(!Array.isArray(raw?.searchIlan))throw new SourceError('layout_changed');

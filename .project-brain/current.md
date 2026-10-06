@@ -1,12 +1,14 @@
 # Mevcut Mimari — KamuBul
 
 5 Ekim 2026. Bu dosya doğrulanmış mevcut durumu tutar; eski kontrol noktaları
-Git geçmişindedir. Son kullanıcı yönü PB-026/C-053; telefon fallback koruması
+Git geçmişindedir. Son kullanıcı yönü PB-027/C-054: mekanik önce, yeterlilik
+kontrolü ve eksikse saklı tam metni okuyan Qwen. Telefon fallback koruması
 ve eski CF-first model sırası geçersizdir. Tam üretim kabulü henüz tamamlanmadı.
 
 ## Sunucu ve kaynak verisi
 Kalıcı Worker: https://kamubul-api.devx8585.workers.dev, son deployment
-ac85eb7f-339f-475a-8b8c-7cda90b4305a. Health200/ok/seq341, AI ve FCM configured.
+22ac5fc4-4d40-4248-a2dc-e56bc4f7c52a. Önceki health200/AI/FCM configured;
+PB-027 deployment sonrası canlı kalite/sayı kontrolü sürüyor.
 D1 kamubul (371092dd-2cc7-487f-b971-84c2499bbc7d), migration0001–0028 remote.
 Queue kamubul-work, batch1/concurrency1/retry0. Cron her dakika recovery;
 source/extract/match/send generation+lease, atomik3000 UTC günlük görev sınırı.

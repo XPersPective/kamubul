@@ -59,12 +59,20 @@ void main() {
     summary: const ['Başvurular resmî başvuru sistemi üzerinden yapılır.'],
     criteriaListing: {
       'text':
-          'Unvan | Eğitim | KPSS\n'
-          'Mühendis | Lisans | P3 en az 70 puan\n'
-          'Destek personeli | Koşulları resmî belgede belirtilir.\n'
+          'Unvan | Kontenjan | Eğitim | KPSS\n'
+          'Mühendis | 3 | Lisans | P3 en az 70 puan\n'
+          'Destek personeli | 2 | Koşulları resmî belgede belirtilir.\n'
           'Başvurular 12 Ekim 2026 tarihine kadar Kariyer Kapısı üzerinden yapılır.',
+      'extraction': {
+        'method': 'hybrid',
+        'status': 'complete',
+        'missing': [],
+        'version': 'facts-v1',
+      },
       'requirementGroups': [
         {
+          'label': 'Mühendis',
+          'quota': 3,
           'occupations': ['Mühendis'],
           'cities': ['city:ankara'],
           'education': ['education:bachelor'],
@@ -74,8 +82,11 @@ void main() {
           'ageStatus': 'known',
           'maxAge': 35,
           'ageReferenceDate': '2026-10-01',
+          'quotes': {'education': 'Mühendis | 3 | Lisans | P3 en az 70 puan'},
         },
         {
+          'label': 'Destek personeli',
+          'quota': 2,
           'occupations': ['Destek personeli'],
           'kpssStatus': 'unknown',
           'ageStatus': 'unknown',

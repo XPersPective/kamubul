@@ -183,6 +183,7 @@ void main() {
           'aiProvenance': {'provider': 'cloudflare'},
           'requirementGroups': [
             {
+              'label': 'Mühendis',
               'occupations': ['Mühendis'],
               'cities': ['city:ankara'],
               'education': ['bachelor'],
@@ -194,11 +195,13 @@ void main() {
               'ageReferenceDate': '2026-10-01',
             },
             {
+              'label': 'Destek personeli',
               'occupations': ['Destek personeli'],
               'kpssStatus': 'unknown',
               'ageStatus': 'unknown',
             },
             {
+              'label': 'Genel başvuru koşulları',
               'kpssStatus': 'not_required',
               'kpssScore': 'broken',
               'ageStatus': 'no_restriction',
@@ -223,7 +226,7 @@ void main() {
         final scroll = find.byType(Scrollable).first;
         // Scroll each card into view: lazy list rendering preserves group boundaries.
         await tester.scrollUntilVisible(
-          find.text('Kadro 1'),
+          find.text('Mühendis'),
           180,
           scrollable: scroll,
         );
@@ -234,13 +237,13 @@ void main() {
           findsOneWidget,
         );
         await tester.scrollUntilVisible(
-          find.text('Kadro 2'),
+          find.text('Destek personeli'),
           180,
           scrollable: scroll,
         );
         expect(find.text('Destek personeli'), findsOneWidget);
         await tester.scrollUntilVisible(
-          find.text('Kadro 3'),
+          find.text('Genel başvuru koşulları'),
           180,
           scrollable: scroll,
         );
@@ -339,32 +342,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'rehber SBB için yalnız bilinen alanları gösterir',
-    (tester) async {
-      final record = ListingRecord(
-        url: 'https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod=1',
-        sourceId: 'kamuilan_sbb',
-        title: 'Örnek Kurum 12 İşçi Alacak',
-        category: 'İşçi',
-        publishedAt: DateTime(2026, 9, 28),
-        fetchedAt: DateTime(2026, 9, 28),
-        quota: 12,
-      );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: ListView(children: [ListingGuideView(listing: record)]),
-          ),
+  testWidgets('rehber SBB için yalnız bilinen alanları gösterir', (
+    tester,
+  ) async {
+    final record = ListingRecord(
+      url: 'https://kamuilan.sbb.gov.tr/ilanDetay.aspx?kod=1',
+      sourceId: 'kamuilan_sbb',
+      title: 'Örnek Kurum 12 İşçi Alacak',
+      category: 'İşçi',
+      publishedAt: DateTime(2026, 9, 28),
+      fetchedAt: DateTime(2026, 9, 28),
+      quota: 12,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(children: [ListingGuideView(listing: record)]),
         ),
-      );
-      expect(find.text('Kontenjan: 12 kişi'), findsOneWidget);
-      // Bilinmeyen şart satırı gösterilmez; Asistan'a sorma önerilir.
-      expect(find.text('Yaş sınırı: belirtilmemiş'), findsNothing);
-      expect(find.textContaining('Asistan’a sorabilirsiniz'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+      ),
+    );
+    expect(find.text('Kontenjan: 12 kişi'), findsOneWidget);
+    // Bilinmeyen şart satırı gösterilmez; Asistan'a sorma önerilir.
+    expect(find.text('Yaş sınırı: belirtilmemiş'), findsNothing);
+    expect(find.textContaining('Asistan’a sorabilirsiniz'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   final listing = PublicListing(
     title: 'TEST KURUMU - Sözleşmeli Personel Alım İlanı (2026/1)',

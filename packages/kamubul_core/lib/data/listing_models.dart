@@ -94,6 +94,23 @@ class ListingRecord {
     return parts.join('\n\n');
   }
 
+  /// Kart, ayıklama durumunu özetin hazırlanma durumuyla karıştırmaz.
+  String? get conditionsCaption {
+    final extraction = criteriaListing?['extraction'];
+    if (extraction is Map && extraction['status'] is String) {
+      return switch (extraction['status']) {
+        'complete' => 'Koşullar ayıklandı',
+        'partial' => 'Koşullar kısmen ayrıştırıldı',
+        _ => 'Koşullar henüz hazır değil',
+      };
+    }
+    return switch (criteriaListing?['aiStatus']) {
+      'summary_validated' => 'İlan özeti hazır',
+      'source_only' => 'Koşullar henüz ayrıştırılmadı',
+      _ => null,
+    };
+  }
+
   /// Yerel kural çıkarıcı yalnız metnin TAMAMINDA tek ayrık değer ve alıntı
   /// varsa alan üretir; bu yüzden yalnız alıntılı alanlardan tek koşul grubu
   /// türetmek güvenlidir (çok kadrolu, çelişen ilanda alan zaten boştur).

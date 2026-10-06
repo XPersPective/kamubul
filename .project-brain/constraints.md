@@ -81,3 +81,9 @@ suçlayıcı/rencide edici ifade kullanıcıya gösterilmez (uygulama, mağaza, 
 ## C-052 Geri bildirim kuyruğu — 4 Ekim 2026
 Kullanıcı çalışma sırasında yeni istek gönderirse istek hemen ilgili PB görevine
 madde olarak yazılır; yürüyen iş yarım bırakılmaz, yeni madde sıraya girer.
+
+## C-054 Mekanik önce ve kanonik kalite — 5/6 Ekim 2026
+Kullanıcı PB-027 ile ayıklama sırasını düzeltti: önce mekanik, başarı/yeterlilik
+denetimi, sonra eksikse saklı tam metni okuyan Qwen. Kart ve ayrıntı aynı
+kontenjan/tarih/pozisyon sonucunu kullanır. AI katkısında küçük hata olabilir
+ibaresi gerekir. Kaynakta olmayan sayı/tarih çıkarılmaz; kısmi sonuç tam sayılmaz.
