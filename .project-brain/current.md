@@ -17,7 +17,7 @@ Firebase Cloud Messaging API Admin; private key ve Qwen key yalnız dış
 credentials/Worker Secrets. Client Firebase config sunucu yetkisi değildir.
 
 Kaynak index bütün native kimlikleri ayrıntı/AI'dan önce D1'e kaydeder.
-ilan.gov native20 sayfa cursor'u kalıcı; eksik/tekrarlanan/değişen snapshot açık
+ilan.gov native20 sayfa cursor'u kalıcı, turda3 sayfa (64c1981); eksik/tekrarlanan/değişen snapshot açık
 hata. Kariyer/SBB liste ve Kariyer kadro sessiz slice limitleri kaldırıldı.
 İŞKUR WebForms kamu filtresi/cookie/pager adapteri mevcut, özel sektör alınmaz.
 HTML paragraf/tablo satır-hücre sınırları okunabilir metinde korunur.
