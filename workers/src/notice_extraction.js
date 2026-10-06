@@ -157,6 +157,12 @@ export function mechanicalNotice(notice,text){
       const checked=validateGroups({groups:[{kpssStatus:'required',kpssType:type,kpssScore:score?Number(score.replace(',','.')):null,kpssQuote:quote}]},text)[0];
       if(checked){const quotes={...parsed.quotes,...checked.quotes};Object.assign(parsed,checked,{quotes},types.length>1?{kpssTypes:types}:{});}
     }
+    // "ÖĞRENİM | Ön Lisans", "EĞİTİM DURUMU | Mesleki Lise ve Dengi Okulların; ...": a native education column.
+    const educationColumn=headers.findIndex(h=>/^(?:(?:ogrenim|egitim)(?: durumu| seviyesi| duzeyi)?|mezuniyet(?: durumu)?)$/.test(fold(h).replace(/[:.*]/g,'').trim()));
+    if(educationColumn>=0&&!parsed.education?.length&&cells[educationColumn]&&cells[educationColumn].length<=400){
+      const checked=validateGroups({groups:[{education:['İlkokul','Ortaokul','Lise','Ön lisans','Lisans','Yüksek lisans','Doktora'],educationQuote:cells[educationColumn]}]},text)[0];
+      if(checked?.education?.length){parsed.education=checked.education;parsed.quotes={...parsed.quotes,education:checked.quotes.education};}
+    }
     groups.push({label,quota,...parsed,quotes:{...parsed.quotes,quota:line},sourceText:line});
   }
   if(groups.length&&!tableAmbiguous){const total=groups.reduce((n,g)=>n+g.quota,0);if(total<=100000)fields.quota={value:total,quote:groups.map(g=>g.sourceText).join('\n')};}

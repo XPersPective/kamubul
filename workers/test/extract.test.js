@@ -380,4 +380,9 @@ test('labelled-review fixes: scoring prose, stated dates beside relative rules, 
     '1. Grup | Hukuk fakültelerinden mezun olmak. | KPSSP-4 | 80 | 5',
     '2. Grup | Muhasebe ve Finans Yönetimi programından mezun olmak. | KPSSP-3 KPSSP-44 KPSSP-45 | 75 | 2'].join('\n'));
   assert.deepEqual(oib.groups.map(g => [g.kpssType ?? null, g.kpssTypes ?? null]), [['P4', null], [null, ['P3', 'P44', 'P45']]]);
+  // TTK/Atatürk: a native education column ("EĞİTİM DURUMU | Mesleki Lise ve Dengi Okulların; ...", "ÖĞRENİM | Ön Lisans").
+  const ttk2 = mechanicalNotice({ title: 'İşçi Alım İlanı' }, ['MESLEK ADI | AÇIK İŞÇİ SAYISI | EĞİTİM DURUMU | İSTENEN BELGELER',
+    '7212.07 KAYNAKÇI | 5 | Mesleki Lise ve Dengi Okulların; Metal Teknolojisi Alanı ve dallarının birinden | Belge',
+    'İLAN NO | ÜNVAN | ÖĞRENİM | ADET', 'ST 01 | Sağlık Teknikeri | Ön Lisans | 2'].join('\n'));
+  assert.deepEqual(ttk2.groups.map(g => g.education), [['Lise'], ['Ön lisans']]);
 });
