@@ -276,3 +276,12 @@ test('headerless position rows with gender-marked counts give the vacancy total'
   // A plain number without the marker in a headerless table stays unknown rather than guessed.
   assert.equal(mechanicalNotice({ title: 'İlan' }, 'Hemşire | 4 | Lisans mezunu olmak.').fields.quota, undefined);
 });
+
+test('a bracketed application range after "Başvuru süresi" is the deadline', async () => {
+  const { mechanicalNotice } = await import('../src/notice_extraction.js');
+  const text = 'Başvuru süresi, ilan yayınladığı tarihten itibaren (30/09/2026 – 14/10/2026) 15 gündür. SIRA NUMARASI | FAKÜLTE | KADRO\n1 | Diş Hekimliği | Profesör';
+  const result = mechanicalNotice({ title: 'Öğretim Üyesi Alım İlanı', gazettePublishedAt: '2026-09-30' }, text);
+  assert.equal(result.fields.deadline.value, '2026-10-14T20:59:59.999Z');
+  // A results or objection date range is not an application window.
+  assert.equal(mechanicalNotice({ title: 'İlan' }, 'Sınav sonuçları (01/11/2026 – 05/11/2026) arasında ilan edilir.').fields.deadline, undefined);
+});

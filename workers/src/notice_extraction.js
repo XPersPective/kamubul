@@ -47,6 +47,8 @@ export function relativeDeadlines(lines,notice,text){
 const windowPatterns=[
   /(?<d1>\d{1,2})[./](?<m1>\d{1,2})[./](?<y1>20\d{2})\s*(?:[-–]|ile|ila)\s*(?<day>\d{1,2})[./](?<month>\d{1,2})[./](?<year>20\d{2})\s*(?:tarih\w*\s*)?arasi/,
   /(?<d1>\d{1,2})[./](?<m1>\d{1,2})[./](?<y1>20\d{2})\s*tarih\w*\s*(?:baslayacak olup,?\s*)?(?<day>\d{1,2})[./](?<month>\d{1,2})[./](?<year>20\d{2})\s*tarihi?\s*(?:saat\s*(?<hour>\d{1,2})[:.](?<minute>\d{2}))?[^.]{0,12}kadar/,
+  // "Başvuru süresi, ilan ... itibaren (30/09/2026 – 14/10/2026) 15 gündür": the bracketed range is the window itself.
+  /basvuru (?:suresi|tarihleri)[^.()]{0,80}\(\s*(?<d1>\d{1,2})[./](?<m1>\d{1,2})[./](?<y1>20\d{2})\s*[-–]\s*(?<day>\d{1,2})[./](?<month>\d{1,2})[./](?<year>20\d{2})\s*\)/,
 ];
 export function applicationWindows(lines){
   const out=[],filled=lines.filter(l=>l.trim());
