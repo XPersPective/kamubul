@@ -91,6 +91,9 @@ test('quota wait on one notice preserves its text and gives the next notice a tu
   for(const id of ['a','b'])f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES(?,'ilangov',?,?,'2026-10-01','2026-10-01','1970-01-01',?)").run('ilangov:'+id,id,id,JSON.stringify({text:'Lisans mezunu olmak. '+id.repeat(300)}));
   const env={...f.env,EXTRACT_AI_PROVIDER:'external',AI_PROVIDER:'external',EXTERNAL_AI_URL:'https://model.test',EXTERNAL_AI_KEY:'test',EXTERNAL_AI_MODEL:'flash',EXTERNAL_AI_FORMAT:'openai',EXTRACT_QWEN_DAILY:'1',EXTRACT_QWEN_HOURLY:'1'};
   f.sql.prepare('INSERT INTO assistant_usage(day,bucket,count) VALUES(?,?,1)').run(new Date().toISOString().slice(0,10),'x:qwen:h'+new Date().toISOString().slice(11,13));
+  // One stored document is parsed per turn, so both notices first get their mechanical facts.
+  await canonicalBackfill(env);await canonicalBackfill(env);
+  assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM listings WHERE json_extract(payload,'$.extraction.version') IS NOT NULL").get().n,2);
   await canonicalBackfill(env);
   assert.ok(f.sql.prepare("SELECT conditions_due_at FROM listings WHERE id='ilangov:a'").get().conditions_due_at>new Date().toISOString());
   await canonicalBackfill(env);
@@ -166,4 +169,35 @@ test('revalidation removes an unsupported former subtotal instead of retaining i
   await canonicalConditions(f.env,'ilangov:1','h',text,[],{mechanicalOnly:true});
   const payload=JSON.parse(f.sql.prepare("SELECT payload FROM listings WHERE id='ilangov:1'").get().payload);
   assert.equal(payload.quota,null);assert.equal(payload.fieldEvidence.quota,undefined);assert.equal(payload.extraction.status,'partial');assert.equal(payload.text,text);
+});
+
+
+test('spent Qwen budget defers a partial notice to the next window without rewriting it',async t=>{
+  const f=setup(t),item=JSON.parse(readFileSync(new URL('./fixtures/ilangov-details.json',import.meta.url))).notices.find(n=>n.id==='2244748');
+  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('ilangov:2244748','ilangov','2244748','h','first','first','later',?)").run(JSON.stringify({title:item.result.title,text:item.text,places:['Kırşehir']}));
+  const day=new Date().toISOString().slice(0,10);
+  f.sql.prepare('INSERT INTO assistant_usage(day,bucket,count) VALUES(?,?,150)').run(day,'x:qwen');
+  globalThis.fetch=async()=>assert.fail('budgeted model must not be called');
+  const env={...f.env,EXTRACT_AI_PROVIDER:'external',AI_PROVIDER:'external',EXTERNAL_AI_URL:'https://model.test',EXTERNAL_AI_KEY:'test',EXTERNAL_AI_MODEL:'flash',EXTERNAL_AI_FORMAT:'openai',EXTRACT_QWEN_DAILY:'150',EXTRACT_QWEN_HOURLY:'30'};
+  await canonicalConditions(env,'ilangov:2244748','h',item.text);
+  const first=f.sql.prepare("SELECT revision,payload FROM listings WHERE id='ilangov:2244748'").get();
+  const changes=f.sql.prepare("SELECT COUNT(*) n FROM catalogue_changes WHERE listing_id='ilangov:2244748'").get().n;
+  assert.equal(JSON.parse(first.payload).extraction.status,'partial');
+  const result=await canonicalConditions(env,'ilangov:2244748','h',item.text);
+  const row=f.sql.prepare("SELECT revision,payload,conditions_due_at due,conditions_error error FROM listings WHERE id='ilangov:2244748'").get();
+  assert.equal(result.status,429);assert.equal(row.revision,first.revision,'no new revision while only the budget is waiting');
+  assert.equal(row.payload,first.payload);assert.equal(row.error,'fallback_budget');
+  assert.equal(row.due,new Date(Date.parse(day+'T00:00:00.000Z')+86400000).toISOString(),'waits for the next UTC day, not another hourly re-parse');
+  assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM catalogue_changes WHERE listing_id='ilangov:2244748'").get().n,changes,'no full-text copy in the change log');
+});
+
+test('an unchanged mechanical result keeps revision and change log intact',async t=>{
+  const f=setup(t),text='Unvan | Adet | Şart\nMühendis | 2 | Lisans mezunu olmak\nTekniker | 1 | Lise mezunu olmak';
+  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('ilangov:2','ilangov','2','h','first','first','later',?)").run(JSON.stringify({title:'Personel alımı',text}));
+  await canonicalConditions(f.env,'ilangov:2','h',text,[],{mechanicalOnly:true});
+  const before=f.sql.prepare("SELECT revision,payload FROM listings WHERE id='ilangov:2'").get();
+  f.sql.exec("UPDATE listings SET conditions_checked=NULL WHERE id='ilangov:2'");
+  await canonicalConditions(f.env,'ilangov:2','h',text,[],{mechanicalOnly:true});
+  const after=f.sql.prepare("SELECT revision,payload FROM listings WHERE id='ilangov:2'").get();
+  assert.equal(after.revision,before.revision);assert.equal(after.payload,before.payload);
 });

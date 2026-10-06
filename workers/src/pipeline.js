@@ -4,6 +4,7 @@ import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
 import {externalAiEnabled,externalAiRun} from './external_ai.js';
 import {extractNotice,NOTICE_VERSION} from './notice_extraction.js';
+import {qwenWaitUntil} from './extract.js';
 const aiProvider=env=>externalAiEnabled(env)?'external':'cloudflare';
 const aiModel=env=>externalAiEnabled(env)?env.EXTERNAL_AI_MODEL:env.AI_MODEL;
 
@@ -185,6 +186,11 @@ export async function canonicalConditions(env,listingId,contentHash,text,places=
   if(!done)return {status:200};
   const notice=JSON.parse(done.payload);
   if(done.c===contentHash&&notice.extraction?.version===NOTICE_VERSION)return {status:200,body:{extraction:notice.extraction}};
+  // A current partial result that only waits for Qwen budget is deferred without re-parsing the document.
+  if(!options.mechanicalOnly&&notice.extraction?.version===NOTICE_VERSION&&notice.extraction.status==='partial'&&notice.conditionsHash===contentHash){
+    const wait=await qwenWaitUntil(env,new Date());
+    if(wait){await env.DB.prepare('UPDATE listings SET conditions_due_at=?,conditions_error=? WHERE id=? AND content_hash=?').bind(wait,'fallback_budget',listingId,contentHash).run();return {status:429,body:{error:'fallback_budget'}};}
+  }
   const res=await extractNotice({...notice,places:notice.places??places},text,env,{sha256,...options});
   const {fields,groups,extraction}=res.result;
   const payload={...notice,requirementGroups:groups,extraction,conditionsHash:contentHash,updatedAt:nowISO(),fieldEvidence:{...notice.fieldEvidence,...fields}};
@@ -193,15 +199,19 @@ export async function canonicalConditions(env,listingId,contentHash,text,places=
   const terminal=options.mechanicalOnly?extraction.status==='complete':res.status===200||res.status===422;
   // checked suppresses duplicate attempts; extraction.status alone denotes quality.
   // Partial mechanical facts are published even while Qwen waits for its budget.
-  await env.DB.prepare('UPDATE listings SET payload=?,deadline=?,conditions_checked=?,conditions_due_at=?,conditions_error=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=? AND payload=?')
-    .bind(JSON.stringify(payload),payload.deadline??null,terminal?contentHash:null,terminal||options.mechanicalOnly?nowISO():later(res.status===429?60:15),terminal||options.mechanicalOnly?null:res.body?.reason??res.body?.error??'extract_failed',nowISO(),listingId,contentHash,done.payload).run();
+  const checked=terminal?contentHash:null,due=terminal||options.mechanicalOnly?nowISO():later(res.status===429?60:15),error=terminal||options.mechanicalOnly?null:res.body?.reason??res.body?.error??'extract_failed';
+  // An unchanged result must not rewrite the payload: every payload write copies the full notice into the change log.
+  if(JSON.stringify({...payload,updatedAt:null})===JSON.stringify({...notice,updatedAt:null}))await env.DB.prepare('UPDATE listings SET conditions_checked=?,conditions_due_at=?,conditions_error=? WHERE id=? AND content_hash=? AND payload=?').bind(checked,due,error,listingId,contentHash,done.payload).run();
+  else await env.DB.prepare('UPDATE listings SET payload=?,deadline=?,conditions_checked=?,conditions_due_at=?,conditions_error=?,revision=revision+1,updated_at=? WHERE id=? AND content_hash=? AND payload=?')
+    .bind(JSON.stringify(payload),payload.deadline??null,checked,due,error,nowISO(),listingId,contentHash,done.payload).run();
   if(res.status===200)res.body={...res.body,extraction};
   return res;
 }
 export async function mechanicalBackfill(env){
-  // ponytail: three stored documents per queue turn; retain the cursor in rows rather than risking an unbounded CPU batch.
-  const rows=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY updated_at,id LIMIT 3").bind(NOTICE_VERSION).all();
+  // One stored document per turn: a large notice parses in 10-30 ms, near Free's per-invocation CPU budget.
+  const rows=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY updated_at,id LIMIT 1").bind(NOTICE_VERSION).all();
   for(const row of rows.results){const notice=JSON.parse(row.payload),text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');await canonicalConditions(env,row.id,row.content_hash,text,notice.places??[],{mechanicalOnly:true});}
+  return rows.results.length>0;
 }
 async function mechanicalPending(env){
   return env.DB.prepare("SELECT 1 FROM listings WHERE active=1 AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) LIMIT 1").bind(NOTICE_VERSION).first();
@@ -214,14 +224,17 @@ async function mechanicalPending(env){
 const twinFields=['text','institution','places','quota','deadline','deadlineEstimate','applicationPeriods','requirementGroups','extraction','fieldEvidence','gazettePublishedAt','gazettePublishedQuote','occupations'];
 const twinWords=value=>fold(value).replace(/\([^)]*\)/g,' ').replace(/[^\p{L}\d]+/gu,' ').replace(/\s+/g,' ').trim();
 const twinRoles=['sozlesmeli','bilisim','ogretim uyesi','ogretim elemani','arastirma gorevlisi','uzman','isci','memur','icra','pilot'];
+// One normalisation per candidate per pass: twelve unmatched Kariyer rows used to re-fold every title (~15 ms each Cron turn).
+const twinCache=new WeakMap();
+const candidateWords=c=>{let words=twinCache.get(c);if(!words){const title=twinWords(c.title);words={title,haystack:title+' '+twinWords(c.institution??'')};twinCache.set(c,words);}return words;};
 export function kariyerTwin(kariyer,candidates){
   const [head,...rest]=String(kariyer.title??'').split(' - ');
   const institution=twinWords(head).replace(/\b(?:genel mudurlugu|rektorlugu|baskanligi|mudurlugu)\b/g,' ').replace(/\s+/g,' ').trim();
   if(!rest.length||institution.split(' ').length<2)return null;
-  const roles=twinRoles.filter(role=>twinWords(rest.join(' ')).includes(role)),published=Date.parse(kariyer.publishedAt);
+  const restWords=twinWords(rest.join(' ')),roles=twinRoles.filter(role=>restWords.includes(role)),published=Date.parse(kariyer.publishedAt);
   const matches=candidates.filter(c=>{
-    const title=twinWords(c.title);
-    if(/\b(?:duzeltme|iptal)\b/.test(title)||!(title+' '+twinWords(c.institution??'')).includes(institution)||!roles.every(role=>title.includes(role)))return false;
+    const {title,haystack}=candidateWords(c);
+    if(/\b(?:duzeltme|iptal)\b/.test(title)||!haystack.includes(institution)||!roles.every(role=>title.includes(role)))return false;
     const at=Date.parse(c.publishedAt);
     // Kariyer dates the application opening; the Gazette notice precedes it by up to several weeks.
     return !Number.isFinite(published)||!Number.isFinite(at)||(at<=published+3*86400000&&at>=published-45*86400000);
@@ -245,7 +258,7 @@ export async function linkKariyerTwins(env){
 }
 export async function canonicalBackfill(env){
   await linkKariyerTwins(env);
-  await mechanicalBackfill(env);
+  if(await mechanicalBackfill(env))return;
   const row=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY conditions_due_at,updated_at,id LIMIT 1").bind(nowISO(),nowISO()).first();
   if(!row)return;
   const notice=JSON.parse(row.payload);

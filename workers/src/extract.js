@@ -191,6 +191,18 @@ export function validateGroups(raw, text) {
   return out;
 }
 
+// Read-only budget probe: when the shared Qwen cap is spent, the next window opens at this time.
+// Callers defer partial notices without re-parsing them; null means a call may be attempted.
+export async function qwenWaitUntil(env, now) {
+  const daily = Number(env.EXTRACT_QWEN_DAILY), hourly = Number(env.EXTRACT_QWEN_HOURLY) || 2;
+  if (env.EXTRACT_AI_PROVIDER !== 'external' || !externalAiEnabled(env) || !Number.isInteger(daily) || daily <= 0) return null;
+  const iso = now.toISOString(), day = iso.slice(0, 10);
+  const count = async bucket => (await env.DB.prepare('SELECT count FROM assistant_usage WHERE day=? AND bucket=?').bind(day, bucket).first())?.count ?? 0;
+  if (await count('x:qwen') >= daily) return new Date(Date.parse(day + 'T00:00:00.000Z') + 86400000).toISOString();
+  if (await count('x:qwen:h' + iso.slice(11, 13)) >= hourly) return new Date(Date.parse(iso.slice(0, 13) + ':00:00.000Z') + 3600000).toISOString();
+  return null;
+}
+
 // Qwen payı: günlük tavan + saatlik pay (tavan ilk saatte tükenmesin). İkisi de
 // çağrıdan önce sayılır; aşılırsa false.
 async function qwenAllowed(env, now) {

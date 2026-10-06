@@ -247,3 +247,18 @@ test('primary and middle school graduation are matchable education levels', () =
   assert.deepEqual(validateGroups({groups:[{education:['Ortaokul'],educationQuote:middle}]},middle)[0].education,['Ortaokul']);
   assert.deepEqual(validateGroups({groups:[{education:['Lise'],educationQuote:primary}]},primary),[]);
 });
+
+
+test('Qwen budget probe names the next open window without reserving a call', async () => {
+  const { qwenWaitUntil } = await import('../src/extract.js');
+  const rows = new Map();
+  const DB = { prepare: () => ({ bind: (day, bucket) => ({ first: async () => rows.has(day + bucket) ? { count: rows.get(day + bucket) } : null }) }) };
+  const env = { DB, AI_PROVIDER: 'external', EXTRACT_AI_PROVIDER: 'external', EXTERNAL_AI_URL: 'https://m.test', EXTERNAL_AI_KEY: 'k', EXTERNAL_AI_MODEL: 'm', EXTRACT_QWEN_DAILY: '150', EXTRACT_QWEN_HOURLY: '30' };
+  const now = new Date('2026-10-06T15:20:00Z');
+  assert.equal(await qwenWaitUntil(env, now), null);
+  rows.set('2026-10-06x:qwen:h15', 30);
+  assert.equal(await qwenWaitUntil(env, now), '2026-10-06T16:00:00.000Z');
+  rows.set('2026-10-06x:qwen', 150);
+  assert.equal(await qwenWaitUntil(env, now), '2026-10-07T00:00:00.000Z');
+  assert.equal(await qwenWaitUntil({ ...env, EXTRACT_QWEN_DAILY: undefined }, now), null, 'uncapped providers keep their own error path');
+});
