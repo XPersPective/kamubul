@@ -61,6 +61,8 @@ void main() {
   });
   test('education codes and spelling aliases use readable labels', () {
     expect(educationLabel('education:associate'), 'Ön lisans');
+    expect(educationLabel('İLKOKUL'), 'İlkokul');
+    expect(educationLabel('İlköğretim'), 'Ortaokul');
     expect(educationLabel('ÖNLİSANS'), 'Ön lisans');
     expect(educationLabel('education:master'), 'Yüksek lisans');
     expect(educationLabel('Üniversite mezunu'), 'Üniversite mezunu');

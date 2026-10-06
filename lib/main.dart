@@ -29,8 +29,27 @@ const otherAppsUrl = String.fromEnvironment(
       'https://raw.githubusercontent.com/XPersPective/napp_apps/HEAD/apps.json',
 );
 
+// Ortak kitin "yalnız cihazda" gizlilik cümlesi KamuBul için doğru değil:
+// Asistan, isteğe bağlı bildirim ve deneme süresi sunucuya veri gönderir.
+const _aboutTexts = {
+  'about.slogan': 'Resmî kamu ilanlarını tek yerde, anlaşılır ve güvenilir biçimde takip edin.',
+  'about.openSourceTitle': 'Açık kaynak ve ilkelerimiz',
+  'about.openSourceBody':
+      'KamuBul’u insanların gerçekten işine yarayan, sade ve güvenilir bir '
+      'uygulama olsun diye geliştiriyoruz. İlanları yalnız resmî kaynaklardan '
+      'alırız. Kodun tamamı açıktır: uygulamanın ne yaptığını herkes inceleyip '
+      'doğrulayabilir, hata bildirebilir ve katkıda bulunabilir. Hesap istemeyiz, '
+      'yalnız hizmet için gereken veriyi işleriz ve kişisel verilerinizi satmayız.',
+  'about.privacyLocal':
+      'Kayıtlı aramalarınız ve kaydettiğiniz ilanlar yalnız bu cihazda saklanır. '
+      'Asistan’a yazdıklarınız, açarsanız anlık bildirim kriterleriniz ve deneme '
+      'süresi için cihazdan türetilen bir özet sunucumuza şifreli bağlantıyla '
+      'gönderilir. Ayrıntılar gizlilik politikasındadır.',
+};
+
 Future<NappTranslations> loadAppTranslations() async =>
-    ProLocalization.load(base: await NappTranslations.loadCore());
+    (await ProLocalization.load(base: await NappTranslations.loadCore()))
+        .mergedWith(const {'tr': _aboutTexts});
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +69,7 @@ Future<void> main() async {
     otherAppsUrl: otherAppsUrl.isEmpty ? null : otherAppsUrl,
     iconAsset: 'assets/brand/kamubul_icon.png',
     brandColor: const Color(0xFF17659C),
+    sloganKey: 'about.slogan',
   );
   final storeAdapter = InAppPurchaseAdapter();
   final purchase = PurchaseRepository(

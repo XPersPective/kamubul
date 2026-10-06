@@ -22,7 +22,6 @@ import 'package:kamubul_core/kamubul_core.dart'
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'data/catalogue_refresh.dart';
@@ -30,7 +29,6 @@ import 'data/listing_store.dart';
 import 'data/remote_sync.dart';
 import 'data/search_alerts.dart';
 import 'data/turkish_cities.dart';
-import 'data/user_data.dart';
 import 'notifications/alert_service.dart';
 import 'notifications/notification_center_page.dart';
 import 'notifications/push_registration.dart';
@@ -48,7 +46,6 @@ import 'ui/pro_page.dart';
 import 'ui/turkish.dart';
 
 part 'ui/source_status_page.dart';
-part 'ui/import_dialog.dart';
 part 'ui/home_searches.dart';
 part 'ui/home_listing_card.dart';
 part 'ui/home_settings.dart';
@@ -558,60 +555,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
     }
   }
 
-  Future<void> _exportData() async {
-    try {
-      final json = exportUserDataJson(
-        searches: _searches,
-        bookmarks: [
-          for (final record in _records)
-            if (record.saved) record,
-        ],
-      );
-      await SharePlus.instance.share(ShareParams(text: json));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Yedek oluşturulamadı ya da paylaşılamadı.'),
-        ),
-      );
-    }
-  }
-
-  Future<void> _importData() async {
-    final raw = await showDialog<String>(
-      context: context,
-      builder: (_) => const _ImportDialog(),
-    );
-    if (raw == null || raw.trim().isEmpty) return;
-    final UserDataImport imported;
-    try {
-      imported = parseUserDataJson(raw);
-    } on FormatException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.message)));
-      return;
-    }
-    for (final search in imported.searches) {
-      await _store.addSavedSearch(search);
-    }
-    if (imported.bookmarks.isNotEmpty) {
-      // DateTime(2000): içe aktarma yerel önbellekteki eski kayıtları budamaz.
-      await _store.mergeFeed(imported.bookmarks, pruneBefore: DateTime(2000));
-    }
-    await _loadLocal();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'İçe aktarıldı: ${imported.searches.length} arama, '
-          '${imported.bookmarks.length} yer imi.',
-        ),
-      ),
-    );
-  }
-
   /// Kriterlere göre sıralama: kesin uyanlar önce, bilinmeyenler sonra;
   /// her grup içinde mevcut (yayın tarihi) sırası korunur.
   /// Her setState'te sıfırlanır: kaydırırken her kart için ~300 ilanı yeniden
@@ -973,12 +916,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
                 .push(sharedAxisRoute<void>(const NotificationCenterPage())),
             icon: const Icon(Icons.notifications_outlined),
           ),
-          if (_tab == 0)
-            IconButton(
-              tooltip: 'Yenile',
-              onPressed: _loading ? null : () => _refresh(manual: true),
-              icon: const Icon(Icons.refresh),
-            ),
           GiftFlow(
             policy: widget.policy,
             rewardedManager: widget.rewarded,
@@ -1166,9 +1103,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
     final t = times.last;
     final hhmm =
         '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-    final day = DateUtils.isSameDay(t, DateTime.now()) ? 'bugün' : _date(t);
-    return 'Güncellendi $day $hhmm${_remoteFailed ? ' • önbellek' : ''} • '
-        'açılışta ve aşağı çekince yenilenir';
+    // Kısa durum: simge + saat; yenileme aşağı çekerek yapılır.
+    final day = DateUtils.isSameDay(t, DateTime.now()) ? 'Bugün' : _date(t);
+    return '$day $hhmm';
   }
 
   /// Kompakt başlık: dikey alanı listeye bırakır.
@@ -1472,10 +1409,13 @@ class _KamuHomePageState extends State<KamuHomePage> {
                 ),
               ),
               if (_searches.isNotEmpty)
-                IconButton(
-                  tooltip: 'Kayıtlı aramaları yönet',
-                  onPressed: _manageSearches,
-                  icon: const Icon(Icons.manage_search),
+                Tooltip(
+                  message: 'Kayıtlı aramaları yönet',
+                  child: TextButton.icon(
+                    onPressed: _manageSearches,
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Yönet'),
+                  ),
                 ),
             ],
           ),

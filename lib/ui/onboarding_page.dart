@@ -184,6 +184,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     border: OutlineInputBorder(),
                   ),
                   items: const [
+                    DropdownMenuItem(value: 'İlkokul', child: Text('İlkokul')),
+                    DropdownMenuItem(
+                      value: 'Ortaokul',
+                      child: Text('Ortaokul'),
+                    ),
                     DropdownMenuItem(value: 'Lise', child: Text('Lise')),
                     DropdownMenuItem(
                       value: 'Ön lisans',

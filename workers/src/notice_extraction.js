@@ -1,7 +1,7 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
 import {handleExtract,validateGroups,missingTopics,mentions,vacancyTotals,applicationDeadline,MIN_TEXT,MAX_TEXT} from './extract.js';
 import {fold} from './criteria.js';
-export const NOTICE_VERSION='notice-13';
+export const NOTICE_VERSION='notice-14';
 const countHeader=value=>/^(?:ad|adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|ogrgor|ogrgordersverecek|arsgor)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
 const datePattern=/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2})\b/g;
@@ -10,7 +10,7 @@ function conditions(text){
   const raw={},clauses=text.split(/\n|\||•|(?<=[.;])\s+/);
   // ponytail: explicit requirement clauses only; ambiguous/scoped prose goes to Qwen, never inferred from document checklists.
   const educationClauses=clauses.filter(s=>/mezunu|mezun (?:olmak|olmus)|derecesine sahip|doktorasini|doktora yapm|lisans.*yapmis|docentlik.*(?:unvan|almi)/.test(fold(s)));
-  if(educationClauses.length){const clause=educationClauses[0],quote=text.slice(text.indexOf(clause),text.lastIndexOf(educationClauses.at(-1))+educationClauses.at(-1).length),at=clause.search(/lisans|doktora|lise|ortaöğretim|fakülte/i);raw.education=['Lise','Ön lisans','Lisans','Yüksek lisans','Doktora'];raw.educationQuote=quote.length<=400?quote:clause.slice(Math.max(0,at-30),Math.max(0,at-30)+400);}
+  if(educationClauses.length){const clause=educationClauses[0],quote=text.slice(text.indexOf(clause),text.lastIndexOf(educationClauses.at(-1))+educationClauses.at(-1).length),at=clause.search(/lisans|doktora|lise|ortaöğretim|fakülte|ilkokul|ortaokul|ilköğretim/i);raw.education=['İlkokul','Ortaokul','Lise','Ön lisans','Lisans','Yüksek lisans','Doktora'];raw.educationQuote=quote.length<=400?quote:clause.slice(Math.max(0,at-30),Math.max(0,at-30)+400);}
   const k=text.match(/KPSS puanı olmayan[^.\n]{0,300}?dikkate alınır/i)?.[0]??text.match(/KPSS[^.\n|]{0,250}?sınava girmiş olmak/i)?.[0]??clauses.find(s=>/kpss/i.test(s)&&/puan|aranm|istenm|sınav/.test(s));
   if(k&&k.length<=400){raw.kpssQuote=k;raw.kpssStatus=/aranm|istenm|muaf|şartı yok|puanı olmayan/.test(k)?'not_required':'required';raw.kpssType=k.match(/\bP\s?(\d{1,3})\b/i)?.[0].replace(/\s/g,'').toUpperCase();const score=k.match(/(?:en az|asgari)\s+(\d{1,3}(?:[.,]\d+)?)\s*puan/i)??k.match(/\b(\d{1,3}(?:[.,]\d+)?)\s*(?:\([^)]*\)\s*)?ve üzeri puan/i);if(score)raw.kpssScore=Number(score[1].replace(',','.'));}
   const a=clauses.find(s=>/yas/.test(fold(s))&&/doldur|tamamla|bitirmem|gun alm|buyuk|kucuk|asmam/.test(fold(s)));

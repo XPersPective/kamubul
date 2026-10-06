@@ -51,8 +51,8 @@ test('age ranges agree with enumerated birthdays, including leap-year anniversar
 test('public taxonomy advertises stable education IDs, labels and accepted aliases',async()=>{
   const response=await fetchRequest(new Request('https://api/api/v2/taxonomy'),{DB:{prepare(){return {async all(){return {results:[]};}};}}},{});
   assert.equal(response.status,200);const body=await response.json();
-  assert.deepEqual(body.education,['Lise','Ön lisans','Lisans','Yüksek lisans','Doktora']);
-  assert.deepEqual(body.educationValues.map(x=>x.id),['education:secondary','education:associate','education:bachelor','education:master','education:doctorate']);
+  assert.deepEqual(body.education,['İlkokul','Ortaokul','Lise','Ön lisans','Lisans','Yüksek lisans','Doktora']);
+  assert.deepEqual(body.educationValues.map(x=>x.id),['education:primary','education:middle','education:secondary','education:associate','education:bachelor','education:master','education:doctorate']);
   for(const value of body.educationValues)for(const alias of [value.label,...value.aliases])assert.equal(matchListing({title:'İlan',requirementGroups:[{education:[alias]}]},validateCriteria({version:2,education:[value.id]}),now),'match');
   const dartCities=readFileSync(new URL('../../packages/kamubul_core/lib/data/turkish_cities.dart',import.meta.url),'utf8').split('];')[0];
   assert.deepEqual(body.cities,[...dartCities.matchAll(/  '([^']+)',/g)].map(m=>m[1]));

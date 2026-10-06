@@ -36,7 +36,7 @@ export function scopeGate(message, { hasListing = false, chat = false } = {}) {
 export const refusal = 'Ben KamuBul Asistanı\'yım; yalnızca kamu ilanları, başvuru şartları ve arama kriterleriniz hakkında yardımcı olabilirim. Örnek: "Ankara\'da lisans mezunu, 28 yaşında, KPSS P3 75 puanlı bilişim ilanları".';
 
 const criteriaRules = `- Dizi alanları (cities, education, occupations, institutions, categories) HER ZAMAN dizi olmalı: ["Lisans"]. Sayılar JSON sayısı olmalı.
-- Kriter alanları yalnız: cities (il adları), education (Lise, Ön lisans, Lisans, Yüksek lisans, Doktora), occupations, institutions, categories (işçi, personel, belediye), keyword, age (tamsayı 16-80), kpssType (P1..P999 biçimi, ör. P3), kpssScore (0-100), kpssYear, onlyKpss (boolean), last30 (boolean).`;
+- Kriter alanları yalnız: cities (il adları), education (İlkokul, Ortaokul, Lise, Ön lisans, Lisans, Yüksek lisans, Doktora), occupations, institutions, categories (işçi, personel, belediye), keyword, age (tamsayı 16-80), kpssType (P1..P999 biçimi, ör. P3), kpssScore (0-100), kpssYear, onlyKpss (boolean), last30 (boolean).`;
 
 const systemPrompt = `Sen KamuBul uygulamasının kriter asistanısın. TEK görevin: kullanıcının anlattığı kamu iş ilanı takip tercihlerini yapılandırılmış kriterlere çevirmek.
 KURALLAR:

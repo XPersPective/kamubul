@@ -34,7 +34,7 @@ test('KPSS ranking weight is not a required minimum, including cached results',a
   const quote='2025 veya 2026 yılında yapılan KPSS P3 puanının yüzde yetmişi (%70)',text=quote+'. '+TEXT;
   const wrong={kpssStatus:'required',kpssType:'P3',kpssScore:70,kpssQuote:quote};
   assert.equal(validateGroups({groups:[wrong]},text)[0],undefined);
-  const db=fakeDb(),hash=await sha256(JSON.stringify(['x11','conditions','external','m',null,text]));
+  const db=fakeDb(),hash=await sha256(JSON.stringify(['x12','conditions','external','m',null,text]));
   db.sql.prepare('INSERT INTO extraction_cache(hash,groups,created_at) VALUES(?,?,?)').run(hash,JSON.stringify([{...wrong,quotes:{kpss:quote}}]),'now');
   const result=await handleExtract({installationId:id,text},env(db),{sha256,fetch:()=>assert.fail('cache replay must not infer')});
   assert.equal(result.body.cached,true);assert.equal(result.body.groups[0].kpssStatus,undefined);assert.equal(result.body.groups[0].kpssScore,undefined);db.sql.close();
@@ -46,7 +46,7 @@ test('written compound numbers do not validate their tens or ones separately',()
 });
 test('old cached application dates are checked without another inference or token reservation',async()=>{
   const quote='Son Başvuru Tarihi: 14.10.2026 Ön Değerlendirme Sonuç Açıklama Tarihi: 15.10.2026',quotaQuote='En yüksek puanlı 800 kişi sınava çağrılacaktır.',text=quote+'. '+quotaQuote+' '+TEXT;
-  const db=fakeDb(),hash=await sha256(JSON.stringify(['x11','notice','external','m',null,text]));
+  const db=fakeDb(),hash=await sha256(JSON.stringify(['x12','notice','external','m',null,text]));
   db.sql.prepare('INSERT INTO extraction_cache(hash,groups,created_at) VALUES(?,?,?)').run(hash,JSON.stringify({groups:[],fields:{deadline:{value:'2026-10-15T20:59:59.999Z',quote},quota:{value:800,quote:quotaQuote}}}),'now');
   const result=await handleExtract({installationId:id,text,noticeMode:true},env(db),{sha256,fetch:()=>assert.fail('cached validation must not infer')});
   assert.equal(result.body.cached,true);assert.equal(result.body.fields.deadline,undefined);assert.equal(result.body.fields.quota,undefined);assert.equal(db.sql.prepare('SELECT count(*) n FROM assistant_usage').get().n,0);db.sql.close();
@@ -239,4 +239,11 @@ test('tablo hücrelerinden birleşen etiket kabul edilir; metinde olmayan sözc�
     { label: 'Hukuk - Doçent', education: ['Lisans'], educationQuote: 'Psikoloji alanında lisans mezunu olmak' },
   ] }, text);
   assert.equal(ok.label, 'Psikoloji - Profesör'); assert.equal(bad.label, undefined);
+});
+
+test('primary and middle school graduation are matchable education levels', () => {
+  const primary='En az ilkokul mezunu olmak.',middle='İlköğretim mezunu olmak.';
+  assert.deepEqual(validateGroups({groups:[{education:['İlkokul'],educationQuote:primary}]},primary)[0].education,['İlkokul']);
+  assert.deepEqual(validateGroups({groups:[{education:['Ortaokul'],educationQuote:middle}]},middle)[0].education,['Ortaokul']);
+  assert.deepEqual(validateGroups({groups:[{education:['Lise'],educationQuote:primary}]},primary),[]);
 });

@@ -394,6 +394,11 @@ String _fold(Object? value) =>
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
 const _educationAliases = {
+  'ILKOKUL': 'primary',
+  'EDUCATION:PRIMARY': 'primary',
+  'ORTAOKUL': 'middle',
+  'ILKOGRETIM': 'middle',
+  'EDUCATION:MIDDLE': 'middle',
   'LISE': 'secondary',
   'EDUCATION:SECONDARY': 'secondary',
   'ON LISANS': 'associate',
@@ -419,6 +424,8 @@ bool _knownCriterion(String field, Object? value) => field == 'cities'
 
 String educationLabel(String value) =>
     const {
+      'primary': 'İlkokul',
+      'middle': 'Ortaokul',
       'secondary': 'Lise',
       'associate': 'Ön lisans',
       'bachelor': 'Lisans',

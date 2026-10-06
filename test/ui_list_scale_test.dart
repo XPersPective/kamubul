@@ -280,8 +280,6 @@ void main() {
     for (final row in [
       'Uygulamayı paylaş',
       'Puan ver',
-      'Verileri dışa aktar',
-      'Verileri içe aktar',
       'Hakkında ve lisanslar',
     ]) {
       await tester.scrollUntilVisible(

@@ -8,8 +8,8 @@ import { externalAiEnabled, externalAiRun } from './external_ai.js';
 export const MIN_TEXT = 200;
 // Tam metin boru hattı sınırına kadar kabul edilir; modele giden kısım FULL_LIMIT/FOCUS_LIMIT ile sınırlı.
 export const MAX_TEXT = 120000;
-const VERSION = 'x11';
-const EDU = ['Lise', 'Ön lisans', 'Lisans', 'Yüksek lisans', 'Doktora'];
+const VERSION = 'x12';
+const EDU = ['İlkokul', 'Ortaokul', 'Lise', 'Ön lisans', 'Lisans', 'Yüksek lisans', 'Doktora'];
 const limits = env => ({ global: Number(env.EXTRACT_DAILY_GLOBAL) || 200, install: Number(env.EXTRACT_DAILY_INSTALL) || 40 });
 
 const prompt = `Görev: Türk kamu personel ilanı metninden başvuru şartlarını JSON olarak ayıkla.
@@ -19,7 +19,7 @@ Farklı kadro/pozisyonların farklı şartları varsa ayrı grup yap (en çok 10
 Satırdaki şartı o satırdan, tüm kadrolara uygulanan genel şartı (ör. yaş, KPSS) genel bölümden alıntıla ve her gruba ekle.
 Yalnız şu JSON'u döndür, açıklama yazma:
 {"groups":[{"label":"kadro/pozisyon adı (metindeki gibi) veya null",
-"education":["Lise"|"Ön lisans"|"Lisans"|"Yüksek lisans"|"Doktora"] veya null,"educationQuote":"...",
+"education":["İlkokul"|"Ortaokul"|"Lise"|"Ön lisans"|"Lisans"|"Yüksek lisans"|"Doktora"] veya null,"educationQuote":"...",
 "kpssStatus":"required"|"not_required"|null,"kpssType":"P3" gibi veya null,"kpssScore":70 veya null,"kpssQuote":"...",
 "maxAge":35 veya null,"minAge":18 veya null,"ageQuote":"..."}]}
 Her eğitim/KPSS/yaş alıntısının kapsamını educationScope/kpssScope/ageScope: "position" veya "general" ile belirt. "general" yalnız ilan metninin bütün pozisyonlara uygulanan genel bölümündeki şart içindir; başka bir pozisyonun şartını genel sayma.
@@ -147,6 +147,8 @@ export function validateGroups(raw, text) {
     if (eq && edu.length) {
       const evidence = fold(eq).split(/\btercihen\b/)[0];
       const supported = EDU.filter(e => ({
+        'İlkokul': /ilkokul/.test(evidence),
+        'Ortaokul': /ortaokul|ilköğretim/.test(evidence),
         'Lise': /lise|ortaöğretim/.test(evidence),
         'Ön lisans': /ön\s*lisans|meslek yüksekokul/.test(evidence),
         'Lisans': /lisans|fakülte/.test(evidence.replace(/ön\s*lisans|yüksek\s*lisans/g, '')),
@@ -160,8 +162,8 @@ export function validateGroups(raw, text) {
         quotes.education = eq;
       }
     }
-    // These source qualifications are readable but intentionally outside the matching taxonomy.
-    if(eq && ((/ilkokul|ilköğretim|ortaokul/.test(fold(eq)) && /mezun/.test(fold(eq))) || /doçentlik.*(?:ünvan|unvan|almış)/.test(fold(eq)))){o.educationDescription=eq;quotes.education=eq;}
+    // Academic titles are readable but intentionally outside the matching taxonomy.
+    if(eq && /doçentlik.*(?:ünvan|unvan|almış)/.test(fold(eq))){o.educationDescription=eq;quotes.education=eq;}
     const kq = quoted(g.kpssQuote, t);
     // Tablo hücresinde ("P3 | 70") KPSS sözcüğü olmayabilir: metin KPSS istiyorsa puan türü kanıttır.
     const kpssEvidence = kq && (/kpss/.test(fold(kq)) || (/kpss/.test(t) && /(?<![\p{L}\d])p\s?\d{1,3}(?!\d)/u.test(fold(kq))));

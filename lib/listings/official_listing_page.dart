@@ -40,9 +40,7 @@ class OfficialListingPage extends StatefulWidget {
 class _OfficialListingPageState extends State<OfficialListingPage> {
   static const _initialPositions = 12;
   bool _allPositions = false;
-  late final List<NoticeBlock> _blocks = parseNotice(
-    widget.listing.noticeText,
-  );
+  late final List<NoticeBlock> _blocks = parseNotice(widget.listing.noticeText);
 
   ListingRecord get listing => widget.listing;
 
@@ -95,8 +93,7 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
     final first = switch (listing.noticeKind) {
       'register' =>
         '${who == null ? 'Bu ilan' : '$who ilanı'} bir liste başvurusudur. Kişi sayısı belirtilmez; uygun bulunan başvurular listeye kaydedilir.',
-      'amendment' =>
-        'Bu, daha önce yayımlanan bir ilanın düzeltmesidir. Değişen kadrolar aşağıda listelenir.',
+      'amendment' => 'Bu, daha önce yayımlanan bir ilanın düzeltmesidir. Değişen kadrolar aşağıda listelenir.',
       'cancellation' => 'Bu, daha önce yayımlanan bir ilanın iptalidir.',
       'exam' => 'Bu bir sınav duyurusudur.',
       _ =>
@@ -143,9 +140,9 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
           child: Text(
             value,
             maxLines: 1,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
+            // Kartlardaki "5 kişi" çipleriyle uyumlu: okunur, ama başlıktan büyük değil.
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -357,17 +354,19 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
     final scheme = theme.colorScheme;
     final rawLabel = group['label'];
     final occupations = [
-      for (final value in group['occupations'] is List
-          ? group['occupations'] as List
-          : const [])
+      for (final value
+          in group['occupations'] is List
+              ? group['occupations'] as List
+              : const [])
         if (value is String && value.trim().isNotEmpty) value.trim(),
     ];
     final label =
         rawLabel is String &&
             rawLabel.trim().isNotEmpty &&
-            !RegExp(r'^Kadro\s*\d+$', caseSensitive: false).hasMatch(
-              rawLabel.trim(),
-            )
+            !RegExp(
+              r'^Kadro\s*\d+$',
+              caseSensitive: false,
+            ).hasMatch(rawLabel.trim())
         ? rawLabel.trim()
         : occupations.isNotEmpty
         ? occupations.join(', ')
@@ -378,17 +377,18 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
         : null;
     final chips = <(IconData, String)>[
       for (final value in [
-        for (final e in group['education'] is List
-            ? group['education'] as List
-            : const [])
+        for (final e
+            in group['education'] is List
+                ? group['education'] as List
+                : const [])
           if (e is String) educationLabel(e),
       ].take(3))
         (Icons.school_outlined, value),
       if (group['educationDescription'] is String &&
-          (group['education'] is! List ||
-              (group['education'] as List).isEmpty))
+          (group['education'] is! List || (group['education'] as List).isEmpty))
         (Icons.school_outlined, 'Eğitim şartı aşağıda'),
-      if (kpssLabel(group) case final String kpss) (Icons.fact_check_outlined, kpss),
+      if (kpssLabel(group) case final String kpss)
+        (Icons.fact_check_outlined, kpss),
       if (ageLabel(group) case final String age) (Icons.cake_outlined, age),
     ];
     final text = group['text'];
@@ -630,8 +630,9 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
                               if (published != null)
                                 'Yayın ${_date(published)}',
                             ].join(' · '),
-                            style: theme.textTheme.bodySmall?.copyWith(
+                            style: theme.textTheme.bodyMedium?.copyWith(
                               color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],

@@ -6,108 +6,119 @@ extension _HomeSearches on _KamuHomePageState {
     final changed = await showModalBottomSheet<bool>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          children: [
-            Text(
-              'Kayıtlı aramalar',
-              style: Theme.of(sheetContext).textTheme.titleMedium,
+      builder: (sheetContext) {
+        void close() {
+          if (sheetContext.mounted) Navigator.pop(sheetContext, true);
+        }
+
+        // Silme görünür bir düğmedir; menüde aranması gerekmez.
+        Future<void> deleteSearch(SavedSearch search) async {
+          final ok = await _confirmDeleteSearch(search);
+          if (ok != true) return;
+          final id = search.id;
+          if (id != null) await _store.deleteSavedSearch(id);
+          // Silinen arama seçiliyse kriterleri de ekranda kalmasın.
+          if (_activeSearchId == search.id) _clearFilters();
+          close();
+        }
+
+        Widget searchMenu(SavedSearch search) => PopupMenuButton<String>(
+          tooltip: 'Arama işlemleri',
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) async {
+            if (value == 'rename') {
+              final name = await _promptRename(search);
+              final trimmed = name?.trim();
+              if (trimmed == null || trimmed.isEmpty) return;
+              await _store.updateSavedSearch(search.copyWith(name: trimmed));
+              close();
+              return;
+            }
+            if (value == 'delete') return deleteSearch(search);
+            if (value == 'edit') {
+              final updated = await _promptEditSearch(search);
+              if (updated == null) return;
+              await _store.updateSavedSearch(updated);
+              close();
+              return;
+            }
+            final filters = <String, String>{...search.filters};
+            filters['bildirim'] = value;
+            await _store.updateSavedSearch(search.copyWith(filters: filters));
+            await _loadLocal();
+          },
+          itemBuilder: (menuContext) => [
+            PopupMenuItem(
+              value: 'instant',
+              enabled: !search.hasInvalidCriteria,
+              child: const Text('Anlık bildirim'),
             ),
-            if (_searches.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Henüz kayıtlı arama yok. Süzgeçleri seçip kaydedin.',
-                ),
-              ),
-            for (final search in _searches)
-              ListTile(
-                leading: const Icon(Icons.label_outline),
-                title: Text(search.name),
-                subtitle: Text(
-                  '${_filterSummary(search)}\nBildirim: ${_modeLabel(alertModeOf(search.filters))}',
-                ),
-                isThreeLine: true,
-                trailing: PopupMenuButton<String>(
-                  tooltip: 'Arama işlemleri',
-                  icon: const Icon(Icons.notifications_outlined),
-                  onSelected: (value) async {
-                    if (value == 'rename') {
-                      final name = await _promptRename(search);
-                      final trimmed = name?.trim();
-                      if (trimmed == null || trimmed.isEmpty) return;
-                      await _store.updateSavedSearch(
-                        search.copyWith(name: trimmed),
-                      );
-                      if (sheetContext.mounted) {
-                        Navigator.pop(sheetContext, true);
-                      }
-                      return;
-                    }
-                    if (value == 'delete') {
-                      final ok = await _confirmDeleteSearch(search);
-                      if (ok != true) return;
-                      final id = search.id;
-                      if (id != null) await _store.deleteSavedSearch(id);
-                      // Silinen arama seçiliyse kriterleri de ekranda kalmasın.
-                      if (_activeSearchId == search.id) _clearFilters();
-                      if (sheetContext.mounted) {
-                        Navigator.pop(sheetContext, true);
-                      }
-                      return;
-                    }
-                    if (value == 'edit') {
-                      final updated = await _promptEditSearch(search);
-                      if (updated == null) return;
-                      await _store.updateSavedSearch(updated);
-                      if (sheetContext.mounted) {
-                        Navigator.pop(sheetContext, true);
-                      }
-                      return;
-                    }
-                    final filters = <String, String>{...search.filters};
-                    filters['bildirim'] = value;
-                    await _store.updateSavedSearch(
-                      search.copyWith(filters: filters),
-                    );
-                    await _loadLocal();
-                  },
-                  itemBuilder: (menuContext) => [
-                    PopupMenuItem(
-                      value: 'instant',
-                      enabled: !search.hasInvalidCriteria,
-                      child: Text('Anlık bildirim'),
-                    ),
-                    PopupMenuItem(
-                      value: 'digest',
-                      enabled: !search.hasInvalidCriteria,
-                      child: const Text('Günlük özet'),
-                    ),
-                    PopupMenuItem(
-                      value: 'off',
-                      enabled: !search.hasInvalidCriteria,
-                      child: const Text('Kapalı'),
-                    ),
-                    PopupMenuDivider(),
-                    PopupMenuItem(value: 'edit', child: Text('Düzenle')),
-                    PopupMenuItem(
-                      value: 'rename',
-                      enabled: !search.hasInvalidCriteria,
-                      child: Text('Yeniden adlandır'),
-                    ),
-                    PopupMenuItem(value: 'delete', child: Text('Sil')),
-                  ],
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _applySearch(search);
-                },
-              ),
+            PopupMenuItem(
+              value: 'digest',
+              enabled: !search.hasInvalidCriteria,
+              child: const Text('Günlük özet'),
+            ),
+            PopupMenuItem(
+              value: 'off',
+              enabled: !search.hasInvalidCriteria,
+              child: const Text('Bildirim kapalı'),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(value: 'edit', child: Text('Düzenle')),
+            PopupMenuItem(
+              value: 'rename',
+              enabled: !search.hasInvalidCriteria,
+              child: const Text('Yeniden adlandır'),
+            ),
+            const PopupMenuItem(value: 'delete', child: Text('Sil')),
           ],
-        ),
-      ),
+        );
+
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            children: [
+              Text(
+                'Kayıtlı aramalar',
+                style: Theme.of(sheetContext).textTheme.titleMedium,
+              ),
+              if (_searches.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Henüz kayıtlı arama yok. Süzgeçleri seçip kaydedin.',
+                  ),
+                ),
+              for (final search in _searches)
+                ListTile(
+                  contentPadding: const EdgeInsets.only(left: 4),
+                  leading: const Icon(Icons.label_outline),
+                  title: Text(search.name),
+                  subtitle: Text(
+                    '${_filterSummary(search)}\nBildirim: ${_modeLabel(alertModeOf(search.filters))}',
+                  ),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Aramayı sil',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => deleteSearch(search),
+                      ),
+                      searchMenu(search),
+                    ],
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _applySearch(search);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
     );
     await _loadLocal();
     if (changed == true && _activeSearchId != null && mounted) {
@@ -371,6 +382,8 @@ extension _HomeSearches on _KamuHomePageState {
                   ),
                   criteriaSelector('cities', 'Şehirler', turkishCities, update),
                   criteriaSelector('education', 'Eğitim düzeyleri', const [
+                    'İlkokul',
+                    'Ortaokul',
                     'Lise',
                     'Ön lisans',
                     'Lisans',

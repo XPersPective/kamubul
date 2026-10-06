@@ -195,7 +195,7 @@ void main() {
     }
 
     // Offline refresh must keep the durable last-success label across startup.
-    expect(find.textContaining('Güncellendi 30.9.2026 12:00'), findsOneWidget);
+    expect(find.text('30.9.2026 12:00'), findsOneWidget);
     await tester.tap(find.byTooltip('Kayıtlı aramaları yönet'));
     await pumpRoute(tester);
     var sheet = find.byType(BottomSheet);

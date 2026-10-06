@@ -135,8 +135,10 @@ extension _HomeListingCard on _KamuHomePageState {
                   record.publishedAt == null
                       ? _sourceLabel(record.sourceId)
                       : '${_sourceLabel(record.sourceId)}  ·  Yayın ${_date(record.publishedAt)}',
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               if (unresolved)

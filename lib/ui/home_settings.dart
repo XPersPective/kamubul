@@ -209,7 +209,7 @@ extension _HomeSettings on _KamuHomePageState {
         ],
       ),
       SettingsGroup(
-        title: 'Veriler ve geri bildirim',
+        title: 'Geri bildirim',
         children: [
           ListTile(
             leading: const Icon(Icons.ios_share),
@@ -220,22 +220,6 @@ extension _HomeSettings on _KamuHomePageState {
             leading: const Icon(Icons.star_rate_outlined),
             title: const Text('Puan ver'),
             onTap: _openRatePage,
-          ),
-          ListTile(
-            leading: const Icon(Icons.file_upload_outlined),
-            title: const Text('Verileri dışa aktar'),
-            subtitle: const Text(
-              'Kayıtlı aramalar ve yer imleri JSON yedeği olur.',
-            ),
-            onTap: _exportData,
-          ),
-          ListTile(
-            leading: const Icon(Icons.file_download_outlined),
-            title: const Text('Verileri içe aktar'),
-            subtitle: const Text(
-              'Yedek yapıştırılır; mevcut kayıtlar korunur.',
-            ),
-            onTap: _importData,
           ),
         ],
       ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
@@ -29,6 +31,27 @@ class ProPage extends StatefulWidget {
 class _ProPageState extends State<ProPage> {
   late Future<StoreProduct?> _product = widget.repository.queryProduct();
 
+  /// Yalnız mağaza gerçekten "beklemede" bildirince (ör. ödeme onayı sürüyor) gösterilir.
+  bool _pending = false;
+  late final StreamSubscription<List<StorePurchaseUpdate>> _updates;
+
+  @override
+  void initState() {
+    super.initState();
+    _updates = widget.repository.adapter.updates.listen((updates) {
+      if (!mounted || updates.isEmpty) return;
+      final pending =
+          updates.last.purchase.status == StorePurchaseStatus.pending;
+      setState(() => _pending = pending);
+    });
+  }
+
+  @override
+  void dispose() {
+    _updates.cancel();
+    super.dispose();
+  }
+
   Future<void> _buy(StoreProduct product) async {
     final l10n = NappLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -59,19 +82,21 @@ class _ProPageState extends State<ProPage> {
             _benefit(
               Icons.auto_awesome_outlined,
               'Daha fazla günlük soru hakkı',
-              'KamuBul Asistan’a günde 100 soru sorun (ücretsiz sürümde 30). '
-                  'İlanları ve başvuru şartlarını dilediğiniz kadar değerlendirin.',
+              'KamuBul Asistan’a günde 100 soruya kadar sorun (ücretsiz '
+                  'sürümde 30).',
             ),
             _benefit(
               Icons.payments_outlined,
               'Esnek aylık üyelik',
               'Her ay otomatik yenilenir; dilediğiniz zaman Google Play > '
                   'Abonelikler’den iptal edebilirsiniz, dönem sonuna kadar Pro '
-                  'açık kalır. Yeni telefonda geri yüklenir.',
+                  'açık kalır. Abonelik Google hesabınıza bağlıdır: telefon '
+                  'değiştirirseniz aynı hesapla bu sayfadaki “Satın alımı geri '
+                  'yükle” düğmesine dokunun.',
             ),
             _benefit(
-              Icons.lock_outline_rounded,
-              'Her şey hesapsız ve cihazınızda',
+              Icons.lock_open_rounded,
+              'Ücretsiz sürümde de her şey açık',
               'Pro ilan sayısını veya özellikleri kısıtlamaz; ücretsiz sürümle '
                   'aynı resmî kaynaklar ve filtreler gelir.',
             ),
@@ -240,7 +265,7 @@ class _ProPageState extends State<ProPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.controller.tempProUntil != null)
+            if (_pending)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(l10n.t('paywall.pending')),
