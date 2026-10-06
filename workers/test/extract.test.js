@@ -347,4 +347,12 @@ test('labelled-review fixes: scoring prose, stated dates beside relative rules, 
     '2 | Tekniker | TH | 10 | 4 | Harita önlisans programından mezun olmak.',
     'c) Zabıta memuru kadrolarına başvuracaklar için sınavın yapıldığı tarihte 30 yaşını doldurmamış olmak,'].join('\n'));
   assert.deepEqual(sile.groups.map(g => [g.label, g.maxAge ?? null]), [['Zabıta Memuru', 29], ['Tekniker', null]]);
+  // Hacı Bayram Veli: the score type follows each position's education level.
+  const hbv = mechanicalNotice({ title: 'Sözleşmeli Personel Alım İlanı' }, ['S.N. | Ünvan | Adet | Aranan Nitelikler',
+    '1 | Büro Personeli | 4 | Büro Yönetimi ön lisans programlarının birinden mezun olmak.',
+    '2 | Destek Personeli | 6 | Ortaöğretim (Lise ve dengi) mezunu olmak.',
+    '3 | Mühendis | 1 | Makine Mühendisliği lisans programından mezun olmak.',
+    'a) Lisans mezunları için 2024 KPSS (B) Grubu KPSSP3 puanı esas alınacaktır.',
+    'b) Ön lisans mezunları için 2024 KPSS (B) Grubu KPSSP93 puanı, ortaöğretim mezunları için KPSSP94 puanı esas alınacaktır.'].join('\n'));
+  assert.deepEqual(hbv.groups.map(g => [g.label, g.kpssType ?? null]), [['Büro Personeli', 'P93'], ['Destek Personeli', 'P94'], ['Mühendis', 'P3']]);
 });

@@ -1,7 +1,7 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
 import {handleExtract,validateGroups,missingTopics,mentions,vacancyTotals,applicationDeadline,MIN_TEXT,MAX_TEXT} from './extract.js';
 import {fold,occupationsOf} from './criteria.js';
-export const NOTICE_VERSION='notice-16';
+export const NOTICE_VERSION='notice-17';
 const countHeader=value=>/^(?:ad|adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|ogrgor|ogrgordersverecek|arsgor)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
 const datePattern=/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2})\b/g;
@@ -202,6 +202,19 @@ export function mechanicalNotice(notice,text){
     const named=occupationsOf(line,true).length?occupationsOf(line,true):occupationsOf(line);
     const targets=named.length?groups.filter(g=>occupationsOf(g.label??'').some(o=>named.includes(o))):groups.length===1?groups:[];
     for(const group of targets)if(group.ageStatus!=='known'){for(const key of ['minAge','maxAge','ageStatus','ageCalculation'])if(rule[key]!=null)group[key]=rule[key];group.quotes={...group.quotes,age:rule.quotes.age};}
+  }
+  // "Ön lisans mezunları için 2024 KPSSP93 ve Ortaöğretim (Lise) mezunları için KPSSP94 puanı esas alınacaktır":
+  // each position takes the score type of its own education level.
+  const scoreTypes=new Map();
+  for(const line of lines){
+    if(line.length>600)continue;
+    for(const m of fold(line).matchAll(/\b(on ?lisans|ortaogretim|lise|lisans)(?:\s*\([^)]*\))?\s+mezunlari\s+icin[^.;]*?p\s?(\d{1,3})\b/g))
+      scoreTypes.set({'on lisans':'Ön lisans',onlisans:'Ön lisans',ortaogretim:'Lise',lise:'Lise',lisans:'Lisans'}[m[1]],{type:'P'+m[2],quote:line});
+  }
+  if(scoreTypes.size)for(const group of groups){
+    const found=[...new Set((group.education??[]).map(e=>scoreTypes.get(e)).filter(Boolean))];
+    if(group.kpssType||found.length!==1||new Set(found.map(f=>f.type)).size!==1)continue;
+    Object.assign(group,{kpssStatus:'required',kpssType:found[0].type});group.quotes={...group.quotes,kpss:found[0].quote};
   }
   for(const field of Object.values(fields))field.origin??='mechanical';
   for(const group of groups)group.fieldOrigins=Object.fromEntries(Object.keys(group.quotes??{}).map(key=>[key,'mechanical']));
