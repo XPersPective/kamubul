@@ -35,6 +35,7 @@ import 'notifications/alert_service.dart';
 import 'notifications/notification_center_page.dart';
 import 'notifications/push_registration.dart';
 import 'notifications/push_setup.dart';
+import 'listings/listing_facts.dart';
 import 'listings/listing_guide.dart';
 import 'listings/official_listing_page.dart';
 import 'ads_state.dart';
@@ -602,8 +603,17 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   List<ListingRecord> _computeVisibleRecords() {
     final matched = <ListingRecord>[], unknown = <ListingRecord>[];
+    // Aynı ilan ilan.gov.tr'de de varsa liste tek kart gösterir (kayıtlı kopya korunur).
+    final ids = {
+      for (final record in _records)
+        if (record.criteriaListing?['active'] != false &&
+            record.criteriaListing?['id'] is String)
+          record.criteriaListing!['id'] as String,
+    };
     for (final record in _records) {
       if (_tab == 1 && !record.saved) continue;
+      final twin = record.twin?.id;
+      if (_tab != 1 && twin != null && ids.contains(twin)) continue;
       final match = _matchVisible(record);
       if (match == CriteriaMatch.match) {
         matched.add(record);
@@ -696,10 +706,10 @@ class _KamuHomePageState extends State<KamuHomePage> {
                 ),
                 Text(
                   city.isEmpty
-                      ? 'Şehir yazın; resmî kaynakta doğrulayalım.'
+                      ? 'Şehir adını yazın.'
                       : canonical == null
                       ? '81 ilden birini yazın.'
-                      : '$canonical • önbellekte $known doğrulanmış ilan; kaynak sorgusuyla tamamlanır',
+                      : '$canonical • listede $known ilan',
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -708,7 +718,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
                     onPressed: canonical == null
                         ? null
                         : () => Navigator.pop(sheetContext, canonical),
-                    child: const Text('Resmî kaynakta ara'),
+                    child: const Text('Bu şehre göre süz'),
                   ),
                 ),
               ],
@@ -2129,19 +2139,34 @@ class _KamuHomePageState extends State<KamuHomePage> {
               CriteriaMatch.match,
     );
     final scheme = Theme.of(context).colorScheme;
-    final days = deadlineDays(record.deadline, DateTime.now());
-    final periods = record.criteriaListing?['applicationPeriods'];
-    final variedDeadlines =
-        periods is List &&
-        periods.any(
-          (p) =>
-              p is Map &&
-              p['text'] is String &&
-              (p['text'] as String).trim().isNotEmpty,
-        );
+    final now = DateTime.now();
+    final estimate = record.deadline == null ? record.deadlineEstimate : null;
+    final shownDeadline = record.deadline ?? estimate;
+    final days = deadlineDays(shownDeadline, now);
+    final variedDeadlines = record.applicationPeriods.isNotEmpty;
+    final positionCount = record.positions.length;
+    final deadlineText = variedDeadlines
+        ? 'Başvuru takvimini inceleyin'
+        : shownDeadline != null
+        ? '${estimate != null ? '≈ ' : ''}${_date(shownDeadline)} • ${countdownLabel(shownDeadline, now)}'
+        : switch (record.noticeKind) {
+            'amendment' => 'Düzeltme ilanı',
+            'cancellation' => 'İptal ilanı',
+            _ when record.detailOnSource => 'Tarih Kariyer Kapısı’nda',
+            _ => 'Son tarih belirtilmemiş',
+          };
     final facts = <Widget>[
-      if (record.quota != null)
-        _factChip(Icons.groups_outlined, '${record.quota} kişi'),
+      if (record.noticeKind == 'register')
+        _factChip(Icons.how_to_reg_outlined, 'Liste başvurusu')
+      else if (record.quota != null)
+        _factChip(
+          record.fieldFromAi('quota')
+              ? Icons.auto_awesome_outlined
+              : Icons.groups_outlined,
+          '${record.quota} kişi',
+        ),
+      if (positionCount > 1)
+        _factChip(Icons.work_outline_rounded, '$positionCount pozisyon'),
       if (record.places.isNotEmpty)
         _factChip(Icons.place_outlined, record.places.join(', ')),
     ];
@@ -2172,16 +2197,18 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
+                          // Kurum adı kategoriden ("Personel Alımı") daha çok bilgi taşır.
                           child: Text(
-                            (record.category.isEmpty
-                                    ? 'Kamu ilanı'
-                                    : record.category)
-                                .toUpperCase(),
-                            style: Theme.of(context).textTheme.labelSmall
+                            turkishTitleCase(
+                              record.institution ??
+                                  (record.category.isEmpty
+                                      ? 'Kamu ilanı'
+                                      : record.category),
+                            ),
+                            style: Theme.of(context).textTheme.labelMedium
                                 ?.copyWith(
                                   color: scheme.primary,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.9,
+                                  fontWeight: FontWeight.w700,
                                 ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -2225,15 +2252,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
                       ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ),
-              if (record.conditionsCaption != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4, right: 10),
-                  child: Text(
-                    record.conditionsCaption!,
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                ),
               if (unresolved)
                 Padding(
                   padding: const EdgeInsets.only(top: 8, right: 10),
@@ -2280,13 +2298,9 @@ class _KamuHomePageState extends State<KamuHomePage> {
                   runSpacing: 6,
                   children: [
                     DeadlinePill(
-                      text: variedDeadlines
-                          ? 'Başvuru takvimini inceleyin'
-                          : record.deadline == null
-                          ? 'Son tarih belirtilmemiş'
-                          : '${_date(record.deadline)} • ${countdownLabel(record.deadline, DateTime.now())}',
-                      daysLeft: days,
-                      expired: expired,
+                      text: deadlineText,
+                      daysLeft: variedDeadlines ? null : days,
+                      expired: expired || (estimate != null && days == -1),
                     ),
                     ...facts,
                   ],
@@ -2621,15 +2635,14 @@ class _KamuHomePageState extends State<KamuHomePage> {
             onTap: () async {
               final granted = await requestAlertPermission(context);
               if (!mounted) return;
-              final checked = granted ? await runAlertCheckNow() : 0;
+              if (granted) await runAlertCheckNow();
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
                     granted
-                        ? (checked == 0
-                              ? 'Bildirimler açık. Yeni ilan geldiğinde haber verilir.'
-                              : 'Bildirimler açık. $checked uyarı gönderildi.')
+                        ? 'Bildirimler açık. Uygun yeni ilanlar ve son başvuru '
+                              'hatırlatmaları gelecek.'
                         : 'Bildirim izni verilmedi; uygulama yine de çalışır.',
                   ),
                 ),

@@ -134,13 +134,16 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: OfficialListingPage(listing: record)),
     );
+    // Tablo satırı hücrelere ayrılarak gösterilir; özgün metnin her parçası okunur.
     await tester.scrollUntilVisible(
-      find.byType(SelectableText),
+      find.textContaining(tail),
       180,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.textContaining(text), findsOneWidget);
+    expect(find.textContaining('Genel başvuru metni ve tablo'), findsOneWidget);
+    expect(find.text('Eğitim'), findsOneWidget);
     expect(find.textContaining(tail), findsOneWidget);
+    expect(find.textContaining('|'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -248,28 +251,25 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Kadro 1'), findsNothing);
         expect(find.text('1 kişi'), findsNothing);
-        await tester.scrollUntilVisible(
-          find.text('Kaynak alıntıları').hitTestable(),
-          150,
-          scrollable: find.byType(Scrollable).first,
-        );
-        expect(find.text('Başvuru koşulları'), findsWidgets);
-        expect(find.text('“$quote”'), findsNothing);
-        await tester.tap(find.text('Kaynak alıntıları'));
-        await tester.pumpAndSettle();
-        expect(find.text('“$quote”'), findsOneWidget);
-        await tester.scrollUntilVisible(
-          find.text('İlan metni'),
-          150,
-          scrollable: find.byType(Scrollable).first,
-        );
+        // Yapay zekâ katkısı özet kartında, eğitim pozisyon çipinde görünür;
+        // teknik "kısmen ayrıştırıldı" yazısı ve kanıt alıntısı gösterilmez.
         expect(
           find.text('Yapay zekâ ile ayıklandı; hata olabilir.'),
           method == 'mechanical' ? findsNothing : findsOneWidget,
         );
-        expect(
-          find.textContaining('Bazı bilgiler henüz ayrıştırılamadı.'),
-          method == 'mechanical' ? findsOneWidget : findsNothing,
+        expect(find.textContaining('ayrıştırılamadı'), findsNothing);
+        await tester.scrollUntilVisible(
+          find.text('Lisans'),
+          150,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text('Başvuru koşulları'), findsWidgets);
+        expect(find.text('Lisans'), findsOneWidget);
+        expect(find.textContaining(quote), findsNothing);
+        await tester.scrollUntilVisible(
+          find.textContaining(tail),
+          150,
+          scrollable: find.byType(Scrollable).first,
         );
         expect(find.textContaining(tail), findsOneWidget);
         expect(tester.takeException(), isNull);
@@ -325,15 +325,15 @@ void main() {
         MaterialApp(home: OfficialListingPage(listing: record)),
       );
       expect(find.text('15.10.2026 • 13:00'), findsOneWidget);
-      expect(find.text(position), findsNothing);
+      // Pozisyonun özgün satırı açılır pencere olmadan, hücrelerine ayrılmış görünür.
       await tester.scrollUntilVisible(
-        find.text('Pozisyonun tam koşulları').hitTestable(),
+        find.text('Belge teslimi saat 13:00'),
         150,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Pozisyonun tam koşulları'));
-      await tester.pumpAndSettle();
-      expect(find.text(position), findsOneWidget);
+      expect(find.text('Aranan nitelikler'), findsOneWidget);
+      expect(find.text('Önlisans'), findsOneWidget);
+      expect(find.text(position), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -385,11 +385,11 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.scrollUntilVisible(
-        find.textContaining(text),
+        find.textContaining('Genel başvuru metni'),
         150,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.textContaining(text), findsOneWidget);
+      expect(find.textContaining('Genel başvuru metni'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     }
@@ -421,16 +421,20 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(home: OfficialListingPage(listing: record)),
       );
-      expect(find.text('Başvuru takvimini inceleyin'), findsOneWidget);
-      expect(find.text('12.10.2026 • 13:00'), findsNothing);
+      // Tek bir genel son tarih yerine takvim doğrudan listelenir.
+      expect(find.text('Takvime bakın'), findsOneWidget);
       await tester.scrollUntilVisible(
-        find.text('Başvuru takvimleri').hitTestable(),
+        find.text(doctor),
         150,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Başvuru takvimleri'));
-      await tester.pumpAndSettle();
+      expect(find.text('Başvuru takvimi'), findsOneWidget);
       expect(find.text(doctor), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text(instructor),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text(instructor), findsOneWidget);
       expect(find.text('12.10.2026 • 13:00'), findsOneWidget);
       expect(tester.takeException(), isNull);

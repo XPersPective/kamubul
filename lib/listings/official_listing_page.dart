@@ -1,21 +1,26 @@
 import '../ui/premium.dart';
 import '../ui/premium_widgets.dart';
+import '../ui/turkish.dart';
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:kamubul_core/kamubul_core.dart'
-    show cityLabel, educationLabel, wallClock;
+import 'package:kamubul_core/kamubul_core.dart' show educationLabel, wallClock;
 
 import '../data/listing_store.dart';
+import 'listing_facts.dart';
+import 'notice_text.dart';
 
-/// İndirilen sunucu ayrıntısı ve özgün metin; çevrimdışı da okunabilir.
-class OfficialListingPage extends StatelessWidget {
+/// İlan ayrıntısı: üstte kısa özet, ardından pozisyonlar, başvuru takvimi ve
+/// düzenlenmiş resmî metin. Bütün bilgiler saklı sunucu kaydındandır;
+/// çevrimdışı da okunur.
+class OfficialListingPage extends StatefulWidget {
   const OfficialListingPage({
     super.key,
     required this.listing,
     this.unavailable = false,
     this.cacheNotice,
     this.onAskAssistant,
+    this.now,
   });
 
   final ListingRecord listing;
@@ -25,12 +30,26 @@ class OfficialListingPage extends StatelessWidget {
   /// "Asistana sor": ilanı Asistan sekmesinde bağlam olarak açar.
   final VoidCallback? onAskAssistant;
 
-  String _date(DateTime? value) => value == null
-      ? 'Belirtilmemiş'
-      : '${value.day.toString().padLeft(2, '0')}.${value.month.toString().padLeft(2, '0')}.${value.year}';
+  /// Geri sayım için saat; testler sabit tarih verir.
+  final DateTime? now;
 
-  String _deadline(DateTime? value) {
-    if (value == null) return _date(null);
+  @override
+  State<OfficialListingPage> createState() => _OfficialListingPageState();
+}
+
+class _OfficialListingPageState extends State<OfficialListingPage> {
+  static const _initialPositions = 12;
+  bool _allPositions = false;
+  late final List<NoticeBlock> _blocks = parseNotice(
+    widget.listing.noticeText,
+  );
+
+  ListingRecord get listing => widget.listing;
+
+  String _date(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}.${value.month.toString().padLeft(2, '0')}.${value.year}';
+
+  String _deadline(DateTime value) {
     final wall = listing.criteriaListing == null ? value : wallClock(value);
     final date = _date(wall);
     if ((wall.hour == 23 && wall.minute == 59) ||
@@ -40,495 +59,790 @@ class OfficialListingPage extends StatelessWidget {
     return '$date • ${wall.hour.toString().padLeft(2, '0')}:${wall.minute.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _open(BuildContext context) async {
-    final url = Uri.tryParse(listing.url);
+  String get _source => switch (listing.sourceId) {
+    'sbb' || 'kamuilan_sbb' => 'Strateji ve Bütçe Başkanlığı',
+    'iskur' => 'İŞKUR',
+    'ilangov' => 'ilan.gov.tr',
+    'kariyerkapisi' => 'Kariyer Kapısı',
+    'resmigazete' => 'Resmî Gazete',
+    _ => 'Resmî kaynak',
+  };
+
+  Future<void> _open(String raw) async {
+    final url = Uri.tryParse(raw);
     if (url == null || url.scheme != 'https') return;
     try {
       if (await launchUrl(url, mode: LaunchMode.externalApplication)) return;
     } catch (_) {
       // Kullanıcıya tek ve anlaşılır hata gösterilir.
     }
-    if (context.mounted) {
+    if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Resmî belge açılamadı.')));
+      ).showSnackBar(const SnackBar(content: Text('Resmî sayfa açılamadı.')));
     }
   }
 
-  Widget _summary(String text) {
-    final entries = listing.criteriaListing?['summary'];
-    if (entries is List) {
-      for (final entry in entries.take(5).whereType<Map>()) {
-        final original = entry['text'], quote = entry['quote'];
-        final label = entry['scopeLabel'];
-        if (original is! String ||
-            quote is! String ||
-            quote.length < 30 ||
-            quote.length > 600 ||
-            !quote.contains(original) ||
-            (label != null &&
-                (label is! String ||
-                    label.trim().isEmpty ||
-                    label.length > 50))) {
-          continue;
-        }
-        if (text != (label == null ? original : '$label: $original')) continue;
-        return Card(
-          child: ExpansionTile(
-            title: Text(text),
-            subtitle: const Text('Kaynak alıntısını göster'),
-            expandedCrossAxisAlignment: CrossAxisAlignment.start,
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            children: [SelectableText('“$quote”')],
-          ),
-        );
-      }
-    }
-    return Text(text);
-  }
-
-  Widget _group(BuildContext context, Map group) {
-    String values(String key, String Function(String) label) =>
-        (group[key] is List ? group[key] as List : const [])
-            .whereType<String>()
-            .where((s) => s.trim().isNotEmpty)
-            .map(label)
-            .join(', ');
-    final occupations = values('occupations', (s) => s);
-    final cities = values('cities', cityLabel);
-    final education = values('education', educationLabel);
-    final score = group['kpssScore'];
-    final type = group['kpssType'];
-    final kpss = switch (group['kpssStatus']) {
-      'not_required'
-          when group['kpssType'] == null &&
-              score == null &&
-              group['kpssYear'] == null =>
-        'KPSS şartı yok',
-      'required' =>
-        'KPSS gerekli${type is String && ['P3', 'P93', 'P94'].contains(type) ? ' · $type' : ' · puan türü belirtilmemiş'}'
-            '${score is num && score.isFinite && score >= 0 && score <= 100 ? ' · en az $score puan' : ' · taban puan belirtilmemiş'}',
-      _ => 'KPSS şartı: henüz belirlenemedi',
+  /// Birkaç cümlelik özet: kim, kaç kişi, hangi pozisyonlar, ne zamana kadar.
+  String _summarySentence() {
+    // Kaynak sitesi işveren değildir: kurum adı yoksa cümle edilgen kurulur.
+    final institution = listing.institution;
+    final who = institution == null ? null : turkishTitleCase(institution);
+    final positions = listing.positions;
+    final count = positions.length;
+    final quota = listing.quota;
+    final spread = count > 1 ? ' ($count farklı pozisyon)' : '';
+    final first = switch (listing.noticeKind) {
+      'register' =>
+        '${who == null ? 'Bu ilan' : '$who ilanı'} bir liste başvurusudur. Kişi sayısı belirtilmez; uygun bulunan başvurular listeye kaydedilir.',
+      'amendment' =>
+        'Bu, daha önce yayımlanan bir ilanın düzeltmesidir. Değişen kadrolar aşağıda listelenir.',
+      'cancellation' => 'Bu, daha önce yayımlanan bir ilanın iptalidir.',
+      'exam' => 'Bu bir sınav duyurusudur.',
+      _ =>
+        quota != null
+            ? who == null
+                  ? 'Bu ilanla toplam $quota kişi alınacak$spread.'
+                  : '$who, toplam $quota kişi alacak$spread.'
+            : count > 1
+            ? who == null
+                  ? 'Bu ilanda $count farklı pozisyon için alım yapılacak.'
+                  : '$who, $count farklı pozisyon için alım yapacak.'
+            : who == null
+            ? 'Bu ilanla personel alımı yapılacak.'
+            : '$who, personel alımı yapacak.',
     };
-    final ageFields = <String>[];
-    for (final (key, label) in [('minAge', 'En az'), ('maxAge', 'En fazla')]) {
-      final value = group[key];
-      if (value is int && value >= 0 && value <= 130) {
-        ageFields.add('$label $value yaş');
-      }
+    final deadline = listing.deadline, estimate = listing.deadlineEstimate;
+    final when = deadline != null
+        ? ' Son başvuru: ${_deadline(deadline)}.'
+        : estimate != null
+        ? ' Başvuru süresi yayından itibaren sayılıyor; tahmini son gün ${_date(wallClock(estimate))}.'
+        : listing.applicationPeriods.isNotEmpty
+        ? ' Pozisyonlara göre farklı başvuru tarihleri var.'
+        : '';
+    return first + when;
+  }
+
+  Widget _stat(String label, String value, {Widget? footer}) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        // Dar ekran ve büyük yazıda rakam satırı kırılmaz, ölçeklenir.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ),
+        if (footer != null) ...[const SizedBox(height: 6), footer],
+      ],
+    );
+  }
+
+  Widget _factRow(IconData icon, String label, String value) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$label  ',
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
+              style: theme.textTheme.bodyLarge?.copyWith(height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _note(IconData icon, String text, {Color? color}) {
+    final theme = Theme.of(context);
+    final tone = color ?? theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: tone),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: tone,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryCard() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final now = widget.now ?? DateTime.now();
+    final deadline = listing.deadline, estimate = listing.deadlineEstimate;
+    final periods = listing.applicationPeriods;
+    final positions = listing.positions;
+    final quotaText = listing.noticeKind == 'register'
+        ? 'Liste'
+        : listing.quota == null
+        ? '—'
+        : '${listing.quota} kişi';
+    final Widget deadlineStat;
+    if (deadline != null) {
+      deadlineStat = _stat(
+        'Son başvuru',
+        _deadline(deadline),
+        footer: DeadlinePill(
+          text: countdownLabel(deadline, now)!,
+          daysLeft: deadlineDays(deadline, now),
+          expired: !deadline.isAfter(now),
+        ),
+      );
+    } else if (estimate != null) {
+      deadlineStat = _stat(
+        'Son başvuru (tahmini)',
+        '≈ ${_date(wallClock(estimate))}',
+        footer: DeadlinePill(
+          text: countdownLabel(estimate, now)!,
+          daysLeft: deadlineDays(estimate, now),
+          expired: !estimate.isAfter(now),
+        ),
+      );
+    } else {
+      deadlineStat = _stat(
+        'Son başvuru',
+        periods.isNotEmpty ? 'Takvime bakın' : '—',
+      );
     }
-    for (final (key, label) in [
-      ('ageReferenceDate', 'Yaş hesabı tarihi'),
-      ('bornOnOrAfter', 'Doğum tarihi en erken'),
-      ('bornOnOrBefore', 'Doğum tarihi en geç'),
-    ]) {
-      final value = group[key];
-      final parsed = value is String ? DateTime.tryParse(value) : null;
-      if (parsed != null &&
-          value == parsed.toIso8601String().substring(0, 10)) {
-        ageFields.add('$label: ${_date(parsed)}');
-      }
-    }
-    final age = group['ageStatus'] == 'known' && ageFields.isNotEmpty
-        ? ageFields.join(' · ')
-        : group['ageStatus'] == 'no_restriction' &&
-              [
-                'minAge',
-                'maxAge',
-                'ageReferenceDate',
-                'bornOnOrAfter',
-                'bornOnOrBefore',
-              ].every((key) => group[key] == null)
-        ? 'Yaş sınırı yok'
-        : 'Yaş şartı: henüz belirlenemedi';
+    final cities = listing.cityNames;
+    final education = listing.educationLevels;
+    final kpss = listing.kpssSummaries;
+    final ages = listing.ageSummaries;
+    final twin = listing.twin;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(PremiumShape.cardRadius),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.summarize_outlined, size: 20, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Özet',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (listing.aiExtracted) const _AiBadge(),
+            ],
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final quotaStat = _stat(
+                listing.fieldFromAi('quota') ? 'Kontenjan (YZ)' : 'Kontenjan',
+                quotaText,
+              );
+              final positionStat = positions.length > 1
+                  ? _stat('Pozisyon', '${positions.length}')
+                  : null;
+              // Dar ekran/büyük yazı: kutular sıkışmak yerine iki satıra dağılır.
+              final roomy =
+                  constraints.maxWidth /
+                      MediaQuery.textScalerOf(context).scale(1) >=
+                  300;
+              if (!roomy) {
+                return Wrap(
+                  spacing: 28,
+                  runSpacing: 14,
+                  children: [quotaStat, deadlineStat, ?positionStat],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 4, child: quotaStat),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: positionStat == null ? 6 : 5,
+                    child: deadlineStat,
+                  ),
+                  if (positionStat != null) ...[
+                    const SizedBox(width: 12),
+                    Expanded(flex: 3, child: positionStat),
+                  ],
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          Text(
+            _summarySentence(),
+            style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+          ),
+          if (cities.isNotEmpty)
+            _factRow(Icons.place_outlined, 'Yer', turkishList(cities)),
+          if (education.isNotEmpty)
+            _factRow(Icons.school_outlined, 'Eğitim', turkishList(education)),
+          if (kpss.isNotEmpty)
+            _factRow(Icons.fact_check_outlined, 'KPSS', turkishList(kpss)),
+          if (ages.isNotEmpty)
+            _factRow(Icons.cake_outlined, 'Yaş', turkishList(ages)),
+          if (estimate != null && listing.deadlineRule != null)
+            _note(
+              Icons.info_outline_rounded,
+              'Tahmini tarih ilandaki kurala göre hesaplandı: '
+              '“${listing.deadlineRule}” Kesin tarihi resmî ilandan doğrulayın.',
+            ),
+          if (twin != null)
+            _note(
+              Icons.link_rounded,
+              'Bu ilanın metni ilan.gov.tr’de yayımlanan aynı ilandan alındı.',
+            ),
+          if (listing.aiExtracted)
+            _note(
+              Icons.auto_awesome_outlined,
+              'Yapay zekâ ile ayıklandı; hata olabilir.',
+              color: _AiBadge.tone(theme.brightness),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _positionCard(Map<Object?, Object?> group) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final rawLabel = group['label'];
+    final occupations = [
+      for (final value in group['occupations'] is List
+          ? group['occupations'] as List
+          : const [])
+        if (value is String && value.trim().isNotEmpty) value.trim(),
+    ];
     final label =
         rawLabel is String &&
             rawLabel.trim().isNotEmpty &&
-            !RegExp(
-              r'^Kadro\s*\d+$',
-              caseSensitive: false,
-            ).hasMatch(rawLabel.trim())
+            !RegExp(r'^Kadro\s*\d+$', caseSensitive: false).hasMatch(
+              rawLabel.trim(),
+            )
         ? rawLabel.trim()
+        : occupations.isNotEmpty
+        ? occupations.join(', ')
         : 'Başvuru koşulları';
     final quota = group['quota'];
-    final positionText = group['text'];
-    final quotes =
-        (group['quotes'] is Map ? (group['quotes'] as Map).values : const [])
-            .whereType<String>()
-            .where((q) => q.trim().isNotEmpty)
-            .toSet();
-    final theme = Theme.of(context);
-    return Card(
-      child: DefaultTextStyle.merge(
-        style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+    final validQuota = quota is int && quota > 0 && quota <= 1000000
+        ? quota
+        : null;
+    final chips = <(IconData, String)>[
+      for (final value in [
+        for (final e in group['education'] is List
+            ? group['education'] as List
+            : const [])
+          if (e is String) educationLabel(e),
+      ].take(3))
+        (Icons.school_outlined, value),
+      if (group['educationDescription'] is String &&
+          (group['education'] is! List ||
+              (group['education'] as List).isEmpty))
+        (Icons.school_outlined, 'Eğitim şartı aşağıda'),
+      if (kpssLabel(group) case final String kpss) (Icons.fact_check_outlined, kpss),
+      if (ageLabel(group) case final String age) (Icons.cake_outlined, age),
+    ];
+    final text = group['text'];
+    final requirements = text is String
+        ? positionRequirements(text, label, validQuota)
+        : const <String>[];
+    final description = group['educationDescription'];
+    final origins = group['fieldOrigins'];
+    final ai = origins is Map && origins.values.contains('ai');
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    label,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              if (validQuota != null) ...[
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(
+                      PremiumShape.chipRadius,
                     ),
                   ),
-                  if (quota is int && quota > 0 && quota <= 1000000)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(
-                          PremiumShape.chipRadius,
-                        ),
-                      ),
-                      child: Text(
-                        '$quota kişi',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      ),
+                  child: Text(
+                    '$validQuota kişi',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: scheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w800,
                     ),
-                ],
-              ),
-              if (occupations.isNotEmpty && occupations != label) ...[
-                const SizedBox(height: 4),
-                Text(occupations, style: theme.textTheme.bodyLarge),
-              ],
-              const SizedBox(height: 12),
-              Text('Yer: ${cities.isEmpty ? 'Belirtilmemiş' : cities}'),
-              const SizedBox(height: 6),
-              Text(
-                'Eğitim: ${education.isEmpty
-                    ? group['educationDescription'] is String
-                          ? group['educationDescription']
-                          : 'Belirtilmemiş'
-                    : education}',
-              ),
-              const SizedBox(height: 6),
-              Text(kpss),
-              if (group['kpssYear'] is int &&
-                  (group['kpssYear'] as int) >= 2000 &&
-                  (group['kpssYear'] as int) <= 2100)
-                Text('KPSS yılı: ${group['kpssYear']}'),
-              const SizedBox(height: 6),
-              Text(age),
-              if (positionText is String && positionText.trim().isNotEmpty) ...[
-                const SizedBox(height: 8),
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: const EdgeInsets.only(bottom: 8),
-                  expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                  shape: const Border(),
-                  collapsedShape: const Border(),
-                  title: const Text('Pozisyonun tam koşulları'),
-                  children: [
-                    SelectableText(
-                      positionText,
-                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-                    ),
-                  ],
-                ),
-              ],
-              if (quotes.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: const EdgeInsets.only(bottom: 8),
-                  expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                  shape: const Border(),
-                  collapsedShape: const Border(),
-                  title: const Text('Kaynak alıntıları'),
-                  children: [
-                    for (final quote in quotes)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: SelectableText(
-                          '“$quote”',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               ],
             ],
           ),
+          if (chips.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final (icon, value) in chips)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(
+                        PremiumShape.chipRadius,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, size: 15, color: scheme.primary),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            value,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (description is String && description.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              description.trim(),
+              style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+            ),
+          ],
+          if (requirements.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Aranan nitelikler',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            for (final line in requirements)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 9, right: 10),
+                      child: Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: scheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        line,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          if (ai) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Bu pozisyonun bazı bilgileri yapay zekâ ile ayıklandı; hata olabilir.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: _AiBadge.tone(theme.brightness),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text, {String? trailing}) {
+    final theme = Theme.of(context);
+    return Semantics(
+      header: true,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 28, bottom: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                text,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ),
+            if (trailing != null)
+              Text(
+                trailing,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _fact(BuildContext context, String label, String value) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: Theme.of(context).textTheme.labelLarge
-            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-      ),
-      const SizedBox(height: 4),
-      Text(
-        value,
-        style: Theme.of(context).textTheme.titleMedium
-            ?.copyWith(fontWeight: FontWeight.w700),
-      ),
-    ],
-  );
-
   @override
   Widget build(BuildContext context) {
-    final source = switch (listing.sourceId) {
-      'sbb' || 'kamuilan_sbb' => 'Strateji ve Bütçe Başkanlığı',
-      'iskur' => 'İŞKUR',
-      'ilangov' => 'ilan.gov.tr',
-      'kariyerkapisi' => 'Kariyer Kapısı',
-      'resmigazete' => 'Resmî Gazete',
-      _ => 'Resmî kaynak',
-    };
     final theme = Theme.of(context);
-    // Eski yerel kayıtlar okunur; yeni sonuçların sahibi sunucu çıkarımıdır.
-    final data =
-        listing.criteriaListing ??
-        (listing.aiGroups.isNotEmpty ? listing.matchingData : null);
-    final rawGroups = data?['requirementGroups'];
-    final groups = rawGroups is List ? rawGroups : const [];
-    final rawPeriods = data?['applicationPeriods'];
-    final periods = (rawPeriods is List ? rawPeriods : const [])
-        .whereType<Map>()
-        .where(
-          (p) => p['text'] is String && (p['text'] as String).trim().isNotEmpty,
-        )
-        .toList();
-    final extraction = data?['extraction'];
-    final method = extraction is Map ? extraction['method'] : null;
-    final aiUsed = method == 'ai' || method == 'hybrid';
+    final scheme = theme.colorScheme;
+    final positions = listing.positions;
+    final periods = listing.applicationPeriods;
+    final shown = _allPositions
+        ? positions
+        : positions.take(_initialPositions).toList();
+    final institution = listing.institution;
+    final published = listing.publishedAt;
+    final width = MediaQuery.sizeOf(context).width;
     return Scaffold(
       appBar: AppBar(
         title: const Text('İlan ayrıntısı'),
         actions: const [ReadingScaleButton()],
       ),
       bottomNavigationBar: ListingActionBar(
-        onOpenListing: () => _open(context),
-        openLabel: 'Resmî belgeyi aç',
-        onAskAssistant: onAskAssistant,
+        onOpenListing: () => _open(listing.url),
+        openLabel: listing.sourceId == 'kariyerkapisi'
+            ? 'Kariyer Kapısı’nda aç'
+            : 'Resmî ilanı aç',
+        onAskAssistant: widget.onAskAssistant,
       ),
       body: ReadingScaleScope(
-        child: ListView(
-          padding: EdgeInsets.symmetric(
-            vertical: 20,
-            horizontal: MediaQuery.sizeOf(context).width > 800
-                ? (MediaQuery.sizeOf(context).width - 760) / 2
-                : 20,
-          ),
-          children: [
-            Row(
-              children: [
-                InstitutionAvatar(title: listing.title, size: 48),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    source,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ],
+        child: SelectionArea(
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              width > 800 ? (width - 760) / 2 : 20,
+              16,
+              width > 800 ? (width - 760) / 2 : 20,
+              28,
             ),
-            const SizedBox(height: 14),
-            Text(
-              listing.title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontSize: 19,
-                fontWeight: FontWeight.w700,
-                height: 1.3,
-              ),
-            ),
-            if (cacheNotice != null) ...[
-              const SizedBox(height: 12),
-              Text(cacheNotice!),
-            ],
-            if (unavailable) ...[
-              const SizedBox(height: 12),
-              const Text(
-                'Bu ilan artık yayında değil. Başvuru durumunu resmî kaynaktan kontrol edin.',
-              ),
-            ],
-            if (listing.summary.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              Text(
-                data?['aiProvenance'] is Map
-                    ? 'Yapay zekâ özeti'
-                    : 'İlan özeti',
-                style: theme.textTheme.titleMedium,
-              ),
-            ],
-            for (final text in listing.summary) ...[
-              const SizedBox(height: 12),
-              _summary(text),
-            ],
-            const SizedBox(height: 20),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            children: [
+              Row(
+                children: [
+                  InstitutionAvatar(title: listing.title, size: 48),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _fact(
-                            context,
-                            'Kontenjan',
-                            listing.quota == null
-                                ? 'Belirtilmemiş'
-                                : '${listing.quota} kişi',
+                        Text(
+                          turkishTitleCase(institution ?? _source),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _fact(
-                            context,
-                            'Son başvuru',
-                            periods.isNotEmpty
-                                ? 'Başvuru takvimini inceleyin'
-                                : _deadline(listing.deadline),
+                        if (institution != null || published != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            [
+                              if (institution != null) _source,
+                              if (published != null)
+                                'Yayın ${_date(published)}',
+                            ].join(' · '),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                listing.title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                ),
+              ),
+              if (widget.cacheNotice != null) ...[
+                const SizedBox(height: 10),
+                _note(Icons.cloud_off_rounded, widget.cacheNotice!),
+              ],
+              if (widget.unavailable) ...[
+                const SizedBox(height: 4),
+                _note(
+                  Icons.event_busy_rounded,
+                  'Bu ilan artık yayında değil. Başvuru durumunu resmî kaynaktan kontrol edin.',
+                  color: scheme.error,
+                ),
+              ],
+              const SizedBox(height: 18),
+              if (listing.detailOnSource)
+                _SourceOnlyCard(onOpen: () => _open(listing.url))
+              else
+                _summaryCard(),
+              if (listing.summary.isNotEmpty) ...[
+                _sectionTitle(
+                  listing.criteriaListing?['aiProvenance'] is Map
+                      ? 'Yapay zekâ özeti'
+                      : 'İlan özeti',
+                ),
+                for (final text in listing.summary)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(text, style: theme.textTheme.bodyLarge),
+                  ),
+              ],
+              if (periods.isNotEmpty) ...[
+                _sectionTitle('Başvuru takvimi'),
+                for (final period in periods)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (period['deadline'] is String &&
+                            DateTime.tryParse(period['deadline'] as String) !=
+                                null) ...[
+                          Text(
+                            _deadline(
+                              DateTime.parse(period['deadline'] as String),
+                            ),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                        Text(
+                          period['text'] as String,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            height: 1.5,
                           ),
                         ),
                       ],
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Divider(),
-                    ),
-                    Text(
-                      'Alım türü: ${listing.category.isEmpty ? 'Belirtilmemiş' : listing.category}',
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Yerler: ${listing.places.isEmpty ? 'Belirtilmemiş' : listing.places.join(', ')}',
-                    ),
-                    if (listing.publishedAt != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Yayın: ${_date(listing.publishedAt)}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                  ),
+              ],
+              if (positions.isNotEmpty) ...[
+                _sectionTitle(
+                  positions.length > 1 ? 'Pozisyonlar' : 'Başvuru koşulları',
+                  trailing: positions.length > 1 ? '${positions.length}' : null,
+                ),
+                for (final group in shown) _positionCard(group),
+                if (shown.length < positions.length)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _allPositions = true),
+                      icon: const Icon(Icons.expand_more_rounded),
+                      label: Text(
+                        'Tüm pozisyonları göster (${positions.length})',
                       ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            if (periods.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Card(
-                child: ExpansionTile(
-                  expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  title: const Text('Başvuru takvimleri'),
-                  children: [
-                    for (final period in periods)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (period['deadline'] is String &&
-                                DateTime.tryParse(
-                                      period['deadline'] as String,
-                                    ) !=
-                                    null)
-                              Text(
-                                _deadline(
-                                  DateTime.parse(period['deadline'] as String),
-                                ),
-                                style: theme.textTheme.titleSmall,
-                              ),
-                            SelectableText(
-                              period['text'] as String,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-            if (groups.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              Text('Başvuru koşulları', style: theme.textTheme.titleLarge),
-              const SizedBox(height: 8),
-              const Text(
-                'Koşullar aşağıdaki başlıklara göre ayrı değerlendirilir.',
-              ),
-              // ponytail: bound detail rendering to 100 source groups; larger
-              // notices need a paginated position API, with the official link now.
-              for (var i = 0; i < groups.length && i < 100; i++)
-                if (groups[i] is Map)
-                  _group(context, groups[i] as Map)
-                else
-                  const Text('Başvuru koşulları henüz belirlenemedi.'),
-              if (groups.length > 100)
-                const Text(
-                  'İlk 100 koşul grubu gösteriliyor. Tamamı aşağıdaki ilan metninde yer alır.',
-                ),
-            ],
-            if (aiUsed) ...[
-              const SizedBox(height: 8),
+                    ),
+                  ),
+              ],
+              _sectionTitle('İlan metni'),
+              if (_blocks.isEmpty)
+                Text(
+                  listing.detailOnSource
+                      ? 'Bu ilanın tam metni Kariyer Kapısı’nda yayımlanıyor.'
+                      : 'İlan metni henüz sunucuya alınamadı. Güncellendiğinde burada görünecek.',
+                  style: theme.textTheme.bodyLarge,
+                )
+              else
+                for (final block in _blocks) NoticeBlockView(block),
+              const SizedBox(height: 16),
               Text(
-                'Yapay zekâ ile ayıklandı; hata olabilir.',
+                'Gösterilen bilgiler başvuru uygunluğu garantisi değildir. '
+                'Başvurmadan önce resmî ilanı kontrol edin.',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ],
-            if (extraction is Map && extraction['status'] == 'partial') ...[
-              const SizedBox(height: 8),
-              const Text(
-                'Bazı bilgiler henüz ayrıştırılamadı. İlanın tam metnini aşağıdan okuyabilirsiniz.',
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Yapay zekâ katkısı rozeti: mor tonda, kısa ve dürüst.
+class _AiBadge extends StatelessWidget {
+  const _AiBadge();
+
+  static Color tone(Brightness brightness) => brightness == Brightness.dark
+      ? const Color(0xFFB9ADFF)
+      : const Color(0xFF5B3FD9);
+
+  @override
+  Widget build(BuildContext context) {
+    final color = tone(Theme.of(context).brightness);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(PremiumShape.chipRadius),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome_rounded, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            'Yapay zekâ',
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Metni sunucuya alınamayan Kariyer Kapısı ilanı: boş sayfa yerine açık
+/// bir yönlendirme.
+class _SourceOnlyCard extends StatelessWidget {
+  const _SourceOnlyCard({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(PremiumShape.cardRadius),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.travel_explore_rounded, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Ayrıntılar Kariyer Kapısı’nda',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ],
-            const SizedBox(height: 24),
-            Semantics(
-              header: true,
-              child: Text('İlan metni', style: theme.textTheme.titleLarge),
-            ),
-            const SizedBox(height: 8),
-            if (listing.noticeText.isNotEmpty)
-              SelectableText(
-                listing.noticeText,
-                style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-              )
-            else
-              const Text(
-                'İlan metni henüz sunucuya alınamadı. Güncellendiğinde burada görünecek.',
-              ),
-            const SizedBox(height: 12),
-            Text(
-              groups.isEmpty
-                  ? 'Başvuru koşulları resmî belgede yer alır; belgeyi açabilir '
-                        'ya da "Bana uygun mu?" diye Asistan’a sorabilirsiniz.'
-                  : 'Gösterilen koşullar başvuru uygunluğu garantisi değildir. Başvurmadan önce resmî belgeyi kontrol edin.',
-              style: theme.textTheme.bodyMedium,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Bu ilanın şartları, kontenjanı ve başvuru tarihleri Kariyer '
+            'Kapısı’nda yayımlanıyor. Başvuru da oradan yapılır.',
+            style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(
+            onPressed: onOpen,
+            icon: const Icon(Icons.open_in_new_rounded),
+            label: const Text('Kariyer Kapısı’nda aç'),
+          ),
+        ],
       ),
     );
   }

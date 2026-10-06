@@ -636,8 +636,13 @@ void main() {
       expect(find.byType(OfficialListingPage), findsOneWidget);
       expect(find.byType(KariyerDetailPage), findsNothing);
       expect(find.text('SUNUCU İLANI'), findsOneWidget);
-      expect(find.text('Genel: Kaynak özeti'), findsOneWidget);
       expect(find.textContaining('artık yayında değil'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Genel: Kaynak özeti'),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Genel: Kaynak özeti'), findsOneWidget);
       expect(requests.single.host, 'api.example.com');
       expect(requests.single.pathSegments.last, id);
       await tester.runAsync(() async {

@@ -116,40 +116,41 @@ void main() {
                 .copyWith(textScaler: TextScaler.linear(scale)),
             child: child!,
           ),
-          home: OfficialListingPage(listing: canonical),
+          home: OfficialListingPage(
+            listing: canonical,
+            now: DateTime(2026, 10, 2, 12),
+          ),
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('İlan özeti'), findsOneWidget);
+      // Özet kartı en üstte: kontenjan, tarih, pozisyon sayısı ve yapay zekâ ibaresi.
+      expect(find.text('Özet'), findsOneWidget);
+      expect(find.text('5 kişi'), findsOneWidget);
+      expect(find.text('Yapay zekâ ile ayıklandı; hata olabilir.'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/canonical_${name}_top.png'),
       );
       await tester.scrollUntilVisible(
-        find.text('Eğitim: Lisans'),
+        find.text('KPSS P3 en az 70'),
         180,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Eğitim: Lisans'), findsOneWidget);
+      expect(find.text('Lisans'), findsOneWidget);
       await tester.scrollUntilVisible(
-        find.text('Yaş şartı: henüz belirlenemedi'),
+        find.text('2 kişi'),
         180,
         scrollable: find.byType(Scrollable).first,
       );
       // Lazy cards settle their extent after the first scroll.
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Yaş şartı: henüz belirlenemedi'));
+      await tester.ensureVisible(find.text('2 kişi'));
       await tester.pumpAndSettle();
-      expect(
-        find.text('KPSS şartı: henüz belirlenemedi').hitTestable(),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Yaş şartı: henüz belirlenemedi').hitTestable(),
-        findsOneWidget,
-      );
-      final cta = find.widgetWithText(FilledButton, 'Resmî belgeyi aç');
+      // Bilinmeyen şart satır olarak basılmaz; tablo ham "|" ile görünmez.
+      expect(find.textContaining('henüz belirlenemedi'), findsNothing);
+      expect(find.text('2 kişi').hitTestable(), findsOneWidget);
+      final cta = find.widgetWithText(FilledButton, 'Kariyer Kapısı’nda aç');
       expect(cta.hitTestable(), findsOneWidget);
       expect(tester.getSize(cta).height, greaterThanOrEqualTo(48));
       expect(tester.takeException(), isNull);

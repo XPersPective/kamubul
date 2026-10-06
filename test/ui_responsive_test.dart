@@ -39,7 +39,7 @@ class _PushStore implements PushStateStore {
 /// PB-008: 1.3x metin ölçeği ve tablet genişliğinde taşma olmadan düzen;
 /// büyük başlık çökmesi ve yapışkan CTA davranışı.
 void main() {
-  testWidgets('scoped summary opens its own bounded quote offline at 1.3x', (
+  testWidgets('scoped summary stays readable without quote panels at 1.3x', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -83,22 +83,12 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.byType(ExpansionTile), findsOneWidget);
+      // Kullanıcı kararı (PB-024): açılır panel yok; özet doğrudan okunur.
+      expect(find.byType(ExpansionTile), findsNothing);
       expect(find.text('Alıntısı olmayan özet'), findsOneWidget);
-      // Alıntı yalnız açılınca özet altında görünür (başka bölümlerde de
-      // geçebilir; bu yüzden sayı farkı kontrol edilir).
-      int quotes() => find.text('“$quote”').evaluate().length;
-      final closed = quotes();
-      await tester.tap(find.text('Kaynak alıntısını göster'));
-      await tester.pumpAndSettle();
       expect(find.text('Mühendis: $text'), findsOneWidget);
-      expect(quotes(), closed + 1);
+      expect(find.textContaining(quote), findsNothing);
       expect(tester.takeException(), isNull);
-      await tester.ensureVisible(find.text('Kaynak alıntısını göster'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Kaynak alıntısını göster'));
-      await tester.pumpAndSettle();
-      expect(quotes(), closed);
     }
   });
 
@@ -231,9 +221,9 @@ void main() {
           scrollable: scroll,
         );
         expect(find.text('Mühendis'), findsOneWidget);
-        expect(find.text('KPSS gerekli · P3 · en az 70 puan'), findsOneWidget);
+        expect(find.text('KPSS P3 en az 70'), findsOneWidget);
         expect(
-          find.text('En fazla 35 yaş · Yaş hesabı tarihi: 01.10.2026'),
+          find.text('En fazla 35 yaş (01.10.2026 itibarıyla)'),
           findsOneWidget,
         );
         await tester.scrollUntilVisible(
@@ -247,10 +237,11 @@ void main() {
           180,
           scrollable: scroll,
         );
+        // Çelişkili kayıtta yokluk iddia edilmez; bilinmeyen alan satır olarak basılmaz.
         expect(find.text('KPSS şartı yok'), findsNothing);
         expect(find.text('Yaş sınırı yok'), findsNothing);
-        expect(find.text('Yaş şartı: henüz belirlenemedi'), findsWidgets);
-        expect(find.text('Resmî belgeyi aç'), findsOneWidget);
+        expect(find.textContaining('henüz belirlenemedi'), findsNothing);
+        expect(find.text('Kariyer Kapısı’nda aç'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());
       }
@@ -338,7 +329,7 @@ void main() {
     expect(find.text('Örnek Kurum 12 İşçi Alacak'), findsOneWidget);
     expect(find.text('12 kişi'), findsOneWidget);
     expect(find.text('10.10.2026'), findsOneWidget);
-    expect(find.text('Resmî belgeyi aç'), findsOneWidget);
+    expect(find.text('Resmî ilanı aç'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
