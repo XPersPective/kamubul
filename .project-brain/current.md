@@ -116,6 +116,14 @@ Dört atlanabilir onboarding, typed kriter editörü, ışık/koyu/responsive go
 7gün reklamsız deneme, Play aylık Pro ve mevcut reklam politikası korunur.
 PRIVACY.md ve canlı privacy HTML5 Ekim sunucu/Qwen/aggregate token açıklamalı.
 
+6 Ekim 1.2.0+15 (source d3e5bfb): 276 Worker/187 Flutter/211 core PASS, analyze temiz.
+AAB C:/Users/rubicon/.codex/builds/kamubul-1.2.0-15.aab SHA256 e849c13cc10ce7c1276135b7790e6e2848
+7e03be341be39da23fd2b2265f68c8; imza+kalıcı sertifika+12ELF/3ABI 16KB PASS. Play edit
+13106827503238177928: internal+production 1.2.0/15 completed, yeni tr-TR metin (kaynak adı yok,
+en altta zorunlu kaynak notu), 8 çerçeveli görsel ve featureGraphic (tool/brand/store_frames.py).
+Konsol: production 1.2.0 hızlı kontrol→inceleme; Google onayı ayrı. Emülatör (flutter_emulator)
+yeni arayüz/Pro/Hakkında/silme/İlkokul akışları PASS; kullanıcının tema/süzgeç durumu geri yüklendi.
+Önceki 1.1.9+14 kaydı:
 PB-027:269 Worker/213 Flutter/208 core/30 targeted mobile PASS; analyze temiz.
 Signed1.1.9+14 source3ea2e20, build C:/Users/rubicon/.codex/builds/kamubul-1.1.9;
 AAB SHA2562ef80a7bf29ea1734244d4c0acef5948b073c780b07018e5efd10db6dab2607b.
