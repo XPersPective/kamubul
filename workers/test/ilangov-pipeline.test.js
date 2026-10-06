@@ -159,3 +159,11 @@ test('Qwen budget wait still publishes known vacancy total and full position sou
   const row=f.sql.prepare("SELECT payload,conditions_checked c FROM listings WHERE id='ilangov:2244739'").get(),payload=JSON.parse(row.payload);
   assert.equal(result.status,429);assert.equal(payload.quota,5);assert.deepEqual(payload.requirementGroups.map(g=>g.quota),[3,2]);assert.equal(payload.extraction.status,'partial');assert.equal(row.c,null);assert.equal(payload.text,item.text);
 });
+
+test('revalidation removes an unsupported former subtotal instead of retaining it on the card',async t=>{
+  const f=setup(t),text='Unvan | Adet | Şart\nMühendis | 2 | Lisans mezunu olmak\nTekniker | bilinmiyor | Lise mezunu olmak';
+  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('ilangov:1','ilangov','1','h','first','first','later',?)").run(JSON.stringify({title:'Personel alımı',text,quota:2,fieldEvidence:{quota:{value:2,origin:'mechanical'}}}));
+  await canonicalConditions(f.env,'ilangov:1','h',text,[],{mechanicalOnly:true});
+  const payload=JSON.parse(f.sql.prepare("SELECT payload FROM listings WHERE id='ilangov:1'").get().payload);
+  assert.equal(payload.quota,null);assert.equal(payload.fieldEvidence.quota,undefined);assert.equal(payload.extraction.status,'partial');assert.equal(payload.text,text);
+});

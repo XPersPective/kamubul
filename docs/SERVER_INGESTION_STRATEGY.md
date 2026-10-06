@@ -90,6 +90,7 @@ Bu sözcük eşleştirmesinin bilinçli sınırıdır; kesin uygunluk kararı ve
 `npm test`, `flutter test`, `flutter analyze`, imza/16KB/native kontrolleri ve
 gerçek kaynak sayı/tam-metin karşılaştırması gerekir. HTTP200 health bütün
 kaynakların tamamlandığı anlamına gelmez. Bütün kaynak metni kanıtlanmadan
-server-only mobil sürümü üretime gönderilmez.5 Ekim son açık "Google Play'i
-gönder" talimatıyla bu bekleme kapısı code13 için kaldırıldı; üretim gönderimi
-tamamlandı, eksik kaynak kapsamı/kalite görevleri yayın sonrası açık tutulur.
+server-only mobil sürümü için eksiksiz üretim kabulü verilmez. Son açık
+"Google Play'i gönder" talimatıyla bu bekleme kapısı yayın gönderimini
+engellemez; code14 üretim incelemesinde ve dahili testte kullanılabilir.
+Eksik kaynak kapsamı/kalite görevleri yayın sonrası açık tutulur.

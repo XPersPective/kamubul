@@ -81,7 +81,7 @@ export function validateNoticeFields(raw, text) {
   const counts=q?[...q.matchAll(/(?:toplam|kontenjan(?:ı)?|kadro sayısı)\s*[:|]?\s*(\d+)|(\d+)\s*(?:\([^)]*\)\s*)?(?:adet\s*)?(?:sözleşmeli\s*)?(?:personel|kişi|işçi)/gi)].map(m=>Number(m[1]??m[2])):[];
   if (q && Number.isSafeInteger(n) && n > 0 && n <= 100000 && counts.includes(n)) fields.quota = {value:n,quote:q};
   const d = raw?.deadline?.value, dq = quoted(raw?.deadline?.quote,t);
-  if (dq && typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Date.parse(d)) && new Date(d).toISOString().slice(0,10) === d && /başvuru|müracaat/.test(fold(dq))) {
+  if (dq && typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Date.parse(d)) && new Date(d).toISOString().slice(0,10) === d && /son\s*başvuru|başvuru.*(?:bitiş|sona erecek|tarihleri arasında|tarihine kadar)|müracaat.*tarihine kadar/.test(fold(dq))) {
     const [y,m,day]=d.split('-');
     if (new RegExp(`(?<!\\d)0?${Number(day)}[./-]0?${Number(m)}[./-]${y}(?!\\d)`).test(dq) || dq.includes(d)) fields.deadline={value:d+'T20:59:59.999Z',quote:dq};
   }
@@ -123,7 +123,7 @@ export function validateGroups(raw, text) {
     const eq = quoted(g.educationQuote, t);
     const edu = Array.isArray(g.education) ? [...new Set(g.education.filter(e => EDU.includes(e)))] : [];
     if (eq && edu.length) {
-      const evidence = fold(eq);
+      const evidence = fold(eq).split(/\btercihen\b/)[0];
       const supported = EDU.filter(e => ({
         'Lise': /lise|ortaöğretim/.test(evidence),
         'Ön lisans': /ön\s*lisans|meslek yüksekokul/.test(evidence),
@@ -131,7 +131,12 @@ export function validateGroups(raw, text) {
         'Yüksek lisans': /yüksek\s*lisans/.test(evidence),
         'Doktora': /doktora/.test(evidence),
       })[e]);
-      if (edu.some(e => supported.includes(e))) { o.education = supported; quotes.education = eq; }
+      if (edu.some(e => supported.includes(e))) {
+        // Matching's education array means alternatives; conjunctive degrees stay an exact readable requirement.
+        if(supported.length>1&&/\sve\s|\solup\b/.test(evidence)&&!/\sveya\s|\syahut\s|\sya da\s/.test(evidence))o.educationDescription=eq;
+        else o.education = supported;
+        quotes.education = eq;
+      }
     }
     // These source qualifications are readable but intentionally outside the matching taxonomy.
     if(eq && ((/ilkokul|ilköğretim|ortaokul/.test(fold(eq)) && /mezun/.test(fold(eq))) || /doçentlik.*(?:ünvan|unvan|almış)/.test(fold(eq)))){o.educationDescription=eq;quotes.education=eq;}

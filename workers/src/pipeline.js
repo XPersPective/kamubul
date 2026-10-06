@@ -188,6 +188,7 @@ export async function canonicalConditions(env,listingId,contentHash,text,places=
   const res=await extractNotice({...notice,places:notice.places??places},text,env,{sha256,...options});
   const {fields,groups,extraction}=res.result;
   const payload={...notice,requirementGroups:groups,extraction,conditionsHash:contentHash,updatedAt:nowISO(),fieldEvidence:{...notice.fieldEvidence,...fields}};
+  for(const key of ['quota','deadline'])if(!fields[key]&&notice.fieldEvidence?.[key]?.origin!=='source'&&notice.fieldEvidence?.[key]){payload[key]=null;delete payload.fieldEvidence[key];}
   for(const [key,field] of Object.entries(fields))payload[key]=field.value;
   const terminal=options.mechanicalOnly?extraction.status==='complete':res.status===200||res.status===422;
   // checked suppresses duplicate attempts; extraction.status alone denotes quality.
@@ -201,6 +202,9 @@ export async function mechanicalBackfill(env){
   // ponytail: three stored documents per queue turn; retain the cursor in rows rather than risking an unbounded CPU batch.
   const rows=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY updated_at,id LIMIT 3").bind(NOTICE_VERSION).all();
   for(const row of rows.results){const notice=JSON.parse(row.payload),text=[notice.text,...(notice.positions??[]).map(p=>p.text)].filter(Boolean).join('\n\n');await canonicalConditions(env,row.id,row.content_hash,text,notice.places??[],{mechanicalOnly:true});}
+}
+async function mechanicalPending(env){
+  return env.DB.prepare("SELECT 1 FROM listings WHERE active=1 AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) LIMIT 1").bind(NOTICE_VERSION).first();
 }
 // Telafi: özet işinin ilk turunda geçici hata alan ilanlar her turda bir tane.
 export async function canonicalBackfill(env){
@@ -466,6 +470,7 @@ export async function flushOutboxBatch(env,options={}) {
 }
 async function pendingDispatch(env,kind,now) {
   if(kind==='source')return env.DB.prepare("SELECT 1 FROM sources WHERE next_due<=? AND (lease_until IS NULL OR lease_until<?) LIMIT 1").bind(now,now).first();
+  if(kind==='extract'&&await mechanicalPending(env))return {pending:true};
   if(kind==='extract')return env.DB.prepare("SELECT 1 WHERE EXISTS(SELECT 1 FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5) OR EXISTS(SELECT 1 FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0))").bind(now,now,now,now).first();
   return kind==='match'
     ?env.DB.prepare("SELECT 1 FROM match_events WHERE state='pending' OR (state='leased' AND lease_until<?) LIMIT 1").bind(now).first()
@@ -493,8 +498,11 @@ export async function handleWorkQueue(batch,env,options={}) {
     if(!owner){message.ack();continue;}
     try{
       if(body.kind==='extract'){
-        const due=await env.DB.prepare("SELECT 1 FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5 LIMIT 1").bind(nowISO(),nowISO()).first();
-        await(due?processNotice(env):canonicalBackfill(env));
+        if(await mechanicalPending(env))await mechanicalBackfill(env);
+        else{
+          const due=await env.DB.prepare("SELECT 1 FROM processing_jobs WHERE (state IN ('pending','quota_wait') OR (state='leased' AND lease_until<?)) AND due_at<=? AND attempts<5 LIMIT 1").bind(nowISO(),nowISO()).first();
+          await(due?processNotice(env):canonicalBackfill(env));
+        }
       }else await(body.kind==='match'?matchEvents(env):body.kind==='send'?flushOutboxBatch(env,options):readSource(env));
     }
     catch(error){console.error('queue_stage_failed',body.kind,safeError(error));}

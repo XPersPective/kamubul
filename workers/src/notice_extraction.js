@@ -1,8 +1,8 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
 import {handleExtract,validateGroups,missingTopics,mentions,MIN_TEXT,MAX_TEXT} from './extract.js';
 import {fold} from './criteria.js';
-export const NOTICE_VERSION='notice-1';
-const countHeader=value=>/^(?:adet|kontenjan|kadro sayisi|personel sayisi|alinacak kisi sayisi|kisi sayisi|sayi)$/.test(fold(value).replace(/[:.]/g,'').trim());
+export const NOTICE_VERSION='notice-3';
+const countHeader=value=>/^(?:adet|kontenjan(?: sayisi)?|kadro sayisi|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 const datePattern=/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2})\b/g;
 function civilDate(day,month,year){const d=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;return Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d?d+'T20:59:59.999Z':null;}
 function conditions(text){
@@ -17,7 +17,7 @@ function conditions(text){
   return validateGroups({groups:[raw]},text)[0]??{};
 }
 export function mechanicalNotice(notice,text){
-  const fields={}, groups=[], lines=text.split('\n'),seenRows=new Set();let headers=null,count=-1,rows=0,tableAmbiguous=false;
+  const fields={}, groups=[], lines=text.split('\n'),seenRows=new Map();let headers=null,count=-1,rows=0,tableAmbiguous=false,tableNumber=0;
   const tableStart=lines.findIndex(l=>l.split('|').some(countHeader));
   const shared=[];if(tableStart>0)shared.push(lines.slice(0,tableStart).join('\n').split(/\n[^\n]{0,30}ÖZEL ŞARTLAR/i)[0]);
   for(let i=0;i<lines.length;i++)if(lines[i].length<120&&/genel sartlar/.test(fold(lines[i]))){const section=[];for(let j=i+1;j<lines.length;j++){if(lines[j].length<120&&/ozel sart|basvuru|istenilen belg|degerlendirme/.test(fold(lines[j])))break;section.push(lines[j]);}shared.push(section.join('\n'));}
@@ -26,17 +26,19 @@ export function mechanicalNotice(notice,text){
     const cells=line.split('|').map(s=>s.trim());
     if(cells.length<2)continue;
     const index=cells.findIndex(countHeader);
-    if(index>=0){headers=cells;count=index;continue;}
+    if(index>=0){headers=cells;count=index;tableNumber++;continue;}
     if(!headers)continue;
     if(/^toplam\b/.test(fold(cells[0])))continue;
     // Official ministry table uses rowspan only for the final salary cell.
-    const missingSalary=cells.length===headers.length-1&&/ucret|maas/.test(fold(headers.at(-1)));
+    const missingSalary=cells.length===headers.length-1&&(/ucret|maas/.test(fold(headers.at(-1)))||(fold(headers.at(-1))==='toplam'&&count<headers.length-1));
     if(cells.length!==headers.length&&!missingSalary){if(cells.some(s=>/^\d+$/.test(s)))tableAmbiguous=true;continue;}
-    if(!/^\d+$/.test(cells[count])){if(cells.some((s,i)=>s&&/unvan|pozisyon/.test(fold(headers[i]))))tableAmbiguous=true;continue;}
-    const quota=Number(cells[count]);if(quota<1||quota>100000){tableAmbiguous=true;continue;}
-    const label=cells.filter((s,i)=>i!==count&&/unvan|pozisyon|bolum|program|anabilim|anasanat/.test(fold(headers[i]))).join(' · ');
+    const number=cells[count].match(/^(\d+)(?:\s*\((?:Erkek|Kadın|Erkek-Kadın|Kadın-Erkek)\))?$/i);
+    if(!number){if(cells.some((s,i)=>s&&/unvan|pozisyon|meslek/.test(fold(headers[i]))))tableAmbiguous=true;continue;}
+    const quota=Number(number[1]);if(quota<1||quota>100000){tableAmbiguous=true;continue;}
+    const label=cells.filter((s,i)=>i!==count&&/unvan|pozisyon|bolum|program|anabilim|anasanat|meslek adi|ogrenim dali|atama yapilacak yer/.test(fold(headers[i]))).join(' · ');
     if(!label){tableAmbiguous=true;continue;}
-    if(seenRows.has(line))continue;seenRows.add(line);
+    const rowKey=headers.join('|')+'\n'+line;
+    if(seenRows.has(rowKey)&&seenRows.get(rowKey)<tableNumber)continue;seenRows.set(rowKey,tableNumber);
     rows++;
     const parsed=conditions(line);
     groups.push({label,quota,...parsed,quotes:{...parsed.quotes,quota:line},sourceText:line});

@@ -1,15 +1,14 @@
 # Mevcut Mimari — KamuBul
 
-5 Ekim 2026. Bu dosya doğrulanmış mevcut durumu tutar; eski kontrol noktaları
+6 Ekim 2026. Bu dosya doğrulanmış mevcut durumu tutar; eski kontrol noktaları
 Git geçmişindedir. Son kullanıcı yönü PB-027/C-054: mekanik önce, yeterlilik
 kontrolü ve eksikse saklı tam metni okuyan Qwen. Telefon fallback koruması
 ve eski CF-first model sırası geçersizdir. Tam üretim kabulü henüz tamamlanmadı.
 
 ## Sunucu ve kaynak verisi
 Kalıcı Worker: https://kamubul-api.devx8585.workers.dev, son deployment
-22ac5fc4-4d40-4248-a2dc-e56bc4f7c52a. Önceki health200/AI/FCM configured;
-PB-027 deployment sonrası canlı kalite/sayı kontrolü sürüyor.
-D1 kamubul (371092dd-2cc7-487f-b971-84c2499bbc7d), migration0001–0028 remote.
+f9f97d12-57e8-4b44-af25-f11a05dbc27b; /api/v2/health200, AI/FCM configured.
+D1 kamubul (371092dd-2cc7-487f-b971-84c2499bbc7d), migration0001–0029 remote.
 Queue kamubul-work, batch1/concurrency1/retry0. Cron her dakika recovery;
 source/extract/match/send generation+lease, atomik3000 UTC günlük görev sınırı.
 Cloudflare Free/Firebase Spark korunur; otomatik ücretli yükseltme yok.
@@ -30,17 +29,26 @@ SBB PDF reader native AI.toMarkdown:3MiB/25s fetch,45s conversion,
 120KB çıktı/20 UTC günlük rezervasyon, hash+reader cache. Gerçek SBB PDF
 conversion/kalite kanıtı henüz yok; OCR/sayfa sayısı sınırı yok.
 
-Son canlı readonly: ilan.gov177 kimlik/text167/conditions_checked37;
-Kariyer27 kimlik/text0. Bu bütün kaynak kapsamı değildir. ilan.gov yeni snapshot
-sayfalaması sürüyor. Gerçek preview: ilan.gov200+749chars; Kariyer homepage/RSS200
-fakat mevcut API522; SBB403 Access Restricted; İŞKUR500 veya200 Request Rejected
-(ilan sayfası değil). Resmi güncel JS'de APIURL/body/detail routes okuyucuyla
-aynıdır; resmi browser headers aynı CF preview'de API522 verdi. IP/ülke nedeni
-çıkarılmadı. Kullanıcının çalışan Cloudflare kaynak yolu henüz eşleştirilmedi.
+Son canlı readonly: aktif ilan.gov169/text169; Kariyer30/text0. 169 metnin tümü
+notice-3 mekanik denetiminden geçti; bu tüm kaynakların tam-metin kabulü değildir.
+Kariyer sayfa/RSS200 ve güncel resmi JS APIURL/body/routes okuyucuyla aynı;
+detay API'sinin geçerli ilan yanıtı henüz alınmadı. SBB/İŞKUR okuyucularının
+geçerli liste yanıtı kabulü de açık. IP/ülke nedeni çıkarılmaz, kullanıcıdan
+Worker adresi tekrar istenmez. Kaynak boşlukları ilan/AI başarısı sayılmaz.
 
 ## Ayıklama ve Asistan
 Üretim EXTRACT_AI_PROVIDER=external, qwen3.6-flash/Token Plan/thinking kapalı.
 Kaynağın kimlik/tarih/il/kontenjandan gelen alanları AI gerektirmez.
+notice_extraction.js kaynak/native ve başlıklı tabloları mekanik ayıklar;
+aynı tabloda iki gerçek satır sayılır, tekrar yayımlanan tablo sayılmaz.
+Belirsiz satırda ara toplam yayımlanmaz. Tek payload quota/deadline/groups/
+applicationPeriods/fieldEvidence/extraction kart, ayrıntı ve offline'a gider.
+Mekanik backlog AI çağrıları başlamadan küçük partilerle boşaltılır.
+AI yalnız yeterlilik denetimindeki eksiklere, saklı tam metinle devreye girer.
+notice-3/x11, ayrı attempted/quality; kısmi JSON complete sayılmaz.
+Başka pozisyon alıntısı terfi ettirilmez; tercihen eğitim zorunlu olmaz;
+birlikte gereken dereceler OR eğitim dizisine çevrilmez. Göreli/multiple tarih
+ham takvim olarak saklanır, tek son başvuru uydurulmaz.
 Ayıklama normalize tam metin+prompt/model hash'inde D1 shared cache; kabul edilen
 120000 karakterin tamamı gönderilir. Her alan birebir kaynak alıntısıyla
 validate edilir; belirsiz unknown. Bir geçerli sonuç tek çağrı, bozuk/hata için
@@ -86,32 +94,34 @@ silinen ilan metni offline korunur. Farklı native ID fingerprint ile elenmez.
 Home/cache refresh/Asistan yalnız Worker API; otomatik source/detail/city fetch
 ve condition backfill kaldırıldı. Eski Workmanager görevi iptal/no-op migration.
 Kullanıcı resmî bağlantıyı kendisi açabilir. Kaynak durumu dürüst gösterilir.
-Ayrıntı özgün seçilebilir metin ve alıntılı ayrı kadro koşulları sunar; yazı
+Ayrıntı kompakt kontenjan/tarih, ayrı pozisyon sayısı/koşulları/tam satır,
+özgün seçilebilir metin ve alıntılar sunar; AI katkısında küçük hata olabilir
+ibaresi ve kısmi kalite bilgisi vardır. Başvuru takvimleri kaynak metniyle açıktır. Yazı
 ölçeği kalıcı. Asistan aynı cache metniyle açılır; boş metinde inference yok.
 Dört atlanabilir onboarding, typed kriter editörü, ışık/koyu/responsive goldens,
 7gün reklamsız deneme, Play aylık Pro ve mevcut reklam politikası korunur.
 PRIVACY.md ve canlı privacy HTML5 Ekim sunucu/Qwen/aggregate token açıklamalı.
 
-Yerel243 Worker/206 Flutter/208 core PASS, analyze temiz. Native1.1.8+13 signed
-fresh APK API36 GooglePlay/x64 own5562 installed; cold5218ms (100ms hedef kabulü
-sayılmaz), gerçek API home184, ilan2235014 D1 metni3498chars == bağlantı kapalı
-native selectable text3498chars EXACT. Asistan seçili ilan/no automatic message.
-Proof C:/Users/rubicon/.codex/builds/kamubul-1.1.8-{home,detail,offline,assistant}.png.
-Owned5562 kapalı, kamubul_pb026 AVD resmi araçla silindi; kullanıcı5560 korundu.
-Signed source b526eb1/version1.1.8+13; build C:/Users/rubicon/.codex/builds/kamubul-1.1.8.
-APK package/cert/nondebuggable/ZIP16KB, AAB signature/12ELF/3ABI LOAD>=16KB PASS.
-AAB60756830byte SHA2566139F648EF0379453A82C29E5A01A2C50F14673CB8EE5779D17461683F1990A9.
-Son açık kullanıcı talimatıyla Play production1.1.8/code13 completed:
-track update/validate/commit ve fresh API/hash PASS. Son açık kullanıcı
-talimatıyla internal1.1.8/code13 update/validate/commit de PASS.
-Fresh API iki kanal13; UI dahili13 test kullanıcıları tarafından kullanılabilir.
+PB-027:257 Worker/213 Flutter/208 core/30 targeted mobile PASS; analyze temiz.
+Signed1.1.9+14 source3ea2e20, build C:/Users/rubicon/.codex/builds/kamubul-1.1.9;
+AAB SHA2562ef80a7bf29ea1734244d4c0acef5948b073c780b07018e5efd10db6dab2607b.
+APK v2 signature/ZIP16KB, AAB signature/12ELF/3ABI LOAD>=16KB ve kalıcı cert PASS.
+Own API36 GooglePlay/x64 emulator5562 fresh14/cold3900ms; home194 initial API
+cache, Sabancı card/detail quota1+16Oct eşit, son server revision education yalnız
+Lisans. Network kapalı force-stop/cold restart native original4324chars EXACT.
+Proof C:/Users/rubicon/.codex/builds/kamubul-1.1.9-{card,detail-current,offline}.png.
+Play production+internal14 update/validate/commit ve fresh API AAB hash PASS.
+UI internal1.1.9/code14 "Dahili test kullanıcıları tarafından kullanılabilir";
+production14 "İncelemede"; Google onayı/genel mağaza erişimi ayrı ve bekliyor.
 Download https://play.google.com/apps/internaltest/4701555814809167145;
-proof C:/Users/rubicon/.codex/builds/kamubul-play-1.1.8-internal.jpg.
-Play Console Yayın özeti üretim1.1.8 için otomatik ön kontrollerin başladığını
-gösterir; managed publishing kapalı, kontrol+Google onayı sonrası sunulur.
-Genel mağaza erişimi/onay henüz doğrulanmadı. Proof:
-C:/Users/rubicon/.codex/builds/kamubul-play-1.1.8-submitted.jpg.
-Kaynak tam-metin/kalite kapsamı yayın sonrası açık; eksiksiz kabul sayılmaz.
+proof C:/Users/rubicon/.codex/builds/kamubul-play-1.1.9-internal.jpg.
+169 ilan mekanik yeniden denetimi tamam; gerçek metadata-mode Qwen fallback
+ve native AI etiketi henüz saatlik bütçe yenilenince doğrulanacak.
+
+Native14 seçili Asistan boş/no-auto-question; gerçek Qwen sorusu "Bu ilanda kac
+kisi alinacak?" → "İlan metnine göre kontenjan 1 kişidir." PASS. Server Asistan
+saklı metni kullanır, kaynak refetch yok. Cold launch100ms hedefi karşılanmış
+sayılmaz; fiziksel telefon/genel premium kabulü emulator kanıtından ayrı.
 
 Yerel100/1000/10000 fanout check PASS: max15 SQL/match ve8/send;10k match15004SQL.
 Günlük3000 Queue task örneğinde7996 send/2004 durable pending/9000normaloperations.
@@ -119,9 +129,10 @@ Cloudflare CPU/10k cihaz teslimi/SLA kanıtı değildir. Dashboard24h karışık
 2.43k invocation/0 CPU-exceeded errors; CPU P90 7.15/P99 10.24ms, bazı zaman
 pencereleri17ms. Yeni sürüme/tek stage'e ait başarı olarak kullanılmaz.
 
-Kalan kabul: tüm kaynak metni +>=50 labeled/source precision>=.95/recall;
+Kalan kabul: PB-027 gerçek metadata Qwen/native AI katkısı; tüm kaynak metni
+ve >=50 labeled/source precision>=.95/recall;
 gerçek stage CPU/Qwen Credits kalibrasyonu/FCM fanout lifecycle;
 Play server Pro doğrulaması, eski shared anahtarın owner rotation'ı,
-post-trial real ad/Pro restore/AdMob store linkage; yeni Play release.
+post-trial real ad/Pro restore/AdMob store linkage; Google production14 onayı.
 Deferred: iOS/APNs/sesli giriş/AI kişisel sıralama. Strateji docs/SERVER_INGESTION_STRATEGY.md;
 aktif detay PB-026, kalan geçmiş kullanıcı maddeleri PB-024/025'te kaybolmadan tutulur.
