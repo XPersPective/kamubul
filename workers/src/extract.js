@@ -248,7 +248,8 @@ export async function handleExtract(body, env, deps) {
   // Sunucunun kendi kanonik işi (deps.internal, HTTP'den gelemez) kurulum tavanına girmez.
   if (!deps.internal && await bump(env.DB, day, 'x:inst:' + body.installationId) > lim.install) return { status: 429, body: { error: 'rate_limited' } };
   const now = (deps.now ?? new Date()).toISOString();
-  const lease = new Date(Date.parse(now) + 90000).toISOString();
+  // qwen3.8-flash streams ~75 tok/s: the lease must outlive one full call so a slow answer is not duplicated.
+  const lease = new Date(Date.parse(now) + 150000).toISOString();
   const claim = await env.DB.prepare('INSERT INTO extraction_runs(hash,lease_until) VALUES(?,?) ON CONFLICT(hash) DO UPDATE SET lease_until=excluded.lease_until WHERE extraction_runs.attempts<2 AND (extraction_runs.lease_until IS NULL OR extraction_runs.lease_until<=?) RETURNING attempts').bind(hash, lease, now).first();
   if (!claim) {
     const run = await env.DB.prepare('SELECT attempts FROM extraction_runs WHERE hash=?').bind(hash).first();
@@ -265,7 +266,7 @@ export async function handleExtract(body, env, deps) {
     const capped = externalAiEnabled(env) && Number.isInteger(fallbackCap) && fallbackCap > 0;
     // Qwen tam metni (tablolar dahil) okur; 8B yalnız kısa şart kesitini.
     const build = (ext, review) => ({ messages: [{ role: 'system', content: prompt + (body.noticeMode ? noticePrompt : '') + review }, { role: 'user', content: ext ? focusText(text, FULL_LIMIT) : focused }],
-      max_tokens: ext ? 6000 : 1800, temperature: 0, usageBucket:'extract', response_format: { type: 'json_object' }, ...(ext ? { timeoutMs: 55000 } : {}) });
+      max_tokens: ext ? 6000 : 1800, temperature: 0, usageBucket:'extract', response_format: { type: 'json_object' }, ...(ext ? { timeoutMs: 110000 } : {}) });
     let parsed = false;
     for (let attempt = 0; calls < 2; attempt++) {
       let useExternal = external;
@@ -283,7 +284,7 @@ export async function handleExtract(body, env, deps) {
       calls++;
       try { out = await Promise.race([
         useExternal ? externalAiRun(env, request, deps.fetch) : env.AI.run(model, request, { rejectIfBusy: true }),
-        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('extract_timeout')), Number(env.EXTRACT_TIMEOUT_MS) || (useExternal || deps.internal ? 60000 : 30000)); }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('extract_timeout')), Number(env.EXTRACT_TIMEOUT_MS) || (useExternal || deps.internal ? 120000 : 30000)); }),
       ]).finally(() => clearTimeout(timer));
       } catch (error) {
         if (calls >= 2 || useExternal || !externalAiEnabled(env) || !Number.isInteger(fallbackCap) || fallbackCap <= 0 ||
