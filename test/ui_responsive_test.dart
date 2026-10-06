@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/listings/official_listing_page.dart';
 import 'package:kamubul/listings/listing_guide.dart';
+import 'package:kamubul/ui/premium.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/notifications/alert_history.dart';
 import 'package:kamubul/notifications/notification_center_page.dart';
@@ -36,6 +37,38 @@ class _PushStore implements PushStateStore {
 /// PB-008: 1.3x metin ölçeği ve tablet genişliğinde taşma olmadan düzen;
 /// büyük başlık çökmesi ve yapışkan CTA davranışı.
 void main() {
+  testWidgets('okuma kaydırıcısı etiketini ve yüzde değerini bir kez okur', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final previousScale = ReadingScale.notifier.value;
+    try {
+      ReadingScale.set(1.0);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(appBar: null, body: ReadingScaleButton()),
+        ),
+      );
+      await tester.tap(find.byTooltip('Yazı boyutu'));
+      await tester.pumpAndSettle();
+      final slider = find.bySemanticsLabel('İlan yazı boyutu');
+      expect(slider, findsOneWidget);
+      expect(tester.getSemantics(slider).getSemanticsData().value, '%100');
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await tester.drag(find.byType(Slider), const Offset(100, 0));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSemantics(slider).getSemanticsData().value,
+        '%${(ReadingScale.notifier.value * 100).round()}',
+      );
+      expect(ReadingScale.notifier.value, greaterThan(1.0));
+    } finally {
+      ReadingScale.set(previousScale);
+      semantics.dispose();
+    }
+  });
+
   testWidgets('scoped summary stays readable without quote panels at 1.3x', (
     tester,
   ) async {

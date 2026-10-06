@@ -117,6 +117,11 @@ ibaresi ve kısmi kalite bilgisi vardır. Başvuru takvimleri kaynak metniyle a�
 ölçeği kalıcı. Asistan aynı cache metniyle açılır; boş metinde inference yok.
 Dört atlanabilir onboarding, typed kriter editörü, ışık/koyu/responsive goldens,
 7gün reklamsız deneme, Play aylık Pro ve mevcut reklam politikası korunur.
+
+6 Ekim erişilebilirlik: ana ekran/ilk kriter editörü/ayarlar telefon390×844 ve tablet1024×768
+48dp+etiket guideline PASS; çipler native padded, üyelik rozeti48dp TextButton.
+Okuma Slider adı ve yüzde değeri tek semantics öğesi; 192 Flutter PASS/analyze temiz.
+Cihaz TalkBack/release <100ms kabulü henüz açık (PB-029).
 PRIVACY.md ve canlı privacy HTML5 Ekim sunucu/Qwen/aggregate token açıklamalı.
 
 6 Ekim 1.2.0+15 (source d3e5bfb): 276 Worker/187 Flutter/211 core PASS, analyze temiz.
@@ -184,6 +189,6 @@ Düzce dikey İlanNo/PozisyonAdı/Adedi gerçek metinde3 (2+1); Özelleştirme14
 Adalet150; GİB860 açık istihdam cümlesinden. Live backfill kabulü PB-027'de.
 Kariyer server Browser Run iki timeout, hiçbir fulltext kanıtı yok; desktop
 resmi Bitlis DOM yalnız debugging. Geçerli server source yanıtı açık.
-Brain: PB-027 ve PB-028 IN_PROGRESS; kabul kapıları PB-029 PLANNED/BLOCKED sahipli,
+Brain: PB-027 READY; PB-028 tamamlanıp Git'e taşındı; kabul kapıları PB-029 IN_PROGRESS/BLOCKED sahipli,
 PB-026 kaynak yanıtı BLOCKED. Eski phone fallback/13/provider-yok günlükleri
 Git geçmişinde; kullanıcı geri bildirimleri PB-024/025 korunur.

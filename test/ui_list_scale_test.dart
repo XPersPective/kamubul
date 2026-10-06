@@ -200,6 +200,33 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'ana ekran, kriter editörü ve ayarlar etiketli 48dp hedefler sunar',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        for (final size in [const Size(390, 844), const Size(1024, 768)]) {
+          await pumpHome(tester, size: size);
+          await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+          await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+          await tester.tap(find.text('Kriter ekle'));
+          await tester.pumpAndSettle();
+          await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+          await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+          Navigator.of(tester.element(find.text('Aramayı kaydet'))).pop();
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Ayarlar'));
+          await tester.pumpAndSettle();
+          await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+          await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+          await tester.pumpWidget(const SizedBox());
+        }
+      } finally {
+        semantics.dispose();
+      }
+    },
+  );
+
   // Filtreler yatay kaymaz, alt satıra geçer (kullanıcı isteği); bu yüzden
   // ölçüt tipik telefon boyutu + büyük yazıdır.
   testWidgets('ilk ilan başlığı telefonda kaydırmadan okunur', (tester) async {

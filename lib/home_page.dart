@@ -1048,40 +1048,36 @@ class _KamuHomePageState extends State<KamuHomePage> {
         ? const Color(0xFFE9B949)
         : scheme.primary.withValues(alpha: 0.12);
     final foreground = pro ? const Color(0xFF3A2A00) : scheme.primary;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Material(
-        color: background,
+    return TextButton(
+      onPressed: _openPaywall,
+      style: TextButton.styleFrom(
+        backgroundColor: background,
+        foregroundColor: foreground,
         shape: const StadiumBorder(),
-        child: InkWell(
-          customBorder: const StadiumBorder(),
-          onTap: _openPaywall,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  pro
-                      ? Icons.workspace_premium_rounded
-                      : Icons.hourglass_bottom_rounded,
-                  size: 15,
-                  color: foreground,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: foreground,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: pro ? 1 : 0,
-                  ),
-                ),
-              ],
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            pro
+                ? Icons.workspace_premium_rounded
+                : Icons.hourglass_bottom_rounded,
+            size: 15,
+            color: foreground,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: pro ? 1 : 0,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1227,7 +1223,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: InputChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: Text(_place!),
                   onDeleted: () => setState(() {
                     _place = null;
@@ -1241,7 +1236,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ActionChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   avatar: const Icon(Icons.place_outlined, size: 18),
                   label: const Text('Şehir'),
                   onPressed: _chooseCity,
@@ -1251,7 +1245,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: Text(label),
                   // "Tümü" yalnız hiçbir kriter/kayıtlı arama yokken seçili görünür.
                   selected: index == 0
@@ -1275,7 +1268,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 label: const Text('Son 30 gün'),
                 selected: _last30,
                 onSelected: (value) {
@@ -1293,7 +1285,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: InputChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: Text('Yaş: $_ageFilter'),
                   onDeleted: () => setState(() {
                     _ageFilter = null;
@@ -1308,7 +1299,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: InputChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: Text(_educationFilter!),
                   onDeleted: () => setState(() {
                     _educationFilter = null;
@@ -1322,7 +1312,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: InputChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: Text('KPSS $_kpssFilter'),
                   onDeleted: () => setState(() {
                     _kpssFilter = null;
@@ -1346,7 +1335,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: FilterChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: const Text('Şartları kontrol et'),
                   selected: _includeUnknown,
                   onSelected: (value) =>
@@ -1434,7 +1422,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
             children: [
               for (final search in _searches)
                 ChoiceChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   label: Text(search.name),
                   selected: _activeSearchId == search.id,
                   // Tekrar dokununca seçim kalkar, liste tüm ilanlara döner.
@@ -1445,7 +1432,6 @@ class _KamuHomePageState extends State<KamuHomePage> {
               Tooltip(
                 message: 'Bu aramayı kaydet',
                 child: ActionChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   avatar: Icon(
                     Icons.add_rounded,
                     size: 18,

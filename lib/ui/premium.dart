@@ -359,13 +359,20 @@ class ReadingScaleButton extends StatelessWidget {
                   children: [
                     const Text('A', style: TextStyle(fontSize: 14)),
                     Expanded(
-                      child: Slider(
-                        value: scale,
-                        min: ReadingScale.min,
-                        max: ReadingScale.max,
-                        divisions: 7,
-                        label: '%${(scale * 100).round()}',
-                        onChanged: ReadingScale.set,
+                      child: MergeSemantics(
+                        child: Semantics(
+                          label: 'İlan yazı boyutu',
+                          child: Slider(
+                            value: scale,
+                            min: ReadingScale.min,
+                            max: ReadingScale.max,
+                            divisions: 7,
+                            label: '%${(scale * 100).round()}',
+                            semanticFormatterCallback: (value) =>
+                                '%${(value * 100).round()}',
+                            onChanged: ReadingScale.set,
+                          ),
+                        ),
                       ),
                     ),
                     const Text('A', style: TextStyle(fontSize: 24)),
