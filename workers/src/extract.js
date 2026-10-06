@@ -67,7 +67,7 @@ export function missingTopics(groups, text) {
 }
 const fold = s => String(s).toLocaleLowerCase('tr').replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 const weightingOnly = quote => /yüzde|%|ağırlık|ağırlıklı/.test(fold(quote));
-const kpssScoreEvidence=quote=>quote.match(/(?:en az|asgari|minimum)\s+[^%\n]{1,70}?\s*puan/i)?.[0]??quote.match(/(?:^|\|)\s*P\d{1,3}\s*\|\s*(\d+(?:[.,]\d+)?)\s*(?:\||$)/i)?.[1]??null;
+const kpssScoreEvidence=quote=>quote.match(/(?:en az|asgari|minimum)\s+[^%\n]{1,70}?\s*puan/i)?.[0]??quote.match(/\b\d{1,3}(?:[.,]\d+)?\s*(?:\([^)]*\)\s*)?ve üzeri puan/i)?.[0]??quote.match(/(?:^|\|)\s*P\d{1,3}\s*\|\s*(\d+(?:[.,]\d+)?)\s*(?:\||$)/i)?.[1]??null;
 
 // Alıntı metinde birebir (harf büyüklüğü/boşluk hariç) geçmeli.
 function quoted(q, foldedText) {
@@ -98,7 +98,9 @@ export function mentions(quote, n) {
   if ([...f.matchAll(/\d+(?:[.,]\d+)?/g)].some(m => Number(m[0].replace(',', '.')) === n)) return true;
   if (!Number.isInteger(n)) return false;
   const word = [TENS[Math.floor(n / 10)], ONES[n % 10]].filter(Boolean).join(' ');
-  return !!word && new RegExp(`(?<![\\p{L}])(?:${word}|${word.replace(' ', '')})(?![\\p{L}])`, 'u').test(f);
+  const ones=ONES.slice(1).join('|'),tens=TENS.slice(1).join('|');
+  const numbers=f.match(new RegExp(`(?<![\\p{L}])(?:(?:${tens})(?: ?(?:${ones}))?|${ones})(?![\\p{L}])`,'gu'))??[];
+  return !!word && numbers.some(value=>value===word||value===word.replace(' ',''));
 }
 
 // Yaş referansı başvuru tarihi mi (ya da hiç belirtilmemiş mi)?
@@ -135,7 +137,7 @@ export function validateGroups(raw, text) {
       })[e]);
       if (edu.some(e => supported.includes(e))) {
         // Matching's education array means alternatives; conjunctive degrees stay an exact readable requirement.
-        if(supported.length>1&&/\sve\s|\solup\b/.test(evidence)&&!/\sveya\s|\syahut\s|\sya da\s/.test(evidence))o.educationDescription=eq;
+        if(supported.length>1&&(/olmak[^]*olmak/.test(evidence)||/\sve\s|\solup\b/.test(evidence)&&!/\sveya\s|\syahut\s|\sya da\s/.test(evidence)))o.educationDescription=eq;
         else o.education = supported;
         quotes.education = eq;
       }

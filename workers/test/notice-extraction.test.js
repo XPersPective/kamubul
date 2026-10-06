@@ -66,6 +66,8 @@ test('preferred degree is not mandatory and conjunctive degrees are not eligibil
   assert.deepEqual(validateGroups({groups:[{education:['Lisans','Yüksek lisans'],educationQuote:preferred}]},preferred)[0].education,['Lisans']);
   const both='Lisans ve tezli yüksek lisans mezunu olmak.';
   const group=validateGroups({groups:[{education:['Lisans','Yüksek lisans'],educationQuote:both}]},both)[0];assert.equal(group.education,undefined);assert.equal(group.educationDescription,both);
+  const separate='Unvan | Adet | Şart\nDoktor Öğretim Üyesi | 1 | İnşaat Mühendisliği Bölümü lisans mezunu olmak. İnşaat Mühendisliği Anabilim Dalında doktora yapmış olmak.';
+  const row=mechanicalNotice({title:'Öğretim Üyesi'},separate).groups[0];assert.equal(row.education,undefined);assert.ok(row.educationDescription.includes('lisans mezunu olmak. İnşaat'));assert.ok(row.educationDescription.includes('doktora yapmış olmak'));
 });
 test('native vacancy count aliases and labelled KPSS cells do not confuse degree or adjacent result date',()=>{
   for(const header of ['Kadro Adedi','Pozisyon Adedi','Adedi','Sayısı']){
@@ -73,5 +75,32 @@ test('native vacancy count aliases and labelled KPSS cells do not confuse degree
     const result=mechanicalNotice({title:'Personel'},text);assert.equal(result.fields.quota.value,3);assert.equal(result.fields.deadline.value.slice(0,10),'2026-10-16');
     assert.ok(result.groups.every(g=>g.kpssType==='P3'&&g.kpssScore===60));
   }
+});
+test('official trailing address/calendar rowspans preserve counts but missing interior cells remain ambiguous',()=>{
+  const isparta='İlan Sıra No | Birimi | Bölümü | Anabilim / Anasanat Dalı / Programı | Adet | Der. | Ünvanı | Özel Şartlar | Adres ve İletişim Bilgileri\n1 | Orman Fakültesi | Orman Endüstri Mühendisliği Bölümü | Odun Mekaniği ve Teknolojisi | 1 | 1 | Profesör | Doçent ünvanı almış olmak. | Isparta\n2 | Teknoloji Fakültesi | Biyomedikal Mühendisliği Bölümü | Biyomedikal Mühendisliği | 1 | 1 | Profesör | Doktora yapmış olmak.\nBaşvuru Bitiş Tarihi | 14.10.2026 Çarşamba (Mesai bitimi Saat 17.30)';
+  const result=mechanicalNotice({title:'Öğretim Üyesi'},isparta);assert.equal(result.fields.quota.value,2);assert.equal(result.tableAmbiguous,false);assert.equal(result.fields.deadline.value,'2026-10-14T14:30:00.000Z');
+  const calendar='Bölüm | Kadro Ünvanı | Kadro Adedi | Aranan Şartlar | İlan Takvimi\nTarih | Öğretim Görevlisi | 1 | Doktora yapmış olmak. | İlk Başvuru Tarihi: 30.09.2026 Son Başvuru Tarihi: 14.10.2026 Ön Değerlendirme Sonuç Açıklama Tarihi: 15.10.2026 Giriş Sınavı Tarihi: 16.10.2026\nDeniz İşletmeciliği | Öğretim Görevlisi | 1 | Yüksek lisans derecesine sahip olmak.';
+  const dates=mechanicalNotice({title:'Öğretim Görevlisi'},calendar);assert.equal(dates.fields.quota.value,2);assert.equal(dates.fields.deadline.value.slice(0,10),'2026-10-14');
+  const broken=mechanicalNotice({title:'Personel'},'Bölüm | Ünvan | Adet | Şart | Adres\nMühendis | 3 | Lisans mezunu olmak. | Ankara');assert.equal(broken.fields.quota,undefined);assert.equal(broken.tableAmbiguous,true);
+});
+test('official Bitlis bullet conditions and later calendar are not confused with vacancy rows',()=>{
+  const text='POZİSYON KODU | POZİSYON ÜNVANI | KADRO ADEDİ | CİNSİYETİ | MEZUNİYET DURUMU / KPSS PUAN TÜRÜ | ARANAN NİTELİKLER\n001 | Destek Personeli | 7 | Erkek | Ortaöğretim (KPSS P94) | • Ortaöğretim (lise ve dengi) kurumlarından mezun olmak. • 2024 Kamu Personeli Seçme Sınavında (KPSS P94) 60 (altmış) ve üzeri puan almış olmak. • Başvuru bitimi tarihi itibariyle 35 (otuz beş) yaşını bitirmemiş olmak.\n002 | Destek Personeli | 2 | Kadın | Ortaöğretim (KPSS P94) | •Ortaöğretim (lise ve dengi) kurumlarından mezun olmak. •2024 Kamu Personeli Seçme Sınavında (KPSS P94) 60 (altmış) ve üzeri puan almış olmak. •Başvuru bitimi tarihi itibariyle 35 (otuz beş) yaşını bitirmemiş olmak.\n003 | Tekniker | 1 | Erkek | Ön Lisans (KPSS P93) | •Yükseköğretim Kurumlarının Bilgisayar Programcılığı ön lisans programlarından birinden mezun olmak. •2024 Kamu Personeli Seçme Sınavında (KPSS P93) 65 (altmış beş) ve üzeri puan almış olmak. •Başvuru bitimi tarihi itibariyle 35 (otuz beş) yaşını bitirmemiş olmak.\nSIRA NO | KONU | TARİH\n1 | İlan Yayım Tarihi | 22.09.2026\n2 | Başvuru Başlangıç Tarihi | 22.09.2026\n3 | Son Başvuru Tarihi | 06.10.2026\n4 | Nihai Değerlendirme Sonuç İlanı | 16.10.2026';
+  const result=mechanicalNotice({title:'Bitlis Personel'},text);assert.equal(result.fields.quota.value,10);assert.equal(result.tableAmbiguous,false);assert.equal(result.fields.deadline.value.slice(0,10),'2026-10-06');
+  assert.deepEqual(result.groups.map(g=>[g.quota,g.kpssType,g.kpssScore,g.maxAge]),[[7,'P94',60,34],[2,'P94',60,34],[1,'P93',65,34]]);assert.deepEqual(assessNotice(result,text),[]);
+});
+test('academic role columns count vacancies independently from degree columns and preserve row dates',()=>{
+  const text='Birimi | Bölümü | Prof. | Doç. | Der. | Dr.Öğr.Üyesi | Der. | Açıklama\nTıp | Genel Cerrahi | 2 | 1 | 4 | 3 | 5 | Doktora yapmış olmak.\nTıp | Ortopedi | | | | 1(*) | 4 | Doktora yapmış olmak.';
+  const result=mechanicalNotice({title:'Öğretim Üyesi'},text);assert.equal(result.fields.quota.value,7);assert.deepEqual(result.groups.map(g=>g.quota),[2,1,3,1]);assert.ok(result.groups[2].label.endsWith('Dr.Öğr.Üyesi'));
+  const table='Fakülte | Bölüm | Ünvan | Kadro | Özel Koşullar | Son Başvuru Tarihi\nEdebiyat | Sosyoloji | Doktor Öğretim Üyesi | 1 | Doktora sahibi olmak. | 16.10.2026';
+  const single=mechanicalNotice({title:'Öğretim Üyesi'},table);assert.equal(single.fields.quota.value,1);assert.equal(single.fields.deadline.value.slice(0,10),'2026-10-16');
+  const scoped=mechanicalNotice({title:'Öğretim Üyesi'},table+'\nEdebiyat | Tarih | Profesör | 2 | Doçent unvanı almış olmak. | 20.10.2026');assert.equal(scoped.fields.deadline.value,null);assert.equal(scoped.fields.applicationPeriods.value.length,2);assert.ok(assessNotice(scoped,table).includes('deadline_scope'));
+  const bad=mechanicalNotice({title:'Öğretim Üyesi'},text+'\nTıp | Histoloji | belirsiz | | | | | Kaynakta sayı yok.');assert.equal(bad.fields.quota,undefined);assert.equal(bad.tableAmbiguous,true);
+});
+test('explicit cancellation and professional certification exams never consume vacancy extraction credits',async()=>{
+  for(const [title,kind] of [['İptal İlanı (Iğdır Üniversitesi Rektörlüğü)','cancellation'],["TÜRMOB'dan Serbest Muhasebeci Mali Müşavirlik Sınav Duyurusu",'exam'],['2026 Yılı Aktüerlik Sınavları İlanı','exam']]){
+    const text='Eski kadro ilanındaki şartlar iptal edilmiştir. '+ 'Lisans mezuniyet bilgileri. '.repeat(10),res=await extractNotice({title,text},text,{DB:{prepare(){assert.fail('no model/database for non-vacancy announcement');}}},{});
+    assert.equal(res.result.extraction.kind,kind);assert.equal(res.result.fields.quota.value,null);assert.equal(res.result.fields.notificationEligible.value,false);assert.deepEqual(res.result.groups,[]);
+  }
+  assert.equal(mechanicalNotice({title:'Uzman Yardımcılığı Giriş Sınavı Duyurusu'},'Lisans mezunu olmak.').kind,undefined,'hiring entry exams remain vacancies');
 });
 

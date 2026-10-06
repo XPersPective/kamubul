@@ -39,6 +39,11 @@ test('KPSS ranking weight is not a required minimum, including cached results',a
   const result=await handleExtract({installationId:id,text},env(db),{sha256,fetch:()=>assert.fail('cache replay must not infer')});
   assert.equal(result.body.cached,true);assert.equal(result.body.groups[0].kpssStatus,undefined);assert.equal(result.body.groups[0].kpssScore,undefined);db.sql.close();
 });
+test('written compound numbers do not validate their tens or ones separately',()=>{
+  for(const quote of ['otuz beş yaşını bitirmemiş','otuzbeş yaşını bitirmemiş']){
+    assert.equal(mentions(quote,35),true);assert.equal(mentions(quote,30),false);assert.equal(mentions(quote,5),false);
+  }
+});
 
 test('alıntısı metinde olmayan değer atılır; sınır "doldurmamış" N-1 olur', () => {
   const groups = validateGroups({ groups: [
