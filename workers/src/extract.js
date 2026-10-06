@@ -66,6 +66,8 @@ export function missingTopics(groups, text) {
   ].filter(([, cue, present]) => cue.test(t) && !groups.some(present)).map(([name]) => name);
 }
 const fold = s => String(s).toLocaleLowerCase('tr').replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
+const weightingOnly = quote => /yüzde|%|ağırlık|ağırlıklı/.test(fold(quote));
+const kpssScoreEvidence=quote=>quote.match(/(?:en az|asgari|minimum)\s+[^%\n]{1,70}?\s*puan/i)?.[0]??quote.match(/(?:^|\|)\s*P\d{1,3}\s*\|\s*(\d+(?:[.,]\d+)?)\s*(?:\||$)/i)?.[1]??null;
 
 // Alıntı metinde birebir (harf büyüklüğü/boşluk hariç) geçmeli.
 function quoted(q, foldedText) {
@@ -145,10 +147,11 @@ export function validateGroups(raw, text) {
     const kpssEvidence = kq && (/kpss/.test(fold(kq)) || (/kpss/.test(t) && /(?<![\p{L}\d])p\s?\d{1,3}(?!\d)/u.test(fold(kq))));
     const exemption = kpssEvidence && /aranm|istenm|gerekm|şartı yok|zorunlu değil|muaf|puanı olmayan[^.]*dikkate alın/.test(fold(kq));
     if (exemption && g.kpssStatus === 'not_required') { o.kpssStatus = 'not_required'; quotes.kpss = kq; }
-    if (kpssEvidence && !exemption && g.kpssStatus === 'required') {
+    if (kpssEvidence && !exemption && !weightingOnly(kq) && g.kpssStatus === 'required') {
       o.kpssStatus = 'required'; quotes.kpss = kq;
       if (typeof g.kpssType === 'string' && /^P\d{1,3}$/.test(g.kpssType) && fold(kq).replace(/\s/g, '').includes(g.kpssType.toLowerCase())) o.kpssType = g.kpssType;
-      if (Number.isFinite(g.kpssScore) && g.kpssScore >= 0 && g.kpssScore <= 100 && mentions(kq, g.kpssScore)) o.kpssScore = g.kpssScore;
+      const scoreEvidence=kpssScoreEvidence(kq);
+      if (scoreEvidence && Number.isFinite(g.kpssScore) && g.kpssScore >= 0 && g.kpssScore <= 100 && mentions(scoreEvidence, g.kpssScore)) o.kpssScore = g.kpssScore;
     }
     const aq = quoted(g.ageQuote, t);
     if (aq && /yaş/.test(fold(aq))) {
@@ -193,7 +196,7 @@ export async function handleExtract(body, env, deps) {
   const external = env.EXTRACT_AI_PROVIDER === 'external' && externalAiEnabled(env);
   const model = external ? env.EXTERNAL_AI_MODEL : env.EXTRACT_AI_MODEL ?? env.AI_MODEL;
   const hash = await deps.sha256(JSON.stringify([VERSION,body.noticeMode?'notice':'conditions', external ? 'external' : 'cloudflare', model, env.EXTRACT_QWEN_DAILY ? env.EXTERNAL_AI_MODEL : null, text]));
-  const cachedBody = value => {const saved=JSON.parse(value);return Array.isArray(saved)?{groups:saved}:{...saved};};
+  const cachedBody = value => {const saved=JSON.parse(value),body=Array.isArray(saved)?{groups:saved}:{...saved};body.groups=body.groups.map(g=>{const q=g.quotes?.kpss;if(!q)return g;const clean={...g,quotes:{...g.quotes},quoteScopes:{...g.quoteScopes}};if(weightingOnly(q)){for(const key of Object.keys(clean))if(key.startsWith('kpss'))delete clean[key];delete clean.quotes.kpss;delete clean.quoteScopes.kpss;}else if(clean.kpssScore!=null&&(!kpssScoreEvidence(q)||!mentions(kpssScoreEvidence(q),clean.kpssScore)))delete clean.kpssScore;return clean;});return body;};
   const hit = await env.DB.prepare('SELECT groups FROM extraction_cache WHERE hash=?').bind(hash).first();
   if (hit) return { status: 200, body: { ...cachedBody(hit.groups), cached: true } };
   if ((!external && !env.AI) || !model) return { status: 503, body: { error: 'extract_unavailable' } };

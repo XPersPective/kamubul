@@ -7,7 +7,7 @@ ve eski CF-first model sırası geçersizdir. Tam üretim kabulü henüz tamamla
 
 ## Sunucu ve kaynak verisi
 Kalıcı Worker: https://kamubul-api.devx8585.workers.dev, son deployment
-f9f97d12-57e8-4b44-af25-f11a05dbc27b; /api/v2/health200, AI/FCM configured.
+5c5c57f7-c46c-4e1e-8492-7fd70c3a9f67; /api/v2/health200, AI/FCM configured.
 D1 kamubul (371092dd-2cc7-487f-b971-84c2499bbc7d), migration0001–0029 remote.
 Queue kamubul-work, batch1/concurrency1/retry0. Cron her dakika recovery;
 source/extract/match/send generation+lease, atomik3000 UTC günlük görev sınırı.
@@ -29,8 +29,9 @@ SBB PDF reader native AI.toMarkdown:3MiB/25s fetch,45s conversion,
 120KB çıktı/20 UTC günlük rezervasyon, hash+reader cache. Gerçek SBB PDF
 conversion/kalite kanıtı henüz yok; OCR/sayfa sayısı sınırı yok.
 
-Son canlı readonly: aktif ilan.gov169/text169; Kariyer30/text0. 169 metnin tümü
-notice-3 mekanik denetiminden geçti; bu tüm kaynakların tam-metin kabulü değildir.
+Son canlı readonly: aktif ilan.gov168/text168; Kariyer30/text0. notice-6 mekanik
+yeniden denetimi kuyrukta; 01:27 UTC163/168 işlendi (26 complete/137 partial),
+5 eski partial kaldı. Bu tüm kaynakların tam-metin veya kalite kabulü değildir.
 Kariyer sayfa/RSS200 ve güncel resmi JS APIURL/body/routes okuyucuyla aynı;
 detay API'sinin geçerli ilan yanıtı henüz alınmadı. SBB/İŞKUR okuyucularının
 geçerli liste yanıtı kabulü de açık. IP/ülke nedeni çıkarılmaz, kullanıcıdan
@@ -45,10 +46,17 @@ Belirsiz satırda ara toplam yayımlanmaz. Tek payload quota/deadline/groups/
 applicationPeriods/fieldEvidence/extraction kart, ayrıntı ve offline'a gider.
 Mekanik backlog AI çağrıları başlamadan küçük partilerle boşaltılır.
 AI yalnız yeterlilik denetimindeki eksiklere, saklı tam metinle devreye girer.
-notice-3/x11, ayrı attempted/quality; kısmi JSON complete sayılmaz.
+notice-6/x11, ayrı attempted/quality; kısmi JSON complete sayılmaz.
 Başka pozisyon alıntısı terfi ettirilmez; tercihen eğitim zorunlu olmaz;
 birlikte gereken dereceler OR eğitim dizisine çevrilmez. Göreli/multiple tarih
 ham takvim olarak saklanır, tek son başvuru uydurulmaz.
+Kadro/Pozisyon Adedi sütunları ve native KPSS puan türü/taban puanı okunur;
+aynı takvim satırındaki sonuç tarihi başvuru tarihinin yerine alınmaz. Açık
+numaralı pozisyon koşulları kendi satırında tutulur, genel şartlar yalnız
+eksik konuya uygulanır. Tek eksik belirsiz takvimse gereksiz Qwen çağrısı yok.
+KPSS yüzdesi/ağırlığı minimum puan sayılmaz; eski AI cache aynı kuralla
+yeniden çağrı olmadan temizlenir. Bakanlık KPSS puanı olmayan adayları kabul
+eder: 70 puan barajı yok, quota5/Java3/.Net2 mekanik complete.
 Ayıklama normalize tam metin+prompt/model hash'inde D1 shared cache; kabul edilen
 120000 karakterin tamamı gönderilir. Her alan birebir kaynak alıntısıyla
 validate edilir; belirsiz unknown. Bir geçerli sonuç tek çağrı, bozuk/hata için
@@ -102,7 +110,7 @@ Dört atlanabilir onboarding, typed kriter editörü, ışık/koyu/responsive go
 7gün reklamsız deneme, Play aylık Pro ve mevcut reklam politikası korunur.
 PRIVACY.md ve canlı privacy HTML5 Ekim sunucu/Qwen/aggregate token açıklamalı.
 
-PB-027:257 Worker/213 Flutter/208 core/30 targeted mobile PASS; analyze temiz.
+PB-027:260 Worker/213 Flutter/208 core/30 targeted mobile PASS; analyze temiz.
 Signed1.1.9+14 source3ea2e20, build C:/Users/rubicon/.codex/builds/kamubul-1.1.9;
 AAB SHA2562ef80a7bf29ea1734244d4c0acef5948b073c780b07018e5efd10db6dab2607b.
 APK v2 signature/ZIP16KB, AAB signature/12ELF/3ABI LOAD>=16KB ve kalıcı cert PASS.
@@ -115,8 +123,12 @@ UI internal1.1.9/code14 "Dahili test kullanıcıları tarafından kullanılabili
 production14 "İncelemede"; Google onayı/genel mağaza erişimi ayrı ve bekliyor.
 Download https://play.google.com/apps/internaltest/4701555814809167145;
 proof C:/Users/rubicon/.codex/builds/kamubul-play-1.1.9-internal.jpg.
-169 ilan mekanik yeniden denetimi tamam; gerçek metadata-mode Qwen fallback
-ve native AI etiketi henüz saatlik bütçe yenilenince doğrulanacak.
+Gerçek metadata-mode Qwen fallback/cache replay doğrulandı; canlı ağırlık70
+yanlış yorumu ortak doğrulamada düzeltildi. Native Malazgirt notice-5 hybrid
+partial halinde AI/hata olabilir ve eksik bilgi ibareleri görüntülendi.
+notice-6 sonrası aynı ilanda mekanik quota4/dört kadro1/P3 minimum60; native
+kart ve ayrıntı parity PASS. Proof kamubul-1.1.9-{hybrid-warning,malazgirt-notice6}.png
+aynı dış build dizininde. Günlük/saatlik model bütçesi sıfırlanmadı/artırılmadı.
 
 Native14 seçili Asistan boş/no-auto-question; gerçek Qwen sorusu "Bu ilanda kac
 kisi alinacak?" → "İlan metnine göre kontenjan 1 kişidir." PASS. Server Asistan
@@ -129,7 +141,7 @@ Cloudflare CPU/10k cihaz teslimi/SLA kanıtı değildir. Dashboard24h karışık
 2.43k invocation/0 CPU-exceeded errors; CPU P90 7.15/P99 10.24ms, bazı zaman
 pencereleri17ms. Yeni sürüme/tek stage'e ait başarı olarak kullanılmaz.
 
-Kalan kabul: PB-027 gerçek metadata Qwen/native AI katkısı; tüm kaynak metni
+Kalan kabul: PB-027 kalan tablo/metin biçimleri ve kalite corpus'u; tüm kaynak metni
 ve >=50 labeled/source precision>=.95/recall;
 gerçek stage CPU/Qwen Credits kalibrasyonu/FCM fanout lifecycle;
 Play server Pro doğrulaması, eski shared anahtarın owner rotation'ı,

@@ -150,14 +150,14 @@ test('historical mechanical repair publishes card/detail metadata without infere
 });
 
 test('Qwen budget wait still publishes known vacancy total and full position source conditions',async t=>{
-  const f=setup(t),item=JSON.parse(readFileSync(new URL('./fixtures/ilangov-details.json',import.meta.url))).notices.find(n=>n.id==='2244739');
-  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('ilangov:2244739','ilangov','2244739','h','first','first','later',?)").run(JSON.stringify({title:item.result.title,text:item.text,places:['Ankara']}));
+  const f=setup(t),item=JSON.parse(readFileSync(new URL('./fixtures/ilangov-details.json',import.meta.url))).notices.find(n=>n.id==='2244748');
+  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('ilangov:2244748','ilangov','2244748','h','first','first','later',?)").run(JSON.stringify({title:item.result.title,text:item.text,places:['Kırşehir']}));
   f.sql.prepare('INSERT INTO assistant_usage(day,bucket,count) VALUES(?,?,150)').run(new Date().toISOString().slice(0,10),'x:qwen');
   globalThis.fetch=async()=>assert.fail('budgeted model must not be called');
   const env={...f.env,EXTRACT_AI_PROVIDER:'external',AI_PROVIDER:'external',EXTERNAL_AI_URL:'https://model.test',EXTERNAL_AI_KEY:'test',EXTERNAL_AI_MODEL:'flash',EXTERNAL_AI_FORMAT:'openai',EXTRACT_QWEN_DAILY:'150',EXTRACT_QWEN_HOURLY:'30'};
-  const result=await canonicalConditions(env,'ilangov:2244739','h',item.text);
-  const row=f.sql.prepare("SELECT payload,conditions_checked c FROM listings WHERE id='ilangov:2244739'").get(),payload=JSON.parse(row.payload);
-  assert.equal(result.status,429);assert.equal(payload.quota,5);assert.deepEqual(payload.requirementGroups.map(g=>g.quota),[3,2]);assert.equal(payload.extraction.status,'partial');assert.equal(row.c,null);assert.equal(payload.text,item.text);
+  const result=await canonicalConditions(env,'ilangov:2244748','h',item.text);
+  const row=f.sql.prepare("SELECT payload,conditions_checked c FROM listings WHERE id='ilangov:2244748'").get(),payload=JSON.parse(row.payload);
+  assert.equal(result.status,429);assert.equal(payload.quota,15);assert.equal(payload.requirementGroups.reduce((n,g)=>n+g.quota,0),15);assert.equal(payload.extraction.status,'partial');assert.equal(row.c,null);assert.equal(payload.text,item.text);
 });
 
 test('revalidation removes an unsupported former subtotal instead of retaining it on the card',async t=>{

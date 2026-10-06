@@ -30,6 +30,16 @@ const env = db => ({ DB: db, EXTRACT_AI_PROVIDER: 'external', AI_PROVIDER: 'exte
 const id = 'a'.repeat(32);
 const modelReply = groups => async () => ({ ok: true, status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify({ groups }) } }] }) });
 
+test('KPSS ranking weight is not a required minimum, including cached results',async()=>{
+  const quote='2025 veya 2026 yılında yapılan KPSS P3 puanının yüzde yetmişi (%70)',text=quote+'. '+TEXT;
+  const wrong={kpssStatus:'required',kpssType:'P3',kpssScore:70,kpssQuote:quote};
+  assert.equal(validateGroups({groups:[wrong]},text)[0],undefined);
+  const db=fakeDb(),hash=await sha256(JSON.stringify(['x11','conditions','external','m',null,text]));
+  db.sql.prepare('INSERT INTO extraction_cache(hash,groups,created_at) VALUES(?,?,?)').run(hash,JSON.stringify([{...wrong,quotes:{kpss:quote}}]),'now');
+  const result=await handleExtract({installationId:id,text},env(db),{sha256,fetch:()=>assert.fail('cache replay must not infer')});
+  assert.equal(result.body.cached,true);assert.equal(result.body.groups[0].kpssStatus,undefined);assert.equal(result.body.groups[0].kpssScore,undefined);db.sql.close();
+});
+
 test('alıntısı metinde olmayan değer atılır; sınır "doldurmamış" N-1 olur', () => {
   const groups = validateGroups({ groups: [
     { label: 'Zabıta Memuru', education: ['Lisans'], educationQuote: 'Lisans mezunu olmak', kpssStatus: 'required', kpssType: 'P3', kpssScore: 65, kpssQuote: 'KPSS P3 puan türünden en az 65 puan', maxAge: 30, ageQuote: '30 yaşını doldurmamış olmak' },

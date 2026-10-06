@@ -1,8 +1,8 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
 import {handleExtract,validateGroups,missingTopics,mentions,MIN_TEXT,MAX_TEXT} from './extract.js';
 import {fold} from './criteria.js';
-export const NOTICE_VERSION='notice-3';
-const countHeader=value=>/^(?:adet|kontenjan(?: sayisi)?|kadro sayisi|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
+export const NOTICE_VERSION='notice-6';
+const countHeader=value=>/^(?:adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 const datePattern=/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2})\b/g;
 function civilDate(day,month,year){const d=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;return Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d?d+'T20:59:59.999Z':null;}
 function conditions(text){
@@ -10,8 +10,8 @@ function conditions(text){
   // ponytail: explicit requirement clauses only; ambiguous/scoped prose goes to Qwen, never inferred from document checklists.
   const clause=text.split(/\n|\||(?<=[.;])\s+/).find(s=>/mezun|derecesine sahip|doktorasini|doktora yapm|lisans.*yapmis|docentlik.*(?:unvan|almi)/.test(fold(s)));
   if(clause){const at=clause.search(/lisans|doktora|lise|ortaöğretim|fakülte/i);raw.education=['Lise','Ön lisans','Lisans','Yüksek lisans','Doktora'];raw.educationQuote=clause.slice(Math.max(0,at-30),Math.max(0,at-30)+400);}
-  const k=text.split(/\n|(?<=[.;])\s+/).find(s=>/kpss/i.test(s)&&/puan|aranm|istenm|sınav/.test(s));
-  if(k&&k.length<=400){raw.kpssQuote=k;raw.kpssStatus=/aranm|istenm|muaf|şartı yok/.test(k)?'not_required':'required';raw.kpssType=k.match(/\bP\s?(\d{1,3})\b/i)?.[0].replace(/\s/g,'').toUpperCase();const score=k.match(/(?:en az|asgari)\s+(\d{1,3}(?:[.,]\d+)?)\s*puan/i);if(score)raw.kpssScore=Number(score[1].replace(',','.'));}
+  const k=text.match(/KPSS puanı olmayan[^.\n]{0,300}?dikkate alınır/i)?.[0]??text.split(/\n|(?<=[.;])\s+/).find(s=>/kpss/i.test(s)&&/puan|aranm|istenm|sınav/.test(s));
+  if(k&&k.length<=400){raw.kpssQuote=k;raw.kpssStatus=/aranm|istenm|muaf|şartı yok|puanı olmayan/.test(k)?'not_required':'required';raw.kpssType=k.match(/\bP\s?(\d{1,3})\b/i)?.[0].replace(/\s/g,'').toUpperCase();const score=k.match(/(?:en az|asgari)\s+(\d{1,3}(?:[.,]\d+)?)\s*puan/i);if(score)raw.kpssScore=Number(score[1].replace(',','.'));}
   const a=text.split(/\n|(?<=[.;])\s+/).find(s=>/yas/.test(fold(s))&&/doldur|tamamla|gun alm|buyuk|kucuk|asmam/.test(fold(s)));
   if(a&&a.length<=400){const nums=Array.from({length:55},(_,i)=>i+16).filter(n=>mentions(a,n));if(nums.length===1){if(/doldurmam|gun almam|asmam|buyuk olmam/.test(fold(a)))raw.maxAge=nums[0];else if(/doldurmus|tamamlamis|kucuk olmam/.test(fold(a)))raw.minAge=nums[0];}raw.ageQuote=a;}
   return validateGroups({groups:[raw]},text)[0]??{};
@@ -41,9 +41,24 @@ export function mechanicalNotice(notice,text){
     if(seenRows.has(rowKey)&&seenRows.get(rowKey)<tableNumber)continue;seenRows.set(rowKey,tableNumber);
     rows++;
     const parsed=conditions(line);
+    const kpssColumns=headers.map((h,i)=>/kpss (?:puan turu|taban puani|puani)/.test(fold(h))?i:-1).filter(i=>i>=0);
+    if(kpssColumns.length){
+      const quote=cells.slice(kpssColumns[0],kpssColumns.at(-1)+1).join(' | '),type=quote.match(/\bP\s?\d{1,3}\b/i)?.[0].replace(/\s/g,'').toUpperCase();
+      const score=quote.match(/(?:en az|asgari)\s+(\d+(?:[.,]\d+)?)\s*puan/i)?.[1]??quote.match(/\bP\d+\s*\|\s*(\d+(?:[.,]\d+)?)(?:\s|$)/i)?.[1];
+      const checked=validateGroups({groups:[{kpssStatus:'required',kpssType:type,kpssScore:score?Number(score.replace(',','.')):null,kpssQuote:quote}]},text)[0];
+      if(checked){const quotes={...parsed.quotes,...checked.quotes};Object.assign(parsed,checked,{quotes});}
+    }
     groups.push({label,quota,...parsed,quotes:{...parsed.quotes,quota:line},sourceText:line});
   }
   if(groups.length&&!tableAmbiguous){const total=groups.reduce((n,g)=>n+g.quota,0);if(total<=100000)fields.quota={value:total,quote:groups.map(g=>g.sourceText).join('\n')};}
+  // ponytail: explicit numbered position headings with a known end only; other layouts retain the complete original document.
+  const headings=lines.map((line,i)=>({line,i})).filter(({line})=>!line.includes('|')&&line.length<300&&/^\d+\s*[-.)]\s*/.test(line));
+  for(const group of groups){
+    if(groups.filter(g=>g.label===group.label).length!==1)continue;
+    const starts=headings.filter(h=>fold(h.line).includes(fold(group.label)));if(starts.length!==1)continue;
+    const start=starts[0].i,end=headings.find(h=>h.i>start&&(groups.some(g=>fold(h.line).includes(fold(g.label)))||h.line===h.line.toLocaleUpperCase('tr')&&/\p{L}/u.test(h.line)))?.i;
+    if(end!==undefined)group.sourceText+='\n\n'+lines.slice(start,end).join('\n').trim();
+  }
   const totals=[...text.matchAll(/(?:toplam\s+)?(\d{1,5})\s*(?:\([^)]*\)\s*)?(?:adet\s+)?(?:sözleşmeli\s+)?(?:personel|kişi|işçi)\s+(?:alınacak|alınacaktır|istihdam edilecek)/gi)];
   if(!fields.quota&&totals.length===1)fields.quota={value:Number(totals[0][1]),quote:totals[0][0]};
   if(Number.isSafeInteger(notice.quota)&&notice.quota>0&&notice.quota<=100000&&(!notice.fieldEvidence?.quota||notice.fieldEvidence.quota.origin==='source'))fields.quota={value:notice.quota,quote:notice.quotaQuote??notice.fieldEvidence?.quota?.quote??null,origin:'source'};
@@ -51,10 +66,11 @@ export function mechanicalNotice(notice,text){
   const deadlines=[];
   for(const line of lines){
     if(!/son\s*basvuru\s*tarihi|basvurular[^\n]*\d{1,2}[./-]\d{1,2}[./-]20\d{2}[^\n]*tarihleri arasinda/.test(fold(line)))continue;
-    const dates=[...line.matchAll(datePattern)].map(m=>civilDate(m[1],m[2],m[3])).filter(Boolean);
+    const cells=line.split('|'),label=cells.findIndex(c=>/son\s*basvuru\s*tarihi/.test(fold(c))),evidence=label>=0&&cells[label+1]?cells.slice(label,label+2).join('|'):line;
+    const dates=[...evidence.matchAll(datePattern)].map(m=>civilDate(m[1],m[2],m[3])).filter(Boolean);
     const months=['ocak','subat','mart','nisan','mayis','haziran','temmuz','agustos','eylul','ekim','kasim','aralik'];
-    for(const m of fold(line).matchAll(/\b(\d{1,2})\s+(ocak|subat|mart|nisan|mayis|haziran|temmuz|agustos|eylul|ekim|kasim|aralik)\s+(20\d{2})\b/g)){const date=civilDate(m[1],months.indexOf(m[2])+1,m[3]);if(date)dates.push(date);}
-    if(dates.length)deadlines.push({value:dates.at(-1),quote:line});
+    for(const m of fold(evidence).matchAll(/\b(\d{1,2})\s+(ocak|subat|mart|nisan|mayis|haziran|temmuz|agustos|eylul|ekim|kasim|aralik)\s+(20\d{2})\b/g)){const date=civilDate(m[1],months.indexOf(m[2])+1,m[3]);if(date)dates.push(date);}
+    if(dates.length)deadlines.push({value:dates.at(-1),quote:evidence});
   }
   if(!fields.deadline&&new Set(deadlines.map(d=>d.value)).size===1){fields.deadline=deadlines.find(d=>/son\s*başvuru/i.test(d.quote))??deadlines[0];const time=fields.deadline.quote.match(/(?:saat|mesai bitimi[^\d]*)\s*(\d{1,2})[:.](\d{2})/i);if(time&&Number(time[1])<24&&Number(time[2])<60){const d=new Date(fields.deadline.value);d.setUTCHours(Number(time[1])-3,Number(time[2]),0,0);fields.deadline.value=d.toISOString();}}
   const relative=lines.filter(l=>/(?:yayin|yayim).*itibaren\s+\d+\.?\s*gun/.test(fold(l))&&/basvur|aday|dilekce|teslim/.test(fold(l)));
@@ -64,6 +80,12 @@ export function mechanicalNotice(notice,text){
   if(!groups.length&&!headers){const general=conditions(text);if(Object.keys(general).length)groups.push({...general,label:'Başvuru koşulları'});}
   // Native position documents already have their own scope and quota.
   if(notice.positions?.length){groups.length=0;for(const p of notice.positions){const parsed=conditions(p.text??'');groups.push({label:p.title??p.profession??'Başvuru koşulları',...parsed,...(p.quota>0?{quota:p.quota}:{}),cities:p.places??notice.places??[],occupations:p.profession?[p.profession]:[],sourceText:p.text??''});}if(notice.positions.every(p=>Number.isSafeInteger(p.quota)&&p.quota>0)){const quota=notice.positions.reduce((n,p)=>n+p.quota,0);if(quota<=100000)fields.quota={value:quota,quote:null,origin:'source'};}}
+  const general=conditions(shared.join('\n'));
+  for(const group of groups){
+    const existing={education:group.education?.length||group.educationDescription,kpss:group.kpssStatus,age:group.ageStatus};
+    for(const [key,value] of Object.entries(general)){const topic=key.startsWith('education')?'education':key.startsWith('kpss')?'kpss':'age';if(key!=='quotes'&&!existing[topic])group[key]=value;}
+    group.quotes={...Object.fromEntries(Object.entries(general.quotes??{}).filter(([key])=>!existing[key])),...group.quotes};
+  }
   for(const field of Object.values(fields))field.origin??='mechanical';
   for(const group of groups)group.fieldOrigins=Object.fromEntries(Object.keys(group.quotes??{}).map(key=>[key,'mechanical']));
   return {fields,groups,register,tableAmbiguous,rows,multipleDeadlines,sharedText:shared.join('\n')};
@@ -81,7 +103,8 @@ export function assessNotice(result,text){
 }
 export async function extractNotice(notice,text,env,deps){
   const result=mechanicalNotice(notice,text);let missing=assessNotice(result,text),method='mechanical',response={status:200};
-  if(missing.length&&!deps.mechanicalOnly&&text.trim().length>=MIN_TEXT&&text.length<=MAX_TEXT){
+  const canImprove=missing.some(topic=>topic!=='deadline_scope');
+  if(canImprove&&!deps.mechanicalOnly&&text.trim().length>=MIN_TEXT&&text.length<=MAX_TEXT){
     response=await handleExtract({installationId:'0'.repeat(32),text,noticeMode:true},env,{...deps,internal:true});
     if(response.status===200){
       const ai=response.body;let contributed=false;
@@ -99,6 +122,6 @@ export async function extractNotice(notice,text,env,deps){
       if(contributed)method=result.rows||Object.keys(mechanicalNotice(notice,text).fields).length?'hybrid':'ai';
       missing=assessNotice(result,text);
     }
-  }else if(missing.length&&!deps.mechanicalOnly)response={status:422,body:{error:text.length>MAX_TEXT?'text_oversize':'text_short'}};
+  }else if(canImprove&&!deps.mechanicalOnly)response={status:422,body:{error:text.length>MAX_TEXT?'text_oversize':'text_short'}};
   return {...response,result:{fields:result.fields,groups:result.groups.map(({sourceText,...g})=>({...g,...(sourceText?{text:sourceText}:{}),cities:g.cities??notice.places??[]})),extraction:{version:NOTICE_VERSION,method,status:missing.length?'partial':'complete',missing,kind:result.register?'register':'vacancy'}}};
 }
