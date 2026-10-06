@@ -97,7 +97,15 @@ export function mechanicalNotice(notice,text){
     const academic=cells.map((c,i)=>academicHeader(c)?i:-1).filter(i=>i>=0);
     if(academic.length>=2){headers=cells;matrix=academic;tableNumber++;continue;}
     if(cells.some(c=>fold(c)==='konu')&&cells.some(c=>fold(c)==='tarih')){headers=null;matrix=[];continue;}
-    if(!headers)continue;
+    if(!headers){
+      // A headerless row "Unvan | 6 (Erkek-Kadın) | ..." still states a headcount: the gender marker makes that cell unambiguous.
+      const gendered=cells.map((c,i)=>/^\d{1,5}\s*\((?:erkek|kadin)(?:\s*[-/]\s*(?:erkek|kadin))?\)$/.test(fold(c))?i:-1).filter(i=>i>0);
+      if(gendered.length===1&&cells[0]&&!/^\d/.test(cells[0])&&!seenRows.has('headerless\n'+line)){
+        const quota=Number(cells[gendered[0]].match(/^\d+/)[0]);
+        if(quota>=1&&quota<=100000){seenRows.set('headerless\n'+line,tableNumber);rows++;const parsed=conditions(line);groups.push({label:cells[0],quota,...parsed,quotes:{...parsed.quotes,quota:line},sourceText:line});}
+      }
+      continue;
+    }
     if(/^toplam\b/.test(fold(cells[0])))continue;
     const deadlineColumn=headers.findIndex(h=>/^(?:son basvuru tarihi|basvuru bitis tarihi)/.test(fold(h)));
     if(cells.length===headers.length&&deadlineColumn>=0){const dates=[...cells[deadlineColumn].matchAll(datePattern)];if(dates.length===1){const m=dates[0],value=civilDate(m[1],m[2],m[3]);if(value)columnDeadlines.push({value,quote:cells[deadlineColumn]});}}

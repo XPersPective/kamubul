@@ -262,3 +262,17 @@ test('Qwen budget probe names the next open window without reserving a call', as
   assert.equal(await qwenWaitUntil(env, now), '2026-10-07T00:00:00.000Z');
   assert.equal(await qwenWaitUntil({ ...env, EXTRACT_QWEN_DAILY: undefined }, now), null, 'uncapped providers keep their own error path');
 });
+
+test('headerless position rows with gender-marked counts give the vacancy total', async () => {
+  const { mechanicalNotice } = await import('../src/notice_extraction.js');
+  const text = ['Üniversitemiz birimlerinde istihdam edilmek üzere sözleşmeli personel alınacaktır.',
+    'Destek Personeli (Temizlik Görevlisi) (Hastane) | 6 (Erkek-Kadın) | KPSS (P94) 2024 | - 2024 Kpss B Grubu P94 Puan Türünden En Az 60 Puan Almış olmak.',
+    'Destek Personeli (Şoför) | 1 (Erkek) | KPSS (P94) 2024 | - Ortaöğretim (Lise ve Dengi) Kurumlarının herhangi bir alanından mezun olmak.',
+    'Sağlık Teknikeri (Diş Protez Teknikeri) | 2 (Erkek-Kadın) | KPSS (P93) 2024 | - 2024 yılı Kamu Personeli Seçme Sınavından (P93) en az 60 puan almış olmak.'].join('\n');
+  const result = mechanicalNotice({ title: 'Sözleşmeli Personel Alım İlanı' }, text);
+  assert.equal(result.fields.quota.value, 9);
+  assert.deepEqual(result.groups.map(g => g.quota), [6, 1, 2]);
+  assert.equal(result.groups[1].label, 'Destek Personeli (Şoför)');
+  // A plain number without the marker in a headerless table stays unknown rather than guessed.
+  assert.equal(mechanicalNotice({ title: 'İlan' }, 'Hemşire | 4 | Lisans mezunu olmak.').fields.quota, undefined);
+});
