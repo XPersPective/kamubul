@@ -135,7 +135,7 @@ void main() {
     );
   });
 
-  Future<void> editSearch(WidgetTester tester, {required bool compact}) async {
+  Future<void> openManage(WidgetTester tester, {required bool compact}) async {
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = const Size(390, 844) * 2;
     addTearDown(tester.view.reset);
@@ -198,6 +198,10 @@ void main() {
     expect(find.text('30.9.2026 12:00'), findsOneWidget);
     await tester.tap(find.byTooltip('Kayıtlı aramaları yönet'));
     await pumpRoute(tester);
+  }
+
+  Future<void> editSearch(WidgetTester tester, {required bool compact}) async {
+    await openManage(tester, compact: compact);
     var sheet = find.byType(BottomSheet);
     expect(
       find.descendant(of: sheet, matching: find.text(searchName)),
@@ -478,4 +482,34 @@ void main() {
     'seçimler 320px ve 1.3x metinde taşmadan çalışır',
     (tester) => editSearch(tester, compact: true),
   );
+  testWidgets('bildirim biçimi değişince açık liste hemen güncellenir', (
+    tester,
+  ) async {
+    await openManage(tester, compact: false);
+    final sheet = find.byType(BottomSheet);
+    expect(
+      find.descendant(
+        of: sheet,
+        matching: find.textContaining('Bildirim: Anlık'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('Arama işlemleri'));
+    await pumpRoute(tester);
+    await tester.tap(
+      find.ancestor(
+        of: find.text('Günlük özet'),
+        matching: find.byType(CheckedPopupMenuItem<String>),
+      ),
+    );
+    await pumpRoute(tester);
+    expect(
+      find.descendant(
+        of: sheet,
+        matching: find.textContaining('Bildirim: Günlük özet'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

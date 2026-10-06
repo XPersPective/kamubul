@@ -26,11 +26,13 @@ void main() {
   test('dikey tablo anahtarları gösterilmez, değerleri kalır', () {
     final kv = positionDetails(
       'İLAN NO | 20260201\n\nPOZİSYON ADI | Büro Personeli\n\nÖĞRENİM | Önlisans\n\nADEDİ | 2\n\n'
-      'ARANILAN ŞARTLAR | Büro Yönetimi ön lisans programından mezun olmak.',
+          'ARANILAN ŞARTLAR | Büro Yönetimi ön lisans programından mezun olmak.',
       'Büro Personeli',
       2,
     );
     expect(kv.facts, ['Önlisans']);
-    expect(kv.requirements, ['Büro Yönetimi ön lisans programından mezun olmak.']);
+    expect(kv.requirements, [
+      'Büro Yönetimi ön lisans programından mezun olmak.',
+    ]);
   });
 }
