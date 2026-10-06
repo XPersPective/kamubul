@@ -5,7 +5,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {searchAnchorKeys,installationAnchorKeys,listingAnchorKeys,matchListing,validateCriteria,migrateFilters} from '../src/criteria.js';
 import {fcmMessage} from '../src/fcm.js';
 import {fetchRequest,sha256} from '../src/worker.js';
-import {aiExtractionRevision,splitAiText,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled,maintainRegistry,maintainCatalogue} from '../src/pipeline.js';
+import {aiExtractionRevision,splitAiText,kariyerTwin,linkKariyerTwins,processNotice,readSource,flushOutbox,digestDue,expireListings,matchEvents,runScheduled,maintainRegistry,maintainCatalogue} from '../src/pipeline.js';
 import {reprocessSql} from '../tool/reprocess-ai.js';
 
 function database(){
@@ -1000,4 +1000,24 @@ test('recently read entries are skipped without spending the per-tick detail bud
     await readSource({DB,SOURCE_DETAILS_PER_TICK:'1'});
     assert.equal(fetched,1);assert.equal(sql.prepare("SELECT state FROM sources WHERE id='kariyerkapisi'").get().state,'ok');
   }finally{globalThis.fetch=before;sql.close();}
+});
+
+test('a text-less Kariyer listing borrows exactly one strict ilan.gov twin and keeps its own identity',async()=>{
+  const {sql,DB}=database(),insert=(id,source,payload)=>sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES(?,?,?,'h','f','f','l',?)").run(id,source,id,JSON.stringify(payload));
+  const kariyer={title:'TİBU - Sözleşmeli Personel',url:'https://kariyerkapisi.gov.tr/IlanDetay?i=1',publishedAt:'2026-10-12T07:00:00.000Z'};
+  insert('kariyerkapisi:1','kariyerkapisi',{...kariyer,title:'TÜRKİYE ULUSLARARASI İSLAM BİLİM VE TEKNOLOJİ ÜNİVERSİTESİ (TİBU) - Sözleşmeli Personel Alım İlanı'});
+  insert('kariyerkapisi:2','kariyerkapisi',{...kariyer,title:'MİLLİ SAVUNMA BAKANLIĞI - 2026 YILI HUKUK SINIFI SUBAY ADAYI TEMİNİ'});
+  insert('ilangov:1','ilangov',{title:'Türkiye Uluslararası İslam, Bilim ve Teknoloji Üniversitesi Rektörlüğü Sözleşmeli Personel Alım İlanı',url:'https://www.ilan.gov.tr/ilan/1',publishedAt:'2026-09-27T21:00:00.000Z',text:'Toplam 7 sözleşmeli personel alınacaktır.',quota:7,deadline:'2026-10-12T10:00:00.000Z',extraction:{version:'notice-13',status:'complete'}});
+  insert('ilangov:2','ilangov',{title:'Düzeltme İlanı (Türkiye Uluslararası İslam, Bilim ve Teknoloji Üniversitesi Sözleşmeli Personel)',publishedAt:'2026-09-30T21:00:00.000Z',text:'Düzeltme.'});
+  await linkKariyerTwins({DB});
+  const linked=JSON.parse(sql.prepare("SELECT payload FROM listings WHERE id='kariyerkapisi:1'").get().payload);
+  assert.equal(linked.text,'Toplam 7 sözleşmeli personel alınacaktır.');assert.equal(linked.quota,7);assert.equal(linked.twin.id,'ilangov:1');
+  assert.equal(linked.url,kariyer.url);assert.match(linked.title,/^TÜRKİYE ULUSLARARASI/);
+  assert.equal(sql.prepare("SELECT deadline FROM listings WHERE id='kariyerkapisi:1'").get().deadline,'2026-10-12T10:00:00.000Z');
+  assert.equal(JSON.parse(sql.prepare("SELECT payload FROM listings WHERE id='kariyerkapisi:2'").get().payload).text,undefined);
+  const revision=sql.prepare("SELECT revision FROM listings WHERE id='kariyerkapisi:1'").get().revision;
+  await linkKariyerTwins({DB});
+  assert.equal(sql.prepare("SELECT revision FROM listings WHERE id='kariyerkapisi:1'").get().revision,revision,'unchanged twin is not rewritten');
+  // Two equally plausible notices are ambiguous: no borrowed text.
+  assert.equal(kariyerTwin({title:'ANKARA ÜNİVERSİTESİ REKTÖRLÜĞÜ - SÖZLEŞMELİ PERSONEL',publishedAt:'2026-10-12T00:00:00Z'},[{id:'a',title:'Ankara Üniversitesi Sözleşmeli Personel Alım İlanı',publishedAt:'2026-10-01T00:00:00Z'},{id:'b',title:'Ankara Üniversitesi Sözleşmeli Personel İlanı',publishedAt:'2026-10-02T00:00:00Z'}]),null);
 });

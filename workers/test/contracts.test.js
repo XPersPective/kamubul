@@ -80,13 +80,12 @@ test('criteria are AND within one position and OR across positions',()=>{
   assert.equal(matchListing(listing,{cities:['Ankara'],onlyKpss:true},now),'match');
   assert.equal(matchListing({title:'İlan',requirementGroups:[{}]},{kpssType:'P3'},now),'unknown');
 });
-test('v1 age projection never discards date-dependent restrictions into a simple maximum',async()=>{
-  const groups=[{ageStatus:'known',maxAge:35},{ageStatus:'known',maxAge:35,ageReferenceDate:'2026-10-01'},{ageStatus:'known',maxAge:35,bornOnOrAfter:'1991-01-01'},{ageStatus:'known',maxAge:35,bornOnOrBefore:'1991-09-30'},{ageStatus:'known',maxAge:35,ageCalculation:'year_start'}];
-  const DB={prepare(query){return {async all(){return {results:query.includes('FROM listings')?groups.map(g=>({payload:JSON.stringify({title:'İlan',requirementGroups:[g]})})):[]};},async first(){return {n:1};}};}};
-  const response=await fetchRequest(new Request('https://api/v1/listings.json'),{DB},{});
-  assert.equal(response.status,200);const payload=await response.json();
-  assert.deepEqual(payload.listings.map(x=>x.maxAge),[35,null,null,null,null]);
-  assert.deepEqual(payload.listings.map(x=>x.requirementGroups[0]),groups);
+test('public extraction and unbounded v1 snapshot routes are not exposed',async()=>{
+  const DB={prepare(){throw new Error('no database access');}};
+  for(const [method,path] of [['POST','/api/v2/extract'],['GET','/v1/listings.json'],['GET','/v1/sources.json']]){
+    const response=await fetchRequest(new Request('https://api'+path,{method,headers:{'content-type':'application/json'},...(method==='POST'?{body:JSON.stringify({installationId:'a'.repeat(32),text:'x'.repeat(300)})}:{})}),{DB},{});
+    assert.ok([404,405].includes(response.status),path);
+  }
 });
 
 test('quiet hours wrap midnight in Istanbul',()=>{

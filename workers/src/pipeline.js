@@ -1,5 +1,5 @@
 import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,fetchIlanGovPage,fetchIlanGovDetail,fetchIskurList,fetchIskurDetail,sourceBytes,plain,SourceError} from './sources.js';
-import {matchListing,listingAnchorKeys} from './criteria.js';
+import {matchListing,listingAnchorKeys,fold} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
 import {externalAiEnabled,externalAiRun} from './external_ai.js';
@@ -188,7 +188,7 @@ export async function canonicalConditions(env,listingId,contentHash,text,places=
   const res=await extractNotice({...notice,places:notice.places??places},text,env,{sha256,...options});
   const {fields,groups,extraction}=res.result;
   const payload={...notice,requirementGroups:groups,extraction,conditionsHash:contentHash,updatedAt:nowISO(),fieldEvidence:{...notice.fieldEvidence,...fields}};
-  for(const key of ['quota','deadline'])if(!fields[key]&&notice.fieldEvidence?.[key]?.origin!=='source'&&notice.fieldEvidence?.[key]){payload[key]=null;delete payload.fieldEvidence[key];}
+  for(const key of ['quota','deadline','deadlineEstimate','applicationPeriods'])if(!fields[key]&&notice.fieldEvidence?.[key]?.origin!=='source'&&notice.fieldEvidence?.[key]){payload[key]=null;delete payload.fieldEvidence[key];}
   for(const [key,field] of Object.entries(fields))payload[key]=field.value;
   const terminal=options.mechanicalOnly?extraction.status==='complete':res.status===200||res.status===422;
   // checked suppresses duplicate attempts; extraction.status alone denotes quality.
@@ -207,7 +207,44 @@ async function mechanicalPending(env){
   return env.DB.prepare("SELECT 1 FROM listings WHERE active=1 AND COALESCE(json_extract(payload,'$.extraction.version'),'')!=? AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) LIMIT 1").bind(NOTICE_VERSION).first();
 }
 // Telafi: özet işinin ilk turunda geçici hata alan ilanlar her turda bir tane.
+// Kariyer Kapısı's detail API does not answer Cloudflare (HTTP 522), while most of its ads are the same
+// Official Gazette notices published on ilan.gov.tr. A Kariyer listing without its own text borrows the
+// stored text and extraction of exactly one strictly matching ilan.gov.tr notice; its identity, title and
+// application link stay. ponytail: institution phrase + role words + Gazette date up to 45 days before opening; ambiguous pairs stay unlinked.
+const twinFields=['text','institution','places','quota','deadline','deadlineEstimate','applicationPeriods','requirementGroups','extraction','fieldEvidence','gazettePublishedAt','gazettePublishedQuote','occupations'];
+const twinWords=value=>fold(value).replace(/\([^)]*\)/g,' ').replace(/[^\p{L}\d]+/gu,' ').replace(/\s+/g,' ').trim();
+const twinRoles=['sozlesmeli','bilisim','ogretim uyesi','ogretim elemani','arastirma gorevlisi','uzman','isci','memur','icra','pilot'];
+export function kariyerTwin(kariyer,candidates){
+  const [head,...rest]=String(kariyer.title??'').split(' - ');
+  const institution=twinWords(head).replace(/\b(?:genel mudurlugu|rektorlugu|baskanligi|mudurlugu)\b/g,' ').replace(/\s+/g,' ').trim();
+  if(!rest.length||institution.split(' ').length<2)return null;
+  const roles=twinRoles.filter(role=>twinWords(rest.join(' ')).includes(role)),published=Date.parse(kariyer.publishedAt);
+  const matches=candidates.filter(c=>{
+    const title=twinWords(c.title);
+    if(/\b(?:duzeltme|iptal)\b/.test(title)||!(title+' '+twinWords(c.institution??'')).includes(institution)||!roles.every(role=>title.includes(role)))return false;
+    const at=Date.parse(c.publishedAt);
+    // Kariyer dates the application opening; the Gazette notice precedes it by up to several weeks.
+    return !Number.isFinite(published)||!Number.isFinite(at)||(at<=published+3*86400000&&at>=published-45*86400000);
+  });
+  return matches.length===1?matches[0]:null;
+}
+export async function linkKariyerTwins(env){
+  const rows=(await env.DB.prepare(`SELECT k.id,k.payload FROM listings k WHERE k.active=1 AND k.source_id='kariyerkapisi' AND (json_extract(k.payload,'$.text') IS NULL OR
+    (json_extract(k.payload,'$.twin.id') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM listings t WHERE t.id=json_extract(k.payload,'$.twin.id') AND t.active=1 AND t.revision=json_extract(k.payload,'$.twin.revision'))))`).all()).results;
+  if(!rows.length)return;
+  const candidates=(await env.DB.prepare("SELECT id,revision,json_extract(payload,'$.title') title,json_extract(payload,'$.institution') institution,json_extract(payload,'$.publishedAt') publishedAt FROM listings WHERE active=1 AND source_id='ilangov' AND json_extract(payload,'$.text') IS NOT NULL").all()).results;
+  for(const row of rows){
+    const notice=JSON.parse(row.payload),twin=kariyerTwin(notice,candidates),now=nowISO();
+    if(!twin&&!notice.twin)continue;
+    const source=twin?JSON.parse((await env.DB.prepare('SELECT payload FROM listings WHERE id=?').bind(twin.id).first()).payload):{};
+    const payload={...notice,updatedAt:now};
+    for(const key of twinFields){if(source[key]!==undefined)payload[key]=source[key];else if(notice.twin)delete payload[key];}
+    if(twin)payload.twin={id:twin.id,revision:twin.revision,url:source.url,title:source.title};else delete payload.twin;
+    await env.DB.prepare('UPDATE listings SET payload=?,deadline=?,revision=revision+1,updated_at=? WHERE id=? AND payload=?').bind(JSON.stringify(payload),payload.deadline??null,now,row.id,row.payload).run();
+  }
+}
 export async function canonicalBackfill(env){
+  await linkKariyerTwins(env);
   await mechanicalBackfill(env);
   const row=await env.DB.prepare("SELECT id,content_hash,payload FROM listings WHERE active=1 AND conditions_due_at<=? AND (deadline IS NULL OR deadline>?) AND (conditions_checked IS NULL OR conditions_checked!=content_hash) AND (json_extract(payload,'$.text') IS NOT NULL OR json_array_length(payload,'$.positions')>0) ORDER BY conditions_due_at,updated_at,id LIMIT 1").bind(nowISO(),nowISO()).first();
   if(!row)return;

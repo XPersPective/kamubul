@@ -60,7 +60,7 @@ export function focusText(text, limit = FOCUS_LIMIT) {
 export function missingTopics(groups, text) {
   const t = fold(text);
   return [
-    ['education', /mezun|öğrenim|öğretim|lisans/, g => g.education?.length || g.educationDescription],
+    ['education', /mezun|öğrenim|ortaöğretim|lisans/, g => g.education?.length || g.educationDescription],
     ['kpss', /kpss/, g => g.kpssStatus],
     ['age', /(?<![\p{L}])yaş(?:ını|ından|ında|ı|a)?(?![\p{L}])/u, g => g.maxAge != null || g.minAge != null],
   ].filter(([, cue, present]) => cue.test(t) && !groups.some(present)).map(([name]) => name);

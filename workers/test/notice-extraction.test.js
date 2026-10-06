@@ -26,14 +26,14 @@ test('ministry numbered special conditions stay with their exact position beyond
 });
 test('application dates retain actual deadlines and time; document delivery/exam/publication are different',()=>{
   const dates={'2242968':'2026-10-16','2244776':'2026-10-20','2244748':'2026-10-19','2244739':'2026-10-11','2236938':'2026-10-12','2234989':'2026-10-12','2243231':'2026-10-31'};
-  for(const item of corpus){const result=mechanicalNotice({...parseIlanGovDetail({result:item.result},item.id),title:item.result.title},item.text);if(['2234989','2244776'].includes(item.id)){assert.equal(result.fields.deadline.value,null);assert.ok(assessNotice(result,item.text).includes('deadline_scope'));if(item.id==='2234989')assert.ok(result.fields.applicationPeriods.value.some(p=>p.deadline?.startsWith('2026-10-12')));else assert.ok(result.fields.applicationPeriods.value.some(p=>p.text.includes('15. gün')));continue;}assert.equal(result.fields.deadline?.value.slice(0,10),dates[item.id],item.id);if(item.id==='2236938')assert.equal(result.fields.deadline.value,'2026-10-12T10:00:00.000Z');}
+  for(const item of corpus){const result=mechanicalNotice({...parseIlanGovDetail({result:item.result},item.id),title:item.result.title},item.text);if(item.id==='2244776'){assert.equal(result.fields.deadline,undefined);assert.equal(result.fields.deadlineEstimate.value,'2026-10-19T20:59:59.999Z');assert.equal(result.fields.deadlineEstimate.origin,'computed');assert.ok(result.fields.deadlineEstimate.quote.includes('15. gün'));assert.deepEqual(assessNotice(result,item.text),[]);continue;}if(item.id==='2234989'){assert.equal(result.fields.deadline.value,null);assert.ok(assessNotice(result,item.text).includes('deadline_scope'));assert.ok(result.fields.applicationPeriods.value.some(p=>p.deadline?.startsWith('2026-10-12')));continue;}assert.equal(result.fields.deadline?.value.slice(0,10),dates[item.id],item.id);if(item.id==='2236938')assert.equal(result.fields.deadline.value,'2026-10-12T10:00:00.000Z');}
   assert.equal(mechanicalNotice({title:'İlan'},'Son Başvuru Tarihi: 31.02.2026\nSınav Tarihi: 20.03.2026').fields.deadline,undefined);
 });
 test('complete mechanics and explicit ambiguous calendars do not access a model or database',async()=>{
   for(const id of ['2242968','2244776','2234989']){
     const item=corpus.find(n=>n.id===id),notice={...parseIlanGovDetail({result:item.result},item.id),title:item.result.title};
     const result=await extractNotice(notice,item.text,{DB:{prepare(){assert.fail('no AI database call');}}},{});
-    assert.equal(result.status,200);assert.equal(result.result.extraction.method,'mechanical');assert.equal(result.result.extraction.status,id==='2242968'?'complete':'partial');assert.equal(result.result.fields.quota.value,quotas[id]);
+    assert.equal(result.status,200);assert.equal(result.result.extraction.method,'mechanical');assert.equal(result.result.extraction.status,id==='2234989'?'partial':'complete');assert.equal(result.result.fields.quota.value,quotas[id]);
   }
 });
 test('native positions keep independent places, quotas and text rather than a first-document general group',()=>{

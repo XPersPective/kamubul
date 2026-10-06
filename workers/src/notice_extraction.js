@@ -1,7 +1,7 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
 import {handleExtract,validateGroups,missingTopics,mentions,vacancyTotals,applicationDeadline,MIN_TEXT,MAX_TEXT} from './extract.js';
 import {fold} from './criteria.js';
-export const NOTICE_VERSION='notice-12';
+export const NOTICE_VERSION='notice-13';
 const countHeader=value=>/^(?:ad|adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|ogrgor|ogrgordersverecek|arsgor)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
 const datePattern=/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2})\b/g;
@@ -16,6 +16,57 @@ function conditions(text){
   const a=clauses.find(s=>/yas/.test(fold(s))&&/doldur|tamamla|bitirmem|gun alm|buyuk|kucuk|asmam/.test(fold(s)));
   if(a&&a.length<=400){const nums=Array.from({length:55},(_,i)=>i+16).filter(n=>mentions(a,n));if(nums.length===1){if(/doldurmam|bitirmem|gun almam|asmam|buyuk olmam/.test(fold(a)))raw.maxAge=nums[0];else if(/doldurmus|tamamlamis|kucuk olmam/.test(fold(a)))raw.minAge=nums[0];}raw.ageQuote=a;}
   return validateGroups({groups:[raw]},text)[0]??{};
+}
+// "Resmî Gazete'de yayımından itibaren 15 gün": the publication day counts as day one unless
+// the rule says "takip eden/izleyen". ponytail: weekend shift only when the notice mentions holidays;
+// official holidays are not modelled, so the value is always presented as an estimate.
+const relativePattern=/(?:yayi[mn]\w*|ilan)\s*(?:(?<day>\d{1,2})[./](?<month>\d{1,2})[./](?<year>20\d{2})\s*)?(?:tarih\w*|gun\w*)?[^.]{0,80}?(?<rule>itibaren|itibari\s*(?:ile|yla|yle)|itibariyle|itibariyla|takip eden|izleyen)[^.\d]{0,70}?(?<count>\d{1,2}|on ?bes|yirmi|otuz|on|yedi)\s*(?:\.|['’]?\s*(?:inci|nci|uncu|unci))?\s*(?:\([^)]*\)\s*)?(?:is\s+)?gun/;
+const countWords={'on bes':15,onbes:15,yirmi:20,otuz:30,on:10,yedi:7};
+export function relativeDeadlines(lines,notice,text){
+  const out=[],holiday=/tatil|hafta ?sonu/.test(fold(text));
+  const native=/^\d{4}-\d{2}-\d{2}$/.test(notice.gazettePublishedAt??'')?notice.gazettePublishedAt:Number.isFinite(Date.parse(notice.publishedAt))?new Date(Date.parse(notice.publishedAt)+3*3600000).toISOString().slice(0,10):null;
+  for(const line of lines){
+    const f=fold(line),m=f.match(relativePattern);if(!m)continue;
+    const clause=f.slice(f.lastIndexOf('. ',m.index)+1,m.index+m[0].length);
+    // "ilandan itibaren 5 gün" after results concerns winners' documents, not the application window.
+    if(!(!/yayi[mn]/.test(m[0])?/basvur|muracaat/.test(clause):/basvur|muracaat|aday|dilekce|teslim/.test(f))||/itiraz|sonuc|goreve basla|tebellug|asil|yedek|basarili/.test(clause))continue;
+    const {day,month,year,rule,count}=m.groups,days=countWords[count]??Number(count);if(!(days>=1&&days<=90))continue;
+    const stated=year?civilDate(day,month,year)?.slice(0,10):null,base=stated??native;
+    let value=null;
+    if(base){const d=new Date(base+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days-(/takip eden|izleyen/.test(rule)&&!/dahil/.test(clause)?0:1));if(holiday)while([0,6].includes(d.getUTCDay()))d.setUTCDate(d.getUTCDate()+1);value=d.toISOString().slice(0,10)+'T20:59:59.999Z';}
+    const at=Math.max(0,line.search(/itibar|takip eden|izleyen/i));
+    out.push({value,quote:line.length<=400?line:line.slice(Math.max(0,at-220),at+160).trim(),base,days});
+  }
+  // Private university notices often state only the display window next to "Başvurular ... son başvuru tarihine kadar".
+  if(!out.length&&/ilan basla(?:ma|ngic) tarihi/.test(fold(text)))for(const line of lines){const m=fold(line).match(/^ilan bitis tarihi\s*[:|]\s*(\d{1,2})[./](\d{1,2})[./](20\d{2})/);const value=m&&civilDate(m[1],m[2],m[3]);if(value)out.push({value,quote:line,base:null,days:null});}
+  return out;
+}
+// Explicit application windows that do not use the words "son başvuru": "19/10/2026-23/10/2026 tarihleri arasında",
+// "12.10.2026 tarihinden 19.10.2026 tarihi saat 17:00'a kadar", a split "Son / Başvuru Tarihi" label or a
+// "BAŞVURU TARİHLERİ" block. Exam, objection, payment and result windows are excluded.
+const windowPatterns=[
+  /(?<d1>\d{1,2})[./](?<m1>\d{1,2})[./](?<y1>20\d{2})\s*(?:[-–]|ile|ila)\s*(?<day>\d{1,2})[./](?<month>\d{1,2})[./](?<year>20\d{2})\s*(?:tarih\w*\s*)?arasi/,
+  /(?<d1>\d{1,2})[./](?<m1>\d{1,2})[./](?<y1>20\d{2})\s*tarih\w*\s*(?:baslayacak olup,?\s*)?(?<day>\d{1,2})[./](?<month>\d{1,2})[./](?<year>20\d{2})\s*tarihi?\s*(?:saat\s*(?<hour>\d{1,2})[:.](?<minute>\d{2}))?[^.]{0,12}kadar/,
+];
+export function applicationWindows(lines){
+  const out=[],filled=lines.filter(l=>l.trim());
+  for(const [i,line] of filled.entries()){
+    const f=fold(line),previous=filled.slice(Math.max(0,i-3),i);
+    if(/\bson$/.test(fold(previous.at(-1)??''))&&/^basvuru tarihi/.test(f)){const value=applicationDeadline('Son '+line);if(value)out.push({value,quote:previous.at(-1).slice(-40)+' '+line});continue;}
+    if(/^bitis tarihi\s*[:|]/.test(f)&&previous.some(l=>/basvuru tarihleri/.test(fold(l)))){const m=f.match(/(\d{1,2})[./](\d{1,2})[./](20\d{2})/),value=m&&civilDate(m[1],m[2],m[3]);if(value)out.push({value,quote:line});continue;}
+    // Calendar table: "... | Son Başvuru Tarihi | ..." followed by one dated row of the same width.
+    const headers=line.split('|').map(c=>fold(c)),column=headers.findIndex(h=>h==='son basvuru tarihi');
+    if(column>=0&&headers.length>1){const cells=(filled[i+1]??'').split('|').map(c=>c.trim()),m=cells.length===headers.length&&cells[column].match(/^(\d{1,2})[./](\d{1,2})[./](20\d{2})$/),value=m&&civilDate(m[1],m[2],m[3]);if(value)out.push({value,quote:line+String.fromCharCode(10)+filled[i+1]});continue;}
+    for(const pattern of windowPatterns){
+      const m=f.match(pattern);if(!m)continue;
+      const before=f.slice(f.lastIndexOf('. ',m.index)+1,m.index);
+      if(!/basvur|muracaat|ilana cikil/.test(f)||/sinav|itiraz|sonuc|odeme|ucret|kura|mulakat/.test(before))continue;
+      const {day,month,year,hour,minute}=m.groups;let value=civilDate(day,month,year);
+      if(value&&hour!==undefined&&Number(hour)<24&&Number(minute)<60){const d=new Date(value.slice(0,10)+'T00:00:00Z');d.setUTCHours(Number(hour)-3,Number(minute),0,0);value=d.toISOString();}
+      if(value)out.push({value,quote:line.length<=400?line:f.slice(Math.max(0,m.index-120),m.index+m[0].length)});break;
+    }
+  }
+  return out;
 }
 export function mechanicalNotice(notice,text){
   const title=fold(notice.title),kind=/iptal ilani/.test(title)?'cancellation':/sinav/.test(title)&&/serbest muhasebeci mali musavirlik|yeminli mali musavirlik|aktuerlik/.test(title)?'exam':null;
@@ -97,11 +148,16 @@ export function mechanicalNotice(notice,text){
     const cells=line.split('|'),label=cells.findIndex(c=>/son\s*basvuru|basvuru bitis/.test(fold(c))),evidence=label>=0?cells.slice(label,label+2).join('|'):line;
     const value=applicationDeadline(evidence);if(value)deadlines.push({value,quote:evidence});
   }
+  if(!deadlines.length&&!fields.deadline)deadlines.push(...applicationWindows(lines));
   const deadlineDays=new Set(deadlines.map(d=>new Date(Date.parse(d.value)+3*3600000).toISOString().slice(0,10)));
   const deadlineTimes=new Set(deadlines.filter(d=>!d.value.endsWith('T20:59:59.999Z')).map(d=>d.value));
   if(!fields.deadline&&deadlineDays.size===1&&deadlineTimes.size<=1)fields.deadline={...(deadlines.find(d=>deadlineTimes.has(d.value))??deadlines.find(d=>/son\s*başvuru/i.test(d.quote))??deadlines[0])};
-  const relative=lines.filter(l=>/(?:yayin|yayim).*itibaren\s+\d+\.?\s*gun/.test(fold(l))&&/basvur|aday|dilekce|teslim/.test(fold(l)));
-  const multipleDeadlines=relative.length>0||deadlineDays.size>1||deadlineTimes.size>1;
+  const estimates=relativeDeadlines(lines,notice,text),relative=estimates.map(e=>e.quote);
+  const estimate=estimates.length&&estimates.every(e=>e.value&&e.value===estimates[0].value)?estimates[0]:null;
+  // A native "Son Başvuru Tarihi" outranks a relative rule; a differing explicit date in the text stays a scoped calendar.
+  const relativeConflict=estimates.length>0&&fields.deadline?.origin!=='source'&&(!estimate||deadlineDays.size>0&&!deadlineDays.has(estimate.value.slice(0,10)));
+  const multipleDeadlines=relativeConflict||deadlineDays.size>1||deadlineTimes.size>1;
+  if(estimate&&!multipleDeadlines&&!fields.deadline)fields.deadlineEstimate={value:estimate.value,quote:estimate.quote,origin:'computed',base:estimate.base,days:estimate.days};
   // A relative civil-day rule does not establish an inclusive/exclusive counting convention.
   if(multipleDeadlines){fields.applicationPeriods={value:[...deadlines.map(d=>({deadline:d.value,text:d.quote})),...relative.map(text=>({deadline:null,text,reference:notice.gazettePublishedQuote??null}))],quote:null};fields.deadline={value:null,quote:null};}
   if(!groups.length&&!headers){const general=conditions(text);if(Object.keys(general).length)groups.push({...general,label:'Başvuru koşulları'});}
@@ -115,19 +171,22 @@ export function mechanicalNotice(notice,text){
   }
   for(const field of Object.values(fields))field.origin??='mechanical';
   for(const group of groups)group.fieldOrigins=Object.fromEntries(Object.keys(group.quotes??{}).map(key=>[key,'mechanical']));
-  return {fields,groups,register,tableAmbiguous,rows,multipleDeadlines,sharedText:shared.join('\n')};
+  // A correction notice amends an earlier ad; its application window belongs to the original notice.
+  return {fields,groups,register,tableAmbiguous,rows,multipleDeadlines,sharedText:shared.join('\n'),...(/duzeltme ilani/.test(title)?{kind:'amendment'}:{})};
 }
 export function assessNotice(result,text){
   if(result.kind==='cancellation'||result.kind==='exam')return [];
   const missing=[];
   if(!result.register&&!result.fields.quota)missing.push('quota');
   if(result.multipleDeadlines)missing.push('deadline_scope');
-  else if(!result.fields.deadline?.value)missing.push('deadline');
+  else if(!result.fields.deadline?.value&&!result.fields.deadlineEstimate?.value&&result.kind!=='amendment')missing.push('deadline');
   if(result.tableAmbiguous)missing.push('table_rows');
   if(!result.groups.length&&/mezun|yaş|kpss|kadro|pozisyon/i.test(text))missing.push('conditions');
   missing.push(...missingTopics(result.groups,text));
   for(const group of result.groups){const scope=group.sourceText||text;for(const topic of missingTopics([group],scope))missing.push(topic);}
-  return [...new Set(missing)];
+  // Faculty titles carry their statutory degree (2547): a missing row-level degree is not a parser failure.
+  const academic=result.groups.length&&result.groups.every(g=>/profesor|\bprof\b|docent|\bdoc\b|doktor ogretim uyesi|dr\.? ?ogr/.test(fold(g.label??'')));
+  return [...new Set(missing)].filter(topic=>!(academic&&topic==='education'));
 }
 export async function extractNotice(notice,text,env,deps){
   const result=mechanicalNotice(notice,text);let missing=assessNotice(result,text),method='mechanical',response={status:200};
@@ -137,7 +196,14 @@ export async function extractNotice(notice,text,env,deps){
     if(response.status===200){
       const ai=response.body;let contributed=false;
       for(const [key,field] of Object.entries(ai.fields??{}))if(!result.fields[key]){result.fields[key]={...field,origin:'ai'};contributed=true;}
-      if(result.groups.length&&result.groups.some(g=>g.sourceText)){
+      // Qwen reads every table row. Its quote-validated rows replace an ambiguous or missing mechanical
+      // table, and their distinct per-row counts form the total when no stated total exists.
+      const rows=[...new Map(ai.groups.filter(g=>Number.isSafeInteger(g.quota)&&g.quota>0&&g.quotes?.quota).map(g=>[g.quotes.quota,g])).values()];
+      const aiTotal=rows.reduce((n,g)=>n+g.quota,0);
+      if(ai.groups.length&&(!result.groups.some(g=>g.sourceText)||result.tableAmbiguous&&rows.length>=result.groups.length)){
+        result.groups=ai.groups.map(g=>({...g,fieldOrigins:Object.fromEntries(Object.keys(g.quotes??{}).map(key=>[key,'ai']))}));
+        if(rows.length)result.tableAmbiguous=false;contributed=true;
+      }else if(result.groups.length&&result.groups.some(g=>g.sourceText)){
         for(const group of result.groups){
           const candidates=ai.groups.filter(a=>fold(a.label)===fold(group.label)||Object.entries(a.quotes??{}).some(([key,q])=>key!=='quota'&&group.sourceText.includes(q)));
           if(candidates.length!==1)continue;
@@ -146,7 +212,8 @@ export async function extractNotice(notice,text,env,deps){
           for(const [key,value] of Object.entries(a)){const topic=key.startsWith('kpss')?'kpss':/Age|^age/.test(key)?'age':key.startsWith('education')?'education':null;if(topic&&accepted[topic]&&group[key]==null){group[key]=value;group.fieldOrigins[topic]='ai';contributed=true;}}
           group.quotes={...accepted,...group.quotes};
         }
-      }else if(ai.groups.length){result.groups=ai.groups.map(g=>({...g,fieldOrigins:Object.fromEntries(Object.keys(g.quotes??{}).map(key=>[key,'ai']))}));contributed=true;}
+      }
+      if(!result.register&&!result.fields.quota&&rows.length&&aiTotal<=100000){result.fields.quota={value:aiTotal,quote:rows.map(g=>g.quotes.quota).join('\n'),origin:'ai'};contributed=true;}
       if(contributed)method=result.rows||Object.keys(mechanicalNotice(notice,text).fields).length?'hybrid':'ai';
       missing=assessNotice(result,text);
     }

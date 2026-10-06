@@ -1,5 +1,4 @@
 import {handleAssistant} from './assistant.js';
-import {handleExtract} from './extract.js';
 import {handleTrial} from './trial.js';
 import {validateCriteria,migrateFilters,fold,installationAnchorKeys,educationValues,cityValues} from './criteria.js';
 import {runScheduled,handleWorkQueue} from './pipeline.js';
@@ -104,13 +103,6 @@ export async function fetchRequest(request,env,ctx){
       const result=await handleTrial(body,env,{sha256,ip:request.headers.get('CF-Connecting-IP')??'unknown'});
       return json(result.body,result.status);
     }
-    if(request.method==='POST'&&path==='/api/v2/extract') {
-      if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return json({error:'content_type'},415);
-      const text=await request.text();if(text.length>262144)return json({error:'body_oversize'},413);
-      let body;try{body=JSON.parse(text);}catch{return json({error:'json'},400);}
-      const result=await handleExtract(body,env,{sha256});
-      return json(result.body,result.status);
-    }
     if(request.method==='POST'&&path==='/api/v2/assistant') {
       if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return json({error:'content_type'},415);
       const text=await request.text();if(text.length>262144)return json({error:'body_oversize'},413);
@@ -177,12 +169,6 @@ export async function fetchRequest(request,env,ctx){
       const visible=rows.slice(0,limit),hasMore=rows.length>limit,appliedThrough=hasMore?visible.at(-1).history_seq:watermark;
       return json({schemaVersion:2,watermark,appliedThrough,hasMore,items:visible.map(r=>({...JSON.parse(r.payload),id:r.listing_id,eventId:r.id,deliveryId:r.delivery_id??r.id,state:'accepted',seq:r.history_seq,createdAt:r.created_at,acceptedAt:r.accepted_at})),next:hasMore?String(appliedThrough):null});
     }
-    if(path==='/v1/sources.json')return json({sources:(await env.DB.prepare('SELECT * FROM sources').all()).results.map(sourceV1)});
-    if(path==='/v1/listings.json') {
-      const rows=(await env.DB.prepare('SELECT * FROM listings WHERE active=1 ORDER BY id LIMIT 5000').all()).results;
-      const sources=(await env.DB.prepare('SELECT * FROM sources').all()).results;
-      const seq=await latestSeq(env.DB);return conditional(request,{schema:1,generatedAt:new Date().toISOString(),sources:sources.map(sourceV1),listings:rows.map(r=>v1Listing(JSON.parse(r.payload))),skipped:0},'"snapshot-'+seq+'"');
-    }
     return json({error:'not_found'},404);
   } catch(error){
     if(error.message?.includes('installation_owner_conflict'))return json({error:'unauthorized'},401);
@@ -194,8 +180,6 @@ export async function fetchRequest(request,env,ctx){
   }
 }
 function conditional(request,body,etag){const headers={'ETag':etag,'Cache-Control':'public, max-age=60, s-maxage=60'};return request.headers.get('if-none-match')===etag?new Response(null,{status:304,headers}):json(body,200,headers);}
-function sourceV1(s){return {id:s.id,name:s.name,state:s.state==='pending'?'failed':s.state,lastAttemptAt:s.last_attempt,lastSuccessAt:s.last_success,note:s.note,count:0};}
-function v1Listing(p){const g=p.requirementGroups?.length===1?p.requirementGroups[0]:{};const datedAge=['ageReferenceDate','bornOnOrAfter','bornOnOrBefore'].some(k=>g[k]!=null)||(g.ageCalculation!=null&&g.ageCalculation!=='completed_years');return {...p,source:p.sourceId,published:p.publishedAt,fetched:p.updatedAt??p.firstSeenAt,kpss:g.kpssType??null,education:g.education?.length===1?g.education[0]:null,maxAge:datedAge?null:g.maxAge??null,summary:(p.summary??[]).map(s=>typeof s==='string'?s:s.scopeLabel?`${s.scopeLabel}: ${s.text}`:s.text),saved:false};}
 export async function cachedFetch(request,env,ctx){
   const url=new URL(request.url),path=url.pathname;
   const parameters=path==='/api/v2/listings'?['watermark','after','limit']:path==='/api/v2/changes'?['watermark','after','limit']:['/api/v2/meta','/api/v2/taxonomy'].includes(path)||/^\/api\/v2\/listings\/[^/]+$/.test(path)?[]:null;
