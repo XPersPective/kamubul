@@ -30,11 +30,13 @@ SBB PDF reader native AI.toMarkdown:3MiB/25s fetch,45s conversion,
 conversion/kalite kanıtı henüz yok; OCR/sayfa sayısı sınırı yok.
 
 Son canlı readonly18:35 UTC: aktif ilan.gov174/text174; Kariyer30/text18
-(ikizden kopya metinler, native ayrıntı kabulü değildir),12 metinsiz. notice-15
+(17 ikiz kopyası,1 native Bakırçay/8243chars/iki kadro4+2),12 metinsiz. notice-15
 backfill55/192;137 saklı metin hâlâ notice-14. Eski full pass sayıları güncel kalite değildir.
 Tam bütün kaynak/kalite kabulü açık; complete non-vacancy duyurularını da içerir.
 Kariyer sayfa/RSS200 ve güncel resmi JS APIURL/body/routes okuyucuyla aynı;
-detay API'sinin geçerli ilan yanıtı henüz alınmadı. SBB/İŞKUR okuyucularının
+Native Bakırçay215c245e-8d5b-4b93-bc10-0c859069aefa payload available/error yok,
+18:01 güncellemesi; main metin veiki kadro sunucuda mevcut. Kariyer bütün kapsam kabulü açık.
+SBB/İŞKUR okuyucularının
 geçerli liste yanıtı kabulü de açık. IP/ülke nedeni çıkarılmaz, kullanıcıdan
 Worker adresi tekrar istenmez. Kaynak boşlukları ilan/AI başarısı sayılmaz.
 
