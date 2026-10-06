@@ -366,4 +366,8 @@ test('labelled-review fixes: scoring prose, stated dates beside relative rules, 
     '1 | TIP FAKÜLTESİ | ÖĞRETİM GÖREVLİSİ (UYGULAMALI BİRİM) | 1 | 1 | SAYISAL | 70 | 50 | Kadın Hastalıkları ve Doğum Uzmanı olmak.',
     '2 | TIP FAKÜLTESİ | ÖĞRETİM GÖREVLİSİ (UYGULAMALI BİRİM) | 1 | 2 | SAYISAL | 70 | 50 | İç Hastalıkları uzmanı olmak.'].join('\n'));
   assert.equal(akdeniz.fields.quota?.value, 3); assert.equal(akdeniz.tableAmbiguous, false);
+  // ÇOMÜ: "ÖĞR.GÖR. (UYGULAMALI BİRİM)" is a count column like "(DERS VERECEK)".
+  const comu = mechanicalNotice({ title: 'Öğretim Elemanı Alım İlanı' }, ['İLAN NO | BÖLÜM | BİRİM | ÖĞR.GÖR. (UYGULAMALI BİRİM) | DER. | ARŞ.GÖR. | DER. | ALES',
+    '3 | - | BİLİMSEL ARAŞTIRMA PROJELERİ | 1 | 1 | - | - | 70'].join('\n'));
+  assert.equal(comu.fields.quota?.value, 1);
 });

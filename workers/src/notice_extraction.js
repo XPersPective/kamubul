@@ -3,7 +3,8 @@ import {handleExtract,validateGroups,missingTopics,mentions,vacancyTotals,applic
 import {fold,occupationsOf} from './criteria.js';
 export const NOTICE_VERSION='notice-17';
 const countHeader=value=>/^(?:ad|adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
-const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|ogrgor|ogrgordersverecek|arsgor)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
+// Rank columns whose cells are counts; "ÖĞR.GÖR. (UYGULAMALI BİRİM)" is the YÖK position type beside "(DERS VERECEK)".
+const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|(?:ogrgor|ogretimgorevlisi)(?:dersverecek|uygulamalibirim)?|arsgor|arastirmagorevlisi)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
 const datePattern=/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2})\b/g;
 function civilDate(day,month,year){const d=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;return Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d?d+'T20:59:59.999Z':null;}
 function conditions(text){
