@@ -59,7 +59,7 @@ Her grup kanonik meslek taşır (criteria.js occupationsOf: etiketten, akademik 
 başlık yedeği; 77c02fe). Genel şart dışı yaş kuralı adını verdiği mesleğin kadrosuna ya da tek
 kadroya bağlanır; puanlama cümlesi eğitim şartı sayılmaz (a5f0ee0). Kör etiketli 50 ilan.gov
 seti test/fixtures/ilangov-labels.json + tool/eval-labels.js (metin repoda yok): mekanik
-P/R quota1.000/0.868, deadline0.968/1.000, maxAge1.000/0.889, eğitim1.000/0.944, KPSS1.000/0.259.
+P/R (5692569, notice-17) quota1.000/0.921, deadline0.968/1.000, maxAge1.000/0.889, eğitim1.000/0.944, KPSS1.000/0.370.
 Başka pozisyon alıntısı terfi ettirilmez; tercihen eğitim zorunlu olmaz;
 birlikte gereken dereceler OR eğitim dizisine çevrilmez. Göreli/multiple tarih
 ham takvim olarak saklanır, tek son başvuru uydurulmaz.
