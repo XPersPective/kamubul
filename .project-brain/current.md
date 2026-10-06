@@ -7,7 +7,7 @@ ve eski CF-first model sırası geçersizdir. Tam üretim kabulü henüz tamamla
 
 ## Sunucu ve kaynak verisi
 Kalıcı Worker: https://kamubul-api.devx8585.workers.dev, son deployment
-5b5763f5-fcd1-4b62-b6aa-1fe5acc60402; /api/v2/health200, AI/FCM configured.
+b6ed7179-7780-431b-9a02-03cdb5a8d623 (Wrangler readonly18:35 UTC); /api/v2/health200, AI/FCM configured.
 D1 kamubul (371092dd-2cc7-487f-b971-84c2499bbc7d), migration0001–0029 remote.
 Queue kamubul-work, batch1/concurrency1/retry0. Cron her dakika recovery;
 source/extract/match/send generation+lease, atomik3000 UTC günlük görev sınırı.
@@ -29,11 +29,9 @@ SBB PDF reader native AI.toMarkdown:3MiB/25s fetch,45s conversion,
 120KB çıktı/20 UTC günlük rezervasyon, hash+reader cache. Gerçek SBB PDF
 conversion/kalite kanıtı henüz yok; OCR/sayfa sayısı sınırı yok.
 
-Son canlı readonly02:10 UTC: aktif ilan.gov165/text165; Kariyer30/text0.
-Önceki168/text168 içinden İstanbul/Tekirdağ/TÜBİTAK3 ilanı yeni kanıtlı bitiş
-zamanı geçtiği için mevcut expiry politikasıyla inactive oldu; metinleri D1'de.
-Bu kaynak veya kimlik atlama değildir. notice-12 saklı metin backfill'i sürer;
-eski notice-8 full pass45complete/123partial artık güncel kalite sayısı değildir.
+Son canlı readonly18:35 UTC: aktif ilan.gov174/text174; Kariyer30/text18
+(ikizden kopya metinler, native ayrıntı kabulü değildir),12 metinsiz. notice-15
+backfill55/192;137 saklı metin hâlâ notice-14. Eski full pass sayıları güncel kalite değildir.
 Tam bütün kaynak/kalite kabulü açık; complete non-vacancy duyurularını da içerir.
 Kariyer sayfa/RSS200 ve güncel resmi JS APIURL/body/routes okuyucuyla aynı;
 detay API'sinin geçerli ilan yanıtı henüz alınmadı. SBB/İŞKUR okuyucularının
@@ -52,7 +50,7 @@ Belirsiz satırda ara toplam yayımlanmaz. Tek payload quota/deadline/groups/
 applicationPeriods/fieldEvidence/extraction kart, ayrıntı ve offline'a gider.
 Mekanik backlog AI çağrıları başlamadan küçük partilerle boşaltılır.
 AI yalnız yeterlilik denetimindeki eksiklere, saklı tam metinle devreye girer.
-notice-12/x11, ayrı attempted/quality; kısmi JSON complete sayılmaz.
+notice-15/x12, ayrı attempted/quality; kısmi JSON complete sayılmaz.
 Başka pozisyon alıntısı terfi ettirilmez; tercihen eğitim zorunlu olmaz;
 birlikte gereken dereceler OR eğitim dizisine çevrilmez. Göreli/multiple tarih
 ham takvim olarak saklanır, tek son başvuru uydurulmaz.
@@ -121,7 +119,9 @@ Dört atlanabilir onboarding, typed kriter editörü, ışık/koyu/responsive go
 6 Ekim erişilebilirlik: ana ekran/ilk kriter editörü/ayarlar telefon390×844 ve tablet1024×768
 48dp+etiket guideline PASS; çipler native padded, üyelik rozeti48dp TextButton.
 Okuma Slider adı ve yüzde değeri tek semantics öğesi; 192 Flutter PASS/analyze temiz.
-Cihaz TalkBack/release <100ms kabulü henüz açık (PB-029).
+Cihaz: owned API36/x64 release fixture'da TalkBack bound; ana ekran18 etkileşimli
+hedef48dp,17 düğme native etiketli. Ağsız3 örnek/eylem medyan95.1/72.8/84.6ms (süzgeç/ayarlar/ayrıntı).
+Soğuk Ayarlar314.2ms, TalkBack süzgeç medyan103.0ms: genel <100ms kabulü açık (PB-029).
 PRIVACY.md ve canlı privacy HTML5 Ekim sunucu/Qwen/aggregate token açıklamalı.
 
 6 Ekim 1.2.0+15 (source d3e5bfb): 276 Worker/187 Flutter/211 core PASS, analyze temiz.

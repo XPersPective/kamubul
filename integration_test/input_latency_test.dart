@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:kamubul/data/listing_store.dart';
+import 'package:kamubul_core/remote/catalogue_delta.dart';
 import 'package:kamubul/main.dart' as app;
 import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
@@ -17,6 +18,7 @@ import 'package:sqflite/sqflite.dart';
 /// PB-008 girdi yanıtı ölçümü: dokunuş gönderiminden, dokunuşa yanıt veren
 /// ilk karenin ekrana çizilmesine (raster bitişi) kadar geçen gerçek süre.
 /// Sonuç yalnız ölçülen derleme modu ve cihaz için geçerlidir.
+/// Ölçümde --dart-define=KAMUBUL_API= kullanın: yalnız izole katalog okunur.
 class _NoNetwork extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) =>
@@ -161,19 +163,23 @@ void main() {
     );
     final pro = ProController(store: settings, repository: purchase)..load();
     final stamp = DateTime.now().microsecondsSinceEpoch;
-    await ListingStore().mergeFeed([
-      ListingRecord(
-        url: 'https://kariyerkapisi.gov.tr/ilan/olcu-$stamp',
-        sourceId: 'kariyerkapisi',
-        title: 'ÖLÇÜM KURUMU - Sözleşmeli Personel Alım İlanı ($stamp)',
-        category: 'Sözleşmeli Personel',
-        publishedAt: DateTime.now(),
-        fetchedAt: DateTime.now(),
-        deadline: DateTime.now().add(const Duration(days: 3)),
-        quota: 5,
-        places: const ['ANKARA'],
-      ),
-    ]);
+    await ListingStore().applyDeltaPage(
+      CatalogueDeltaPage(1, 1, false, [
+        CatalogueChange(1, 'latency', 1, false, {
+          'id': 'latency',
+          'revision': 1,
+          'url': 'https://kariyerkapisi.gov.tr/ilan/olcu-$stamp',
+          'sourceId': 'kariyerkapisi',
+          'title': 'ÖLÇÜM KURUMU - Sözleşmeli Personel Alım İlanı ($stamp)',
+          'category': 'Sözleşmeli Personel',
+          'publishedAt': DateTime.now().toUtc().toIso8601String(),
+          'updatedAt': DateTime.now().toUtc().toIso8601String(),
+          'quota': 5,
+          'places': ['ANKARA'],
+        }),
+      ]),
+      after: 0,
+    );
 
     await tester.pumpWidget(
       app.KamuBulApp(
@@ -239,7 +245,7 @@ void main() {
       await tester.tap(find.text('İlanlar'));
       await tester.pump(const Duration(milliseconds: 300));
       // Liste → ayrıntı: geçişin ilk karesi (yay geçişi başlar).
-      final inspect = find.widgetWithText(FilledButton, 'İlanı incele').first;
+      final inspect = find.text('İlanı incele').first;
       expect(inspect, findsWidgets);
       await tester.ensureVisible(inspect);
       await tester.pump(const Duration(milliseconds: 200));
