@@ -172,7 +172,7 @@ export function validateGroups(raw, text) {
     if (exemption && g.kpssStatus === 'not_required') { o.kpssStatus = 'not_required'; quotes.kpss = kq; }
     if (kpssEvidence && !exemption && !weightingOnly(kq) && g.kpssStatus === 'required') {
       o.kpssStatus = 'required'; quotes.kpss = kq;
-      if (typeof g.kpssType === 'string' && /^P\d{1,3}$/.test(g.kpssType) && fold(kq).replace(/\s/g, '').includes(g.kpssType.toLowerCase())) o.kpssType = g.kpssType;
+      if (typeof g.kpssType === 'string' && /^P\d{1,3}$/.test(g.kpssType) && fold(kq).replace(/[\s-]/g, '').includes(g.kpssType.toLowerCase())) o.kpssType = g.kpssType;
       const scoreEvidence=kpssScoreEvidence(kq);
       if (scoreEvidence && Number.isFinite(g.kpssScore) && g.kpssScore >= 0 && g.kpssScore <= 100 && mentions(scoreEvidence, g.kpssScore)) o.kpssScore = g.kpssScore;
     }

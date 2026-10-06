@@ -81,18 +81,16 @@ extension ListingFacts on ListingRecord {
   /// Bütün pozisyonlarda bilinen değerler: özet kartının satırları.
   List<String> get educationLevels => _union(
     (group) => [
-      for (final value in group['education'] is List
-          ? group['education'] as List
-          : const [])
+      for (final value
+          in group['education'] is List ? group['education'] as List : const [])
         if (value is String) educationLabel(value),
     ],
   );
 
   List<String> get cityNames => _union(
     (group) => [
-      for (final value in group['cities'] is List
-          ? group['cities'] as List
-          : const [])
+      for (final value
+          in group['cities'] is List ? group['cities'] as List : const [])
         if (value is String && value.trim().isNotEmpty) cityLabel(value),
     ],
     fallback: places,
@@ -104,9 +102,9 @@ extension ListingFacts on ListingRecord {
     final label = kpssLabel(group);
     if (label == null) return const [];
     if (label == 'KPSS şartı yok') return const ['Aranmıyor'];
-    final type = group['kpssType'], score = group['kpssScore'];
+    final type = kpssTypeText(group), score = group['kpssScore'];
     final parts = [
-      if (type is String && RegExp(r'^P\d{1,3}$').hasMatch(type)) type,
+      ?type,
       if (score is num && score > 0 && score <= 100)
         'en az ${score % 1 == 0 ? score.toInt() : score} puan',
     ];
@@ -131,6 +129,16 @@ extension ListingFacts on ListingRecord {
   }
 }
 
+/// "P3" ya da alternatif türler için "P3/P44/P45" (kpssTypes); geçersizse null.
+String? kpssTypeText(Map<Object?, Object?> group) {
+  bool valid(Object? t) => t is String && RegExp(r'^P\d{1,3}$').hasMatch(t);
+  final alternatives = group['kpssTypes'], type = group['kpssType'];
+  if (alternatives is List && alternatives.isNotEmpty) {
+    return alternatives.every(valid) ? alternatives.join('/') : null;
+  }
+  return valid(type) ? type as String : null;
+}
+
 /// Bir pozisyonun KPSS şartı; bilinmiyorsa null. Çelişkili kayıtta
 /// ("şart yok" ama puan dolu) yokluk iddia edilmez.
 String? kpssLabel(Map<Object?, Object?> group) {
@@ -140,9 +148,10 @@ String? kpssLabel(Map<Object?, Object?> group) {
         when type == null && score == null && group['kpssYear'] == null:
       return 'KPSS şartı yok';
     case 'required':
+      final types = kpssTypeText(group);
       final parts = [
         'KPSS',
-        if (type is String && RegExp(r'^P\d{1,3}$').hasMatch(type)) type,
+        ?types,
         if (score is num && score > 0 && score <= 100)
           'en az ${score % 1 == 0 ? score.toInt() : score}',
       ];
@@ -157,11 +166,7 @@ String? ageLabel(Map<Object?, Object?> group) {
   const dated = ['ageReferenceDate', 'bornOnOrAfter', 'bornOnOrBefore'];
   final min = group['minAge'], max = group['maxAge'];
   if (group['ageStatus'] == 'no_restriction') {
-    return [
-          'minAge',
-          'maxAge',
-          ...dated,
-        ].every((key) => group[key] == null)
+    return ['minAge', 'maxAge', ...dated].every((key) => group[key] == null)
         ? 'Yaş sınırı yok'
         : null;
   }

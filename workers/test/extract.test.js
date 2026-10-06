@@ -375,4 +375,9 @@ test('labelled-review fixes: scoring prose, stated dates beside relative rules, 
     'Başvuru Tarihi : Başvurular 15 Ekim 2026 Perşembe günü başlayıp, 02 Kasım 2026 Pazartesi günü mesai bitiminde sona erecektir.'].join('\n'));
   assert.equal(osmaniye.fields.deadline?.value ?? null, null); assert.equal(osmaniye.fields.applicationPeriods?.value.length, 2);
   assert.equal(mechanicalNotice({ title: 'İlan' }, '15.10.2026 tarihinden sonra yapılan başvurular kabul edilmeyecektir.').fields.deadline?.value, '2026-10-15T20:59:59.999Z');
+  // ÖİB: a KPSS column listing alternatives ("KPSSP-3 KPSSP-44"), a single hyphenated type, and "KPSSP3".
+  const oib = mechanicalNotice({ title: 'Uzman Yardımcılığı Giriş Sınavı Duyurusu' }, ['Gruplar | Öğrenim Dalları (Lisans) | KPSS Puan Türü | KPSS Taban Puanı | Atama Yapılabilecek Boş Kadro Sayısı',
+    '1. Grup | Hukuk fakültelerinden mezun olmak. | KPSSP-4 | 80 | 5',
+    '2. Grup | Muhasebe ve Finans Yönetimi programından mezun olmak. | KPSSP-3 KPSSP-44 KPSSP-45 | 75 | 2'].join('\n'));
+  assert.deepEqual(oib.groups.map(g => [g.kpssType ?? null, g.kpssTypes ?? null]), [['P4', null], [null, ['P3', 'P44', 'P45']]]);
 });

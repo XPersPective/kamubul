@@ -51,7 +51,7 @@ for(const [name,view] of Object.entries(views)){
     scalar('quota',l.quota,v.quota,id);scalar('deadline',l.deadline,v.deadline,id);
     set('maxAge',l.maxAge,[...new Set(v.groups.map(g=>g.maxAge).filter(x=>x!=null))],id);
     set('edu',l.edu,[...new Set(v.groups.flatMap(g=>g.education??[]).map(education))],id);
-    set('kpss',l.kpss,[...new Set(v.groups.map(g=>g.kpssType).filter(Boolean))],id);
+    set('kpss',l.kpss,[...new Set(v.groups.flatMap(g=>g.kpssTypes?.length?g.kpssTypes:[g.kpssType]).filter(Boolean))],id);
   }
   console.log(`\n== ${name}`);
   for(const [field,[tp,fp,fn]] of Object.entries(score))

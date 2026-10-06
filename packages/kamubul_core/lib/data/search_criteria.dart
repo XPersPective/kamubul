@@ -232,12 +232,19 @@ class SearchCriteria {
       if ('${c['kpssType'] ?? ''}'.isNotEmpty || c['onlyKpss'] == true) {
         final type = raw['kpssType'],
             score = raw['kpssScore'],
-            year = raw['kpssYear'];
+            year = raw['kpssYear'],
+            alternatives = raw['kpssTypes'];
+        // kpssTypes: alternative score types of one position; any of them qualifies.
+        final types = alternatives is List && alternatives.isNotEmpty
+            ? alternatives
+            : [?type];
         final invalid =
             (raw['kpssStatus'] == 'not_required' &&
-                [type, score, year].any((v) => v != null)) ||
-            (type != null &&
-                (type is! String || !RegExp(r'^P\d{1,3}$').hasMatch(type))) ||
+                ([type, score, year].any((v) => v != null) ||
+                    (alternatives is List && alternatives.isNotEmpty))) ||
+            types.any(
+              (t) => t is! String || !RegExp(r'^P\d{1,3}$').hasMatch(t),
+            ) ||
             (score != null &&
                 (score is! num ||
                     !score.isFinite ||
@@ -251,11 +258,10 @@ class SearchCriteria {
             if (c['onlyKpss'] == true) status = CriteriaMatch.noMatch;
           } else if (raw['kpssStatus'] != 'required') {
             uncertain();
-          } else if ('${c['kpssType'] ?? ''}'.isNotEmpty &&
-              raw['kpssType'] == null) {
+          } else if ('${c['kpssType'] ?? ''}'.isNotEmpty && types.isEmpty) {
             uncertain();
           } else if ('${c['kpssType'] ?? ''}'.isNotEmpty &&
-              raw['kpssType'] != c['kpssType']) {
+              !types.contains(c['kpssType'])) {
             status = CriteriaMatch.noMatch;
           } else if (c['kpssScore'] != null) {
             if (raw['kpssScore'] is! num) {

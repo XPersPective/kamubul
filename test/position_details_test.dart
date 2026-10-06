@@ -1,7 +1,29 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kamubul/listings/listing_facts.dart';
 import 'package:kamubul/listings/notice_text.dart';
 
 void main() {
+  test('alternatif KPSS puan türleri tek etikette gösterilir', () {
+    expect(
+      kpssLabel({
+        'kpssStatus': 'required',
+        'kpssTypes': ['P3', 'P44', 'P45'],
+        'kpssScore': 75,
+      }),
+      'KPSS P3/P44/P45 en az 75',
+    );
+    expect(
+      kpssLabel({'kpssStatus': 'required', 'kpssType': 'P94', 'kpssScore': 60}),
+      'KPSS P94 en az 60',
+    );
+    expect(
+      kpssTypeText({
+        'kpssTypes': ['P3', 'KPSS'],
+      }),
+      isNull,
+    );
+  });
+
   test('tablo satırı: kısa hücreler bilgi satırı, nitelik cümleleri madde', () {
     // Canlı Niğde ilanı: kişi sayısı başlıkta, cinsiyet koşulu kalır.
     final row = positionDetails(

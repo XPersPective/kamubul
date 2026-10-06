@@ -1,7 +1,7 @@
 // One server result feeds cards, details and matching. Original text is never rewritten.
 import {handleExtract,validateGroups,missingTopics,mentions,vacancyTotals,applicationDeadline,MIN_TEXT,MAX_TEXT} from './extract.js';
 import {fold,occupationsOf} from './criteria.js';
-export const NOTICE_VERSION='notice-18';
+export const NOTICE_VERSION='notice-19';
 const countHeader=value=>/^(?:ad|adet|adedi|(?:kadro|pozisyon) (?:sayisi|adedi)|kontenjan(?: sayisi)?|personel sayisi|alinacak (?:kisi|personel) sayisi|kisi sayisi|sayi|sayisi|istihdam edilecek (?:personel|uzman) sayisi|acik isci sayisi|alinmasi planlanan kadro sayisi|atama yapilabilecek bos kadro sayisi)$/.test(fold(value).replace(/[:.*]/g,'').trim());
 // Rank columns whose cells are counts; "ÖĞR.GÖR. (UYGULAMALI BİRİM)" is the YÖK position type beside "(DERS VERECEK)".
 const academicHeader=value=>/^(?:prof|profesor|doc|docent|doktorogretimuyesi|drogretimuyesi|drogruyesi|(?:ogrgor|ogretimgorevlisi)(?:dersverecek|uygulamalibirim)?|arsgor|arastirmagorevlisi)$/.test(fold(value).replace(/[^\p{L}]/gu,''));
@@ -150,10 +150,12 @@ export function mechanicalNotice(notice,text){
     const parsed=conditions(line);
     const kpssColumns=headers.map((h,i)=>/kpss (?:puan turu|taban puani|puani)/.test(fold(h))?i:-1).filter(i=>i>=0);
     if(kpssColumns.length){
-      const quote=cells.slice(kpssColumns[0],kpssColumns.at(-1)+1).join(' | '),type=quote.match(/\bP\s?\d{1,3}\b/i)?.[0].replace(/\s/g,'').toUpperCase();
+      // "KPSSP-3 KPSSP-44 KPSSP-45" lists alternative score types of one position.
+      const quote=cells.slice(kpssColumns[0],kpssColumns.at(-1)+1).join(' | ');
+      const types=[...new Set([...fold(quote).matchAll(/(?:^|[^a-z0-9])(?:kpss\s*)?p\s?-?(\d{1,3})\b/g)].map(m=>'P'+m[1]))],type=types.length===1?types[0]:undefined;
       const score=quote.match(/(?:en az|asgari)\s+(\d+(?:[.,]\d+)?)\s*puan/i)?.[1]??quote.match(/\bP\d+\s*\|\s*(\d+(?:[.,]\d+)?)(?:\s|$)/i)?.[1];
       const checked=validateGroups({groups:[{kpssStatus:'required',kpssType:type,kpssScore:score?Number(score.replace(',','.')):null,kpssQuote:quote}]},text)[0];
-      if(checked){const quotes={...parsed.quotes,...checked.quotes};Object.assign(parsed,checked,{quotes});}
+      if(checked){const quotes={...parsed.quotes,...checked.quotes};Object.assign(parsed,checked,{quotes},types.length>1?{kpssTypes:types}:{});}
     }
     groups.push({label,quota,...parsed,quotes:{...parsed.quotes,quota:line},sourceText:line});
   }
