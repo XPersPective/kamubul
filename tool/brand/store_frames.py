@@ -18,7 +18,7 @@ ICON = Path(__file__).resolve().parents[2] / 'assets' / 'brand' / 'kamubul_icon.
 # (ham dosya, çıktı adı, başlık, alt cümle, koyu zemin mi)
 SHOTS = [
     ('home-light.png', '01-tum-kamu-ilanlari.png', 'Kamu ilanları\ntek yerde',
-     'Resmî ilanları inceleyin, kaynakların güncel durumunu görün.', False),
+     'Memur, işçi, sözleşmeli personel ve KPSS ilanları her gün güncel.', False),
     ('detail-summary.png', '02-sartlar-tek-bakista.png', 'Şartlar\ntek bakışta',
      'Kontenjan, son başvuru, eğitim, KPSS ve yaş en üstte özetlenir.', False),
     ('detail-positions.png', '03-her-pozisyon-ayri.png', 'Her pozisyon\nayrı kartta',
@@ -26,11 +26,11 @@ SHOTS = [
     ('assistant.png', '04-bana-uygun-mu.png', 'Bu ilan\nbana uygun mu?',
      'KamuBul Asistan ilan metnini kriterlerinizle karşılaştırır.', False),
     ('searches.png', '05-size-uygun-ilanlar.png', 'Size uygun ilanlar\nöne çıksın',
-     'Kriterlerinizi kaydedin; uygun yeni ilan gelince haber verelim.', False),
+     'Eğitim, yaş ve KPSS bilginizi kaydedin; uygun ilanlar en üstte.', False),
     ('home-dark.png', '06-koyu-tema.png', 'Gece de\ngöz yormaz',
      'Açık ve koyu tema, ayarlanabilir yazı boyutu.', True),
     ('detail-dark.png', '07-son-basvuruyu-kacirmayin.png', 'Son başvuruyu\nkaçırmayın',
-     'Kalan gün rozetleri; Resmî Gazete ilanlarında tahmini son gün.', True),
+     'Kalan gün rozetleri ve süreli ilanlarda tahmini son başvuru günü.', True),
     ('pro.png', '08-reklamsiz-deneyin.png', '7 gün\nreklamsız deneyin',
      'Pro ile reklamsız kullanım ve daha fazla Asistan hakkı.', False),
 ]
