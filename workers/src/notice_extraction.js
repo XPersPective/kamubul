@@ -80,7 +80,7 @@ export function applicationWindows(lines){
 export function mechanicalNotice(notice,text){
   const title=fold(notice.title),kind=/iptal ilani/.test(title)?'cancellation':/sinav/.test(title)&&/serbest muhasebeci mali musavirlik|yeminli mali musavirlik|aktuerlik/.test(title)?'exam':null;
   if(kind)return {fields:{quota:{value:null,quote:notice.title,origin:'mechanical'},deadline:{value:null,quote:notice.title,origin:'mechanical'},notificationEligible:{value:false,quote:notice.title,origin:'mechanical'}},groups:[],rows:0,kind};
-  const fields={}, groups=[], lines=text.split('\n'),seenRows=new Map(),columnDeadlines=[];let headers=null,count=-1,matrix=[],rows=0,tableAmbiguous=false,tableNumber=0;
+  const fields={}, groups=[], lines=text.split('\n'),seenRows=new Map(),columnDeadlines=[];let headers=null,count=-1,matrix=[],rows=0,tableAmbiguous=false,tableNumber=0,headerLine=-1,subSplit=null;
   const verticalLines=new Set();
   for(let start=0;start<lines.length;start++){
     if(!/^ilan no\s*\|/.test(fold(lines[start])))continue;
@@ -102,9 +102,16 @@ export function mechanicalNotice(notice,text){
     if(cells.length<2)continue;
     let index=cells.findIndex(countHeader);
     if(index<0&&cells.some(c=>/unvan/.test(fold(c))))index=cells.findIndex(c=>/^(?:kadro|pozisyon)$/.test(fold(c)));
-    if(index>=0){headers=cells;count=index;matrix=[];tableNumber++;continue;}
+    if(index>=0){headers=cells;count=index;matrix=[];tableNumber++;headerLine=lineIndex;subSplit=null;continue;}
     const academic=cells.map((c,i)=>academicHeader(c)?i:-1).filter(i=>i>=0);
-    if(academic.length>=2){headers=cells;matrix=academic;tableNumber++;continue;}
+    if(academic.length>=2){headers=cells;matrix=academic;tableNumber++;headerLine=lineIndex;subSplit=null;continue;}
+    // A second header row "PUANI | TÜRÜ" splits the score column (ALES) in two; merging the pair back keeps every
+    // other column, including the count, at its header position.
+    const firstAfterHeader=headerLine>=0&&lines.slice(headerLine+1,lineIndex).every(l=>!l.includes('|'));headerLine=-1;
+    if(headers&&firstAfterHeader&&cells.length<=4&&cells.every(c=>c&&!/\d/.test(c)&&c.length<=25&&c===c.toLocaleUpperCase('tr'))){
+      const at=headers.findIndex(h=>/\bales\b|\bkpss\b|yabanci dil|\byds\b/.test(fold(h)));if(at>=0)subSplit={at,extra:cells.length-1};continue;
+    }
+    if(subSplit&&headers&&cells.length===headers.length+subSplit.extra)cells.splice(subSplit.at,subSplit.extra+1,cells.slice(subSplit.at,subSplit.at+subSplit.extra+1).join(' '));
     if(cells.some(c=>fold(c)==='konu')&&cells.some(c=>fold(c)==='tarih')){headers=null;matrix=[];continue;}
     if(!headers){
       // A headerless row "Unvan | 6 (Erkek-Kadın) | ..." still states a headcount: the gender marker makes that cell unambiguous.

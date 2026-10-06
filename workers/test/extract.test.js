@@ -360,4 +360,10 @@ test('labelled-review fixes: scoring prose, stated dates beside relative rules, 
     '2- Siber Güvenlik Uzmanı (1 (bir) kişi - tam zamanlı)', '3- Kıdemli Siber Güvenlik Uzmanı (1(bir)kişi - tam zamanlı)'].join('\n'));
   assert.equal(yargitay.fields.quota?.value, 4);
   assert.equal(mechanicalNotice({ title: 'Uzman Yardımcısı Alım İlanı' }, '(1) İletişim Uzman Yardımcısı unvanıyla atama yapılabilecek azami kadro sayısı 15 (onbeş) adettir.').fields.quota?.value, 15);
+  // Akdeniz/HMKÜ: a second header row splits ALES into "PUAN TÜRÜ | PUAN"; the count column stays readable.
+  const akdeniz = mechanicalNotice({ title: 'Öğretim Görevlisi Alım İlanı' }, ['S.N. | BİRİM | ÜNVAN | DER. | ADET | ALES | YABANCI DİL PUANI | İLAN ŞARTLARI', '',
+    'PUAN TÜRÜ | PUAN', '',
+    '1 | TIP FAKÜLTESİ | ÖĞRETİM GÖREVLİSİ (UYGULAMALI BİRİM) | 1 | 1 | SAYISAL | 70 | 50 | Kadın Hastalıkları ve Doğum Uzmanı olmak.',
+    '2 | TIP FAKÜLTESİ | ÖĞRETİM GÖREVLİSİ (UYGULAMALI BİRİM) | 1 | 2 | SAYISAL | 70 | 50 | İç Hastalıkları uzmanı olmak.'].join('\n'));
+  assert.equal(akdeniz.fields.quota?.value, 3); assert.equal(akdeniz.tableAmbiguous, false);
 });
