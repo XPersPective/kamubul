@@ -204,9 +204,13 @@ test('an unchanged mechanical result keeps revision and change log intact',async
 
 test('Kariyer twins are not parsed again: their conditions come from the ilan.gov copy',async t=>{
   const f=setup(t),text='Zabıta Memuru kadrosu için lise mezunu olmak. '+'Genel şartlar. '.repeat(30);
-  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('kariyerkapisi:k','kariyerkapisi','k','hk','first','first','later',?)").run(JSON.stringify({title:'K',text,twin:{id:'ilangov:1',revision:1}}));
+  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload,conditions_checked) VALUES('ilangov:1','ilangov','1','h1','first','first','later',?,'h1')").run(JSON.stringify({title:'Zabıta',text}));
+  const revision=f.sql.prepare("SELECT revision FROM listings WHERE id='ilangov:1'").get().revision;
+  f.sql.prepare("INSERT INTO listings(id,source_id,external_id,content_hash,first_seen,updated_at,recheck_at,payload) VALUES('kariyerkapisi:k','kariyerkapisi','k','hk','first','first','later',?)").run(JSON.stringify({title:'K',text,twin:{id:'ilangov:1',revision}}));
   const before=f.sql.prepare("SELECT revision,payload FROM listings WHERE id='kariyerkapisi:k'").get();
-  assert.equal(await mechanicalBackfill(f.env),false);
+  const {NOTICE_VERSION}=await import('../src/notice_extraction.js');
+  f.sql.prepare("UPDATE listings SET payload=json_set(payload,'$.extraction',json(?)) WHERE id='ilangov:1'").run(JSON.stringify({version:NOTICE_VERSION,status:'complete'}));
+  assert.equal(await mechanicalBackfill(f.env),false,'the twin is not a backfill candidate');
   await canonicalBackfill(f.env);
   const after=f.sql.prepare("SELECT revision,payload,conditions_checked c FROM listings WHERE id='kariyerkapisi:k'").get();
   assert.equal(after.revision,before.revision);assert.equal(after.payload,before.payload);assert.equal(after.c,null);
