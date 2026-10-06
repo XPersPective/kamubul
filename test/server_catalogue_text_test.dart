@@ -325,14 +325,14 @@ void main() {
         MaterialApp(home: OfficialListingPage(listing: record)),
       );
       expect(find.text('15.10.2026 • 13:00'), findsOneWidget);
-      // Pozisyonun özgün satırı açılır pencere olmadan, hücrelerine ayrılmış görünür.
+      // Pozisyonun özgün satırı açılır pencere olmadan, hücrelerine ayrılmış görünür:
+      // kısa hücreler başlık altında tek satırdır, kişi sayısı tekrarlanmaz.
       await tester.scrollUntilVisible(
-        find.text('Belge teslimi saat 13:00'),
+        find.text('Önlisans · Belge teslimi saat 13:00'),
         150,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Aranan nitelikler'), findsOneWidget);
-      expect(find.text('Önlisans'), findsOneWidget);
+      expect(find.text('Aranan nitelikler'), findsNothing);
       expect(find.text(position), findsNothing);
       expect(tester.takeException(), isNull);
     },

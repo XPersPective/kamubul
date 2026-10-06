@@ -101,33 +101,62 @@ List<NoticeBlock> parseNotice(String text) {
   return blocks;
 }
 
-/// Pozisyon satırındaki nitelikler: etiket, kod ve kişi sayısı hücreleri
-/// başlıkta zaten gösterildiği için tekrarlanmaz; "*" maddeleri ayrılır.
-List<String> positionRequirements(String text, String label, int? quota) {
-  final lines = <String>[];
+// "mezun olmak", "almış olmak", "olması şartı aranır": nitelik cümlesi fiil taşır.
+final _requirementVerb = RegExp(
+  r'(?:m[ae]k|m[ıiuü]ş|m[ae]s[ıi]|[ıi]l[ıi]r|m[ıiuü]şt[ıiuü]r|ecektir|acaktır|olup)(?=[\s.,;:)]|$)',
+  caseSensitive: false,
+);
+// Dikey tablo anahtarı: "ÖĞRENİM | Önlisans", "ARANILAN ŞARTLAR | ...".
+final _tableKey = RegExp(r'^[\p{Lu}\s]{2,30}$', unicode: true);
+
+/// Pozisyon satırı: etiket, kod ve kişi sayısı hücreleri başlıkta zaten
+/// gösterildiği için tekrarlanmaz. Nitelik cümleleri madde olur ("*" maddeleri
+/// ayrılır); birim, cinsiyet, puan türü gibi kısa hücreler tek satırda kalır.
+({List<String> facts, List<String> requirements}) positionDetails(
+  String text,
+  String label,
+  int? quota,
+) {
+  final facts = <String>[], requirements = <String>[];
   final labelText = label.toLowerCase();
-  for (final raw in text.split('\n')) {
-    final line = raw.trim();
-    if (line.isEmpty) continue;
-    final parts = line.contains('|') ? tableCells(line) : [line];
+  final lines = [
+    for (final raw in text.split('\n'))
+      if (raw.trim().isNotEmpty) raw.trim(),
+  ];
+  // "6 (Erkek-Kadın)", "8 kişi": sayı başlıkta; parantezdeki koşul kalır.
+  final counted = quota == null
+      ? null
+      : RegExp('^$quota\\s*(?:kişi|adet)?\\s*(?:\\((.+)\\))?\$');
+  for (final line in lines) {
+    var parts = line.contains('|') ? tableCells(line) : [line];
+    if (lines.length > 1 && parts.length == 2 && _tableKey.hasMatch(parts[0])) {
+      parts = [parts[1]];
+    }
     for (final cell in parts) {
       final lower = cell.toLowerCase();
       if (cell.isEmpty ||
           cell == '-' ||
-          (quota != null && cell == '$quota') ||
           labelText.contains(lower) ||
-          (cell.length <= 12 && RegExp(r'^[\p{Lu}\d/.-]+$', unicode: true).hasMatch(cell))) {
+          (cell.length <= 12 &&
+              RegExp(r'^[\p{Lu}\d/.-]+$', unicode: true).hasMatch(cell))) {
         continue;
       }
-      lines.addAll(
-        cell
-            .split(RegExp(r'(?:^|\s)\*(?=\S)'))
-            .map((s) => s.trim())
-            .where((s) => s.isNotEmpty),
-      );
+      final count = counted?.firstMatch(cell);
+      if (count != null) {
+        if (count.group(1) case final String condition) facts.add(condition);
+      } else if (cell.length > 60 || _requirementVerb.hasMatch(cell)) {
+        requirements.addAll(
+          cell
+              .split(RegExp(r'(?:^|\s)\*(?=\S)'))
+              .map((s) => s.trim())
+              .where((s) => s.isNotEmpty),
+        );
+      } else {
+        facts.add(cell);
+      }
     }
   }
-  return lines;
+  return (facts: facts, requirements: requirements);
 }
 
 /// Bloğu ekrana çizer; seçilebilir metin üst SelectionArea ile sağlanır.

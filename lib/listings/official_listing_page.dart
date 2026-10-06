@@ -392,9 +392,9 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
       if (ageLabel(group) case final String age) (Icons.cake_outlined, age),
     ];
     final text = group['text'];
-    final requirements = text is String
-        ? positionRequirements(text, label, validQuota)
-        : const <String>[];
+    final (:facts, :requirements) = text is String
+        ? positionDetails(text, label, validQuota)
+        : (facts: const <String>[], requirements: const <String>[]);
     final description = group['educationDescription'];
     final origins = group['fieldOrigins'];
     final ai = origins is Map && origins.values.contains('ai');
@@ -445,6 +445,16 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
               ],
             ],
           ),
+          if (facts.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              facts.join(' · '),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+          ],
           if (chips.isNotEmpty) ...[
             const SizedBox(height: 10),
             Wrap(
@@ -482,7 +492,10 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
               ],
             ),
           ],
-          if (description is String && description.trim().isNotEmpty) ...[
+          // Açıklama nitelik maddesinin içindeyse ikinci kez yazılmaz.
+          if (description is String &&
+              description.trim().isNotEmpty &&
+              !requirements.any((r) => r.contains(description.trim()))) ...[
             const SizedBox(height: 10),
             Text(
               description.trim(),
