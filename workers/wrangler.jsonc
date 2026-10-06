@@ -26,6 +26,7 @@
     "AI_PROVIDER": "external",
     "EXTERNAL_AI_URL": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
     "EXTERNAL_AI_MODEL": "qwen3.8-flash",
+    "ASSISTANT_AI_MODEL": "qwen3.6-flash",
     "EXTERNAL_AI_FORMAT": "openai",
     "EXTERNAL_AI_NOTHINK": "1",
     "SOURCE_INTERVAL_MINUTES": "30"

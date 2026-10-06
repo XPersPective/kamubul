@@ -43,7 +43,8 @@ Worker adresi tekrar istenmez. Kaynak boşlukları ilan/AI başarısı sayılmaz
 ## Ayıklama ve Asistan
 Üretim EXTRACT_AI_PROVIDER=external, qwen3.8-flash/Token Plan/thinking kapalı
 (6 Ekim kullanıcı: plandaki en ucuz model; A/B9 çağrı ~%51 maliyet, ~4x yavaş →
-ayıklama timeout110s/lease150s). Asistan aynı modeli kullanır.
+ayıklama timeout110s/lease150s; çıktısı alıntıyla doğrulanır). Asistan ASSISTANT_AI_MODEL=
+qwen3.6-flash: 3.8 aynı soruda kullanıcının yazdığı yaş/puanı yok saydı ve sayı uydurdu.
 Kaynağın kimlik/tarih/il/kontenjandan gelen alanları AI gerektirmez.
 notice_extraction.js kaynak/native ve başlıklı tabloları mekanik ayıklar;
 aynı tabloda iki gerçek satır sayılır, tekrar yayımlanan tablo sayılmaz.

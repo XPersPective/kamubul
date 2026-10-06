@@ -127,3 +127,14 @@ test('profile context is read-only, whitelisted and bounded', () => {
   assert.equal(ctx.userProfile.age, 28);
   assert.equal(ctx.today, '2026-10-04');
 });
+
+test('assistant can use its own model while extraction keeps the cheaper one', async () => {
+  const seen = [];
+  const capture = async (url, init) => { seen.push(JSON.parse(init.body)); return new Response(JSON.stringify({ choices: [{ message: { content: '{"intent":"answer","reply":"Tamam","criteria":null}' } }] })); };
+  const listing = { title: 'İlan', text: 'Lise mezunu olmak. KPSS P94 en az 60 puan.' };
+  await handleAssistant({ installationId: id, mode: 'chat', message: 'Bu ilan bana uygun mu?', listing }, env({ ASSISTANT_AI_MODEL: 'chat-model' }), { sha256, ip: '9.9.9.9', fetch: capture });
+  await handleAssistant({ installationId: 'b'.repeat(32), mode: 'chat', message: 'Bu ilan bana uygun mu?', listing }, env(), { sha256, ip: '9.9.9.8', fetch: capture });
+  assert.deepEqual(seen.map(body => body.model), ['chat-model', 'm']);
+  // Boş profil modele "profil yok" diye gitmez; mesajdaki bilgiler kullanılabilir.
+  assert.equal('userProfile' in JSON.parse(seen[0].messages[1].content), false);
+});

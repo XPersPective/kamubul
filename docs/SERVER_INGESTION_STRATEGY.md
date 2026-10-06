@@ -48,7 +48,9 @@ kullanıcının açtığı resmî başvuru bağlantısı kaynağa gider.
 - Kaynağın açık yapısal alanları (kimlik, tarih, il, kontenjan, kadro) doğrudan
   kullanılır. Qwen yalnız serbest metindeki şartların ayıklanmasını yapar.
 - `qwen3.8-flash` (Token Plan içinde token fiyatı en düşük model; 6 Ekim
-  A/B: aynı 9 çağrıda qwen3.6-flash maliyetinin ~%51'i), thinking kapalı, JSON çıktısı. Normalize metin + istem/model
+  A/B: aynı 9 çağrıda qwen3.6-flash maliyetinin ~%51'i), thinking kapalı, JSON çıktısı.
+  Asistan doğrulanmamış serbest yanıt verdiği için ASSISTANT_AI_MODEL=qwen3.6-flash kalır
+  (3.8-flash kullanıcının yazdığı yaş/KPSS puanını yok saydı, sayı uydurdu). Normalize metin + istem/model
   sürümü D1 cache anahtarıdır; cihaz/kullanıcı/yenileme bu anahtara girmez.
 - Kabul edilen120.000 karaktere kadar metnin tamamı Qwen'e gider; içeride
   yeniden60.000 karaktere indiren gizli kesit yoktur.
