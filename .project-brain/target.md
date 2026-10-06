@@ -183,7 +183,7 @@ Mevcut Pro/reklam, tema, skeleton, motion, favori/backup ve Türkçe korunur. UI
 
 ## 10. Geçiş ve bitiş koşulları
 
-Görev sırası PB-016 → PB-017 → PB-018 → PB-019 → PB-020 → PB-021. PB-020 tasarım/mock işi sözleşme sonrası paralel değil bağımsız ilerleyebilir; tek aktif uygulama görevi yeterli.
+Görev sırası PB-016 → PB-017 → PB-018 → PB-019 → PB-020 → PB-021 (6 Ekim: kalan kabul kapıları PB-029'da birleşti). PB-020 tasarım/mock işi sözleşme sonrası paralel değil bağımsız ilerleyebilir; tek aktif uygulama görevi yeterli.
 
 Önce runtime/typed contract/Free viability, sonra data+AI, matching+FCM, mobile sync+cutover, premium UX, security/load/release. Telefon local ağ yolları ve Workmanager ancak remote katalog+detail+city coverage/push/offline+cache migration kanıtından sonra kaldırılır. Eski backend adapters/models önce reference, ardından used parts+fixtures korunarak Google/runtime deploy kodu silinir. Bütün caller'lar rg ile taranır; yalnız named path'te düzeltme yok.
 

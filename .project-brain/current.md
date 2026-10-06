@@ -168,7 +168,7 @@ Kalan kabul: PB-027 kalan tablo/metin biçimleri ve kalite corpus'u; tüm kaynak
 ve >=50 labeled/source precision>=.95/recall;
 gerçek stage CPU/Qwen Credits kalibrasyonu/FCM fanout lifecycle;
 Play server Pro doğrulaması, eski shared anahtarın owner rotation'ı,
-post-trial real ad/Pro restore/AdMob store linkage; Google production14 onayı.
+post-trial real ad/Pro restore/AdMob store linkage; Google production15 onayı (PB-029).
 Deferred: iOS/APNs/sesli giriş/AI kişisel sıralama. Strateji docs/SERVER_INGESTION_STRATEGY.md;
 aktif ayıklama PB-027, kaynak kapsamı PB-026, kalan geçmiş kullanıcı maddeleri PB-024/025'te kaybolmadan tutulur.
 
@@ -181,6 +181,6 @@ Düzce dikey İlanNo/PozisyonAdı/Adedi gerçek metinde3 (2+1); Özelleştirme14
 Adalet150; GİB860 açık istihdam cümlesinden. Live backfill kabulü PB-027'de.
 Kariyer server Browser Run iki timeout, hiçbir fulltext kanıtı yok; desktop
 resmi Bitlis DOM yalnız debugging. Geçerli server source yanıtı açık.
-Brain aynı anda yalnız PB-027 IN_PROGRESS; diğer unfinished görevler PLANNED,
+Brain: PB-027 ve PB-028 IN_PROGRESS; kabul kapıları PB-029 PLANNED/BLOCKED sahipli,
 PB-026 kaynak yanıtı BLOCKED. Eski phone fallback/13/provider-yok günlükleri
 Git geçmişinde; kullanıcı geri bildirimleri PB-024/025 korunur.

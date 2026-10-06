@@ -7,7 +7,7 @@
 1. PROJECT_BRAIN.md §0 ve project-brain skill.
 2. Git status/checkpoint; başka ajanın değişikliklerini ezmeyin.
 3. `.project-brain/config.yaml`, `current.md`, `target.md`, `constraints.md`.
-4. `decisions/ADR-001.md`, ardından `tasks/PB-016.md`.
+4. `decisions/ADR-001.md`, ardından `tasks/PB-029.md` (PB-016…PB-023 6 Ekim'de birleştirildi; tablolar tarihsel sırayı gösterir).
 5. İlgili source/caller/test; bütün geçmişi yeniden taramak gerekmez.
 
 **30 Eylül başlangıcı (tarihsel):** Hello World/boş D1 vardı. Bu noktadan başlanmaz. Artık kalıcı API/D1/Cron/Queue ve Flutter v2 cache/FCM kodu vardır. Ayrıntı erişimi, kaynak çıkarım kalitesi, gerçek Queue CPU ve fiziksel cihaz teslimi açık kapılardır. Güncel doğrulanmış durum için `current.md` okunur; bağlanmış servis tamamlanmış ürün kanıtı değildir.

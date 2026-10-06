@@ -120,7 +120,7 @@ ADB envanteri yalnız emulator-5554/5556; fiziksel cihaz teslimi doğrulanmadı.
 
 Telefonun eski fetch/Workmanager yolları yalnız pilot tamamlanmadığı için
 geçiş kodunda durur; hedef30dk merkezi sunucu çekimidir. Kodun hâlâ çalışması
-hedef mimari kabul edilmez. Kaldırma koşulları `.project-brain/tasks/PB-019.md`.
+hedef mimari kabul edilmez. Telefon okuyucusu 5 Ekim'de kaldırıldı; kalan kabul `.project-brain/tasks/PB-029.md`.
 
 Önceki Dart fixture corpus sonuçları gerçek Workers AI doğruluk ölçümü
 sayılmaz. Kaynak alıntısı olmayan koşul belirsizdir; AI alanlarının precision
@@ -132,7 +132,7 @@ Cloudflare çıkışında ilan.gov.tr filtreli personel listesi HTTP200 (20/162)
 aynı adapter resmi2244449 ayrıntısını23186karakter okudu. Kod:
 workers/src/sources.js fetchIlanGovPage/fetchIlanGovDetail. Cron'a henüz bağlı
 DEĞİLDİR; source status hâlâ blocked. Merkezi sayfalama/ilk tarama push
-bastırma/50 örnek kalite/Free CPU kapıları PB-017'de. İŞKUR arama GET aynı
+bastırma/50 örnek kalite/Free CPU kapıları PB-029'da. İŞKUR arama GET aynı
 preview'da HTTP500 verdi; Kamu filtresine ulaşılamadı, özel sektör okunmadı.
 Preview DB/FCM binding içermez. Bu sonuç eski ilan.gov erişilemiyor varsayımını
 kaldırır; full server-only cutover veya resmî yeniden yayın izni ispatı değildir.

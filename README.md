@@ -8,7 +8,7 @@ Gelir modeli: ilk 7 gün hiç reklam yok; sonrasında küçük banner ve seyrek 
 
 Yeni hedef **Cloudflare Workers Free + D1 + Free Workers AI + Firebase Cloud Messaging (Spark)**. Kaynak toplama, AI özet/kanıtlı koşul, kişisel eşleşme ve push kararı sunucuda; SQLite cache/profil/favori, premium UI, izin/token/OS bildirim gösterimi telefondadır.
 
-Kalıcı Worker/D1 ve Cron yayında; resmî Kariyer RSS ilanları v2 API'den okunuyor. Mobil, API ayarlanmışsa SQLite cache + metadata/delta/bootstrap senkronizasyonunu kullanıyor. Kaynak ayrıntısı/AI ve gerçek cihaz FCM pilotu tamamlanmadığından telefonun eski kaynak çekme/Workmanager yolları hâlâ duruyor. `backend/` önceki native Dart referans kod/testleri; Worker'a deploy edilemez. PB-019 pilot kapıları geçince eski runtime kaldırılacak; offline cache/favoriler korunacak. Doğrulanmış kapsam ve açık eksikler Project Brain'dedir.
+Kalıcı Worker/D1, Queue ve Cron yayında: kaynak okuma, tam metin saklama, mekanik ayıklama ve eksik alanlarda sınırlı Qwen (ayıklama qwen3.8-flash, Asistan qwen3.6-flash) sunucuda. Telefon yalnız API + SQLite önbellek (metadata/delta/bootstrap) kullanır; eski telefon kaynak okuyucusu ve Workmanager kaldırıldı, offline önbellek/favoriler korunur. `backend/` yalnız önceki native Dart adapter/test referansıdır; çalıştırma kodu silindi. Doğrulanmış kapsam ve açık eksikler Project Brain'dedir.
 
 Etiket modeli: kullanıcı kendi arama adını verir; kriterler ortak typed alan/sözlük değerlerinden oluşur (KPSS türü+puan, yaş, şehir, eğitim, meslek vb.). AI yalnız yeni/değişen ilanın ortak koşul/özetini çıkarır; kullanıcı profillerini modelle eşleştirmez. Match deterministic ve unknown ayrı durumdur.
 
