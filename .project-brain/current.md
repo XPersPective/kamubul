@@ -81,9 +81,12 @@ kesit seçer; partial flag yokluk iddiasını kısıtlar. Sonlardaki ilgili şar
 regression vardır. Kaynağa gitmez, seçili ilan açılışında otomatik soru göndermez.
 
 ## Kalıcı katalog, eşleşme ve bildirim
+Kapasite 6 Ekim: Free'de CPU/çağrı ort.22 ms ve D1 yazma 72k/gün ölçüldü; ikiz tarama memo,
+bütçe-bekleme yoklaması, değişmeyen sonuçta revizyon yazmama, backfill 1 belge/tur, ikizlerin
+ayıklamadan çıkması ve 30 gün delta saklama ile düşürüldü (PB-029'da ölçüm ayrıntısı).
 Public v2 meta/taxonomy/listings/changes/detail + geçiş v1; immutable watermark,
 ETag/CacheAPI public60s/taxonomy300s. Cookie/auth/private/no-store cache bypass;
-hata origin'i kesmez. Sayfa<=50/1.8MB; oversized413 cursor atlamaz.90day retention
+hata origin'i kesmez. Sayfa<=50/1.8MB; oversized413 cursor atlamaz.30day retention
 floor/base/expired-pin recovery, CAS ile pruning. Uzun vadeli yük ölçümü açık.
 Typed SearchCriteria2: aynı kadro AND/alternatif OR, match/no_match/unknown.
 77 ortak Dart/Worker/SQLite corpus +144 doğum-günü oracle; İstanbul referans tarihi,
