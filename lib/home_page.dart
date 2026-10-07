@@ -1051,33 +1051,41 @@ class _KamuHomePageState extends State<KamuHomePage> {
     return TextButton(
       onPressed: _openPaywall,
       style: TextButton.styleFrom(
-        backgroundColor: background,
         foregroundColor: foreground,
         shape: const StadiumBorder(),
         minimumSize: const Size(48, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: EdgeInsets.zero,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            pro
-                ? Icons.workspace_premium_rounded
-                : Icons.hourglass_bottom_rounded,
-            size: 15,
-            color: foreground,
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          color: background,
+          shape: const StadiumBorder(),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                pro
+                    ? Icons.workspace_premium_rounded
+                    : Icons.hourglass_bottom_rounded,
+                size: 15,
+                color: foreground,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: pro ? 1 : 0,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: foreground,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: pro ? 1 : 0,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

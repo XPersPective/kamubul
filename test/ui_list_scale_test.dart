@@ -124,6 +124,7 @@ void main() {
     double textScale = 1.0,
     Size size = const Size(390, 844),
     bool dark = false,
+    bool pro = false,
   }) async {
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = size * 2;
@@ -135,6 +136,8 @@ void main() {
       adapter: _FakeStore(),
       productId: 'kamubul_pro_lifetime',
     );
+    final membership = ProController(store: settings, repository: purchase);
+    if (pro) membership.grantTemporaryPro(const Duration(days: 1));
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -162,7 +165,7 @@ void main() {
           ),
           store: settings,
           theme: theme,
-          pro: ProController(store: settings, repository: purchase),
+          pro: membership,
           purchase: purchase,
           policy: policy,
           banner: BannerAdController(policy: policy),
@@ -187,6 +190,26 @@ void main() {
       }
     }
   }
+
+  testWidgets('Pro rozeti küçük görünür ve dokunma alanı 48dp kalır', (
+    tester,
+  ) async {
+    await pumpHome(tester, pro: true);
+    final badge = find.ancestor(
+      of: find.text('PRO'),
+      matching: find.byType(TextButton),
+    );
+    final pill = find.descendant(
+      of: badge,
+      matching: find.byType(DecoratedBox),
+    );
+    expect(tester.getSize(pill).height, lessThan(32));
+    expect(tester.getSize(badge).height, greaterThanOrEqualTo(48));
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/home_pro_phone_light.png'),
+    );
+  });
 
   testWidgets('kişiselleştirme ilk aramada doğrudan kriter editörünü açar', (
     tester,

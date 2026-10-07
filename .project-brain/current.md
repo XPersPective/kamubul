@@ -7,7 +7,7 @@ ve eski CF-first model sırası geçersizdir. Tam üretim kabulü henüz tamamla
 
 ## Sunucu ve kaynak verisi
 Kalıcı Worker: https://kamubul-api.devx8585.workers.dev, son deployment
-1d3cd010-5040-4b01-a934-22e096915aad (7 Ekim readonly deployments/versions kontrolü; 6 Ekim23:24 UTC deployment).
+831ba169-3cdd-4b93-a944-5c0aa7d7a0f7 (7 Ekim AI ölçüm deploy'u; readonly deployments/versions kontrolü).
 Önceki /api/v2/health200 kontrolünde AI/FCM configured.
 D1 kamubul (371092dd-2cc7-487f-b971-84c2499bbc7d), migration0001–0029 remote.
 Queue kamubul-work, batch1/concurrency1/retry0. Cron her dakika recovery;
@@ -82,8 +82,18 @@ Canlı vars doğrulandı (7 Ekim): Qwen ayıklama günlük1000/saatlik200/global
 ayrı Asistan global300/kurulum30free,
 100pro/IP500. Bütçe ölçümü kredi garantisi değildir. Pro tier istemci iddiası
 henüz Play sunucu doğrulamasından geçmez; bu üretim güvenlik kapısı açıktır.
-Provider usage kişisel metin olmadan assistant_usage tokens:* bucket'larında:
-ilk ölçülen input123247/output55479. Console gerçek Credits ile kalibrasyon açık.
+Provider usage kişisel metin olmadan assistant_usage tokens:* bucket'larında.
+7 Ekim metrics:{assistant|extract}:{model}:{free|pro|server}: calls/measured/input/output/cached
+atomik batch ile tutulur; tam input/output ölçümlü yanıtlardan ortalama hesaplanır.
+Bozuk yanıtın usage'ı da saklanır; HTTP hata/timeout tüketimi provider mutabakatı gerektirir.
+tool/admin-usage.mjs 1..30 gün canlı config/D1 kullanımı/backlog/outbox/anonim aktif kurulum
+ve token ortalaması çeker. Pro/free istemcinin iddiasıdır, Play sunucu doğrulaması ayrı.
+6 Ekim kayıtlı Asistan67245token/34 bütçeli istek/13 aktif kurulum; ayıklama981596token/
+150 Qwen rezervasyonu. Eski token kayıtları tam gün/başarılı çağrı garantisi değildir.
+Canlı Token Plan origin'inde resmî CLI model limits API iki model için404: limits:null;
+kredi bakiyesi console_auth_required/null, gerçek Credits kalibrasyonu açık.
+Resmî Qwen Personal belgesinde backend/batch kullanım yasağı ve aylık reset mevcut;
+hesap planı/uygun API kararı açık (docs/ADMIN_USAGE.md). Bakiye/sabit kredi oranı varsayılmaz.
 Canlı ilan2235014/3498chars/2grup extraction cache replay200/cached:true PASS;
 aynı saklı metin tekrar source/model çağrısı yapmadı.
 Asistan120k saklı metni kabul eder, soruya/profil sözcüklerine göre<=8000chars
@@ -137,6 +147,10 @@ Dört atlanabilir onboarding, typed kriter editörü, ışık/koyu/responsive go
 6 Ekim erişilebilirlik: ana ekran/ilk kriter editörü/ayarlar telefon390×844 ve tablet1024×768
 48dp+etiket guideline PASS; çipler native padded, üyelik rozeti48dp TextButton.
 Okuma Slider adı ve yüzde değeri tek semantics öğesi; 192 Flutter PASS/analyze temiz.
+7 Ekim kullanıcı düzeltmesi: üyelik rozetinin renkli kısmı içerik+4dp dikey padding ile
+küçüldü, dış TextButton48dp kaldı; Pro görsel/ölçü regression ve telefon/tablet goldens:
+12 targeted Flutter PASS, ilgili iki dosya analyze temiz; 293 Worker PASS.
+Bu mobil düzeltme kaynakta, mağazaya gönderilmiş1.2.1/code16 paketinin içinde değildir.
 Cihaz: owned API36/x64 release fixture'da TalkBack bound; ana ekran18 etkileşimli
 hedef48dp,17 düğme native etiketli. Ağsız3 örnek/eylem medyan95.1/72.8/84.6ms (süzgeç/ayarlar/ayrıntı).
 Soğuk Ayarlar314.2ms, TalkBack süzgeç medyan103.0ms: genel <100ms kabulü açık (PB-029).

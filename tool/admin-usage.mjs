@@ -23,7 +23,7 @@ const sql=`SELECT day,bucket,count FROM assistant_usage WHERE day>=? AND (bucket
 const query=async(sql,params=[])=> (await cf(`/d1/database/${config.d1_databases[0].database_id}/query`,{sql,params}))[0].results;
 const rows=await query(sql,[since]);
 const users=await query("SELECT day,COUNT(*) active_installations,SUM(count) attempts FROM assistant_usage WHERE day>=? AND bucket LIKE 'inst:%' GROUP BY day ORDER BY day",[since]);
-for(const user of users){const total=rows.filter(r=>r.day===user.day&&['tokens:assistant:input','tokens:assistant:output'].includes(r.bucket)).reduce((sum,r)=>sum+r.count,0);user.reportedTokensPerActiveInstallation=total/user.active_installations;}
+for(const user of users){const tokens=rows.filter(r=>r.day===user.day&&['tokens:assistant:input','tokens:assistant:output'].includes(r.bucket));user.reportedTokensPerActiveInstallation=tokens.length?tokens.reduce((sum,r)=>sum+r.count,0)/user.active_installations:null;}
 const metrics={};
 for(const {bucket,count} of rows){const match=bucket.match(/^metrics:(assistant|extract):(.+):(free|pro|server):(calls|measured|input|output|cached)$/);if(!match)continue;const key=match.slice(1,4).join(':');(metrics[key]??={})[match[4]]=((metrics[key]??{})[match[4]]??0)+count;}
 for(const value of Object.values(metrics))value.meanTokensPerMeasuredResponse=value.measured?((value.input??0)+(value.output??0))/value.measured:null;
