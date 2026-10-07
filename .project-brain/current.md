@@ -7,7 +7,8 @@ ve eski CF-first model sırası geçersizdir. Tam üretim kabulü henüz tamamla
 
 ## Sunucu ve kaynak verisi
 Kalıcı Worker: https://kamubul-api.devx8585.workers.dev, son deployment
-b6ed7179-7780-431b-9a02-03cdb5a8d623 (Wrangler readonly18:35 UTC); /api/v2/health200, AI/FCM configured.
+1d3cd010-5040-4b01-a934-22e096915aad (7 Ekim readonly deployments/versions kontrolü; 6 Ekim23:24 UTC deployment).
+Önceki /api/v2/health200 kontrolünde AI/FCM configured.
 D1 kamubul (371092dd-2cc7-487f-b971-84c2499bbc7d), migration0001–0029 remote.
 Queue kamubul-work, batch1/concurrency1/retry0. Cron her dakika recovery;
 source/extract/match/send generation+lease, atomik3000 UTC günlük görev sınırı.
@@ -77,7 +78,8 @@ validate edilir; belirsiz unknown. Bir geçerli sonuç tek çağrı, bozuk/hata 
 kalıcı iki çağrı tavanı/lease. Ayrı parça başına özet inference kapalıdır.
 Quota/hata conditions_due_at ile ertelenir; sıradaki ilan ilerler. Eski özet
 quota_wait işleri migration0028 ile tekrar pending; extraction bütçesi korunur.
-Günlük ayıklama150/saatlik30/global400, ayrı Asistan global300/kurulum30free,
+Canlı vars doğrulandı (7 Ekim): Qwen ayıklama günlük1000/saatlik200/global ayıklama2000;
+ayrı Asistan global300/kurulum30free,
 100pro/IP500. Bütçe ölçümü kredi garantisi değildir. Pro tier istemci iddiası
 henüz Play sunucu doğrulamasından geçmez; bu üretim güvenlik kapısı açıktır.
 Provider usage kişisel metin olmadan assistant_usage tokens:* bucket'larında:
