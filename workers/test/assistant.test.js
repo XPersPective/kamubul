@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { scopeGate, parseModelOutput, buildRequest, handleAssistant, refusal } from '../src/assistant.js';
 
 const sha256 = async v => 'h' + v;
-const fakeDb = () => { const counts = new Map(); return { counts, prepare: () => ({ bind: (day, bucket) => ({ first: async () => { const k = day + bucket; counts.set(k, (counts.get(k) ?? 0) + 1); return { count: counts.get(k) }; } }) }) }; };
+const fakeDb = () => { const counts = new Map(); return { counts, batch:async()=>[], prepare: () => ({ bind: (day, bucket) => ({ first: async () => { const k = day + bucket; counts.set(k, (counts.get(k) ?? 0) + 1); return { count: counts.get(k) }; } }) }) }; };
 const env = (extra = {}) => ({ DB: fakeDb(), AI_PROVIDER: 'external', EXTERNAL_AI_URL: 'https://m.test', EXTERNAL_AI_KEY: 'k', EXTERNAL_AI_MODEL: 'm', EXTERNAL_AI_FORMAT: 'openai', ...extra });
 const id = 'a'.repeat(32);
 const model = text => async () => new Response(JSON.stringify({ choices: [{ message: { content: text } }] }));

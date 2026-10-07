@@ -49,3 +49,24 @@ test('Qwen receives JSON response format and exposes provider token usage',async
   const out=await externalAiRun(e,req,async()=>Response.json({choices:[{message:{content:'{}'}}],usage}));
   assert.deepEqual(out.usage,usage);
 });
+
+test('usage counts actual responses by model and tier, including malformed output and missing usage',async()=>{
+  const rows=[];
+  const DB={prepare:()=>({bind:(...values)=>values}),batch:async values=>rows.push(...values)};
+  const e={...env,DB,EXTERNAL_AI_FORMAT:'openai'};
+  const req={...request,usageBucket:'assistant',usageTier:'pro'};
+  await externalAiRun(e,req,async()=>Response.json({choices:[{message:{content:'ok'}}],usage:{prompt_tokens:100,completion_tokens:20,prompt_tokens_details:{cached_tokens:50}}}));
+  const value=bucket=>rows.filter(r=>r[1]===bucket).reduce((sum,r)=>sum+r[2],0);
+  assert.equal(value('metrics:assistant:m:pro:calls'),1);
+  assert.equal(value('metrics:assistant:m:pro:measured'),1);
+  assert.equal(value('metrics:assistant:m:pro:input'),100);
+  assert.equal(value('tokens:assistant:cached'),50);
+  await assert.rejects(externalAiRun(e,req,async()=>Response.json({usage:{prompt_tokens:2,completion_tokens:1}})),/ai_schema/);
+  await externalAiRun(e,req,async()=>Response.json({choices:[{message:{content:'ok'}}]}));
+  assert.equal(value('metrics:assistant:m:pro:calls'),3);
+  assert.equal(value('metrics:assistant:m:pro:measured'),2);
+  assert.equal(value('metrics:assistant:m:pro:input'),102);
+  await externalAiRun(e,req,async()=>Response.json({choices:[{message:{content:'ok'}}],usage:{prompt_tokens:99}}));
+  assert.equal(value('metrics:assistant:m:pro:measured'),2);
+  assert.equal(value('metrics:assistant:m:pro:input'),102,'partial usage must not inflate the measured mean');
+});

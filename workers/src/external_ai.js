@@ -24,13 +24,16 @@ export async function externalAiRun(env, request, fetchImpl = fetch) {
   if (!res.ok) throw new Error('external_ai_http_' + res.status);
   const body = await res.json();
   const text = body.content?.find?.(c => c.type === 'text')?.text ?? body.choices?.[0]?.message?.content;
-  if (typeof text !== 'string') throw new Error('ai_schema');
-  try{if(env.DB&&['assistant','extract'].includes(request.usageBucket)&&body.usage){
+  try{if(env.DB&&['assistant','extract'].includes(request.usageBucket)){
     // Observed tokens, not estimated Credits: compare these with the plan console.
     const day=new Date().toISOString().slice(0,10);
-    for(const [field,value] of Object.entries({input:body.usage.prompt_tokens??body.usage.input_tokens,output:body.usage.completion_tokens??body.usage.output_tokens,cached:body.usage.prompt_tokens_details?.cached_tokens})){
-      if(Number.isSafeInteger(value)&&value>=0)await env.DB.prepare('INSERT INTO assistant_usage(day,bucket,count) VALUES(?,?,?) ON CONFLICT(day,bucket) DO UPDATE SET count=count+excluded.count').bind(day,'tokens:'+request.usageBucket+':'+field,value).run();
-    }
+    const usage=body.usage??{},values={input:usage.prompt_tokens??usage.input_tokens,output:usage.completion_tokens??usage.output_tokens,cached:usage.prompt_tokens_details?.cached_tokens};
+    const measured=Number.isSafeInteger(values.input)&&values.input>=0&&Number.isSafeInteger(values.output)&&values.output>=0;
+    const prefix='metrics:'+request.usageBucket+':'+env.EXTERNAL_AI_MODEL+':'+(request.usageTier==='pro'?'pro':request.usageBucket==='assistant'?'free':'server');
+    const entries=[[prefix+':calls',1],[prefix+':measured',Number(measured)]];
+    for(const [field,value] of Object.entries(values))if(Number.isSafeInteger(value)&&value>=0){entries.push(['tokens:'+request.usageBucket+':'+field,value]);if(measured)entries.push([prefix+':'+field,value]);}
+    await env.DB.batch(entries.map(([bucket,value])=>env.DB.prepare('INSERT INTO assistant_usage(day,bucket,count) VALUES(?,?,?) ON CONFLICT(day,bucket) DO UPDATE SET count=count+excluded.count').bind(day,bucket,value)));
   }}catch{console.error('ai_usage_record_failed');}
+  if (typeof text !== 'string') throw new Error('ai_schema');
   return { response: text, usage: body.usage ?? null };
 }

@@ -214,6 +214,7 @@ export async function handleAssistant(body, env, deps) {
   try {
     const request = chat ? buildChatRequest({ message: body.message, history: body.history, listing, profile: body.profile, today: istanbulToday(deps.now) }) : buildRequest(body.message);
     request.usageBucket='assistant';
+    request.usageTier=body.tier==='pro'?'pro':'free';
     // Asistan yanıtı doğrulanmadan kullanıcıya gider: ayıklamadan ayrı, sayıları uydurmayan model seçilebilir.
     const chatEnv = env.ASSISTANT_AI_MODEL ? { ...env, EXTERNAL_AI_MODEL: env.ASSISTANT_AI_MODEL } : env;
     const out = externalAiEnabled(env) ? await externalAiRun(chatEnv, request, deps.fetch) : await env.AI.run(env.AI_MODEL, request, { rejectIfBusy: true });
