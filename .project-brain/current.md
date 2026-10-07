@@ -140,7 +140,19 @@ hedef48dp,17 düğme native etiketli. Ağsız3 örnek/eylem medyan95.1/72.8/84.6
 Soğuk Ayarlar314.2ms, TalkBack süzgeç medyan103.0ms: genel <100ms kabulü açık (PB-029).
 PRIVACY.md ve canlı privacy HTML5 Ekim sunucu/Qwen/aggregate token açıklamalı.
 
-6 Ekim 1.2.0+15 (source d3e5bfb): 276 Worker/187 Flutter/211 core PASS, analyze temiz.
+7 Ekim 1.2.1+16 (source173331f): 292 Worker/193 Flutter/214 core PASS, analyze temiz.
+AAB C:/Users/rubicon/.codex/builds/kamubul-1.2.1-16/build/app/outputs/bundle/release/app-release.aab:
+61,095,207 byte, SHA2560e27575b34fa94fb701839ff0bf29ab75a3c9f44786cc61bec7a1a6269ed4d3d.
+Kalıcı sertifika/AAB ve APK imzası/package/nondebuggable/ZIP16KB/12ELF/3ABI LOAD16KB/
+üretim defines PASS; semboller C:/Users/rubicon/.codex/builds/kamubul-1.2.1-symbols.
+Owned API36/x64 emulator5562 release16 kurulumu/açılış/onboarding atlama/home181 ilan/
+Türk Patent ayrıntısı PASS, crash buffer boş. Host SystemUI ANR kapatıldı; hız kabulü değildir.
+Kanıt aynı build dizininde release16-smoke.png ve play-release-proof.json.
+Play edit15187519554397037265 validate/commit changesNotSentForReview=false başarılı;
+yeni edit ile internal+production completed16 ve uzak AAB SHA256 doğrulandı.
+Türkçe changelog16 gönderildi. Google incelemesine gönderim tamamlandı; Google onayı ayrı.
+
+Önceki yayın: 6 Ekim 1.2.0+15 (source d3e5bfb): 276 Worker/187 Flutter/211 core PASS, analyze temiz.
 AAB C:/Users/rubicon/.codex/builds/kamubul-1.2.0-15.aab SHA256 e849c13cc10ce7c1276135b7790e6e2848
 7e03be341be39da23fd2b2265f68c8; imza+kalıcı sertifika+12ELF/3ABI 16KB PASS. Play edit
 13106827503238177928: internal+production 1.2.0/15 completed, yeni tr-TR metin (kaynak adı yok,

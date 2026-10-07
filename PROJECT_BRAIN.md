@@ -14,7 +14,7 @@ karar `decisions/ADR-001.md`. 6 Ekim: PB-016…PB-023'ün kalan kabul kapıları
 ve Cloud Run/Blaze görevleri aktif plandan kaldırılmıştır; Git geçmişindedir.
 5 Ekim son kullanıcı yönü PB-026: kaynak okuma/ayıklama yalnız sunucuda;
 telefon API/cache kullanır. Önceki telefon fallback koruma yönergesi geçersizdir.
-6 Ekim güncel yayın: 1.2.0/code15 üretim ve dahili teste gönderildi (Google
+7 Ekim güncel yayın: 1.2.1/code16 üretim ve dahili teste gönderildi (Google
 incelemesi). Ayıklama kalitesi PB-027, kaynak kapsamı PB-026 (BLOCKED), üretim
 kabul kapıları PB-029, kullanıcı listeleri PB-024/025, premium inceleme PB-028.
 Mevcut mimari yalnızca `current.md` içinde, ürün hedefi `target.md` içinde,
