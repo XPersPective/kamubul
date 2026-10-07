@@ -27,6 +27,10 @@
     "EXTERNAL_AI_URL": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
     "EXTERNAL_AI_MODEL": "qwen3.8-flash",
     "ASSISTANT_AI_MODEL": "qwen3.6-flash",
+    "ASSISTANT_DAILY_INSTALL": "10",
+    "ASSISTANT_DAILY_PRO": "100",
+    "ASSISTANT_DAILY_GLOBAL": "100000",
+    "ASSISTANT_DAILY_IP": "100000",
     "EXTERNAL_AI_FORMAT": "openai",
     "EXTERNAL_AI_NOTHINK": "1",
     "SOURCE_INTERVAL_MINUTES": "30"

@@ -12,7 +12,7 @@ const MAX_HISTORY_CHARS = 4000;
 // Günlük sınırlar (wrangler vars ile değiştirilebilir). Global tavan sağlayıcı kotasını korur.
 // ponytail: Pro iddiası istemciden gelir ve doğrulanmaz; kötüye kullanım global tavanla sınırlı.
 // Play Developer API ile satın alma doğrulaması eklenince Pro sınırı yalnız doğrulanana verilmeli.
-const limits = env => ({ global: Number(env.ASSISTANT_DAILY_GLOBAL) || 300, ip: Number(env.ASSISTANT_DAILY_IP) || 500, install: Number(env.ASSISTANT_DAILY_INSTALL) || 30, pro: Number(env.ASSISTANT_DAILY_PRO) || 100 });
+const limits = env => ({ global: Number(env.ASSISTANT_DAILY_GLOBAL) || 100000, ip: Number(env.ASSISTANT_DAILY_IP) || 100000, install: Number(env.ASSISTANT_DAILY_INSTALL) || 10, pro: Number(env.ASSISTANT_DAILY_PRO) || 100 });
 
 // Kapsam anahtar sözcükleri (fold edilmiş kök); şehir adları ayrıca kontrol edilir.
 const topics = ['ILAN','KAMU','KPSS','YAS','SEHIR','EGITIM','LISANS','LISE','DOKTORA','MEMUR','PERSONEL','ISCI','KURUM','BAKANLIK','BELEDIYE','UNIVERSITE','HEMSIRE','MUHENDIS','OGRETMEN','POLIS','BEKCI','ZABIT','SOZLESMELI','KADRO','ATAMA','ALIM','BASVUR','KRITER','ETIKET','BILDIRIM','TAKIP','ARA','ONER','UYGUN','IS ','MESLEK','PUAN','MEZUN','DOKTOR','AVUKAT','TEKNISYEN','TEKNIKER','GUVENLIK','SAGLIK','ISKUR','SINAV','KONTENJAN','YIL','SART','KOSUL','BELGE','EVRAK','MULAKAT','MAAS','UCRET','UNVAN','TARIH','KAMUBUL','DIPLOMA','ONLISANS','ASKERLIK','EHLIYET','SERTIFIKA','TECRUBE','DENEYIM','ENGELLI','EKPSS','ALES','YDS'];
