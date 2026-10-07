@@ -139,13 +139,13 @@ test('assistant can use its own model while extraction keeps the cheaper one', a
   assert.equal('userProfile' in JSON.parse(seen[0].messages[1].content), false);
 });
 
-test('1000 Pro installs can each use 100 daily requests, including a shared network; free gets 10',async()=>{
+test('2000 Pro installs can each use 50 daily requests, including a shared network; free gets 10',async()=>{
   const e=env({AI_PROVIDER:'local',AI:{run:async()=>({response:'{"intent":"refuse"}'})}});
   const deps={sha256,ip:'shared-network',now:new Date('2026-10-07T12:00:00Z')};
   const ask=(installationId,tier)=>handleAssistant({installationId,tier,message:'Ankara ilanları'},e,deps);
-  for(let i=0;i<1000;i++){
+  for(let i=0;i<2000;i++){
     const install=(i+1).toString(16).padStart(32,'0');
-    for(let n=0;n<100;n++)assert.equal((await ask(install,'pro')).status,200,`install ${i}, request ${n}`);
+    for(let n=0;n<50;n++)assert.equal((await ask(install,'pro')).status,200,`install ${i}, request ${n}`);
   }
   assert.equal(e.DB.counts.get('2026-10-07global'),100000);
   assert.equal((await ask('1'.padStart(32,'0'),'pro')).status,429);
@@ -154,7 +154,7 @@ test('1000 Pro installs can each use 100 daily requests, including a shared netw
   const blocked=await handleAssistant({installationId:id,message:'Ankara ilanları'},freeEnv,deps);
   assert.equal(blocked.body.error,'free_limit');
   const proEnv=env({AI_PROVIDER:'local',AI:e.AI});
-  for(let n=0;n<100;n++)assert.equal((await handleAssistant({installationId:id,tier:'pro',message:'Ankara ilanları'},proEnv,deps)).status,200);
+  for(let n=0;n<50;n++)assert.equal((await handleAssistant({installationId:id,tier:'pro',message:'Ankara ilanları'},proEnv,deps)).status,200);
   assert.equal((await handleAssistant({installationId:id,tier:'pro',message:'Ankara ilanları'},proEnv,deps)).status,429);
-  assert.equal(proEnv.DB.counts.get('2026-10-07global'),100,'personal overflow does not reach the global/model budget');
+  assert.equal(proEnv.DB.counts.get('2026-10-07global'),50,'personal overflow does not reach the global/model budget');
 });

@@ -37,7 +37,7 @@ extension _HomeSettings on _KamuHomePageState {
         ? '${trialDays == 1 ? 'Reklamsız deneme son gün. ' : 'Reklamsız deneme: $trialDays gün kaldı. '}'
               'Sonrasında küçük banner ve seyrek tam ekran reklamlar gelir; '
               'aylık Pro bunları kaldırır.'
-        : 'Reklamsız deneyim ve Asistan’da günde 100 soru hakkı. '
+        : 'Reklamsız deneyim ve Asistan’da günde 50 soru hakkı. '
               'Dilediğiniz zaman iptal edebilirsiniz.';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),

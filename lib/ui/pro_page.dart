@@ -82,8 +82,8 @@ class _ProPageState extends State<ProPage> {
             _benefit(
               Icons.auto_awesome_outlined,
               'Daha fazla günlük soru hakkı',
-              'KamuBul Asistan’a günde 100 soruya kadar sorun (ücretsiz '
-                  'sürümde 30).',
+              'KamuBul Asistan’a günde 50 soruya kadar sorun (ücretsiz '
+                  'sürümde 10).',
             ),
             _benefit(
               Icons.payments_outlined,
