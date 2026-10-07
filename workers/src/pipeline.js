@@ -2,7 +2,7 @@ import {fetchKariyerList,fetchKariyerDetail,fetchSbbList,fetchIlanGovPage,fetchI
 import {matchListing,listingAnchorKeys,fold} from './criteria.js';
 import {sendFcm} from './fcm.js';
 import {sha256,nowISO} from './worker.js';
-import {externalAiEnabled,externalAiRun} from './external_ai.js';
+import {externalAiEnabled,externalAiRun,transientAiFailure} from './external_ai.js';
 import {extractNotice,NOTICE_VERSION} from './notice_extraction.js';
 import {qwenWaitUntil} from './extract.js';
 const aiProvider=env=>externalAiEnabled(env)?'external':'cloudflare';
@@ -406,7 +406,9 @@ export async function processNotice(env){
       ]);
       return;
     }
-    await env.DB.prepare("UPDATE processing_jobs SET state=?,due_at=?,lease_until=NULL,error_code=? WHERE id=?").bind(job.attempts>=5?'failed':'pending',later(Math.min(360,2**job.attempts*5)),/^3040:/.test(e?.message)?'ai_busy':safeError(e),job.id).run();
+    // Geçici kota/timeout/ağ hatası deneme hakkını tüketmez; iş kalıcı failed olmaz, backoff ile sürer.
+    const transient=transientAiFailure(e);
+    await env.DB.prepare("UPDATE processing_jobs SET state=?,attempts=attempts-?,due_at=?,lease_until=NULL,error_code=? WHERE id=?").bind(!transient&&job.attempts>=5?'failed':'pending',transient?1:0,later(Math.min(360,2**job.attempts*5)),/^3040:/.test(e?.message)?'ai_busy':safeError(e),job.id).run();
   }
 }
 export async function expireListings(env) {
@@ -537,7 +539,7 @@ export async function flushOutbox(env,{send=sendFcm,now=new Date(),instantOnly=f
         env.DB.prepare("UPDATE installations SET sent_count=CASE WHEN ?='digest' THEN sent_count WHEN sent_day=? THEN sent_count+1 ELSE 1 END,sent_day=CASE WHEN ?='digest' THEN sent_day ELSE ? END,digest_day=CASE WHEN ?='digest' THEN ? ELSE digest_day END WHERE id=?").bind(event.mode,day,event.mode,day,event.mode,day,device.id)
       ]);
     }catch(e){
-      await env.DB.prepare("UPDATE notification_outbox SET state=?,attempts=attempts+1,due_at=?,lease_until=NULL,error_code=? WHERE (id=? OR delivery_id=?) AND state IN ('pending','leased')").bind(job.attempts>=7?'failed':'pending',new Date(+now+Math.min(720,2**job.attempts*5)*60000).toISOString(),safeError(e),job.id,group).run();
+      await env.DB.prepare("UPDATE notification_outbox SET state=?,attempts=attempts+1,due_at=?,lease_until=NULL,error_code=? WHERE (id=? OR delivery_id=?) AND state IN ('pending','leased')").bind(job.attempts>=7&&!/fcm_http_(408|429|5\d\d)|timeout|network|fetch failed/i.test(e?.message??'')?'failed':'pending',new Date(+now+Math.min(720,2**job.attempts*5)*60000).toISOString(),safeError(e),job.id,group).run();
     }
   } finally {
     await env.DB.prepare('UPDATE installations SET send_lease_until=NULL WHERE id=? AND send_lease_until=?').bind(job.installation_id,lease).run();

@@ -2,6 +2,7 @@
 // Yalnız AI_PROVIDER=external ve EXTERNAL_AI_URL/KEY/MODEL (Cloudflare secret) varsa açılır;
 // aksi halde Workers AI kullanılır. Günlük sınır mevcut AI_DAILY_JOBS sayacını paylaşır.
 export const externalAiEnabled = env => env.AI_PROVIDER === 'external' && !!(env.EXTERNAL_AI_URL && env.EXTERNAL_AI_KEY && env.EXTERNAL_AI_MODEL);
+export const transientAiFailure = e => /^(3036|3040):|external_ai_http_(408|429|5\d\d)$|extract_timeout|timeout|network|fetch failed/i.test(e?.message??'') || ['AbortError','TimeoutError'].includes(e?.name);
 
 export function externalRequest(env, request) {
   const base = String(env.EXTERNAL_AI_URL).replace(/\/+$/, '');

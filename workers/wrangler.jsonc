@@ -16,13 +16,14 @@
   "vars": {
     "FIREBASE_PROJECT_ID": "kamubul-3ae6e",
     "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",
-    "AI_DAILY_JOBS": "20",
+    "AI_DAILY_JOBS": "2000",
     "AI_SUMMARY_ENABLED": "0",
     "EXTRACT_AI_PROVIDER": "external",
     "EXTRACT_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fp8",
-    "EXTRACT_QWEN_DAILY": "1000",
-    "EXTRACT_QWEN_HOURLY": "200",
-    "EXTRACT_DAILY_GLOBAL": "2000",
+    "EXTRACT_QWEN_DAILY": "10000",
+    "EXTRACT_QWEN_HOURLY": "2000",
+    "EXTRACT_DAILY_GLOBAL": "20000",
+    "PDF_DAILY_JOBS": "1000",
     "AI_PROVIDER": "external",
     "EXTERNAL_AI_URL": "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
     "EXTERNAL_AI_MODEL": "qwen3.8-flash",
@@ -33,7 +34,7 @@
     "ASSISTANT_DAILY_IP": "100000",
     "EXTERNAL_AI_FORMAT": "openai",
     "EXTERNAL_AI_NOTHINK": "1",
-    "SOURCE_INTERVAL_MINUTES": "30"
+    "SOURCE_INTERVAL_MINUTES": "60"
   },
   "triggers": { "crons": ["* * * * *"] }
 }

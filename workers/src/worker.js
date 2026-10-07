@@ -52,7 +52,7 @@ async function registry(request,env,id){
   }
   const raw=await bodyJSON(request);
   if(!raw||typeof raw.fcmToken!=='string'||raw.fcmToken.length<20||raw.fcmToken.length>4096||!['android','ios'].includes(raw.platform)||!Array.isArray(raw.searches)||raw.searches.length>20)throw new Error('registration');
-  const quietStart=int(raw.quietStartHour,0,23,22),quietEnd=int(raw.quietEndHour,0,23,8),cap=int(raw.maxInstantPerDay,1,20,6);
+  const quietStart=int(raw.quietStartHour,0,23,22),quietEnd=int(raw.quietEndHour,0,23,8),cap=1000; // ponytail: eski istemci 6 gönderir; sunucu yok sayar (kullanıcı kararı 7 Ekim: gizli anlık sınır yok). Sessiz saat/özet/off korunur.
   for(const [key,min,max] of [['quietStartHour',0,23],['quietEndHour',0,23],['maxInstantPerDay',1,20]])if(raw[key]!==undefined&&(!Number.isInteger(raw[key])||raw[key]<min||raw[key]>max))throw new Error('registration');
   const ids=new Set();const searches=raw.searches.map(s=>{
     if(!s||!/^[-\w]{1,40}$/.test(s.id)||ids.has(s.id)||typeof s.name!=='string'||!s.name.trim()||s.name.length>80)throw new Error('search');ids.add(s.id);

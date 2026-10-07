@@ -3,7 +3,7 @@
 // Versioned text hash + durable two-call ceiling, lease and shared D1 cache.
 // Günlük global + kurulum tavanı vardır, her değer
 // metinden birebir alıntıyla doğrulanır; alıntısız değer atılır (tahmin yok).
-import { externalAiEnabled, externalAiRun } from './external_ai.js';
+import { externalAiEnabled, externalAiRun, transientAiFailure } from './external_ai.js';
 
 export const MIN_TEXT = 200;
 // Tam metin boru hattı sınırına kadar kabul edilir; modele giden kısım FULL_LIMIT/FOCUS_LIMIT ile sınırlı.
@@ -303,7 +303,11 @@ export async function handleExtract(body, env, deps) {
       ]).finally(() => clearTimeout(timer));
       } catch (error) {
         if (calls >= 2 || useExternal || !externalAiEnabled(env) || !Number.isInteger(fallbackCap) || fallbackCap <= 0 ||
-            !/3036|quota|neuron|daily.*limit|extract_timeout/i.test(String(error?.message))) throw error;
+            !/3036|quota|neuron|daily.*limit|extract_timeout/i.test(String(error?.message))) {
+          // Geçici hata kalite deneme hakkını yakmaz; aynı belge sonraki turda extract_exhausted olmadan denenir.
+          if (transientAiFailure(error)) await env.DB.prepare('UPDATE extraction_runs SET attempts=MAX(0,attempts-1) WHERE hash=?').bind(hash).run();
+          throw error;
+        }
         // Kullanıcı kararı (5 Ekim): kota ve zaman aşımında da Qwen (saatlik pay + günlük tavan).
         if (!(await qwenAllowed(env, deps.now ?? new Date()))) return { status: 429, body: { error: 'fallback_budget' } };
         if (await bump(env.DB, day, 'x:global') > lim.global) return { status: 429, body: { error: 'daily_budget' } };

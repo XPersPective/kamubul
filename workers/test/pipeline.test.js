@@ -420,7 +420,7 @@ test('processing version migration preserves jobs/checkpoints/leases and catalog
   assert.ok(sql.prepare("EXPLAIN QUERY PLAN SELECT 1 FROM processing_jobs WHERE listing_id='one' AND state='leased' AND lease_until>='now'").all().some(row=>row.detail.includes('processing_listing_lease')));
 });
 
-test('AI capacity errors use bounded retry without losing completed chunks',async()=>{
+test('transient AI capacity errors back off without burning attempts or losing completed chunks',async()=>{
   const {sql,DB}=database(),calls=[];insertNotice(sql,'Kaynakta belirtilen başvuru şartı. '.repeat(1000));
   const env={DB,AI:model(calls),AI_MODEL:'model',AI_DAILY_JOBS:'20'};
   await processNotice(env);
@@ -429,7 +429,7 @@ test('AI capacity errors use bounded retry without losing completed chunks',asyn
     sql.exec("UPDATE processing_jobs SET due_at='1970-01-01'");
     await processNotice({...env,AI:{async run(){throw new Error('3040: Out of capacity');}}});
     const row=sql.prepare("SELECT * FROM processing_jobs WHERE id='processing'").get();
-    assert.equal(row.state,attempt===5?'failed':'pending');assert.equal(row.attempts,attempt);
+    assert.equal(row.state,'pending');assert.equal(row.attempts,0);
     assert.equal(row.error_code,'ai_busy');assert.equal(row.input,input);assert.equal(row.lease_until,null);
     assert.ok(Date.parse(row.due_at)>Date.now());
   }
@@ -589,7 +589,10 @@ test('crashed digest lease recovers once, and terminal failure keeps its audit r
   assert.equal(calls.length,1);assert.equal(calls[0].event.digestCount,2);
   sql.exec("UPDATE notification_outbox SET state='pending',attempts=7,due_at='2026-10-01T15:00:00.000Z'");
   await flushOutbox(env,{now:new Date('2026-10-02T15:00:00Z'),send:async()=>{throw new Error('fcm_http_503');}});
-  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE state='failed' AND attempts=8").get().n,2);
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE state='pending' AND attempts=8").get().n,2);
+  sql.exec("UPDATE notification_outbox SET due_at='2026-10-01T15:00:00.000Z'");
+  await flushOutbox(env,{now:new Date('2026-10-03T15:00:00Z'),send:async()=>{throw new Error('fcm_http_400');}});
+  assert.equal(sql.prepare("SELECT COUNT(*) n FROM notification_outbox WHERE state='failed' AND attempts=9").get().n,2);
 });
 
 test('expired catalogue produces immutable tombstones and no matching fanout',async t=>{
