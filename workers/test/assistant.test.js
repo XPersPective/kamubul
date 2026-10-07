@@ -153,4 +153,8 @@ test('1000 Pro installs can each use 100 daily requests, including a shared netw
   for(let n=0;n<10;n++)assert.equal((await handleAssistant({installationId:id,message:'Ankara ilanları'},freeEnv,deps)).status,200);
   const blocked=await handleAssistant({installationId:id,message:'Ankara ilanları'},freeEnv,deps);
   assert.equal(blocked.body.error,'free_limit');
+  const proEnv=env({AI_PROVIDER:'local',AI:e.AI});
+  for(let n=0;n<100;n++)assert.equal((await handleAssistant({installationId:id,tier:'pro',message:'Ankara ilanları'},proEnv,deps)).status,200);
+  assert.equal((await handleAssistant({installationId:id,tier:'pro',message:'Ankara ilanları'},proEnv,deps)).status,429);
+  assert.equal(proEnv.DB.counts.get('2026-10-07global'),100,'personal overflow does not reach the global/model budget');
 });

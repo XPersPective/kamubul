@@ -7,7 +7,7 @@ ve eski CF-first model sırası geçersizdir. Tam üretim kabulü henüz tamamla
 
 ## Sunucu ve kaynak verisi
 Kalıcı Worker: https://kamubul-api.devx8585.workers.dev, son deployment
-831ba169-3cdd-4b93-a944-5c0aa7d7a0f7 (7 Ekim AI ölçüm deploy'u; readonly deployments/versions kontrolü).
+9ed3928c-d12a-4c2a-b362-656767f7d032 (7 Ekim Asistan1000 kullanıcı limit deploy'u; admin API readonly doğrulaması).
 Önceki /api/v2/health200 kontrolünde AI/FCM configured.
 D1 kamubul (371092dd-2cc7-487f-b971-84c2499bbc7d), migration0001–0029 remote.
 Queue kamubul-work, batch1/concurrency1/retry0. Cron her dakika recovery;
@@ -79,8 +79,13 @@ kalıcı iki çağrı tavanı/lease. Ayrı parça başına özet inference kapal
 Quota/hata conditions_due_at ile ertelenir; sıradaki ilan ilerler. Eski özet
 quota_wait işleri migration0028 ile tekrar pending; extraction bütçesi korunur.
 Canlı vars doğrulandı (7 Ekim): Qwen ayıklama günlük1000/saatlik200/global ayıklama2000;
-ayrı Asistan global300/kurulum30free,
-100pro/IP500. Bütçe ölçümü kredi garantisi değildir. Pro tier istemci iddiası
+ayrı Asistan global100000/kurulum10free,
+100pro/IP100000. Son kullanıcı1000 ölçeğiyle eski pilot300 kaldırıldı;1000*100 kişisel hak,
+paylaşımlı IP'de de erken kesilmez.294 Worker PASS;1000 sahte Pro*100 yanıt testi,
+free11./pro101. kişisel istek engeli PASS; gerçek provider çağrısı yapılmadı.
+Canlı4 limit admin-usage ile doğrulandı. Ortalama3 soru*1000 aktif kullanıcı=3000 istek/gün;
+~2000token tahmininde6Mtoken/gün (dünkü kayıt başlangıç referansı, garanti değil).
+Bütçe ölçümü gerçek kredi/Free altyapı kapasitesi garantisi değildir. Pro tier istemci iddiası
 henüz Play sunucu doğrulamasından geçmez; bu üretim güvenlik kapısı açıktır.
 Provider usage kişisel metin olmadan assistant_usage tokens:* bucket'larında.
 7 Ekim metrics:{assistant|extract}:{model}:{free|pro|server}: calls/measured/input/output/cached
