@@ -18,15 +18,15 @@ ICON = Path(__file__).resolve().parents[2] / 'assets' / 'brand' / 'kamubul_icon.
 # (ham dosya, çıktı adı, başlık, alt cümle, koyu zemin mi)
 SHOTS = [
     ('home-light.png', '01-tum-kamu-ilanlari.png', 'Kamu ilanları\ntek yerde',
-     'Memur, işçi, sözleşmeli personel ve KPSS ilanları her gün güncel.', False),
+     'Memur, işçi, sözleşmeli personel ve belediye ilanları her gün güncel.', False),
     ('detail-summary.png', '02-sartlar-tek-bakista.png', 'Şartlar\ntek bakışta',
-     'Kontenjan, son başvuru, eğitim, KPSS ve yaş en üstte özetlenir.', False),
+     'Kontenjan, son başvuru, eğitim, puan türü ve yaş en üstte özetlenir.', False),
     ('detail-positions.png', '03-her-pozisyon-ayri.png', 'Her pozisyon\nayrı kartta',
      'Kişi sayısı ve aranan nitelikler düzenli; tablolar okunur.', False),
     ('assistant.png', '04-bana-uygun-mu.png', 'Bu ilan\nbana uygun mu?',
      'KamuBul Asistan ilan metnini kriterlerinizle karşılaştırır.', False),
     ('searches.png', '05-size-uygun-ilanlar.png', 'Size uygun ilanlar\nöne çıksın',
-     'Eğitim, yaş ve KPSS bilginizi kaydedin; uygun ilanlar en üstte.', False),
+     'Eğitim, yaş ve puan bilginizi kaydedin; uygun ilanlar en üstte.', False),
     ('home-dark.png', '06-koyu-tema.png', 'Gece de\ngöz yormaz',
      'Açık ve koyu tema, ayarlanabilir yazı boyutu.', True),
     ('detail-dark.png', '07-son-basvuruyu-kacirmayin.png', 'Son başvuruyu\nkaçırmayın',
@@ -110,6 +110,7 @@ def device(raw: Path, screen_w: int, screen_h: int, bezel: int, radius: int) -> 
 
 
 def feature_graphic(raw: Path) -> Image.Image:
+    """Sade tanıtım görseli: marka zemini, simge, başlık; kurum adı/logosu ya da sınav markası yok."""
     fw, fh = 1024, 500
     canvas = gradient(False, fw, fh).convert('RGBA')
     draw = ImageDraw.Draw(canvas)
@@ -117,16 +118,29 @@ def feature_graphic(raw: Path) -> Image.Image:
     canvas.alpha_composite(icon, (64, 64))
     draw.text((168, 76), 'KamuBul', font=ImageFont.truetype(FONT_BOLD, 44), fill='white')
     headline = ImageFont.truetype(FONT_BOLD, 62)
-    for i, line in enumerate(('Kamu ilanları', 'tek yerde')):
+    for i, line in enumerate(('Kamu iş ilanları', 'tek yerde')):
         draw.text((64, 186 + i * 74), line, font=headline, fill='white')
-    draw.text((66, 352), 'Memur · İşçi · KPSS · Belediye', font=ImageFont.truetype(FONT_REGULAR, 30), fill=(220, 235, 248))
-    # Telefon sağda, alttan taşar: üst kısmı gerçek ana ekranı gösterir.
-    phone = device(raw, 300, 560, 12, 44)
-    x, top = 680, 56
+    draw.text((66, 352), 'Memur · İşçi · Sözleşmeli · Belediye', font=ImageFont.truetype(FONT_REGULAR, 30), fill=(220, 235, 248))
+    chip = ImageFont.truetype(FONT_BOLD, 22)
+    x, layer = 66, Image.new('RGBA', canvas.size, (0, 0, 0, 0))
+    for label in ('Ücretsiz', 'Açık kaynak', 'Hesap gerektirmez'):
+        w = draw.textlength(label, font=chip)
+        ImageDraw.Draw(layer).rounded_rectangle((x, 410, x + w + 36, 452), 21, fill=(255, 255, 255, 38), outline=(255, 255, 255, 110), width=2)
+        x += w + 52
+    canvas.alpha_composite(layer)
+    draw = ImageDraw.Draw(canvas)
+    x = 66
+    for label in ('Ücretsiz', 'Açık kaynak', 'Hesap gerektirmez'):
+        draw.text((x + 18, 416), label, font=chip, fill='white')
+        x += draw.textlength(label, font=chip) + 52
+    # Sağda büyük, yarı saydam simge: telefon/kurum görüntüsü olmadan marka vurgusu.
+    big = Image.open(ICON).convert('RGB').resize((300, 300), Image.LANCZOS)
+    big = rounded(big, 76)
+    big.putalpha(big.getchannel('A').point(lambda v: v * 92 // 100))
     shadow = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).rounded_rectangle((x + 8, top + 22, x + phone.width - 8, fh + 80), 44, fill=(0, 0, 0, 120))
-    canvas.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(28)))
-    canvas.alpha_composite(phone, (x, top))
+    ImageDraw.Draw(shadow).rounded_rectangle((680, 122, 980, 422), 76, fill=(0, 0, 0, 110))
+    canvas.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(30)))
+    canvas.alpha_composite(big, (670, 100))
     return canvas.convert('RGB')
 
 
