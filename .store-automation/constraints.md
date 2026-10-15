@@ -1,4 +1,6 @@
-# KamuBul — Bağlayıcı Kısıtlar
+# Constraints
+
+(Project Brain'den 15.10.2026 devralındı; kaynak: legacy constraints.md.)
 
 ## C-053 Sunucu devri — 5 Ekim son kullanıcı yönü
 Kaynak okuma ve ayıklama tamamen sunucuda; telefonda otomatik kaynak/şehir/
@@ -87,3 +89,10 @@ Kullanıcı PB-027 ile ayıklama sırasını düzeltti: önce mekanik, başarı/
 denetimi, sonra eksikse saklı tam metni okuyan Qwen. Kart ve ayrıntı aynı
 kontenjan/tarih/pozisyon sonucunu kullanır. AI katkısında küçük hata olabilir
 ibaresi gerekir. Kaynakta olmayan sayı/tarih çıkarılmaz; kısmi sonuç tam sayılmaz.
+
+## C-060 Mağaza metni ve kimlik taklidi — 8 Ekim Google reddi
+1.2.2/17, başlıkta "KPSS" nedeniyle Kimlik Taklidi politikasıyla reddedildi. Başlık ve kısa açıklamada
+KPSS/ÖSYM/kurum adı kullanılmaz; uzun açıklamada yalnız betimleyici kullanım ve resmî olmayan/bağımsız
+uygulama uyarısı korunur (kaynak: PB-029, 8 Ekim).
+## C-061 Mağaza dili — 3 Ekim kullanıcı yönü
+Dağıtım yalnız Türkiye, mağaza dili yalnız Türkçe; İngilizce mağaza girişi hazırlanmaz (kaynak: target §1).

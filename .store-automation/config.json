@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "commands": {
+    "test": "flutter test",
+    "lint": "flutter analyze",
+    "build": "",
+    "run": ""
+  },
+  "git": {
+    "commit": "auto",
+    "push": "auto"
+  },
+  "check_timeout": 900
+}

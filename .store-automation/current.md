@@ -1,4 +1,24 @@
-# Mevcut Mimari — KamuBul
+# Current Architecture
+
+OBSERVED (Project Brain current.md, son güncelleme 6-8 Ekim 2026; 15.10.2026 devralındı, yeniden doğrulanmadı).
+
+## Runtime
+- Flutter Android uygulaması (`lib/`), Cloudflare Worker + D1 sunucu (`workers/`), Firebase yalnız FCM.
+
+## Map
+- `lib/` — Flutter uygulaması
+- `workers/src/` — Worker: kaynaklar, ayıklama, Asistan, FCM
+- `workers/migrations/` — D1 migration
+- `tool/brand/store_frames.py` — mağaza ekran çerçeveleri
+- `D:/AppPublishing/apps/kamubul/stores/google-play/metadata/tr-TR/` — Play mağaza metni/görselleri (repo dışı)
+- `docs/CLOUDFLARE_FCM_YOL_HARITASI.md` — yol haritası
+
+## Domains
+
+### Legacy snapshot
+Status: OBSERVED
+Sources: `lib/**`, `workers/**`
+
 
 6 Ekim 2026. Bu dosya doğrulanmış mevcut durumu tutar; eski kontrol noktaları
 Git geçmişindedir. Son kullanıcı yönü PB-027/C-054: mekanik önce, yeterlilik
