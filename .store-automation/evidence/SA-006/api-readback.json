@@ -1,0 +1,51 @@
+{
+  "package": "com.crazypenguin.kamubul",
+  "listingEqualsCandidate": true,
+  "orderedScreenshotHashesEqual": true,
+  "screenshotCount": 7,
+  "tracks": [
+    {
+      "track": "production",
+      "releases": [
+        {
+          "name": "1.2.2",
+          "versionCodes": [
+            "17"
+          ],
+          "releaseNotes": [
+            {
+              "language": "tr-TR",
+              "text": "Pro rozeti daha sade ve küçük. Asistan hakları güncellendi: ücretsiz sürümde günde 10, Pro'da günde 50 soru. Anlık bildirimlerdeki günlük sınır kaldırıldı; geçici bağlantı hatalarında bildirimler ve ilan analizleri otomatik olarak yeniden deneniyor."
+            }
+          ],
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "track": "beta"
+    },
+    {
+      "track": "alpha"
+    },
+    {
+      "track": "internal",
+      "releases": [
+        {
+          "name": "1.2.2",
+          "versionCodes": [
+            "17"
+          ],
+          "releaseNotes": [
+            {
+              "language": "tr-TR",
+              "text": "Pro rozeti daha sade ve küçük. Asistan hakları güncellendi: ücretsiz sürümde günde 10, Pro'da günde 50 soru. Anlık bildirimlerdeki günlük sınır kaldırıldı; geçici bağlantı hatalarında bildirimler ve ilan analizleri otomatik olarak yeniden deneniyor."
+            }
+          ],
+          "status": "completed"
+        }
+      ]
+    }
+  ],
+  "state": "API_COMMITTED; Google public approval/availability not proven"
+}

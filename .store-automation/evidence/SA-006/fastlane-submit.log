@@ -1,0 +1,41 @@
+[19:39:29]: [33mGet started using a Gemfile for fastlane https://docs.fastlane.tools/getting-started/ios/setup/#use-a-gemfile[0m
+
++---------------------------------------------------------------------------+
+|                        Summary for supply 2.239.0                         |
++------------------------------------+--------------------------------------+
+| package_name                       | com.crazypenguin.kamubul             |
+| metadata_path                      | D:/AppPublishing/apps/kamubul/store  |
+|                                    | s/google-play/metadata               |
+| json_key                           | D:/AppPublishing/publisher/crazypen  |
+|                                    | guin/credentials/google-play/servic  |
+|                                    | e-account.json                       |
+| skip_upload_apk                    | true                                 |
+| skip_upload_aab                    | true                                 |
+| skip_upload_changelogs             | true                                 |
+| skip_upload_images                 | true                                 |
+| skip_upload_screenshots            | false                                |
+| track                              | production                           |
+| changes_not_sent_for_review        | false                                |
+| release_status                     | completed                            |
+| skip_upload_metadata               | false                                |
+| sync_image_upload                  | false                                |
+| track_promote_release_status       | completed                            |
+| validate_only                      | false                                |
+| check_superseded_tracks            | false                                |
+| timeout                            | 300                                  |
+| deactivate_on_promote              | true                                 |
+| rescue_changes_not_sent_for_review | true                                 |
+| ack_bundle_installation_warning    | false                                |
++------------------------------------+--------------------------------------+
+
+[19:39:32]: Preparing uploads for language 'tr-TR'...
+[19:39:35]: ⬆️  Uploading screenshot D:/AppPublishing/apps/kamubul/stores/google-play/metadata/tr-TR/images/phoneScreenshots/01-asistan-bana-uygun-mu.png...
+[19:39:39]: ⬆️  Uploading screenshot D:/AppPublishing/apps/kamubul/stores/google-play/metadata/tr-TR/images/phoneScreenshots/02-kamu-ilanlari-tek-yerde.png...
+[19:39:42]: ⬆️  Uploading screenshot D:/AppPublishing/apps/kamubul/stores/google-play/metadata/tr-TR/images/phoneScreenshots/03-sartlar-tek-bakista.png...
+[19:39:46]: ⬆️  Uploading screenshot D:/AppPublishing/apps/kamubul/stores/google-play/metadata/tr-TR/images/phoneScreenshots/04-pozisyonlar-ayri-kartlarda.png...
+[19:39:50]: ⬆️  Uploading screenshot D:/AppPublishing/apps/kamubul/stores/google-play/metadata/tr-TR/images/phoneScreenshots/05-size-uygun-ilanlar.png...
+[19:39:54]: ⬆️  Uploading screenshot D:/AppPublishing/apps/kamubul/stores/google-play/metadata/tr-TR/images/phoneScreenshots/06-son-basvuruyu-kacirmayin.png...
+[19:39:58]: ⬆️  Uploading screenshot D:/AppPublishing/apps/kamubul/stores/google-play/metadata/tr-TR/images/phoneScreenshots/07-acik-ve-koyu-tema.png...
+[19:40:01]: Uploaded all items for language 'tr-TR'... (29.8021931 secs)
+[19:40:01]: Uploading all changes to Google Play...
+[19:40:05]: Successfully finished the upload to Google Play
