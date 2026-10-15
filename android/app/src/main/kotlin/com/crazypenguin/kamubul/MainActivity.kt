@@ -5,6 +5,11 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.StandardMethodCodec
 import android.provider.Settings
+import android.provider.CalendarContract
+import android.content.Intent
+import android.content.ActivityNotFoundException
+import java.time.LocalDate
+import java.time.ZoneOffset
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.AtomicFile
@@ -20,6 +25,29 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val messenger = flutterEngine.dartExecutor.binaryMessenger
+        MethodChannel(messenger, "kamubul/calendar").setMethodCallHandler { call, result ->
+            if (call.method != "insert") { result.notImplemented(); return@setMethodCallHandler }
+            try {
+                val year = call.argument<Int>("year") ?: error("date")
+                require(year in 1970..9998)
+                val date = LocalDate.of(year, call.argument<Int>("month") ?: 0, call.argument<Int>("day") ?: 0)
+                val title = call.argument<String>("title") ?: error("title")
+                val description = call.argument<String>("description") ?: error("description")
+                require(title.isNotBlank() && title.length <= 2000 && description.length <= 8000)
+                startActivity(Intent(Intent.ACTION_INSERT, CalendarContract.Events.CONTENT_URI).apply {
+                    putExtra(CalendarContract.Events.TITLE, title)
+                    putExtra(CalendarContract.Events.DESCRIPTION, description)
+                    putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, true)
+                    putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
+                    putExtra(CalendarContract.EXTRA_EVENT_END_TIME, date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
+                })
+                result.success(true) // Editor opened; the user still chooses whether to save.
+            } catch (_: ActivityNotFoundException) {
+                result.success(false)
+            } catch (_: Exception) {
+                result.error("calendar_unavailable", "Takvim açılamadı.", null)
+            }
+        }
         // Deneme süresi: ANDROID_ID uygulama imzasına özgüdür ve yeniden kurulumda değişmez.
         // Ham kimlik Dart'a/sunucuya verilmez; yalnız tuzlu SHA-256 karması döner.
         MethodChannel(messenger, "kamubul/device").setMethodCallHandler { call, result ->

@@ -3,6 +3,7 @@ import '../ui/premium_widgets.dart';
 import '../ui/turkish.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kamubul_core/kamubul_core.dart' show educationLabel, wallClock;
 
@@ -40,9 +41,47 @@ class OfficialListingPage extends StatefulWidget {
 class _OfficialListingPageState extends State<OfficialListingPage> {
   static const _initialPositions = 12;
   bool _allPositions = false;
+  bool _openingCalendar = false;
   late final List<NoticeBlock> _blocks = parseNotice(widget.listing.noticeText);
 
   ListingRecord get listing => widget.listing;
+
+  Future<void> _addToCalendar() async {
+    final deadline = listing.deadline;
+    if (_openingCalendar || deadline == null) return;
+    setState(() => _openingCalendar = true);
+    try {
+      final day = listing.criteriaListing == null
+          ? deadline
+          : wallClock(deadline);
+      final opened = await const MethodChannel('kamubul/calendar')
+          .invokeMethod<bool>('insert', {
+            'year': day.year,
+            'month': day.month,
+            'day': day.day,
+            'title': 'Son başvuru: ${listing.title}',
+            'description':
+                'Son başvuru: ${_deadline(deadline)}\n'
+                'Başvurmadan önce resmî ilanı kontrol edin.\n${listing.url}',
+          });
+      if (opened == true) return;
+    } on PlatformException {
+      // Sistem editörü açılamadı; kullanıcı aynı eylemle tekrar deneyebilir.
+    } on MissingPluginException {
+      // Takvim köprüsü bu platformda bulunmayabilir.
+    } finally {
+      if (mounted) setState(() => _openingCalendar = false);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Takvim açılamadı. Bir takvim uygulaması yükleyip yeniden deneyin.',
+          ),
+        ),
+      );
+    }
+  }
 
   String _date(DateTime value) =>
       '${value.day.toString().padLeft(2, '0')}.${value.month.toString().padLeft(2, '0')}.${value.year}';
@@ -680,6 +719,27 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
                 _SourceOnlyCard(onOpen: () => _open(listing.url))
               else
                 _summaryCard(),
+              if (!widget.unavailable &&
+                  listing.deadline != null &&
+                  listing.deadline!.isAfter(widget.now ?? DateTime.now())) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _openingCalendar ? null : _addToCalendar,
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    icon: const Icon(Icons.event_available_rounded),
+                    label: const Text('Takvime ekle'),
+                  ),
+                ),
+                Text(
+                  'Kaydetmeden önce tarihi ve hatırlatmayı takvimde kontrol edin.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
               if (listing.summary.isNotEmpty) ...[
                 _sectionTitle(
                   listing.criteriaListing?['aiProvenance'] is Map
