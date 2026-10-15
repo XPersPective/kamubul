@@ -1,0 +1,45 @@
+{
+  "url": "https://kamubul-kamu-ilanlari.ochre-coin-3625.chatgpt.site",
+  "sourceCommit": "9723514d1d15b999dd7c7c3df828cc552beb6b97",
+  "deployment": "appgdep_6ad1086be0f881918f74be3d530a9e29",
+  "nativeStatus": "succeeded",
+  "audience": "public",
+  "assets": [
+    {
+      "path": "index.html",
+      "status": 200,
+      "sha256": "2aefe165ebc048b499a009911e99ce9171e2a56a08a67c1e32b5934fe041976d",
+      "comparison": "HTML equal after removal of host bot-protection script"
+    },
+    {
+      "path": "style.css",
+      "status": 200,
+      "sha256": "b7d47382d36a670d80617888984cb8ecf730594e5d16348090b4ccd420bea828",
+      "comparison": "byte equal"
+    },
+    {
+      "path": "assets/icon.png",
+      "status": 200,
+      "sha256": "d690fe833fc6d880cce2090675940c996d45501a657661025f0f2063b626391f",
+      "comparison": "byte equal"
+    },
+    {
+      "path": "assets/assistant.png",
+      "status": 200,
+      "sha256": "73fd0705eadf94fd3576c07c754c83e78c97ad3beaca1ea25ddf19034fe14c80",
+      "comparison": "byte equal"
+    },
+    {
+      "path": "robots.txt",
+      "status": 200,
+      "sha256": "f141f1aa838eb5a4e58049fab1abaf4c3e4af8fe0c9b1956448430ff1eb7903d",
+      "comparison": "byte equal"
+    },
+    {
+      "path": "sitemap.xml",
+      "status": 200,
+      "sha256": "0240a40e9940a0caa2a8300a0c27dceacc56d57155c24f5e194075641f165685",
+      "comparison": "byte equal"
+    }
+  ]
+}
