@@ -6,6 +6,8 @@ OBSERVED (Project Brain current.md, son güncelleme 6-8 Ekim 2026; 15.10.2026 de
 - Flutter Android uygulaması (`lib/`), Cloudflare Worker + D1 sunucu (`workers/`), Firebase yalnız FCM.
 
 ## Map
+- `tool/brand/check_store_copy.py`, `docs/growth/STORE_TEXT_ACCEPTANCE.md`, `candidate/tr-TR/*.txt` — yeni Türkçe adayın kaynak/sınır/hash kontrolü; gönderilmedi.
+- `docs/growth/CONSOLE_READBACK_2026-10-16.md` — Console erişimi doğrulandı; eski tr-TR kısa/tam metin ve telefon görselleri incelemede, managed publishing kapalı. Önceki erişim yok gözlemini değiştirir; yeni yayın ürün kabulü sonrası (ADR-010).
 - `docs/growth/STRATEGY.md`, `RESEARCH_2026-10-16.md`, `COMPETITORS_2026-10-16.md`, `STORE_COPY.md` — güncel büyüme kanıtı/karar/devir; `docs/growth/evidence/**` saha ekranları.
 - `lib/` — Flutter uygulaması
 - `workers/src/` — Worker: kaynaklar, ayıklama, Asistan, FCM
