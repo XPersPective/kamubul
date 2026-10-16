@@ -4,6 +4,8 @@ Karar tarihi: 16.10.2026. Durum: araştırmaya dayalı uygulama yönü; büyüme
 
 ## Hedefi uygulanabilir hale getirme
 
+Son kullanıcı netleştirmesi (16 Ekim): “bizim hedefimiz birinci sırada çıkmak değil ... ilk, en iyi ve en çok indirilen uygulama ... tekrar, tekrar bir döngü ... dar kapsamlı düşünme, geniş düşün”. Hedef tüm ürün kalitesi, kullanıcı başarısı ve sürdürülebilir büyümedir; yalnız sıralama/metin işi olarak daraltılmaz. Araştırma dilleri serbest, uygulama ve mağaza Türkçe. [Uluslararası örüntüler ve kalite döngüsü](INTERNATIONAL_PATTERNS.md) aynı planın kanıt ekidir. Ana Türkçe metnin hazırlık/yayın işi SA-025, deneyler ayrı SA-007/008/009 işleridir.
+
 Kullanıcı hedefi: en çok indirilen, aramalarda en üstte çıkan ve memnuniyet sağlayan uygulama. Kuzey yıldızı: **kullanıcının ilgili açık ilanı bulup şartını anlayarak resmi başvuru yoluna güvenle ulaşması**. Bu başarı gerçek talep, tavsiye ve elde tutma üretmelidir. “Birinci” hedef olarak korunur; Google'ın ve rakiplerin kontrolündeki sonucu teslim garantisi gibi yazma.
 
 Beş farklı sonucu ayrı kaydet: (1) seçili sorgulardaki keşfedilebilirlik, (2) mağaza ziyaretinden Install tıklaması, (3) tamamlanmış gerçek edinim, (4) ilan görevini başarıyla tamamlama/geri dönüş, (5) sağlıklı monetizasyon. Tek metriği yükseltirken yanlış vaat, reklam baskısı veya bildirime zorlama ile diğerlerini bozma.

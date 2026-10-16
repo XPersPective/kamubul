@@ -4,6 +4,7 @@ Status: CONFIRMED
 (Project Brain target.md'den 15.10.2026 devralındı; hedef kullanıcı yönergelerinden oluşur. Tam eski metin arşivde.)
 
 ## Goal
+16 Ekim son netleştirme: “ilk, en iyi ve en çok indirilen uygulama ... mükemmel ... uluslararası dillerde de araştırma ... dar kapsamlı düşünme, geniş düşün”. Her işte uygulama/test/eleştirel inceleme/düzeltme/yeniden doğrulama döngüsü; açık kabul sorunları kapanmadan tamamlandı sayılmaz. Araştırma dilleri serbest, uygulama/mağaza Türkçe. Türkçe ana metin hazırlık ve yayın işi SA-025; bu istek zamanlanmış takip yasağını kaldırmaz.
 16 Ekim son kullanıcı yönü: “en öncelik alan araştırması, saha araştırması” ve “başka bir yapay zeka bunu devralabilsin”; “en çok indirilen”, “birinci sırada” hedefi korunur. Tam kullanıcı hedefi: `docs/growth/USER_OBJECTIVE_2026-10-16.md`. Önce kapsamlı araştırma ve büyüme mimarisi, sonra uygulama/test/yayın; şu aşamada takip otomasyonu yok. Mağaza görselinde Pro/satın alma/deneme promosyonu yok (ADR-009).
 "Premium görünümlü, Türkçe Android/iOS uygulaması; hesap açmadan resmî kamu ilanlarını okuma, profil ve kişisel kayıtlı kriterlerle filtreleme, yeni uygun ilana FCM bildirimi." 15 Ekim büyüme yönü: Play Store'da AI Asistan ("Bu ilan bana uygun mu?") ayrışmasını öne çıkarmak, mağaza dönüşümünü (unique install CTR) eş-uygulama ortancasının üzerine çıkarmak.
 

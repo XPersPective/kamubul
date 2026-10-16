@@ -1,0 +1,30 @@
+KamuBul ile memur alımı, kamu işçi alımı, sözleşmeli personel ve belediye ilanlarını inceleyin. Şehir ve eğitim gibi kriterlerle aramanızı daraltın; seçtiğiniz ilanın şartlarını KamuBul Asistan’a sorun.
+
+KamuBul bağımsız bir uygulamadır; herhangi bir kamu kurumu, bakanlık veya ÖSYM ile bağlantılı değildir ve resmî devlet uygulaması değildir. Başvurudan önce güncel ve bağlayıcı ilan metnini kurumun resmî sayfasından kontrol edin. KamuBul sizin adınıza başvuru göndermez.
+
+İlanı bulun, şartlarını anlayın
+• Kurum veya meslek arayın; şehir, eğitim, yaş, KPSS puan türü ve puanı gibi kriterleri kullanın.
+• Desteklenen kaynaklardaki memur, sözleşmeli personel, kamu işçisi, belediye ve akademik kadro ilanlarını takip edin.
+• Kontenjanı, varsa kadroları, başvuru tarihini ve metinden çıkarılan koşulları birlikte inceleyin.
+• Eksik veya doğrulanamayan koşullar kesin uygunluk olarak gösterilmez. Kriterle eşleşme, bütün başvuru şartlarını sağladığınız anlamına gelmez.
+
+“Bu ilan bana uygun mu?” diye sorun
+Seçili ilanın metni hazırsa Asistan’a yaş, öğrenim veya puan şartını sorun. Örneğin: “Lisans mezunuyum, 28 yaşındayım. Bu ilanın yaş ve eğitim şartları ne anlama geliyor?” Asistan koşulları açıklamaya ve verdiğiniz bilgileri metinle karşılaştırmaya yardımcı olur. Yapay zekâ yanıtları hata içerebilir; kesin başvuru uygunluğu veya işe yerleşme garantisi vermez.
+
+İlgilendiğiniz ilanlara geri dönün
+Aramalarınızı ve ilanları kaydedin; kayıtlı metinleri çevrimdışı açın. Bildirim tercihlerinizi kayıtlı aramalarınız için ayarlayın. Bildirimler cihaz iznine, bağlantıya ve sistem kısıtlarına bağlıdır. İlanın son başvuru tarihini ve kalan gün bilgisini görün; tahmini tarihler kesin son gün değildir.
+
+Uzun metinleri daha rahat okuyun
+Açık veya koyu temayı seçin, yazı boyutunu ayarlayın. Kadroları ayrı inceleyin; resmî ilan ve başvuru sayfasına bağlantıdan geçin. Kaynak erişiminde kesinti veya metin eksikliği olabilir; bütün ilanların eksiksiz kapsandığı garanti edilmez.
+
+Ücretsiz kullanım ve isteğe bağlı Pro
+Hesap açmadan başlayın. Temel ilan erişimi ve filtreler ücretsizdir. İlk 7 gün reklam gösterilmez; bu dönem kendiliğinden ücretli abonelik başlatmaz. Sonrasında ücretsiz kullanımda banner ve seyrek tam ekran reklamlar olabilir. Ücretsiz Asistan sınırı günde 10 sorudur.
+
+KamuBul Pro aylık aboneliği reklamları kaldırır ve Asistan sınırını günde 50 soruya çıkarır. Abonelik aylık otomatik yenilenir. Güncel fiyat ve koşullar satın almadan önce Google Play’de gösterilir; aboneliğinizi Google Play > Abonelikler bölümünden yönetebilir ve iptal edebilirsiniz.
+
+Kaynaklar ve gizlilik
+İlanlar desteklenen resmî kaynaklardan derlenir: https://kariyerkapisi.gov.tr/isealim, https://www.ilan.gov.tr/, https://esube.iskur.gov.tr/ ve https://kamuilan.sbb.gov.tr/. Her kaynağın kapsamı ve erişimi farklı olabilir. Nihai bilgi ilanın resmî metnidir.
+
+Kaydedilen ilan ve aramalar cihazda tutulur; bildirim açıldığında hizmet için gerekli kriterler sunucuya iletilir. Asistan’a gönderdiğiniz mesaj ve gerekli ilan bağlamı yanıt üretmek için işlenir. Kimlik veya başvuru belgesi paylaşmayın. Ayrıntılar: https://kamubul-api.devx8585.workers.dev/privacy/
+
+KamuBul GPL-3.0 lisanslı açık kaynaklıdır: https://github.com/XPersPective/kamubul
