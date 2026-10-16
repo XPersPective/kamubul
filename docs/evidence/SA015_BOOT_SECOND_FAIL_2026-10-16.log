@@ -1,0 +1,9 @@
+FIXTURE_BEFORE_REBOOT {"version": 1, "enabled": true, "nextId": 44, "sent": [], "plans": [{"id": 43, "url": "https://www.ilan.gov.tr/ilan/sa015-device-test", "title": "SA015 yeniden ba\u015flatma testi \u2014 \u00fcretim ilan\u0131 de\u011fildir", "at": 1792147587000, "expires": 1792233807000}]}
+BOOT_PROPERTY_SET: waiting for actual receiver/AlarmManager
+QA_CLEANUP {"version": 1, "enabled": false, "nextId": 44, "plans": [], "sent": [{"url": "https://www.ilan.gov.tr/ilan/sa015-device-test", "expires": 1792232944789}]}
+Traceback (most recent call last):
+  File "D:\repositories\kamubul\integration_test\qa_deadline_boot.py", line 112, in <module>
+    main()
+  File "D:\repositories\kamubul\integration_test\qa_deadline_boot.py", line 86, in main
+    raise AssertionError("Persisted-only fixture was not restored within60s of boot property")
+AssertionError: Persisted-only fixture was not restored within60s of boot property

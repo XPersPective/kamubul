@@ -1,0 +1,48 @@
+--------- beginning of crash
+10-16 11:14:42.927  1139  1312 F libc    : Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 1312 (bt_stack_manage), pid 1139 (droid.bluetooth)
+10-16 11:18:05.658   736   959 E AndroidRuntime: *** FATAL EXCEPTION IN SYSTEM PROCESS: WifiHandlerThread
+10-16 11:18:05.658   736   959 E AndroidRuntime: java.lang.IllegalStateException: Could not create NetworkMonitor
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.connectivity.android.net.networkstack.NetworkStackClientBase.$r8$lambda$dyF8dwDVyvquKLxenqfxnZPsI8c(NetworkStackClientBase.java:90)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.connectivity.android.net.networkstack.NetworkStackClientBase$$ExternalSyntheticLambda1.accept(R8$$SyntheticClass:0)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.connectivity.android.net.networkstack.NetworkStackClientBase.requestConnector(NetworkStackClientBase.java:120)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.connectivity.android.net.networkstack.NetworkStackClientBase.makeNetworkMonitor(NetworkStackClientBase.java:86)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.connectivity.com.android.server.ConnectivityService.registerNetworkAgentInternal(ConnectivityService.java:9492)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.connectivity.com.android.server.ConnectivityService.registerNetworkAgent(ConnectivityService.java:9456)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.ConnectivityManager.registerNetworkAgent(ConnectivityManager.java:4000)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.ConnectivityManager.registerNetworkAgent(ConnectivityManager.java:3982)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.NetworkAgent.register(NetworkAgent.java:823)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at com.android.server.wifi.WifiNetworkAgent.<init>(WifiNetworkAgent.java:82)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at com.android.server.wifi.WifiInjector.makeWifiNetworkAgent(WifiInjector.java:933)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at com.android.server.wifi.ClientModeImpl$L2ConnectedState.enterImpl(ClientModeImpl.java:6510)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at com.android.server.wifi.RunnerState.enter(RunnerState.java:105)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at com.android.wifi.x.com.android.internal.util.StateMachine$SmHandler.invokeEnterMethods(StateMachine.java:1043)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at com.android.wifi.x.com.android.internal.util.StateMachine$SmHandler.performTransitions(StateMachine.java:889)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at com.android.wifi.x.com.android.internal.util.StateMachine$SmHandler.handleMessage(StateMachine.java:829)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:248)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:338)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.os.HandlerThread.run(HandlerThread.java:85)
+10-16 11:18:05.658   736   959 E AndroidRuntime: Caused by: android.os.DeadObjectException
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.os.BinderProxy.transactNative(Native Method)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.os.BinderProxy.transact(BinderProxy.java:592)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.connectivity.android.net.INetworkStackConnector$Stub$Proxy.makeNetworkMonitor(INetworkStackConnector.java:198)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	at android.net.connectivity.android.net.networkstack.NetworkStackClientBase.$r8$lambda$dyF8dwDVyvquKLxenqfxnZPsI8c(NetworkStackClientBase.java:88)
+10-16 11:18:05.658   736   959 E AndroidRuntime: 	... 19 more
+10-16 11:18:08.357  2321  2321 E AndroidRuntime: FATAL EXCEPTION: main
+10-16 11:18:08.357  2321  2321 E AndroidRuntime: Process: com.android.phone, PID: 2321
+10-16 11:18:08.357  2321  2321 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+10-16 11:18:08.406  1070  1070 E AndroidRuntime: FATAL EXCEPTION: main
+10-16 11:18:08.406  1070  1070 E AndroidRuntime: Process: com.android.systemui, PID: 1070
+10-16 11:18:08.406  1070  1070 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+10-16 11:18:08.440  1173  1232 E AndroidRuntime: FATAL EXCEPTION: launcher-loader
+10-16 11:18:08.440  1173  1232 E AndroidRuntime: Process: com.google.android.apps.nexuslauncher, PID: 1173
+10-16 11:18:08.440  1173  1232 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+10-16 11:18:09.022  2795  2795 E AndroidRuntime: FATAL EXCEPTION: main
+10-16 11:18:09.022  2795  2795 E AndroidRuntime: Process: com.google.android.configupdater, PID: 2795
+10-16 11:18:09.022  2795  2795 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+10-16 11:18:09.065  2806  2806 E AndroidRuntime: FATAL EXCEPTION: main
+10-16 11:18:09.065  2806  2806 E AndroidRuntime: Process: com.google.android.gms, PID: 2806
+10-16 11:18:09.065  2806  2806 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+10-16 11:19:13.999   271   271 F libc    : Unwind request: crash_dump helper failed to exec, or was killed
+10-16 11:20:14.734   271   271 F libc    : Unwind request: crash_dump helper failed to exec, or was killed
+10-16 11:20:43.686  3640  3758 F libc    : Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 3758 (bt_stack_manage), pid 3640 (droid.bluetooth)

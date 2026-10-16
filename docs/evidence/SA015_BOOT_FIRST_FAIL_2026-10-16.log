@@ -1,0 +1,9 @@
+FIXTURE_BEFORE_REBOOT {"version": 1, "enabled": true, "nextId": 43, "sent": [], "plans": [{"id": 42, "url": "https://www.ilan.gov.tr/ilan/sa015-device-test", "title": "SA015 yeniden ba\u015flatma testi \u2014 \u00fcretim ilan\u0131 de\u011fildir", "at": 1792147443000, "expires": 1792233663000}]}
+QA_CLEANUP {"version": 1, "enabled": false, "nextId": 43, "plans": [], "sent": [{"url": "https://www.ilan.gov.tr/ilan/sa015-device-test", "expires": 1792232944789}]}
+Traceback (most recent call last):
+  File "D:\repositories\kamubul\integration_test\qa_deadline_boot.py", line 105, in <module>
+    main()
+  File "D:\repositories\kamubul\integration_test\qa_deadline_boot.py", line 80, in main
+    assert own_alarms, "Persisted-only fixture was not restored to AlarmManager"
+           ^^^^^^^^^^
+AssertionError: Persisted-only fixture was not restored to AlarmManager
