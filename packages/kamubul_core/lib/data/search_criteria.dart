@@ -257,8 +257,9 @@ class SearchCriteria {
           uncertain();
         } else {
           if (raw['kpssStatus'] == 'not_required') {
-            if (c['onlyKpss'] == true || c['kpssYear'] != null)
+            if (c['onlyKpss'] == true || c['kpssYear'] != null) {
               status = CriteriaMatch.noMatch;
+            }
           } else if (raw['kpssStatus'] != 'required') {
             uncertain();
           } else if ('${c['kpssType'] ?? ''}'.isNotEmpty && types.isEmpty) {
