@@ -94,7 +94,7 @@ ibaresi gerekir. Kaynakta olmayan sayı/tarih çıkarılmaz; kısmi sonuç tam s
 1.2.2/17, başlıkta "KPSS" nedeniyle Kimlik Taklidi politikasıyla reddedildi. Başlık ve kısa açıklamada
 KPSS/ÖSYM/kurum adı kullanılmaz; uzun açıklamada yalnız betimleyici kullanım ve resmî olmayan/bağımsız
 uygulama uyarısı korunur (kaynak: PB-029, 8 Ekim).
-## C-061 Mağaza dili — 3 Ekim kullanıcı yönü
-Dağıtım yalnız Türkiye, mağaza dili yalnız Türkçe; İngilizce mağaza girişi hazırlanmaz (kaynak: target §1).
+## C-061 Mağaza dili — 16 Ekim kullanıcı netleştirmesi
+Dağıtım yalnız Türkiye; uygulama ve mağaza girişi yalnız Türkçe. Kullanıcı: “Mağaza girişi hazırlansın ... Sadece Türkçe olacak.” Türkçe başlık, kısa/uzun açıklama ve görseller hazırlanıp optimize edilir; İngilizce yerelleştirme kapsam dışıdır. Bu kısıt Türkçe mağaza girişinin hazırlanmasını engellemez (önceki kaynak: target §1; son yön: 16 Ekim sohbet).
 ## C-062 Araştırma önceliği ve takip yasağı — 16 Ekim hedef dosyası
 Önce derin rakip/Play politikası/sıralama/kelime/metin/görsel araştırması ve devralınabilir strateji; keşfedilen kusurları kuyruğa kaydet. Şu aşamada takip/heartbeat/cron kurma veya çalıştırma; önceki günlük iş kaldırıldı. Mağaza görsellerinde satın alma/Pro/deneme promosyonu yok. Tam kullanıcı metni docs/growth/USER_OBJECTIVE_2026-10-16.md; araştırma sonrası test/hazırlık/yayın kapsamı sürer, birincilik hedefi garanti sonucu sayılmaz.

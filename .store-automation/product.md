@@ -40,5 +40,5 @@ Status: CONFIRMED
 - İngilizce/diğer ülke mağaza girişi (C-061); iOS/APNs; ücretli Cloudflare/AI yükseltmesi.
 
 ## Open Decisions
-- OD-001 OPEN: Rapordaki en-US yerelleştirme önerisi C-061 (yalnız Türkçe) ile çelişiyor → kullanıcı kararı.
+- OD-001 RESOLVED (16 Ekim): Kullanıcı “Mağaza girişi hazırlansın ... Sadece Türkçe olacak” diye netleştirdi. Uygulama ve mağaza Türkçe; İngilizce giriş hazırlanmaz. Türkçe mağaza metni/görselleri ve optimizasyonu kapsamda (C-061, STORE_COPY, SA-021/007/008/009).
 - OD-002 OPEN: Landing page alan adı (örn. kamubul.app) alınacak mı? → SA-010.
