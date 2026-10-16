@@ -10,6 +10,10 @@ Son bağımsız gözlem: 2026-10-15. Önceki Project Brain snapshot'ı Git geçm
 - Flutter Android1.2.2+17, com.crazypenguin.kamubul; Cloudflare Worker/D1/Queue; Firebase yalnız FCM.
 - Telefon yalnız API/cache; Türkiye/Türkçe hedef, iOS ertelenmiş. napp_core/pro/ads korunur.
 
+## 16 Ekim akşam yayın
+- Worker 5a24d9a2: Asistan kesik JSON düzeltmesi (900 token, json_object, reply kurtarma); wrangler vars canlı sağlayıcıyla eşitlendi (evren-llmapi / qwen3.8-flash-next). Canlı readback temiz answer/criteria.
+- Android 1.2.3+18 (SA-015 hatırlatma, SA-017 kadro, SA-018 not, Asistan düzeltmesi) imzalı AAB dahili teste yüklendi; Console readback: dahili kullanıcılara açık, kod 18. Üretim 1.2.2/17 değişmedi.
+
 ## Map
 - `docs/CONSOLE_BASELINE_LOCAL_2026-10-16.md` — yetkili yeni/eski Console serileri için yerel özel rapor konumu; aynıcohort/Vitals kabulü eksik, ham ölçümler publicGit'e taşınmadı.
 - `docs/evidence/SA015_QA_SYSTEM_CRASH_2026-10-16.log`, `docs/evidence/SA015_QA_BOOT_SCREEN_2026-10-16.png`, `docs/evidence/SA015_QA_SYSTEM_UI_ANR_2026-10-16.png` — yalnız disposable QA platform crash/ANR kanıtı; uygulama tamkabulü değil.
