@@ -5,7 +5,8 @@ import '../ui/turkish.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:kamubul_core/kamubul_core.dart' show educationLabel, wallClock;
+import 'package:kamubul_core/kamubul_core.dart'
+    show CriteriaMatch, SearchCriteria, educationLabel, wallClock;
 
 import '../data/listing_store.dart';
 import 'listing_facts.dart';
@@ -22,6 +23,8 @@ class OfficialListingPage extends StatefulWidget {
     this.cacheNotice,
     this.onAskAssistant,
     this.now,
+    this.criteria,
+    this.onEditCriteria,
   });
 
   final ListingRecord listing;
@@ -33,6 +36,8 @@ class OfficialListingPage extends StatefulWidget {
 
   /// Geri sayım için saat; testler sabit tarih verir.
   final DateTime? now;
+  final SearchCriteria? criteria;
+  final VoidCallback? onEditCriteria;
 
   @override
   State<OfficialListingPage> createState() => _OfficialListingPageState();
@@ -41,6 +46,7 @@ class OfficialListingPage extends StatefulWidget {
 class _OfficialListingPageState extends State<OfficialListingPage> {
   static const _initialPositions = 12;
   bool _allPositions = false;
+  CriteriaMatch? _positionFilter;
   bool _openingCalendar = false;
   late final List<NoticeBlock> _blocks = parseNotice(widget.listing.noticeText);
 
@@ -629,9 +635,27 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
     final scheme = theme.colorScheme;
     final positions = listing.positions;
     final periods = listing.applicationPeriods;
-    final shown = _allPositions
+    final criteria = widget.criteria;
+    final statuses = {
+      if (criteria != null)
+        for (final group in positions)
+          group: criteria.match(
+            {
+              ...listing.matchingData,
+              'requirementGroups': [group],
+              // A sibling position's city must not qualify this position.
+              if (positions.length > 1) 'places': const <String>[],
+            },
+            now: widget.now ?? DateTime.now(),
+            forSaved: true,
+          ),
+    };
+    final filtered = _positionFilter == null || criteria == null
         ? positions
-        : positions.take(_initialPositions).toList();
+        : positions.where((g) => statuses[g] == _positionFilter).toList();
+    final shown = _allPositions
+        ? filtered
+        : filtered.take(_initialPositions).toList();
     final institution = listing.institution;
     final published = listing.publishedAt;
     final width = MediaQuery.sizeOf(context).width;
@@ -794,15 +818,62 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
                   positions.length > 1 ? 'Pozisyonlar' : 'Başvuru koşulları',
                   trailing: positions.length > 1 ? '${positions.length}' : null,
                 ),
+                if (positions.length > 1) ...[
+                  if (criteria == null) ...[
+                    const Text(
+                      'Kadroları süzmek için İlanlar bölümünde kriterlerinizi belirleyin.',
+                    ),
+                    if (widget.onEditCriteria != null)
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                        ),
+                        onPressed: widget.onEditCriteria,
+                        child: const Text('Kriterleri düzenle'),
+                      ),
+                  ] else ...[
+                    const Text(
+                      'Yalnız seçtiğiniz kriterler karşılaştırılır; tüm başvuru şartlarını resmî ilandan kontrol edin.',
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final option in const <(CriteriaMatch?, String)>[
+                          (null, 'Tümü'),
+                          (CriteriaMatch.match, 'Eşleşenler'),
+                          (CriteriaMatch.unknown, 'Bilinmeyenler'),
+                        ])
+                          ChoiceChip(
+                            materialTapTargetSize: MaterialTapTargetSize.padded,
+                            label: Text(option.$2),
+                            selected: _positionFilter == option.$1,
+                            onSelected: (_) => setState(() {
+                              _positionFilter = option.$1;
+                              _allPositions = false;
+                            }),
+                          ),
+                      ],
+                    ),
+                    Text('${filtered.length} / ${positions.length} kadro'),
+                    if (filtered.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'Bu grupta kadro yok. Tümü seçeneğiyle diğer kadroları inceleyebilirsiniz.',
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 12),
+                ],
                 for (final group in shown) _positionCard(group),
-                if (shown.length < positions.length)
+                if (shown.length < filtered.length)
                   Align(
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
                       onPressed: () => setState(() => _allPositions = true),
                       icon: const Icon(Icons.expand_more_rounded),
                       label: Text(
-                        'Tüm pozisyonları göster (${positions.length})',
+                        'Tüm pozisyonları göster (${filtered.length})',
                       ),
                     ),
                   ),

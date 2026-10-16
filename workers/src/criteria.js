@@ -163,7 +163,7 @@ export function matchListing(listing, criteria, now = new Date()) {
       const age=matchAge(group,criteria,now);
       if(age==='no_match')status=age;else if(age==='unknown'&&status!=='no_match')status=age;
     }
-    if(criteria.kpssType || criteria.onlyKpss) {
+    if(criteria.kpssType || criteria.onlyKpss || criteria.kpssYear!==undefined) {
       // kpssTypes: alternative score types of one position ("KPSSP-3 KPSSP-44 KPSSP-45"); any of them qualifies.
       const types=Array.isArray(group.kpssTypes)&&group.kpssTypes.length?group.kpssTypes:group.kpssType!=null?[group.kpssType]:[];
       const invalid=(group.kpssStatus==='not_required'&&(['kpssType','kpssScore','kpssYear'].some(k=>group[k]!=null)||group.kpssTypes?.length))
@@ -172,7 +172,7 @@ export function matchListing(listing, criteria, now = new Date()) {
         ||(group.kpssYear!=null&&(!Number.isInteger(group.kpssYear)||group.kpssYear<2000||group.kpssYear>2100));
       if(invalid) {if(status!=='no_match')status='unknown';}
       else {
-        if(group.kpssStatus==='not_required') {if(criteria.onlyKpss)status='no_match';}
+        if(group.kpssStatus==='not_required') {if(criteria.onlyKpss||criteria.kpssYear!==undefined)status='no_match';}
         else if(group.kpssStatus!=='required') {if(status!=='no_match')status='unknown';}
         else if(criteria.kpssType && !types.length) {if(status!=='no_match')status='unknown';}
         else if(criteria.kpssType && !types.includes(criteria.kpssType)) status='no_match';
@@ -181,6 +181,7 @@ export function matchListing(listing, criteria, now = new Date()) {
           else if(criteria.kpssScore<group.kpssScore)status='no_match';
         }
         if(group.kpssYear){if(criteria.kpssYear===undefined){if(status!=='no_match')status='unknown';}else if(criteria.kpssYear!==group.kpssYear)status='no_match';}
+        else if(criteria.kpssYear!==undefined&&status!=='no_match')status='unknown';
       }
     }
     if(status==='match')return 'match';

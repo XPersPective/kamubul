@@ -308,6 +308,8 @@ class _KamuHomePageState extends State<KamuHomePage> {
         _pushAlertPage(
           OfficialListingPage(
             listing: detail,
+            criteria: _detailCriteria,
+            onEditCriteria: _editDetailCriteria,
             unavailable: item['active'] == false,
             onAskAssistant: () => _askAssistantAbout(detail),
             cacheNotice: (item['revision'] as int) < (target.revision ?? 1)
@@ -1463,9 +1465,36 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   Widget _listingPage(ListingRecord record) => OfficialListingPage(
     listing: record,
+    criteria: _detailCriteria,
+    onEditCriteria: _editDetailCriteria,
     unavailable: record.criteriaListing?['active'] == false,
     onAskAssistant: () => _askAssistantAbout(record),
   );
+
+  SearchCriteria? get _detailCriteria {
+    try {
+      final criteria =
+          _activeSearch?.effectiveCriteria ??
+          _quickCriteria ??
+          SearchCriteria.fromLegacy(_currentFilters);
+      return criteria.values.entries.any(
+            (e) =>
+                !const ['version', 'keywordScope', 'ageAsOf'].contains(e.key) &&
+                e.value != false &&
+                e.value != '' &&
+                (e.value is! List || (e.value as List).isNotEmpty),
+          )
+          ? criteria
+          : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  void _editDetailCriteria() {
+    Navigator.of(context).pop();
+    _saveCurrentSearch();
+  }
 
   Widget _savedView() => _visibleRecords.isEmpty
       ? _emptyState(

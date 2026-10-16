@@ -81,5 +81,10 @@
   {"name":"alternatif geçerli kadro bozuk KPSS yerine eşleşir","criteria":{"kpssType":"P3","kpssScore":75},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required","kpssType":"P3","kpssScore":"70"},{"kpssStatus":"required","kpssType":"P3","kpssScore":70}]},"expected":"match"},
   {"name":"alternatif KPSS türlerinden biri uyar","criteria":{"version":2,"kpssType":"P44","kpssScore":80},"listing":{"title":"Uzman Yardımcısı","requirementGroups":[{"kpssStatus":"required","kpssTypes":["P3","P44","P45","P46"],"kpssScore":75}]},"expected":"match"},
   {"name":"alternatif KPSS türleri dışındaki tür uymaz","criteria":{"version":2,"kpssType":"P4"},"listing":{"title":"Uzman Yardımcısı","requirementGroups":[{"kpssStatus":"required","kpssTypes":["P3","P44","P45","P46"],"kpssScore":75}]},"expected":"no_match"},
-  {"name":"geçersiz alternatif KPSS türü bilinmiyor","criteria":{"version":2,"kpssType":"P3"},"listing":{"title":"Uzman Yardımcısı","requirementGroups":[{"kpssStatus":"required","kpssTypes":["P3","KPSS"],"kpssScore":75}]},"expected":"unknown"}
+  {"name":"geçersiz alternatif KPSS türü bilinmiyor","criteria":{"version":2,"kpssType":"P3"},"listing":{"title":"Uzman Yardımcısı","requirementGroups":[{"kpssStatus":"required","kpssTypes":["P3","KPSS"],"kpssScore":75}]},"expected":"unknown"},
+  {"name":"yalnız sınav yılı eşleşir","criteria":{"version":2,"kpssYear":2026},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required","kpssYear":2026}]},"expected":"match"},
+  {"name":"yalnız sınav yılı uyuşmaz","criteria":{"version":2,"kpssYear":2026},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required","kpssYear":2024}]},"expected":"no_match"},
+  {"name":"istenen sınav yılı kaynakta yok","criteria":{"version":2,"kpssYear":2026},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required"}]},"expected":"unknown"},
+  {"name":"sınavsız kadro yıl filtresine uymaz","criteria":{"version":2,"kpssYear":2026},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"not_required"}]},"expected":"no_match"},
+  {"name":"tür seçili istenen yıl eksik","criteria":{"version":2,"kpssYear":2026,"kpssType":"P3"},"listing":{"title":"Memur","requirementGroups":[{"kpssStatus":"required","kpssType":"P3"}]},"expected":"unknown"}
 ]
