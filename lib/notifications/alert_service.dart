@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:workmanager/workmanager.dart';
 
-import '../data/catalogue_refresh.dart';
 import '../data/listing_store.dart';
 import '../data/search_alerts.dart';
 import 'alert_history.dart';
@@ -15,6 +15,50 @@ const _backgroundTaskName = 'kamubulRefreshAlerts';
 final FlutterLocalNotificationsPlugin _plugin =
     FlutterLocalNotificationsPlugin();
 bool _initialized = false;
+const _reminderChannel = MethodChannel('kamubul/reminders');
+bool _reminderTapBound = false;
+
+void _bindReminderTap() {
+  if (_reminderTapBound) return;
+  _reminderTapBound = true;
+  _reminderChannel.setMethodCallHandler((call) async {
+    if (call.method == 'tap' && call.arguments is String) {
+      _setAlertTap(call.arguments as String);
+    }
+  });
+}
+
+/// Native state owns opt-in and alarm identities; favorites stay on this device.
+Future<bool> syncDeadlineReminders(
+  List<ListingRecord> records, {
+  bool? enabled,
+  DateTime? now,
+}) async {
+  _bindReminderTap();
+  final instant = now ?? DateTime.now();
+  final plans = <Map<String, Object?>>[];
+  if (enabled != false) {
+    for (final record in records) {
+      final plan = deadlineReminderPlan(record: record, now: instant);
+      if (plan == null) continue;
+      plans.add({
+        'url': record.url,
+        'title': record.title,
+        'at': plan.at.millisecondsSinceEpoch,
+        'expires': plan.expiresAt.millisecondsSinceEpoch,
+      });
+    }
+  }
+  final on = await _reminderChannel.invokeMethod<bool>('sync', {
+    'plans': plans,
+    'enabled': ?enabled,
+  });
+  if (on == null) throw const FormatException('Hatırlatma durumu okunamadı.');
+  return on;
+}
+
+Future<bool?> deadlineRemindersEnabled() =>
+    _reminderChannel.invokeMethod<bool>('enabled');
 
 /// Bildirim dokunuşu hedefi: eski URL veya stable listingId taşıyan JSON.
 ///
@@ -71,6 +115,15 @@ Future<void> _ensureInitialized() async {
 /// En iyi çabadır: bildirim altyapısı bu ortamda yoksa sessizce geçilir,
 /// açılış akışı asla bundan etkilenmez.
 Future<void> consumeLaunchAlertTap() async {
+  _bindReminderTap();
+  try {
+    final url = await _reminderChannel.invokeMethod<String>('consumeTap');
+    if (alertTapUrl.value == null && url != null) _setAlertTap(url);
+  } on PlatformException {
+    // The plugin notification path remains available.
+  } on MissingPluginException {
+    // Android reminder bridge is not installed on this platform.
+  }
   try {
     await _ensureInitialized();
     if (alertTapUrl.value != null) return;
@@ -230,20 +283,6 @@ class AlertSettings {
     await store.flush();
   }
 }
-
-/// Elle denetim yalnız sunucu kataloğunu eşitler; yeni ilan bildiriminin sahibi FCM.
-Future<int> runAlertCheckOnce() async {
-  final store = ListingStore();
-  try {
-    await refreshCatalogue(store);
-    return 0;
-  } finally {
-    await store.close();
-  }
-}
-
-/// Ayarlar ekranındaki "şimdi denetle" eylemi.
-Future<int> runAlertCheckNow() => runAlertCheckOnce();
 
 /// Önceki sürümün kaynak okuyan yerel işini idempotent biçimde iptal eder.
 Future<void> registerBackgroundAlerts() async {

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:kamubul/data/listing_store.dart';
 import 'package:kamubul/home_page.dart';
 import 'package:kamubul/ui/premium.dart';
@@ -42,6 +44,7 @@ class _FakeStore implements StoreAdapter {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  AndroidFlutterLocalNotificationsPlugin.registerWith();
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
   HttpOverrides.global = _NoNetwork();
@@ -344,6 +347,148 @@ void main() {
     }
     expect(tester.takeException(), isNull);
   });
+
+  for (final (name, size, dark) in [
+    ('phone_light', const Size(390, 844), false),
+    ('phone_dark', const Size(390, 844), true),
+    ('tablet_light', const Size(1024, 768), false),
+    ('tablet_dark', const Size(1024, 768), true),
+  ]) {
+    testWidgets('deadline setting $name opt-in, failure and semantics', (
+      tester,
+    ) async {
+      const reminders = MethodChannel('kamubul/reminders');
+      const notifications = MethodChannel(
+        'dexterous.com/flutter/local_notifications',
+      );
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      var on = true;
+      var fail = false;
+      var syncs = 0;
+      Completer<bool>? failureReadback;
+      var readingFailure = false;
+      messenger.setMockMethodCallHandler(reminders, (call) async {
+        if (call.method == 'enabled') {
+          readingFailure = true;
+          return failureReadback?.future ?? on;
+        }
+        if (call.method != 'sync') return null;
+        syncs++;
+        if (fail) throw PlatformException(code: 'disk_full');
+        on = (call.arguments as Map)['enabled'] as bool? ?? on;
+        return on;
+      });
+      messenger.setMockMethodCallHandler(
+        notifications,
+        (call) async =>
+            ['initialize', 'areNotificationsEnabled'].contains(call.method)
+            ? true
+            : null,
+      );
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(reminders, null);
+        messenger.setMockMethodCallHandler(notifications, null);
+      });
+      final semantics = tester.ensureSemantics();
+      await pumpHome(tester, size: size, dark: dark, textScale: 1.3);
+      await tester.tap(find.text('Ayarlar'));
+      await tester.pumpAndSettle();
+      final tile = find.widgetWithText(
+        SwitchListTile,
+        'Son başvuru hatırlatmaları',
+      );
+      await tester.scrollUntilVisible(tile, 250);
+      await tester.pumpAndSettle();
+      expect(tester.getSize(tile).height, greaterThanOrEqualTo(48));
+      expect(
+        tester.getSemantics(tile).label,
+        contains('Son başvuru hatırlatmaları'),
+      );
+      semantics.dispose();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/deadline_setting_$name.png'),
+      );
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      expect(tester.widget<SwitchListTile>(tile).value, isFalse);
+      fail = true;
+      if (name == 'phone_light') failureReadback = Completer<bool>();
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      if (failureReadback != null) {
+        expect(readingFailure, isTrue);
+        final before = syncs;
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        for (var i = 0; i < 10; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(
+          syncs,
+          before,
+          reason: 'Auto sync must wait for failure readback',
+        );
+        fail = false;
+        failureReadback.complete(false);
+        await tester.pumpAndSettle();
+      }
+      expect(tester.widget<SwitchListTile>(tile).value, isFalse);
+      expect(
+        find.textContaining('Hatırlatmalar güncellenemedi'),
+        findsOneWidget,
+      );
+      fail = false;
+      if (name == 'phone_light') {
+        final before = syncs;
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        for (var i = 0; i < 100 && syncs == before; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(syncs, greaterThan(before));
+        await tester.pumpAndSettle();
+        expect(tester.widget<SwitchListTile>(tile).value, isFalse);
+        expect(find.text('Yeniden dene'), findsOneWidget);
+      }
+      await tester.ensureVisible(find.text('Yeniden dene'));
+      await tester.tap(find.text('Yeniden dene'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<SwitchListTile>(tile).value, isTrue);
+      expect(find.textContaining('Hatırlatmalar güncellenemedi'), findsNothing);
+      if (name == 'phone_light') {
+        final before = syncs;
+        final permission = find.text('Bildirim izni ve yeni ilan denetimi');
+        await Scrollable.ensureVisible(
+          tester.element(permission),
+          alignment: 0.5,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(permission);
+        for (var i = 0; i < 100 && syncs == before; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(
+          syncs,
+          greaterThan(before),
+          reason: 'Ayarlar denetimi hatırlatmaları da uzlaştırmalı',
+        );
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   for (final dark in [false, true]) {
     final mode = dark ? 'dark' : 'light';

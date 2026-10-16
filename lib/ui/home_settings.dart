@@ -128,24 +128,45 @@ extension _HomeSettings on _KamuHomePageState {
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
             title: const Text('Bildirimler'),
-            subtitle: const Text('Uygun ilanlar ve son başvuru hatırlatmaları'),
+            subtitle: const Text('Bildirim izni ve yeni ilan denetimi'),
             onTap: () async {
               final granted = await requestAlertPermission(context);
               if (!mounted) return;
-              if (granted) await runAlertCheckNow();
+              if (granted) await _refresh(manual: true);
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
                     granted
-                        ? 'Bildirimler açık. Uygun yeni ilanlar ve son başvuru '
-                              'hatırlatmaları gelecek.'
+                        ? 'Bildirim izni açık. Yeni ilan ve son başvuru tercihlerini ayrı ayrı açabilirsiniz.'
                         : 'Bildirim izni verilmedi; uygulama yine de çalışır.',
                   ),
                 ),
               );
             },
           ),
+          if (_remindersAvailable)
+            SwitchListTile(
+              secondary: const Icon(Icons.event_available_outlined),
+              title: const Text('Son başvuru hatırlatmaları'),
+              subtitle: const Text(
+                'Kaydettiğiniz kesin tarihli ilanlar için yaklaşık 3 gün önce. '
+                'Türkiye saatiyle 22:00–08:00 sessizdir; cihaz kısıtları geciktirebilir.',
+              ),
+              value: _remindersEnabled,
+              onChanged: _remindersBusy ? null : _setReminders,
+            ),
+          if (_reminderError != null)
+            ListTile(
+              leading: const Icon(Icons.error_outline),
+              title: Text(_reminderError!),
+              trailing: TextButton(
+                onPressed: () => _reminderRetryEnabled == null
+                    ? _syncReminders()
+                    : _setReminders(_reminderRetryEnabled!),
+                child: const Text('Yeniden dene'),
+              ),
+            ),
           if (pushRegistrar != null)
             SwitchListTile(
               secondary: const Icon(Icons.cloud_outlined),

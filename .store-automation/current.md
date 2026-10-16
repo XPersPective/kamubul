@@ -1,5 +1,9 @@
 # Current Architecture
 
+## SA-015 implementation checkpoint — 16 Ekim
+- Native AtomicFile/inexact receiver/MethodChannel, ayrı opt-in UI ve açılış/save/unsave/refresh/resume uzlaştırması yazıldı. Yerel okuma ve native hata readback'i sıralı; kapalı kanal gönderilmiş sayılmaz, retry kullanıcı isteğini korur.
+- Bağımsız kod incelemesinin beş bulgusu düzeltildi; gerçek Android reboot/delivery/tap ve keyboard/TalkBack hâlâ açık. Eski aşağıdaki native-yok snapshot'ı tarihsel; güncel dosya/görev ve `docs/SA015_ACCEPTANCE_2026-10-16.md` esas alınır. Üretime gönderilmedi.
+
 OBSERVED (Project Brain current.md, son güncelleme 6-8 Ekim 2026; 15.10.2026 devralındı, yeniden doğrulanmadı).
 
 ## Runtime

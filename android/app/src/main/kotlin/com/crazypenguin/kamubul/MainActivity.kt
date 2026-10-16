@@ -22,9 +22,35 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 class MainActivity : FlutterActivity() {
+    private var remindersChannel: MethodChannel? = null
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.getStringExtra(DeadlineReminders.TAP)?.let { remindersChannel?.invokeMethod("tap", it) }
+    }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val messenger = flutterEngine.dartExecutor.binaryMessenger
+        remindersChannel = MethodChannel(messenger, "kamubul/reminders").also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                try {
+                    when (call.method) {
+                        "enabled" -> result.success(DeadlineReminders.enabled(this))
+                        "sync" -> result.success(DeadlineReminders.sync(this,
+                            call.argument<List<*>>("plans") ?: error("plans"), call.argument<Boolean>("enabled")))
+                        "consumeTap" -> {
+                            val url = intent.getStringExtra(DeadlineReminders.TAP)
+                            intent.removeExtra(DeadlineReminders.TAP)
+                            result.success(url)
+                        }
+                        else -> result.notImplemented()
+                    }
+                } catch (error: Exception) {
+                    result.error(if (error.message == "too_many_reminders") "reminder_capacity" else "reminders_unavailable",
+                        "Hatırlatmalar güncellenemedi. Bildirim iznini ve kayıtlı ilan sayısını kontrol edip yeniden deneyin.", null)
+                }
+            }
+        }
         MethodChannel(messenger, "kamubul/calendar").setMethodCallHandler { call, result ->
             if (call.method != "insert") { result.notImplemented(); return@setMethodCallHandler }
             try {

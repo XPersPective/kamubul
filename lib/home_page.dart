@@ -89,7 +89,15 @@ class KamuHomePage extends StatefulWidget {
   State<KamuHomePage> createState() => _KamuHomePageState();
 }
 
-class _KamuHomePageState extends State<KamuHomePage> {
+class _KamuHomePageState extends State<KamuHomePage>
+    with WidgetsBindingObserver {
+  Future<void> _localLoad = Future<void>.value();
+  Future<void> _reminderSync = Future<void>.value();
+  bool? _reminderRetryEnabled;
+  bool _remindersAvailable = false;
+  bool _remindersEnabled = false;
+  bool _remindersBusy = false;
+  String? _reminderError;
   static const _legacySavedKey = 'kamubul.saved_urls';
   static const _kategoriAdlari = ['Tümü', 'İşçi', 'Personel', 'Belediye'];
 
@@ -192,6 +200,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     restoreRatePrompt(_ratePolicy, widget.store);
     _ratePolicy.markFirstSeen(DateTime.now());
     saveRatePrompt(_ratePolicy, widget.store);
@@ -404,7 +413,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
     widget.store.setStringList(_legacySavedKey, const []);
   }
 
-  Future<void> _loadLocal() async {
+  Future<void> _loadLocal() => _localLoad = _localLoad.then((_) async {
     try {
       final records = await _store.allListings();
       final searches = await _store.savedSearches();
@@ -426,6 +435,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
         if (statuses != null) _sourceStatuses = statuses;
       });
       _restoreSelection();
+      unawaited(_syncReminders());
       // Kullanıcı sunucu bildirimini açtıysa etiketler değişince kayıt tazelenir;
       // içerik değişmediyse ağa çıkılmaz.
       final registrar = pushRegistrar;
@@ -434,6 +444,61 @@ class _KamuHomePageState extends State<KamuHomePage> {
       }
     } on Exception {
       // Yerel okuma hatası: boş katalogla çevrimiçi yenileme denenir.
+    }
+  });
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_loadLocal());
+  }
+
+  Future<void> _syncReminders({bool? enabled}) =>
+      _reminderSync = _reminderSync.then((_) async {
+        if (!mounted) return;
+        try {
+          final on = await syncDeadlineReminders(_records, enabled: enabled);
+          if (!mounted) return;
+          setState(() {
+            _remindersAvailable = true;
+            _remindersEnabled = on;
+            if (enabled != null || _reminderRetryEnabled == null) {
+              _reminderError = null;
+              _reminderRetryEnabled = null;
+            }
+          });
+        } on MissingPluginException {
+          if (mounted) {
+            setState(() => _remindersAvailable = false);
+          }
+        } on Exception catch (error) {
+          bool? actual;
+          try {
+            actual = await deadlineRemindersEnabled();
+          } on Exception {
+            // Keep the last acknowledged value and show the unresolved error.
+          }
+          if (!mounted) return;
+          setState(() {
+            _remindersAvailable = true;
+            if (actual != null) _remindersEnabled = actual;
+            if (enabled != null) _reminderRetryEnabled = enabled;
+            _reminderError =
+                error is PlatformException && error.code == 'reminder_capacity'
+                ? 'En fazla 500 ilan için hatırlatma planlanabilir. Kayıtlı ilanlarınızı azaltıp yeniden deneyin.'
+                : 'Hatırlatmalar güncellenemedi. Android bildirim ayarlarında uygulama iznini ve Son başvuru hatırlatmaları kanalını kontrol edip yeniden deneyin.';
+          });
+        }
+      });
+
+  Future<void> _setReminders(bool on) async {
+    if (_remindersBusy) return;
+    setState(() => _remindersBusy = true);
+    try {
+      if (on && !await requestAlertPermission(context)) return;
+      if (!mounted) return;
+      await _syncReminders(enabled: on);
+    } finally {
+      if (mounted) setState(() => _remindersBusy = false);
     }
   }
 
@@ -475,7 +540,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   /// [manual]: kullanıcı aşağı çekti ya da yenile düğmesine bastı.
   Future<void> _refresh({bool manual = false}) async {
-    if (_loading) return;
+    if (!mounted || _loading) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -828,6 +893,7 @@ class _KamuHomePageState extends State<KamuHomePage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     alertTapUrl.removeListener(_openAlertFromNotification);
     _searchController.dispose();
     super.dispose();
