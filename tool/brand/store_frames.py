@@ -15,7 +15,7 @@ FONT_BOLD = 'C:/Windows/Fonts/segoeuib.ttf'
 FONT_REGULAR = 'C:/Windows/Fonts/segoeui.ttf'
 ICON = Path(__file__).resolve().parents[2] / 'assets' / 'brand' / 'kamubul_icon.png'
 
-# (ham dosya, çıktı adı, başlık, alt cümle, koyu zemin mi)
+# Store screenshots show product use; purchase and trial promotions are excluded.
 SHOTS = [
     ('home-light.png', '01-tum-kamu-ilanlari.png', 'Kamu ilanları\ntek yerde',
      'Memur, işçi, sözleşmeli personel ve belediye ilanları her gün güncel.', False),
@@ -31,8 +31,6 @@ SHOTS = [
      'Açık ve koyu tema, ayarlanabilir yazı boyutu.', True),
     ('detail-dark.png', '07-son-basvuruyu-kacirmayin.png', 'Son başvuruyu\nkaçırmayın',
      'Kalan gün rozetleri ve süreli ilanlarda tahmini son başvuru günü.', True),
-    ('pro.png', '08-reklamsiz-deneyin.png', '7 gün\nreklamsız deneyin',
-     'Pro ile reklamsız kullanım ve daha fazla Asistan hakkı.', False),
 ]
 
 
