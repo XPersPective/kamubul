@@ -94,5 +94,5 @@ Sources: `docs/PLAY_GROWTH_AUDIT.md`, `docs/STORE_LISTING_CANDIDATE.md`, `docs/W
 - Play subscriptions15Ekim:kamubul_pro_monthly/aylik ACTIVE/P1M/TR58,99TRY; dönen yıllık plan yok. Fiyat değiştirilmedi.
 - Fastlane metadata commit+ayrı API readback: Asistan-first title/short/full ve7orderedSHA256 eşit (SA-006/c1322e8). Production/internal1.2.2/code17 değişmedi; Google public onay/yayılım bekliyor.
 - Eski100/30 Pro görseli silinmeden assets/unassigned içine taşındı; yalnız7doğru ekran gönderildi. Sekizinci varyant için doğru50/10 capture gerekir.
-- Browser Console oturumu yok:CTR/Vitals/deney/custom listing authenticated session gerektirir. Genel yayın onayı tekrar istenmez.
+- 16 Ekim akşam: Console (devx8585→crazypenguin) ve wrangler OAuth (devx8585) erişimi doğrulandı; eski "oturum yok" notları geçersiz. Metadata incelemesi yayına çıktı (yayınlanmamış değişiklik yok). Edinim hacmi deney için çok düşük; Vitals/elde tutma eşik altı. Özel sayılar yalnız yerel baseline'da.
 - Statik Sites public yayında: https://kamubul-kamu-ilanlari.ochre-coin-3625.chatgpt.site; source9723514, native deployment succeeded, browser/6HTTP200 readback. Play contactWebsite commit+separate edit GET doğrulandı; public Google approval ayrı. Worker deploy yok.
