@@ -96,3 +96,5 @@ KPSS/ÖSYM/kurum adı kullanılmaz; uzun açıklamada yalnız betimleyici kullan
 uygulama uyarısı korunur (kaynak: PB-029, 8 Ekim).
 ## C-061 Mağaza dili — 3 Ekim kullanıcı yönü
 Dağıtım yalnız Türkiye, mağaza dili yalnız Türkçe; İngilizce mağaza girişi hazırlanmaz (kaynak: target §1).
+## C-062 Araştırma önceliği ve takip yasağı — 16 Ekim hedef dosyası
+Önce derin rakip/Play politikası/sıralama/kelime/metin/görsel araştırması ve devralınabilir strateji; keşfedilen kusurları kuyruğa kaydet. Şu aşamada takip/heartbeat/cron kurma veya çalıştırma; önceki günlük iş kaldırıldı. Mağaza görsellerinde satın alma/Pro/deneme promosyonu yok. Tam kullanıcı metni docs/growth/USER_OBJECTIVE_2026-10-16.md; araştırma sonrası test/hazırlık/yayın kapsamı sürer, birincilik hedefi garanti sonucu sayılmaz.

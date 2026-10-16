@@ -4,6 +4,7 @@ Status: CONFIRMED
 (Project Brain target.md'den 15.10.2026 devralındı; hedef kullanıcı yönergelerinden oluşur. Tam eski metin arşivde.)
 
 ## Goal
+16 Ekim son kullanıcı yönü: “en öncelik alan araştırması, saha araştırması” ve “başka bir yapay zeka bunu devralabilsin”; “en çok indirilen”, “birinci sırada” hedefi korunur. Tam kullanıcı hedefi: `docs/growth/USER_OBJECTIVE_2026-10-16.md`. Önce kapsamlı araştırma ve büyüme mimarisi, sonra uygulama/test/yayın; şu aşamada takip otomasyonu yok. Mağaza görselinde Pro/satın alma/deneme promosyonu yok (ADR-009).
 "Premium görünümlü, Türkçe Android/iOS uygulaması; hesap açmadan resmî kamu ilanlarını okuma, profil ve kişisel kayıtlı kriterlerle filtreleme, yeni uygun ilana FCM bildirimi." 15 Ekim büyüme yönü: Play Store'da AI Asistan ("Bu ilan bana uygun mu?") ayrışmasını öne çıkarmak, mağaza dönüşümünü (unique install CTR) eş-uygulama ortancasının üzerine çıkarmak.
 
 ## Users
@@ -18,12 +19,13 @@ Status: CONFIRMED
 - android: Google Play, yalnız Türkiye, yalnız Türkçe (iOS ertelendi).
 
 ## Success Conditions
+- [artifact] Kaynaklı saha araştırması, rakip/fiyat/bilinmeyen matrisi, mağaza metni/görsel briefi ve devralınabilir büyüme stratejisi kayıtlı (SA-022/023).
 - [remote] Play canlı listeleme yerel tr-TR metadata ile aynı (kısa/uzun açıklama, ekran sırası).
 - [remote] Play Console unique user install CTR 28 günlük baseline kaydedildi ve deneylerle izleniyor.
 - [machine] Sunucu ayıklama ve Asistan testleri geçer.
 
 ## Riskiest Assumptions
-- RA-1: Asistan-öncelikli metin/görsel CTR'yi artırır → Play store listing experiment (unique install clicks).
+- RA-1: Aynı doğru7ekranda ilan-first veya Asistan-first sırası Install CTR'yi değiştirir mi? → kontrollü tekvaryant deney (SA-007). Pro görseli yok; kazanım bilinmiyor.
 
 ## Target State
 ### Sunucu, ayıklama, Asistan
@@ -31,9 +33,10 @@ Status: CONFIRMED
 ### Mobil
 - Premium Türkçe UI, açık/koyu, büyük metin; telefon yalnız API/cache.
 ### Mağaza büyümesi
-- Asistan-öncelikli mağaza metni ve ekran sırası canlı; deneylerle doğrulanmış.
+- Doğru güncel metin/görseller public; ilan-first ve Asistan-first farkı gerçek trafikle deneylenmiş. Pro/satın alma/deneme görseli yok; RA-1 sonucu varsayılmaz.
 
 ## Non-Goals
+- Bu aşamada takip/heartbeat/cron veya periyodik Codex işi kurmak (C-062).
 - İngilizce/diğer ülke mağaza girişi (C-061); iOS/APNs; ücretli Cloudflare/AI yükseltmesi.
 
 ## Open Decisions

@@ -6,6 +6,7 @@ OBSERVED (Project Brain current.md, son güncelleme 6-8 Ekim 2026; 15.10.2026 de
 - Flutter Android uygulaması (`lib/`), Cloudflare Worker + D1 sunucu (`workers/`), Firebase yalnız FCM.
 
 ## Map
+- `docs/growth/STRATEGY.md`, `RESEARCH_2026-10-16.md`, `COMPETITORS_2026-10-16.md`, `STORE_COPY.md` — güncel büyüme kanıtı/karar/devir; `docs/growth/evidence/**` saha ekranları.
 - `lib/` — Flutter uygulaması
 - `workers/src/` — Worker: kaynaklar, ayıklama, Asistan, FCM
 - `workers/migrations/` — D1 migration
@@ -14,6 +15,17 @@ OBSERVED (Project Brain current.md, son güncelleme 6-8 Ekim 2026; 15.10.2026 de
 - `docs/CLOUDFLARE_FCM_YOL_HARITASI.md` — yol haritası
 
 ## Domains
+
+### Research and growth checkpoint — 16 Ekim 2026
+Status: OBSERVED
+Sources: `docs/growth/**`, `docs/GROWTH_RECHECK_2026-10-16.md`, `lib/ui/assistant_chat.dart`, `workers/src/worker.js`
+- SA-022/023:25 resmi kaynak grubu,12 rakip,3 tekseferlik Play TR web sorgusu,3 rakip görseli; strateji/metin/brief ve tam kullanıcı hedefi Git içinde. `docs/growth/STRATEGY.md` devir girişidir.
+- Public TR tarayıcı:eski8görsel,sonPro100/30; yerel/APIadayı7 ile public eşleşmiyor. Google publishing state okunmadan upload tekrarlanmaz; SA-021.
+- AI yanıt bildirimi AssistantChatView/Workerrouter içinde yok; SA-024. SELLSOFT da hesapsız eşleşme+AIayıklama beyanı; benzersizlik iddiası yok.
+- 16Ekim canlı API213aktif/135complete/57partial/21metinsiz/13AI; SBBblocked,İŞKUR500,Kariyer önceki metni koruyan ayrıntı hatası. Bu bölüm eski snapshot sayılarından yenidir.
+- Son checkout Flutter204geçti/2canonicaltabletgoldenfail; positionfilter7/7,Workercontracts+pipeline162/162. Bunlar gerçek ödeme/FCM/reklam kabulü değil; SA-017dirty korunur.
+- Günlük heartbeat hedefdosyasının takip yasağıyla silindi:automation_update deleteStatus=deleted. Yeni takip kurulmadı. ConsoleCTR/Vitals/Androidrakipfiyat/WebindexUNKNOWN.
+
 
 ### Legacy snapshot
 Status: OBSERVED
