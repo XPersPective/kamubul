@@ -12,7 +12,14 @@ import 'dedupe.dart';
 
 export 'package:kamubul_core/data/listing_models.dart';
 
+/// Kullanıcının kaydedilen ilan için yalnız cihazda tuttuğu durum ve not.
+/// Sunucuya, Asistan'a veya bildirim kaydına hiç gönderilmez.
+typedef ListingNote = ({String? status, String? note});
+
 class ListingStore {
+  static const noteStatuses = {'review', 'applied', 'waiting'};
+  static const noteMaxLength = 500;
+
   ListingStore({Database? database}) : _injected = database;
 
   final Database? _injected;
@@ -35,7 +42,7 @@ class ListingStore {
     return opened;
   }
 
-  static const int _schemaVersion = 11;
+  static const int _schemaVersion = 12;
 
   Future<void> _create(Database db, int version) => createSchema(db, version);
 
@@ -82,7 +89,13 @@ class ListingStore {
     await _addRemoteBootstrap(db);
     await _addRemoteOrigin(db);
     await _addRemoteDetails(db);
+    await _addListingNotes(db);
   }
+
+  // listings satırı uzak REPLACE ile yeniden yazılır; not ayrı tabloda kalır.
+  static Future<void> _addListingNotes(Database db) => db.execute(
+    'CREATE TABLE listing_notes (url TEXT PRIMARY KEY, status TEXT, note TEXT, updatedAt INTEGER NOT NULL)',
+  );
 
   static Future<void> _createRemoteTables(DatabaseExecutor db) async {
     await db.execute(
@@ -137,6 +150,7 @@ class ListingStore {
         'UPDATE listings SET conditionsCheckedAt=NULL, aiGroups=NULL',
       );
     }
+    if (oldVersion < 12 && newVersion >= 12) await _addListingNotes(db);
   }
 
   static Future<void> _addRemoteDetails(Database db) async {
@@ -584,6 +598,10 @@ class ListingStore {
         );
         if (oldUrl != null && oldUrl != record.url) {
           await txn.delete('listings', where: 'url=?', whereArgs: [oldUrl]);
+          await txn.rawUpdate(
+            'UPDATE OR IGNORE listing_notes SET url=? WHERE url=?',
+            [record.url, oldUrl],
+          );
         }
         await txn.insert('listings', {
           ...record
@@ -809,17 +827,50 @@ class ListingStore {
     }
   }
 
+  /// Kaydı kaldırmak o ilanın yerel durum/notunu da siler.
   Future<void> setSaved(String url, bool saved) async {
+    await (await database).transaction((txn) async {
+      await txn.update(
+        'listings',
+        {
+          'saved': saved ? 1 : 0,
+          'savedAt': saved ? DateTime.now().millisecondsSinceEpoch : null,
+        },
+        where: 'url = ?',
+        whereArgs: [url],
+      );
+      if (!saved) {
+        await txn.delete('listing_notes', where: 'url = ?', whereArgs: [url]);
+      }
+    });
+  }
+
+  Future<Map<String, ListingNote>> listingNotes() async => {
+    for (final row in await (await database).query('listing_notes'))
+      row['url'] as String: (
+        status: row['status'] as String?,
+        note: row['note'] as String?,
+      ),
+  };
+
+  /// Boş durum ve boş not satırı siler. Geçersiz giriş yazılmadan reddedilir.
+  Future<void> setListingNote(String url, String? status, String? note) async {
+    final text = note?.trim() ?? '';
+    if ((status != null && !noteStatuses.contains(status)) ||
+        text.length > noteMaxLength) {
+      throw const FormatException('invalid listing note');
+    }
     final db = await database;
-    await db.update(
-      'listings',
-      {
-        'saved': saved ? 1 : 0,
-        'savedAt': saved ? DateTime.now().millisecondsSinceEpoch : null,
-      },
-      where: 'url = ?',
-      whereArgs: [url],
-    );
+    if (status == null && text.isEmpty) {
+      await db.delete('listing_notes', where: 'url = ?', whereArgs: [url]);
+      return;
+    }
+    await db.insert('listing_notes', {
+      'url': url,
+      'status': status,
+      'note': text.isEmpty ? null : text,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   /// Ayrıntı okumasından gelen yapılandırılmış alanları kayda işler.

@@ -26,6 +26,7 @@ extension _HomeListingCard on _KamuHomePageState {
       ),
     );
     final scheme = Theme.of(context).colorScheme;
+    final note = _notes[record.url];
     final now = DateTime.now();
     final estimate = record.deadline == null ? record.deadlineEstimate : null;
     final shownDeadline = record.deadline ?? estimate;
@@ -195,9 +196,43 @@ extension _HomeListingCard on _KamuHomePageState {
                   ],
                 ),
               ),
+              if (_tab == 1 && note != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10, right: 10),
+                  child: Semantics(
+                    label: 'Kişisel notunuz',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (note.status != null)
+                          _factChip(
+                            Icons.flag_outlined,
+                            _noteStatusLabels[note.status]!,
+                          ),
+                        if (note.note != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              note.note!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
               Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 children: [
+                  if (_tab == 1 && record.saved)
+                    TextButton.icon(
+                      onPressed: () => _editNote(record),
+                      icon: const Icon(Icons.edit_note_rounded, size: 18),
+                      label: Text(note == null ? 'Not ekle' : 'Notu düzenle'),
+                    ),
                   TextButton.icon(
                     onPressed: () => _showListing(record),
                     icon: const Icon(Icons.arrow_forward_rounded, size: 18),
@@ -221,6 +256,123 @@ extension _HomeListingCard on _KamuHomePageState {
         ),
       ),
     );
+  }
+
+  static const _noteStatusLabels = {
+    'review': 'İnceleyeceğim',
+    'applied': 'Başvurdum',
+    'waiting': 'Sonuç bekliyorum',
+  };
+
+  /// Yalnız cihazdaki durum/not düzenleyicisi; kayıt hatasında girdi korunur.
+  Future<void> _editNote(ListingRecord record) async {
+    final existing = _notes[record.url];
+    var status = existing?.status;
+    final controller = TextEditingController(text: existing?.note);
+    var error = false;
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheet) {
+          Future<void> save(String? newStatus, String? text) async {
+            try {
+              await _store.setListingNote(record.url, newStatus, text);
+              if (context.mounted) Navigator.pop(context, true);
+            } on Object {
+              setSheet(() => error = true);
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              0,
+              20,
+              16 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Başvuru durumunuz',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Yalnız bu cihazda saklanır. KamuBul kuruma başvuru '
+                    'göndermez; resmî sonucu kurumun sayfasından takip edin.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final entry in _noteStatusLabels.entries)
+                        ChoiceChip(
+                          label: Text(entry.value),
+                          selected: status == entry.key,
+                          onSelected: (on) =>
+                              setSheet(() => status = on ? entry.key : null),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    maxLength: ListingStore.noteMaxLength,
+                    minLines: 2,
+                    maxLines: 5,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Kişisel not',
+                      hintText: 'Örn. belgeler hazır, sınav yeri…',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (error)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Not kaydedilemedi. Yazdıklarınız duruyor; tekrar deneyin.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    children: [
+                      if (existing != null)
+                        TextButton(
+                          onPressed: () => save(null, null),
+                          child: const Text('Sil'),
+                        ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Vazgeç'),
+                      ),
+                      FilledButton(
+                        onPressed: () => save(status, controller.text),
+                        child: const Text('Kaydet'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    // Controller is not disposed here: the sheet's exit animation still builds it.
+    if (changed == true) await _loadLocal();
   }
 
   Widget _factChip(IconData icon, String label, {bool urgent = false}) =>

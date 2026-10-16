@@ -128,6 +128,7 @@ class _KamuHomePageState extends State<KamuHomePage>
   DateTime? _remoteLastSuccess;
   bool _remoteFailed = false;
   List<ListingRecord> _records = const [];
+  Map<String, ListingNote> _notes = const {};
   List<SavedSearch> _searches = const [];
   ListingRecord? _assistantListing;
   final ListingStore _store = ListingStore();
@@ -416,6 +417,7 @@ class _KamuHomePageState extends State<KamuHomePage>
   Future<void> _loadLocal() => _localLoad = _localLoad.then((_) async {
     try {
       final records = await _store.allListings();
+      final notes = await _store.listingNotes();
       final searches = await _store.savedSearches();
       final cached = await _store.remoteMetadata();
       List<SourceStatus>? statuses;
@@ -430,6 +432,7 @@ class _KamuHomePageState extends State<KamuHomePage>
       if (!mounted) return;
       setState(() {
         _records = records;
+        _notes = notes;
         _searches = searches;
         _remoteLastSuccess = cached.lastSuccess;
         if (statuses != null) _sourceStatuses = statuses;
@@ -577,6 +580,28 @@ class _KamuHomePageState extends State<KamuHomePage>
   }
 
   Future<void> _toggleSaved(ListingRecord record) async {
+    if (record.saved && _notes.containsKey(record.url)) {
+      final remove = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Kayıt kaldırılsın mı?'),
+          content: const Text(
+            'Bu ilan için tuttuğunuz başvuru durumu ve not da silinir.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Vazgeç'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Kaldır'),
+            ),
+          ],
+        ),
+      );
+      if (remove != true) return;
+    }
     HapticFeedback.mediumImpact();
     await _store.setSaved(record.url, !record.saved);
     await _loadLocal();
