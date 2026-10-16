@@ -18,6 +18,14 @@ OBSERVED (Project Brain current.md, son güncelleme 6-8 Ekim 2026; 15.10.2026 de
 
 ## Domains
 
+### Product QA and reminders — 16 Ekim son tur
+Status: OBSERVED
+Sources: `packages/kamubul_core/lib/data/search_alerts.dart`, `packages/kamubul_core/test/deadline_plan_test.dart`, `docs/PRODUCT_ACCEPTANCE_2026-10-16.md`, `.store-automation/tasks/SA-015.md`
+- SA-017 kadro/yıl düzeltmesi Git içinde; Flutter206/206, Worker contracts+pipeline162/162, core219/219 önceki tur PASS. Cihaz TalkBack ve bağımsız review açık; yayınlanmadı.
+- SA-015 saf deadlineReminderPlan eklendi:3gün önce09 Türkiye, UTC slot/expiry,22–08 sessiz saat, iptal/unsave/belirsiz tarih koruması. Hedefli20/20 ve analyze temiz; son genel Flutter206/206/core223/223 PASS.
+- Native alarm/receiver, opt-in ayar ve save/unsave/revision/resume/boot entegrasyonu henüz yok; otomatik hatırlatma çalışıyor denmez. ADR-011 teslim anında expiry/quiet kontrolünü zorunlu kılar; yeni dependency veya kaynak taraması yok.
+- Kullanıcı yeni mağaza gönderiminden önce ürün kabulü istedi (ADR-010). Yetkili Console mevcut eski tr-TR metin/görselleri incelemede gösterdi; önceki erişim yok notu tarihsel. Genel ürün kabulü ve büyüme sonucu açık.
+
 ### Research and growth checkpoint — 16 Ekim 2026
 Status: OBSERVED
 Sources: `docs/growth/**`, `docs/GROWTH_RECHECK_2026-10-16.md`, `lib/ui/assistant_chat.dart`, `workers/src/worker.js`

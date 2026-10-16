@@ -1,6 +1,7 @@
 import '../notifications/alert_history.dart';
 import 'listing_models.dart';
 import 'search_criteria.dart';
+import '../time/wall_clock.dart';
 
 /// Hızlı filtre ve kayıtlı arama aynı kadro bazlı v2 eşleştiriciyi kullanır.
 CriteriaMatch matchFilters(
@@ -210,6 +211,44 @@ NotificationDecision decideAlerts({
     held: held,
     seenUrls: seen,
   );
+}
+
+/// UTC alarm slotu; teslimde izin, sessiz saat ve expiry tekrar doğrulanır.
+({DateTime at, DateTime expiresAt})? deadlineReminderPlan({
+  required ListingRecord record,
+  required DateTime now,
+}) {
+  final deadline = record.deadline?.toUtc();
+  final data = record.criteriaListing;
+  final extraction = data?['extraction'];
+  final periods = data?['applicationPeriods'];
+  if (!record.saved ||
+      deadline == null ||
+      data?['active'] == false ||
+      (extraction is Map && extraction['kind'] == 'cancellation') ||
+      (periods != null && (periods is! List || periods.isNotEmpty))) {
+    return null;
+  }
+  final instant = now.toUtc();
+  if (!deadline.isAfter(instant)) return null;
+  final day = wallClock(deadline);
+  var at = DateTime.utc(
+    day.year,
+    day.month,
+    day.day - 3,
+    9,
+  ).subtract(const Duration(minutes: kTurkeyUtcOffsetMinutes));
+  if (!at.isAfter(instant)) at = instant.add(const Duration(minutes: 1));
+  final wall = wallClock(at);
+  if (wall.hour < 8 || wall.hour >= 22) {
+    at = DateTime.utc(
+      wall.year,
+      wall.month,
+      wall.day + (wall.hour >= 22 ? 1 : 0),
+      8,
+    ).subtract(const Duration(minutes: kTurkeyUtcOffsetMinutes));
+  }
+  return at.isBefore(deadline) ? (at: at, expiresAt: deadline) : null;
 }
 
 /// Son başvuru hatırlatıcısı: kaydedilen ilanlar için son X gün içinde bir kez.
