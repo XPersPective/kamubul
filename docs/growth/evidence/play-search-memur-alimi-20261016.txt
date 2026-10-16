@@ -1,0 +1,240 @@
+- banner:
+  - navigation "Sayfa Üstbilgisi":
+    - link "Google Play logosu" [active]:
+      - /url: /store/games
+      - generic: google_logo Play
+    - combobox:
+      - generic: search
+      - textbox "Google Play'de arayın":
+        - /placeholder: Uygulamalar ve oyunlarda arayın
+        - text: memur alımı
+      - generic: clear
+    - button "Yardım Merkezi":
+      - generic: help_outline
+    - button "Hesap menüsünü aç":
+- list:
+  - link "Uygulamalar ve oyunlar":
+    - /url: /store/search?q=memur+al%C4%B1m%C4%B1&c=apps
+    - generic: Uygulamalar ve oyunlar
+  - link "Kitaplar":
+    - /url: /store/search?q=memur+al%C4%B1m%C4%B1&c=books
+    - generic: Kitaplar
+- link "Kamu Personeli Alımı Kamu Personeli Alımı Beş üzerinden 4,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.Kamu.Personeli.Alimi
+  - generic: Kamu Personeli Alımı
+  - generic: Kamu Personeli Alımı
+  - img "Beş üzerinden 4,5 yıldız aldı":
+    - generic: 4,5
+    - generic: star
+- 'link "Kamu: Memur Alım İlanları SELLSOFT Beş üzerinden 4,7 yıldız aldı"':
+  - /url: /store/apps/details?id=com.selman.memur_ilanlari
+  - generic: "Kamu: Memur Alım İlanları"
+  - generic: SELLSOFT
+  - img "Beş üzerinden 4,7 yıldız aldı":
+    - generic: 4,7
+    - generic: star
+- link "Kamu Personeli Alım Gulerkan Beş üzerinden 4,6 yıldız aldı":
+  - /url: /store/apps/details?id=com.kamu.personeli.alim.app
+  - generic: Kamu Personeli Alım
+  - generic: Gulerkan
+  - img "Beş üzerinden 4,6 yıldız aldı":
+    - generic: 4,6
+    - generic: star
+- 'link "Play Kamu Kadro: KPSS Memur Alımı Kamu Kadro: KPSS Memur Alımı Mert Turan Beş üzerinden 5,0 yıldız aldı"':
+  - /url: /store/apps/details?id=com.kamukadro.app
+  - 'button "Play Kamu Kadro: KPSS Memur Alımı"':
+  - generic: "Kamu Kadro: KPSS Memur Alımı"
+  - generic: Mert Turan
+  - img "Beş üzerinden 5,0 yıldız aldı":
+    - generic: 5,0
+    - generic: star
+- 'link "MemurJet: Memur Alımı İlanları Burak Alp Beş üzerinden 4,2 yıldız aldı"':
+  - /url: /store/apps/details?id=com.burakalpkara.memurjetmobile
+  - generic: "MemurJet: Memur Alımı İlanları"
+  - generic: Burak Alp
+  - img "Beş üzerinden 4,2 yıldız aldı":
+    - generic: 4,2
+    - generic: star
+- link "E memur E Memur Beş üzerinden 4,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.ememur.app
+  - generic: E memur
+  - generic: E Memur
+  - img "Beş üzerinden 4,5 yıldız aldı":
+    - generic: 4,5
+    - generic: star
+- link "Play ATAMA BİLDİRİM PROGRAMI ATAMA BİLDİRİM PROGRAMI Kariyer Cepte Beş üzerinden 4,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.atananben.atama_bildirim_app_final
+  - button "Play ATAMA BİLDİRİM PROGRAMI":
+  - generic: ATAMA BİLDİRİM PROGRAMI
+  - generic: Kariyer Cepte
+  - img "Beş üzerinden 4,5 yıldız aldı":
+    - generic: 4,5
+    - generic: star
+- link "Memur 365, Kamu Personel Alımı CH SOFTWARE Beş üzerinden 4,6 yıldız aldı":
+  - /url: /store/apps/details?id=com.memur365
+  - generic: Memur 365, Kamu Personel Alımı
+  - generic: CH SOFTWARE
+  - img "Beş üzerinden 4,6 yıldız aldı":
+    - generic: 4,6
+    - generic: star
+- link "Kamupedia - KPSS Ali Murat Kalaycı Beş üzerinden 4,8 yıldız aldı":
+  - /url: /store/apps/details?id=com.alimuratkalayci.kpsscanavari
+  - generic: Kamupedia - KPSS
+  - generic: Ali Murat Kalaycı
+  - img "Beş üzerinden 4,8 yıldız aldı":
+    - generic: 4,8
+    - generic: star
+- 'link "Memurlar.net: Maaş, Ilan, Kamu MN Yazılım Beş üzerinden 4,0 yıldız aldı"':
+  - /url: /store/apps/details?id=net.memurlar
+  - generic: "Memurlar.net: Maaş, Ilan, Kamu"
+  - generic: MN Yazılım
+  - img "Beş üzerinden 4,0 yıldız aldı":
+    - generic: 4,0
+    - generic: star
+- link "KPSS Evreni 2026 Test & Deneme Ergun Studio Beş üzerinden 4,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.ergun.kpssproje
+  - generic: KPSS Evreni 2026 Test & Deneme
+  - generic: Ergun Studio
+  - img "Beş üzerinden 4,5 yıldız aldı":
+    - generic: 4,5
+    - generic: star
+- link "Memur Jargonu Memur Jargonu Beş üzerinden 3,7 yıldız aldı":
+  - /url: /store/apps/details?id=com.memurjargonu.kpsssorucozum
+  - generic: Memur Jargonu
+  - generic: Memur Jargonu
+  - img "Beş üzerinden 3,7 yıldız aldı":
+    - generic: 3,7
+    - generic: star
+- link "Güncel Memur Haber 1ipucu.net Beş üzerinden 3,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.guncelmemurhaber.mobile
+  - generic: Güncel Memur Haber
+  - generic: 1ipucu.net
+  - img "Beş üzerinden 3,5 yıldız aldı":
+    - generic: 3,5
+    - generic: star
+- link "Memur-Sen Çınar Uygulaması ABOS Yazılım Beş üzerinden 4,8 yıldız aldı":
+  - /url: /store/apps/details?id=com.abos.memursen_cinar_kampanyalar
+  - generic: Memur-Sen Çınar Uygulaması
+  - generic: ABOS Yazılım
+  - img "Beş üzerinden 4,8 yıldız aldı":
+    - generic: 4,8
+    - generic: star
+- link "Memurlingo Kpss UnalGT Studio":
+  - /url: /store/apps/details?id=com.unalgtstudio.memurlingo
+  - generic: Memurlingo Kpss
+  - generic: UnalGT Studio
+- link "Kpss Güncel Bilgiler & Sorular mustafaorki Beş üzerinden 4,4 yıldız aldı":
+  - /url: /store/apps/details?id=com.musti.guncelbilgiler
+  - generic: Kpss Güncel Bilgiler & Sorular
+  - generic: mustafaorki
+  - img "Beş üzerinden 4,4 yıldız aldı":
+    - generic: 4,4
+    - generic: star
+- 'link "KPSS AGS 2026 Hazırlık: Kapsül selftech.co Beş üzerinden 4,6 yıldız aldı"':
+  - /url: /store/apps/details?id=com.selfttechco.kapsulkpss
+  - generic: "KPSS AGS 2026 Hazırlık: Kapsül"
+  - generic: selftech.co
+  - img "Beş üzerinden 4,6 yıldız aldı":
+    - generic: 4,6
+    - generic: star
+- link "KPSS Zamanı - KPSS'ye Hazırlık rudde Beş üzerinden 4,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.kpsszamani.app
+  - generic: KPSS Zamanı - KPSS'ye Hazırlık
+  - generic: rudde
+  - img "Beş üzerinden 4,5 yıldız aldı":
+    - generic: 4,5
+    - generic: star
+- link "E Memur Plus E Memur":
+  - /url: /store/apps/details?id=net.ememurplus
+  - generic: E Memur Plus
+  - generic: E Memur
+- link "Memur Asistanı AkKod":
+  - /url: /store/apps/details?id=com.memurasistani.app
+  - generic: Memur Asistanı
+  - generic: AkKod
+- link "KPSS Cebimde Ertuğrul KÜÇÜKEL Beş üzerinden 3,1 yıldız aldı":
+  - /url: /store/apps/details?id=com.kgames.kpsscebimdegame
+  - generic: KPSS Cebimde
+  - generic: Ertuğrul KÜÇÜKEL
+  - img "Beş üzerinden 3,1 yıldız aldı":
+    - generic: 3,1
+    - generic: star
+- link "KPSS Güncel Bilgiler Kumcu":
+  - /url: /store/apps/details?id=com.kpss_guncel_bilgiler
+  - generic: KPSS Güncel Bilgiler
+  - generic: Kumcu
+- link "KPSS-AGS Cep Kitabı (2026) Fiaboo Go Studio Beş üzerinden 4,9 yıldız aldı":
+  - /url: /store/apps/details?id=com.kpss.kpsscepkitabi
+  - generic: KPSS-AGS Cep Kitabı (2026)
+  - generic: Fiaboo Go Studio
+  - img "Beş üzerinden 4,9 yıldız aldı":
+    - generic: 4,9
+    - generic: star
+- link "KPSS Master Kubay Yazılım Beş üzerinden 4,7 yıldız aldı":
+  - /url: /store/apps/details?id=com.musa.kpssmaster
+  - generic: KPSS Master
+  - generic: Kubay Yazılım
+  - img "Beş üzerinden 4,7 yıldız aldı":
+    - generic: 4,7
+    - generic: star
+- link "KPSS Tarih Hızlı Tekrar 2026 İronarm technology Beş üzerinden 4,8 yıldız aldı":
+  - /url: /store/apps/details?id=com.demirkol.kpsstarihhizlitekrar
+  - generic: KPSS Tarih Hızlı Tekrar 2026
+  - generic: İronarm technology
+  - img "Beş üzerinden 4,8 yıldız aldı":
+    - generic: 4,8
+    - generic: star
+- link "Sınav Cepte - KPSS Heptasol":
+  - /url: /store/apps/details?id=com.enes.sinavceptekpss
+  - generic: Sınav Cepte - KPSS
+  - generic: Heptasol
+- link "Memur-Sen Kayseri İndirimler Muzaffer Şahin":
+  - /url: /store/apps/details?id=com.muzaffersahin.memursen_indirimler
+  - generic: Memur-Sen Kayseri İndirimler
+  - generic: Muzaffer Şahin
+- link "KPSS 2026 Güncel Bilgiler Şato Yazılım":
+  - /url: /store/apps/details?id=com.castlesoft.kpssguncelbilgiler
+  - generic: KPSS 2026 Güncel Bilgiler
+  - generic: Şato Yazılım
+- contentinfo:
+  - text: Google Play
+  - link "Play Pass":
+    - /url: /store/pass/getstarted
+    - paragraph: Play Pass
+  - link "Play Points":
+    - /url: /store/points/enroll
+    - paragraph: Play Points
+  - link "Hediye kartları":
+    - /url: https://play.google.com/about/giftcards
+    - paragraph: Hediye kartları
+  - link "Kod kullanın":
+    - /url: /redeem
+    - paragraph: Kod kullanın
+  - link "Geri ödeme politikası":
+    - /url: https://support.google.com/googleplay/answer/134336
+    - paragraph: Geri ödeme politikası
+  - text: Çocuklar ve aile
+  - link "Ebeveyn Rehberi":
+    - /url: https://support.google.com/googleplay?p=pff_parentguide
+    - paragraph: Ebeveyn Rehberi
+  - link "Aile paylaşımı":
+    - /url: https://support.google.com/googleplay/answer/7007852
+    - paragraph: Aile paylaşımı
+  - link "Hizmet Şartları":
+    - /url: https://play.google.com/intl/tr_tr/about/play-terms.html
+    - paragraph: Hizmet Şartları
+  - link "Gizlilik":
+    - /url: https://policies.google.com/privacy
+    - paragraph: Gizlilik
+  - link "Google Play Hakkında":
+    - /url: https://support.google.com/googleplay/?p=about_play
+    - paragraph: Google Play Hakkında
+  - link "Geliştiriciler":
+    - /url: http://developer.android.com/index.html
+    - paragraph: Geliştiriciler
+  - link "Google Store":
+    - /url: https://store.google.com/?playredirect=true&utm_source=play&utm_medium=google_oo&utm_campaign=GS106288
+    - paragraph: Google Store
+  - generic: Tüm fiyatlara KDV dahildir.
+  - generic: Türkiye (Türkçe)
+- generic: memur alımı - Google Play'de Android Uygulamaları

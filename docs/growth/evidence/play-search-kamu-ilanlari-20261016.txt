@@ -1,0 +1,247 @@
+- banner:
+  - navigation "Sayfa Üstbilgisi":
+    - link "Google Play logosu":
+      - /url: /store/games
+      - generic: google_logo Play
+    - combobox:
+      - generic: search
+      - textbox "Google Play'de arayın":
+        - /placeholder: Uygulamalar ve oyunlarda arayın
+        - text: kamu ilanları
+      - generic: clear
+    - button "Yardım Merkezi":
+      - generic: help_outline
+    - button "Hesap menüsünü aç":
+- list:
+  - link "Uygulamalar ve oyunlar":
+    - /url: /store/search?q=kamu+ilanlar%C4%B1&c=apps
+    - generic: Uygulamalar ve oyunlar
+  - link "Kitaplar":
+    - /url: /store/search?q=kamu+ilanlar%C4%B1&c=books
+    - generic: Kitaplar
+- link "Kamu Personeli Alımı Kamu Personeli Alımı Beş üzerinden 4,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.Kamu.Personeli.Alimi
+  - generic: Kamu Personeli Alımı
+  - generic: Kamu Personeli Alımı
+  - img "Beş üzerinden 4,5 yıldız aldı":
+    - generic: 4,5
+    - generic: star
+- 'link "Kamu: Memur Alım İlanları SELLSOFT Beş üzerinden 4,7 yıldız aldı"':
+  - /url: /store/apps/details?id=com.selman.memur_ilanlari
+  - generic: "Kamu: Memur Alım İlanları"
+  - generic: SELLSOFT
+  - img "Beş üzerinden 4,7 yıldız aldı":
+    - generic: 4,7
+    - generic: star
+- link "Kamu Personeli Alım Gulerkan Beş üzerinden 4,6 yıldız aldı":
+  - /url: /store/apps/details?id=com.kamu.personeli.alim.app
+  - generic: Kamu Personeli Alım
+  - generic: Gulerkan
+  - img "Beş üzerinden 4,6 yıldız aldı":
+    - generic: 4,6
+    - generic: star
+- link "Güncel Kamu İlanları Mücahit Topal Beş üzerinden 4,3 yıldız aldı":
+  - /url: /store/apps/details?id=com.mtlive.guncelkamuilanlari
+  - generic: Güncel Kamu İlanları
+  - generic: Mücahit Topal
+  - img "Beş üzerinden 4,3 yıldız aldı":
+    - generic: 4,3
+    - generic: star
+- link "İŞKUR Mobil Turkiye İş Kurumu Beş üzerinden 4,8 yıldız aldı":
+  - /url: /store/apps/details?id=tr.gov.iskur.iskurapp
+  - generic: İŞKUR Mobil
+  - generic: Turkiye İş Kurumu
+  - img "Beş üzerinden 4,8 yıldız aldı":
+    - generic: 4,8
+    - generic: star
+- link "Atama Bildirim - Kamu İlanları Techspiration Beş üzerinden 4,2 yıldız aldı":
+  - /url: /store/apps/details?id=com.techspiration.kamu
+  - generic: Atama Bildirim - Kamu İlanları
+  - generic: Techspiration
+  - img "Beş üzerinden 4,2 yıldız aldı":
+    - generic: 4,2
+    - generic: star
+- 'link "Play Kamu Kadro: KPSS Memur Alımı Kamu Kadro: KPSS Memur Alımı Mert Turan Beş üzerinden 5,0 yıldız aldı"':
+  - /url: /store/apps/details?id=com.kamukadro.app
+  - 'button "Play Kamu Kadro: KPSS Memur Alımı"':
+  - generic: "Kamu Kadro: KPSS Memur Alımı"
+  - generic: Mert Turan
+  - img "Beş üzerinden 5,0 yıldız aldı":
+    - generic: 5,0
+    - generic: star
+- link "Kamu İş Personel Alımı Önder Göztepe Beş üzerinden 5,0 yıldız aldı":
+  - /url: /store/apps/details?id=com.kamuiscomtr.app
+  - generic: Kamu İş Personel Alımı
+  - generic: Önder Göztepe
+  - img "Beş üzerinden 5,0 yıldız aldı":
+    - generic: 5,0
+    - generic: star
+- link "Kamupedia - KPSS Ali Murat Kalaycı Beş üzerinden 4,8 yıldız aldı":
+  - /url: /store/apps/details?id=com.alimuratkalayci.kpsscanavari
+  - generic: Kamupedia - KPSS
+  - generic: Ali Murat Kalaycı
+  - img "Beş üzerinden 4,8 yıldız aldı":
+    - generic: 4,8
+    - generic: star
+- link "KamuBul - Kamu İş İlanları crazypenguin":
+  - /url: /store/apps/details?id=com.crazypenguin.kamubul
+  - generic: KamuBul - Kamu İş İlanları
+  - generic: crazypenguin
+- 'link "İşin Olsun: İş Bul & İlan ver Kariyer.net Yazılım Geliştirme Beş üzerinden 4,6 yıldız aldı"':
+  - /url: /store/apps/details?id=com.isinolsun.app
+  - generic: "İşin Olsun: İş Bul & İlan ver"
+  - generic: Kariyer.net Yazılım Geliştirme
+  - img "Beş üzerinden 4,6 yıldız aldı":
+    - generic: 4,6
+    - generic: star
+- link "Kamu İş İlanları Onur Altun":
+  - /url: /store/apps/details?id=com.onuraltun.kamuisilanlari
+  - generic: Kamu İş İlanları
+  - generic: Onur Altun
+- link "Play Kariyer.net İş İlanı Ara & Bul Kariyer.net İş İlanı Ara & Bul Kariyer.net Yazılım Geliştirme Beş üzerinden 4,6 yıldız aldı":
+  - /url: /store/apps/details?id=com.kariyer.androidproject
+  - button "Play Kariyer.net İş İlanı Ara & Bul":
+  - generic: Kariyer.net İş İlanı Ara & Bul
+  - generic: Kariyer.net Yazılım Geliştirme
+  - img "Beş üzerinden 4,6 yıldız aldı":
+    - generic: 4,6
+    - generic: star
+- link "Play ATAMA BİLDİRİM PROGRAMI ATAMA BİLDİRİM PROGRAMI Kariyer Cepte Beş üzerinden 4,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.atananben.atama_bildirim_app_final
+  - button "Play ATAMA BİLDİRİM PROGRAMI":
+  - generic: ATAMA BİLDİRİM PROGRAMI
+  - generic: Kariyer Cepte
+  - img "Beş üzerinden 4,5 yıldız aldı":
+    - generic: 4,5
+    - generic: star
+- link "Kamu Akademi Ömer Akboğa":
+  - /url: /store/apps/details?id=com.kamuakademi.kamu_akademi
+  - generic: Kamu Akademi
+  - generic: Ömer Akboğa
+- link "Eleman Online - İş İlanları Eleman Online Beş üzerinden 2,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.elemanonline.tr.eleman_online
+  - generic: Eleman Online - İş İlanları
+  - generic: Eleman Online
+  - img "Beş üzerinden 2,5 yıldız aldı":
+    - generic: 2,5
+    - generic: star
+- 'link "Memurlar.net: Maaş, Ilan, Kamu MN Yazılım Beş üzerinden 4,0 yıldız aldı"':
+  - /url: /store/apps/details?id=net.memurlar
+  - generic: "Memurlar.net: Maaş, Ilan, Kamu"
+  - generic: MN Yazılım
+  - img "Beş üzerinden 4,0 yıldız aldı":
+    - generic: 4,0
+    - generic: star
+- link "Eleman.net İş İlanları Piko Bilisim Beş üzerinden 4,7 yıldız aldı":
+  - /url: /store/apps/details?id=com.pikobilisim.eleman
+  - generic: Eleman.net İş İlanları
+  - generic: Piko Bilisim
+  - img "Beş üzerinden 4,7 yıldız aldı":
+    - generic: 4,7
+    - generic: star
+- link "Kadro Radar - Kamu İlanları KUTCORE":
+  - /url: /store/apps/details?id=com.kadroradar
+  - generic: Kadro Radar - Kamu İlanları
+  - generic: KUTCORE
+- link "Resmi İlanlar BASIN İLAN KURUMU Beş üzerinden 2,3 yıldız aldı":
+  - /url: /store/apps/details?id=gov.tr.ilan.app
+  - generic: Resmi İlanlar
+  - generic: BASIN İLAN KURUMU
+  - img "Beş üzerinden 2,3 yıldız aldı":
+    - generic: 2,3
+    - generic: star
+- link "Memur 365, Kamu Personel Alımı CH SOFTWARE Beş üzerinden 4,6 yıldız aldı":
+  - /url: /store/apps/details?id=com.memur365
+  - generic: Memur 365, Kamu Personel Alımı
+  - generic: CH SOFTWARE
+  - img "Beş üzerinden 4,6 yıldız aldı":
+    - generic: 4,6
+    - generic: star
+- link "Kamu Sosyal Tesisleri Rehberi Akan Yazılım Beş üzerinden 4,5 yıldız aldı":
+  - /url: /store/apps/details?id=com.kamusosyaltesislerirehberi.app
+  - generic: Kamu Sosyal Tesisleri Rehberi
+  - generic: Akan Yazılım
+  - img "Beş üzerinden 4,5 yıldız aldı":
+    - generic: 4,5
+    - generic: star
+- link "24 Saatte İş İlanları Bonded Technologies Inc. Beş üzerinden 4,3 yıldız aldı":
+  - /url: /store/apps/details?id=com.yirmidortsaatteis.app
+  - generic: 24 Saatte İş İlanları
+  - generic: Bonded Technologies Inc.
+  - img "Beş üzerinden 4,3 yıldız aldı":
+    - generic: 4,3
+    - generic: star
+- link "sahibinden Pro sahibinden.com Beş üzerinden 3,8 yıldız aldı":
+  - /url: /store/apps/details?id=com.sahibinden.pro
+  - generic: sahibinden Pro
+  - generic: sahibinden.com
+  - img "Beş üzerinden 3,8 yıldız aldı":
+    - generic: 3,8
+    - generic: star
+- link "Personel.com İş İlanı Ara&Bul Personel.com Beş üzerinden 4,6 yıldız aldı":
+  - /url: /store/apps/details?id=com.personelcom.app
+  - generic: Personel.com İş İlanı Ara&Bul
+  - generic: Personel.com
+  - img "Beş üzerinden 4,6 yıldız aldı":
+    - generic: 4,6
+    - generic: star
+- 'link "İhalePro: Kamu İhale Takibi IHALE Teknolojileri A.S."':
+  - /url: /store/apps/details?id=pro.ihale
+  - generic: "İhalePro: Kamu İhale Takibi"
+  - generic: IHALE Teknolojileri A.S.
+- link "KamuSosyal GÜLTOPRAK MEDİA Beş üzerinden 5,0 yıldız aldı":
+  - /url: /store/apps/details?id=com.dyazilim.kcp
+  - generic: KamuSosyal
+  - generic: GÜLTOPRAK MEDİA
+  - img "Beş üzerinden 5,0 yıldız aldı":
+    - generic: 5,0
+    - generic: star
+- link "Play Yenibiriş - İş İlanı Ara & Bul Yenibiriş - İş İlanı Ara & Bul Yenibiris.com HR Technologies Beş üzerinden 3,7 yıldız aldı":
+  - /url: /store/apps/details?id=com.pordiva.yenibiris
+  - button "Play Yenibiriş - İş İlanı Ara & Bul":
+  - generic: Yenibiriş - İş İlanı Ara & Bul
+  - generic: Yenibiris.com HR Technologies
+  - img "Beş üzerinden 3,7 yıldız aldı":
+    - generic: 3,7
+    - generic: star
+- contentinfo:
+  - text: Google Play
+  - link "Play Pass":
+    - /url: /store/pass/getstarted
+    - paragraph: Play Pass
+  - link "Play Points":
+    - /url: /store/points/enroll
+    - paragraph: Play Points
+  - link "Hediye kartları":
+    - /url: https://play.google.com/about/giftcards
+    - paragraph: Hediye kartları
+  - link "Kod kullanın":
+    - /url: /redeem
+    - paragraph: Kod kullanın
+  - link "Geri ödeme politikası":
+    - /url: https://support.google.com/googleplay/answer/134336
+    - paragraph: Geri ödeme politikası
+  - text: Çocuklar ve aile
+  - link "Ebeveyn Rehberi":
+    - /url: https://support.google.com/googleplay?p=pff_parentguide
+    - paragraph: Ebeveyn Rehberi
+  - link "Aile paylaşımı":
+    - /url: https://support.google.com/googleplay/answer/7007852
+    - paragraph: Aile paylaşımı
+  - link "Hizmet Şartları":
+    - /url: https://play.google.com/intl/tr_tr/about/play-terms.html
+    - paragraph: Hizmet Şartları
+  - link "Gizlilik":
+    - /url: https://policies.google.com/privacy
+    - paragraph: Gizlilik
+  - link "Google Play Hakkında":
+    - /url: https://support.google.com/googleplay/?p=about_play
+    - paragraph: Google Play Hakkında
+  - link "Geliştiriciler":
+    - /url: http://developer.android.com/index.html
+    - paragraph: Geliştiriciler
+  - link "Google Store":
+    - /url: https://store.google.com/?playredirect=true&utm_source=play&utm_medium=google_oo&utm_campaign=GS106288
+    - paragraph: Google Store
+  - generic: Tüm fiyatlara KDV dahildir.
+  - generic: Türkiye (Türkçe)
