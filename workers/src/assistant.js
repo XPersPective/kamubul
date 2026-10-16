@@ -133,8 +133,10 @@ export function buildChatRequest({ message, history = [], listing = null, profil
       ...turns,
       { role: 'user', content: JSON.stringify({ message: message.trim() }) },
     ],
-    max_tokens: 450,
+    // 700 karakter Türkçe yanıt + JSON zarfı 450 tokene sığmayıp kesiliyordu.
+    max_tokens: 900,
     temperature: 0.2,
+    response_format: { type: 'json_object' },
   };
 }
 
@@ -153,7 +155,19 @@ export function normalizeCriteria(raw) {
 export function istanbulToday(now = new Date()) { return new Date(+now + 3 * 3600000).toISOString().slice(0, 10); }
 
 function parseJson(text) {
-  try { return JSON.parse(String(text).trim().replace(/^```(?:json)?|```$/g, '').trim()); } catch { return null; }
+  const s = String(text ?? '').trim().replace(/^```(?:json)?|```$/g, '').trim();
+  try { return JSON.parse(s); } catch { /* model may wrap JSON in prose */ }
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  try { return JSON.parse(s.slice(a, b + 1)); } catch { return null; }
+}
+
+// Kesik (max_tokens) JSON'dan yalnız reply metnini kurtarır; ham JSON kullanıcıya gitmez.
+function salvageReply(text) {
+  const m = /"reply"\s*:\s*"((?:[^"\\]|\\.)*)/s.exec(String(text ?? ''));
+  if (!m) return '';
+  const body = m[1].replace(/\\u[\da-fA-F]{0,3}$|\\$/, '');
+  try { return JSON.parse('"' + body + '"').trim(); } catch { return body.replace(/\\n/g, '\n').replace(/\\"/g, '"').trim(); }
 }
 
 function criteriaResult(raw, reply, today) {
@@ -180,8 +194,14 @@ export function parseChatOutput(text, today) {
   const raw = parseJson(text);
   // Düz metin dönen modelde yanıtı kaybetmeyiz; yine de bağlantılar ayıklanır.
   if (!raw) {
-    const plain = String(text ?? '').replace(/https?:\/\/\S+/gi, '').trim().slice(0, 900);
-    return plain ? { intent: 'answer', reply: plain, criteria: null } : { intent: 'refuse', reply: refusal, criteria: null };
+    const source = String(text ?? '');
+    const looksJson = /^\s*(```|\{)|"intent"\s*:|"reply"\s*:/.test(source);
+    const salvaged = looksJson ? salvageReply(source) : source.trim();
+    const plain = salvaged.replace(/https?:\/\/\S+/gi, '').trim().slice(0, 900);
+    if (plain) return { intent: 'answer', reply: looksJson ? plain + '…' : plain, criteria: null };
+    return looksJson
+      ? { intent: 'clarify', reply: 'Yanıt tamamlanamadı. Sorunuzu biraz daha kısa yazıp tekrar dener misiniz?', criteria: null }
+      : { intent: 'refuse', reply: refusal, criteria: null };
   }
   const reply = typeof raw.reply === 'string' ? raw.reply.replace(/https?:\/\/\S+/gi, '').trim().slice(0, 900) : '';
   if (raw.intent === 'criteria' && raw.criteria && typeof raw.criteria === 'object') return criteriaResult(raw, reply, today);

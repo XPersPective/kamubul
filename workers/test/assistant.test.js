@@ -83,7 +83,8 @@ test('chat request bounds history and listing text', () => {
   // 600 karakterlik 6 mesaj 4000 karakter bağlam tavanına sığar.
   assert.equal(r.messages.length, 3 + 6 + 1);
   assert.ok(r.messages.slice(3, 9).every(m => m.content.length <= 600));
-  assert.equal(r.max_tokens, 450);
+  assert.equal(r.max_tokens, 900);
+  assert.deepEqual(r.response_format, { type: 'json_object' });
 });
 
 test('assistant selects late source clauses without fetching the official site',()=>{
@@ -99,6 +100,16 @@ test('chat output: answers kept, links stripped, criteria validated, junk refuse
   assert.equal(parseChatOutput(JSON.stringify({ intent: 'criteria', reply: '', criteria: { cities: 'Ankara' } }), '2026-10-04').criteria.cities[0], 'Ankara');
   assert.equal(parseChatOutput(JSON.stringify({ intent: 'answer', reply: '' }), 't').intent, 'refuse');
   assert.equal(parseChatOutput('düz metin yanıt', 't').intent, 'answer');
+  // Kesik JSON (max_tokens) kullanıcıya ham JSON olarak gitmez; yalnız reply metni kurtarılır.
+  const cut = parseChatOutput(String.raw`{"intent":"answer","reply":"Lisans mezunu olmanız gerekir.\nYaş sınırı 35\u00`, 't');
+  assert.equal(cut.intent, 'answer');
+  assert.equal(cut.reply, 'Lisans mezunu olmanız gerekir.\nYaş sınırı 35…');
+  assert.ok(!cut.reply.includes('"intent"'));
+  const wrapped = parseChatOutput('Tabii: {"intent":"answer","reply":"Merhaba","criteria":null} umarım yardımcı olur', 't');
+  assert.deepEqual(wrapped, { intent: 'answer', reply: 'Merhaba', criteria: null });
+  const empty = parseChatOutput('{"intent":"answer","re', 't');
+  assert.equal(empty.intent, 'clarify');
+  assert.ok(!empty.reply.includes('{'));
 });
 
 test('chat mode end to end with listing context', async () => {
