@@ -1,0 +1,20 @@
+{
+  "package": "com.crazypenguin.kamubul",
+  "versionName": "1.2.3",
+  "versionCode": 18,
+  "origin": "Google Play generatedapks.list then generatedapks.download universal for version18; read-only",
+  "path": "C:/Users/rubicon/.codex/builds/kamubul-play18-universal.apk",
+  "bytes": 60300751,
+  "sha256": "616fdcff4bc0b9bfc62846fe4947ec92afb6e171a5b8834abe1c77378895b76f",
+  "playSigningCertificateSha256": "8f7fff12bd5b12f430a0607baf36c2ec97d6987fae623967430c69de755da405",
+  "apksignerVerified": true,
+  "aaptIdentityVerified": true,
+  "abis": ["arm64-v8a", "armeabi-v7a", "x86_64"],
+  "localReleaseApk": "D:/repositories/kamubul/build/app/outputs/flutter-apk/app-release.apk",
+  "localReleaseApkSha256": "db37cb7eac5f8999d8888a79c90e66e00c3d7413086f3a13f3fa26771e193a54",
+  "localReleaseBuildSeconds": 817.5,
+  "newCaptureAccepted": false,
+  "qaAvd": "kamubul_calendar_qa",
+  "qaPort": 5556,
+  "qaResult": "Two owned2GB hostGPU cold-boot attempts did not reach usable app capture; host free RAM observed160MB. Owned QA closed; other emulator5554 preserved. No image upload."
+}
