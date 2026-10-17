@@ -1,8 +1,8 @@
 # Türkçe mağaza metni — yerel hazırlık ve eleştirel kabul
 
-16.10.2026 | SA-025 | LOCAL_CANDIDATE, NOT_PUBLISHED
+17.10.2026 | SA-025 | SUBMITTED, API_READBACK_MATCHED; PUBLIC_APPROVAL_PENDING
 
-Tek kaynak STORE_COPY.md Title/ShortA/Full markerları. candidate/tr-TR/*.txt bu kaynaktan üretilmiş UTF-8/LF dosyalarıdır; AppPublishing dizinine kopyalanmadı, gönderilmedi. ShortB sonraki deneydir.
+Tek kaynak STORE_COPY.md Title/ShortA/Full markerları. candidate/tr-TR/*.txt bu kaynaktan üretilmiş UTF-8/LF dosyalarıdır.17Ekim bağımsız inceleme sonrası Fastlane text-only gönderimi başarılı; AppPublishing metinleri adayla eşitlendi, önceki değerler artifacts/text-before-20261017 altında korundu. ShortB sonraki deneydir.
 
 | Dosya | Karakter/sınır (son LF hariç) | SHA256 (LF dahil) |
 |---|---|---|
@@ -37,6 +37,10 @@ Kaynak: C:/Users/rubicon/.codex/builds/kamubul-1.2.2-17/lib snapshot'ı. Kod var
 Bu içerik turları bağımsız HIGH review veya gerçek kullanıcı testi değildir. Bulgu varsa düzelt → etkilenen vaat/kaynak eşitliği/karakter/hash yeniden doğrula. Aynı kontrolü yeni bulgu olmadan tekrar etmek ilerleme sayılmaz.
 
 ## Yayın readback
+
+17 Ekim 04:50:15 TR Fastlane2.239.0: yalnız tr-TR metin, changes_not_sent_for_review=false ve rescue=false ile commit başarılı. Ayrı edit ile listingEqualsCandidate=true, orderedScreenshotHashesEqual=true, screenshotCount7, production/internal1.2.3/code18/completed; inspection edit silindi. Kanıt `.store-automation/evidence/SA-025/api-readback-20261017.json`. Independent gpt-6-text-review PASS (metin/kod/politika); linked privacy policy kriter bağlamını açıklar. Public TR17Ekim browser hâlâ önceki metin ve7Ekim güncelleme tarihi gösterdi; bu yeni metin/API18'in public onayı değildir. Console sign-in'e yönlendi; Windows helper3list_apps timeout. Gönderim tekrar edilmez, kalan public kabulü sonraki yetkili readback ile tamamlanır.
+
+Aşağıdaki16Ekim kaydı tarihseldir; yeni gönderim ve code18 yukarıdaki gözlemle güncellenmiştir.
 
 16 Ekim mevcut .tmp/listing-api-readback.py tekrar çalıştı: **eski 15 Ekim AppPublishing metinleri** ve yedi görselin sıralı SHA256 değerleri API ile eşit; production/internal code17 status completed. Inspection edit silme true. Bu sonuç yeni 3240 karakter adayın yayını veya Google public onayı değildir. Public eski sekiz görsel/100-30 ayrılığı için yetkili Publishing overview gerekli (SA-021). Yeni upload yok.
 
