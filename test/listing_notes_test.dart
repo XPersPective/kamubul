@@ -69,8 +69,8 @@ void main() {
     sourceId: 'kariyerkapisi',
     title: 'NOT KURUMU - Memur Alımı',
     category: 'Personel',
-    publishedAt: DateTime.now().subtract(const Duration(days: 1)),
-    fetchedAt: DateTime.now(),
+    publishedAt: DateTime(2026, 10, 15),
+    fetchedAt: DateTime(2026, 10, 16),
   );
 
   Future<ListingStore> memoryStore() async => ListingStore(
