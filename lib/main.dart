@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -94,7 +95,10 @@ Future<void> main() async {
   final interstitial = InterstitialAdManager(policy: policy);
   final appOpen = AppOpenAdManager(policy: policy);
   // Deneme süresinde reklam SDK'sı, onay formu ve istekler hiç başlamaz.
-  if (!pro.isPro && trialDaysLeft(policy, DateTime.now()) == 0) {
+  // iOS sürümünde reklam ve abonelik yok (docs/IOS_RELEASE.md).
+  if (!Platform.isIOS &&
+      !pro.isPro &&
+      trialDaysLeft(policy, DateTime.now()) == 0) {
     unawaited(() async {
       final ready = await ConsentManager.initialize();
       if (!ready) return;

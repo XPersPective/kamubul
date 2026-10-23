@@ -1002,7 +1002,7 @@ class _KamuHomePageState extends State<KamuHomePage>
               )
             : Text(const ['', 'Kaydedilenler', 'Asistan', 'Ayarlar'][_tab]),
         actions: [
-          _membershipBadge(),
+          if (!Platform.isIOS) _membershipBadge(),
           IconButton(
             tooltip: 'Bildirimler',
             onPressed: () => Navigator.of(context)
@@ -1661,7 +1661,7 @@ class _KamuHomePageState extends State<KamuHomePage>
           ? null
           : ListingGuideView(listing: selected),
       isPro: widget.pro.isPro,
-      onUpgrade: _openPaywall,
+      onUpgrade: Platform.isIOS ? null : _openPaywall,
       onNewChat: () => setState(() {
         _assistantListing = null;
         _chatMessages.clear();
