@@ -1,0 +1,46 @@
+name: iOS build
+
+# İmzasız iOS derlemesi: iOS'un derlendiğini ve açılış yapılandırmasının
+# geçerli olduğunu doğrular. Mağazaya gönderim yapmaz; imzalama ve yükleme için
+# Apple Developer hesabı, App Store Connect API anahtarı ve imzalama sırları
+# gerekir (bkz. docs/IOS_RELEASE.md). Genel depolarda macOS çalıştırıcıları ücretsizdir.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/ios-build.yml'
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # ci.yml ile aynı: napp_kit gizliyse NAPP_KIT_TOKEN tanımlanır.
+      - name: napp_kit erişimi
+        env:
+          NAPP_KIT_TOKEN: ${{ secrets.NAPP_KIT_TOKEN }}
+        run: |
+          if [ -n "$NAPP_KIT_TOKEN" ]; then
+            git config --global url."https://x-access-token:${NAPP_KIT_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
+      - name: Sürüm ve paket kimliği
+        run: |
+          plist=build/ios/iphoneos/Runner.app/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Runner.app-unsigned
+          path: build/ios/iphoneos/Runner.app
+          retention-days: 7
