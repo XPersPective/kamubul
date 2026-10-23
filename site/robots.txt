@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://xperspective.github.io/kamubul/sitemap.xml

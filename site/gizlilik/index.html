@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KamuBul Gizlilik Politikası</title>
+  <meta name="description" content="KamuBul uygulamasının verileri nasıl işlediği.">
+  <link rel="canonical" href="https://xperspective.github.io/kamubul/gizlilik/">
+  <meta name="theme-color" content="#17659c">
+  <link rel="icon" href="../assets/icon.png">
+  <link rel="stylesheet" href="../style.css">
+  <style>.doc{max-width:760px;margin:0 auto;padding:32px 16px 64px}.doc h1{margin-top:0}.doc h2{margin-top:2em}.doc a{overflow-wrap:anywhere}</style>
+</head>
+<body>
+  <header class="shell header"><a class="brand" href="../"><img src="../assets/icon.png" width="40" height="40" alt="">KamuBul</a></header>
+  <main class="doc" tabindex="-1">
+<h1>KamuBul gizlilik açıklaması</h1>
+<p>Son güncelleme: 6 Ekim 2026. KamuBul, crazypenguin tarafından geliştirilen bağımsız bir ilan uygulamasıdır; hesap veya giriş istemez. Kayıtlı aramalar, yaş/KPSS gibi kriterler, yer imleri ve tema tercihi cihazda saklanır. Sunucu bildirimlerini açmadığınız sürece kayıtlı aramalarınız KamuBul sunucusuna yüklenmez. Bu açıklama mevcut Cloudflare/FCM sürümünü anlatır; mağaza beyanlarının tamamlandığı anlamına gelmez.</p>
+<h2>İlan kataloğu</h2>
+<p>Uygulama ortak ilan kataloğunu Cloudflare üzerindeki KamuBul API'sinden okur. Katalog isteğine kişisel arama kriterleri eklenmez; eşleştirme cihazdaki önbellekte de yapılır. Cloudflare bağlantıyı sağlarken IP adresi ve istek zamanı/URL/durum gibi teknik verileri işleyebilir. Kurulum kayıt isteklerinde kötüye kullanımı sınırlamak için IP ve saatten üretilen hash sayacı kullanılır; süresi dolan sayaçlar sınırlı bakımda temizlenir. Uygulama günlüklerine gizli anahtar, bildirim jetonu veya kişisel kriter yazılmaz. Bu sürüm Firebase Analytics veya Crashlytics kullanmaz.</p>
+<p>Sunucu resmî ilan kaynaklarını merkezi olarak kontrol eder. Kaynağın başvuru bağlantısını açtığınızda ilgili sitenin uygulamaları geçerlidir. Erişilemeyen ayrıntılar kesin bilgi gibi gösterilmez.</p>
+<p>Yeni sürümde kaynak okuması sunucuda yapılır; telefon ilan listesini ve özgün metni KamuBul API'sinden indirip çevrimdışı okumak için saklar. Önceki sürümler kaynak kontrolünde resmî sitelere doğrudan bağlanabilir. Resmî ilan veya başvuru bağlantısını açtığınızda ilgili kaynak IP adresinizi ve teknik istek bilgilerini işleyebilir. Bu bağlantılara kişisel arama kriterleri eklenmez.</p>
+<h2>Sunucu bildirimleri (isteğe bağlı, varsayılan kapalı)</h2>
+<p>Ayarlardan “Sunucudan anlık bildirim” seçeneğini açıp gerekli izni verdiğinizde sunucuya şu veriler gönderilir:</p>
+<ul>
+<li>Rastgele kurulum kimliği, kimlik doğrulama için gizli anahtar, FCM bildirim jetonu ve Android/iOS platform bilgisi. Sunucu anahtarın yalnız hash'ini saklar.</li>
+<li>Bildirimi açık aramaların kimlikleri, sizin verdiğiniz <strong>arama adları</strong>, kriterleri ve anlık/özet bildirim tercihi. Kriterler doldurduğunuz şehir, eğitim, meslek/kurum, serbest sözcük, yaş/referans tarihi ve KPSS türü/puanı/yılı gibi değerleri içerebilir.</li>
+<li>Sessiz saatler, günlük bildirim sınırı ve son kayıt güncelleme zamanı. Mobil kayıt isteği cihazın saat farkını da taşır; mevcut sunucu bildirim takvimi Türkiye saatini kullanır.</li>
+</ul>
+<p>Ad, e-posta, telefon veya GPS konumu için profil alanı yoktur. Ancak arama adına ya da serbest sözcüğe yazdığınız kişisel bilgiler, o aramanın bildirimi açıksa aramayla birlikte gönderilir. Bu alanlara hassas bilgi yazmayın. Veriler ilan eşleştirme, bildirim gönderme ve size ait bildirim geçmişini sunmak için kullanılır; reklam hedeflemek için kullanılmaz.</p>
+<p>İş kayıtları Cloudflare D1'da tutulur. Cloudflare Queue mesajı yalnız görev türü ve nesil numarası içerir; kişisel kriter veya jeton taşımaz. Bildirim Google Firebase Cloud Messaging üzerinden, iOS'ta Apple APNs altyapısıyla iletilir. Mesaj ilan başlığı, ilan kimliği/bağlantısı ve olay kimliği içerir. Teslim cihaz izni ve işletim sistemi koşullarına bağlıdır. Sağlayıcının kendi veri uygulamaları <a href="https://firebase.google.com/support/privacy">Firebase gizlilik açıklamasında</a> yer alır.</p>
+<h2>Saklama, silme ve yedekler</h2>
+<p>Sunucu bildirimi anahtarını kapatmak yerel tercihi kapatır; sunucudaki kurulum, arama ve ilişkili bildirim kayıtlarının silinmesini ister. Bağlantı yoksa silme bekler ve uygulama sonraki bağlantıda yeniden dener. Bu sürede daha önce iletilmiş bir mesaj gelebilir. KamuBul kaydının silinmesi, sağlayıcıların teknik kayıtlarının aynı anda silindiği anlamına gelmez.</p>
+<p>120 gün güncellenmeyen kurulumlar otomatik temizlemeye uygun olur; sınırlı bakım ve devam eden işlem kilitleri nedeniyle temizlik tam 120. günde bitmiş olmayabilir. Tamamlanmış bildirim içerikleri 90 gün sonra sınırlı bakımda küçültülür. Tekrar gönderimi önleyen kimlik/durum kayıtları kurulum silinene kadar kalabilir. Bekleyen işler bu içerik temizliğiyle atılmaz. “Bildirim geçmişini temizle” cihazdaki görünümü temizler; sunucu kurulumunu silmek için sunucu bildirimi kapatılır.</p>
+<p>Kayıtlı aramalarınız ve kaydettiğiniz ilanlar yalnız cihazdaki uygulama verisinde tutulur; uygulama bunları dışa aktarmaz. Kurulum gizli anahtarı güvenli cihaz deposunda tutulur. Android yedek/cihaz aktarım kuralları bu depoyu dışlar. Uygulamayı kaldırmak sunucuya silme isteği göndermez; kaldırmadan önce sunucu bildirimini kapatabilirsiniz. Aksi halde stale-kurulum temizliği uygulanır.</p>
+<h2>Yapay zekâ</h2>
+<p>İlan işleme için Cloudflare Workers AI veya Alibaba Cloud Qwen'e yalnız herkese açık ilan metni, başlığı veya resmî ilan PDF belgesi verilir; kullanıcı kriterleri veya bildirim jetonu verilmez. PDF'den metin çıkarılır; taranmış belgede okunabilir metin yoksa bilgi uydurulmaz. Başarılı çıktı ortak katalogda saklanır; aynı içerik her kullanıcı için yeniden işlenmez. Bilinmeyen şart uygunluk onayı sayılmaz. <a href="https://developers.cloudflare.com/workers-ai/platform/data-usage/">Workers AI veri açıklaması</a> sağlayıcı uygulamalarını anlatır.</p>
+<h3>KamuBul Asistan (yapay zekâ sohbeti)</h3>
+<p>Asistan sekmesinde yazdığınız mesaj, aynı sohbetteki son en fazla 10 mesaj, bir ilan seçtiyseniz o ilanın herkese açık resmî metni ve "Bu ilan bana uygun mu?" karşılaştırması için cihazınızda kayıtlı arama kriterleriniz (yaş ve yaş tarihi, eğitim, KPSS türü/puanı/yılı, il, meslek; salt okunur) KamuBul sunucusu üzerinden yapay zekâ sağlayıcısına (Alibaba Cloud Qwen, OpenAI uyumlu API) yanıt üretmek için gönderilir. Rastgele kurulum kimliği ve IP adresinden üretilen karma yalnızca günlük kullanım sınırı için sayılır; KamuBul mesaj içeriğini ve yanıtı sunucuda saklamaz. Konu dışı mesajlar ve bağlantı/komut içeren mesajlar yapay zekâya hiç gönderilmez. Sağlayıcının veri işleme kuralları kendi gizlilik politikasında yer alır. Mesajlara ad, T.C. kimlik numarası, telefon gibi kişisel bilgi yazmayın. Yanıtlar yapay zekâ ile üretilir ve hatalı olabilir; başvurmadan önce resmî ilanı kontrol edin.</p>
+<h3>İlan şartlarının ayıklanması</h3>
+<p>Yeni sürümde ilan şartları (yaş, eğitim, KPSS) sunucuda ayıklanır ve sonuç özgün metinden ayrı saklanır. Aynı metnin ayıklama sonucu bütün kullanıcılar için paylaşılır. Önceki sürümler cihazda okunan resmî metni ve rastgele kurulum kimliğini ayıklama için sunucuya gönderebilir; bu kimlik yalnız günlük kullanım sınırı için sayılır. Bu işlemde kişisel bilgi veya arama kriterleriniz gönderilmez. Kişisel mesajlar saklanmadan, yalnız toplam giriş/çıkış token sayıları maliyeti izlemek için kaydedilir.</p>
+<h3>Reklamsız deneme süresi</h3>
+<p>İlk 7 gün reklam gösterilmez. Uygulamayı kaldırıp yeniden kurmanın deneme süresini sıfırlamaması için cihazın bu uygulamaya özgü Android kimliği (ANDROID_ID) cihazda tuzlanıp SHA-256 ile özetlenir; ham kimlik gönderilmez. Sunucu yalnızca bu özeti ve ilk görülme zamanını saklar; başka bir veriyle eşleştirilmez ve reklam hedeflemesinde kullanılmaz.</p>
+<h2>Reklam ve satın alma</h2>
+<p>Ücretsiz sürüm Google Mobile Ads ve onay bileşenlerini içerir; bunlar reklam/izin amaçlı veri işleyebilir. Pro aylık bir abonelik olup abonelik süresince reklam akışını kapatır. Abonelik ve ödeme Google Play altyapısından geçer; KamuBul kart bilgisi saklamaz. Uygulama açılışta aboneliğin hâlâ etkin olup olmadığını yalnız cihazdaki Google Play'den sorar; iptal Google Play &gt; Abonelikler'den yapılır. Gerçek reklam yapılandırmasıyla Google Play Veri Güvenliği ve Apple gizlilik formları yayın öncesinde ayrıca doğrulanmalıdır.</p>
+<p>Google Mobile Ads SDK, reklam sunumu, ölçüm ve kötüye kullanım önleme için IP adresi (yaklaşık konum çıkarılabilir), uygulama/reklam etkileşimleri, performans ve tanılama bilgileri ile reklam kimliği/uygulama kümesi kimliği gibi cihaz kimliklerini toplayıp paylaşabilir. Bu, uygulamada Firebase Analytics bulunmadığı açıklamasından ayrıdır. SDK veri aktarımı TLS ile şifrelenir. Android reklam kimliğinizi cihaz ayarlarından sıfırlayabilir veya silebilirsiniz. <a href="https://developers.google.com/admob/android/privacy/play-data-disclosure">Google Mobile Ads veri açıklaması</a> ve <a href="https://policies.google.com/privacy">Google gizlilik politikası</a> sağlayıcının uygulamalarını açıklar.</p>
+<p>“Diğer uygulamalarım” GitHub'daki ortak uygulama kataloğunu indirir ve cihazda önbelleğe alır. İsteğe kişisel kriter veya kurulum anahtarı eklenmez. Mağaza bağlantısını açarsanız mağazanın uygulamaları geçerlidir.</p>
+<p>Gizlilik, destek ve veri silme soruları için <a href="mailto:devcrazypenguin@gmail.com">devcrazypenguin@gmail.com</a> adresinden crazypenguin ile iletişime geçebilirsiniz. Sunucu kurulumunuzu uygulamadaki sunucu bildirimi ayarını kapatarak silebilirsiniz; sağlayıcıların teknik kayıtları ayrı saklama kurallarına tabidir.</p>
+<h2>iOS sürümü</h2>
+<p>iOS sürümünde reklam ve abonelik bulunmaz; Google Mobile Ads reklamları gösterilmez ve satın alma yapılmaz. Hesap açılmaz. Kayıtlı aramalarınız ve ilanlarınız cihazda tutulur. Kurulum gizli anahtarı Apple Keychain'de, bu cihaza özgü ve yedeklenmeyecek biçimde saklanır. Bildirim ve Asistan veri işleme kuralları yukarıdaki bölümlerle aynıdır. Uygulama sizi diğer uygulamalar ve siteler arasında izlemez.</p>
+  </main>
+  <footer class="shell footer"><div><a href="../gizlilik/">Gizlilik politikası</a><a href="../destek/">Destek</a><a href="https://github.com/XPersPective/kamubul">Açık kaynak kod</a></div><p class="disclaimer">KamuBul herhangi bir kamu kurumu, bakanlık veya ÖSYM ile bağlantılı değildir ve onlar tarafından onaylanmamıştır. Başvuru bilgileri için resmî ilan esas alınır.</p><small>crazypenguin · KamuBul</small></footer>
+</body>
+</html>

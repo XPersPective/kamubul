@@ -56,3 +56,7 @@ Google Mobile Ads SDK, reklam sunumu, ölçüm ve kötüye kullanım önleme iç
 “Diğer uygulamalarım” GitHub'daki ortak uygulama kataloğunu indirir ve cihazda önbelleğe alır. İsteğe kişisel kriter veya kurulum anahtarı eklenmez. Mağaza bağlantısını açarsanız mağazanın uygulamaları geçerlidir.
 
 Gizlilik, destek ve veri silme soruları için [devcrazypenguin@gmail.com](mailto:devcrazypenguin@gmail.com) adresinden crazypenguin ile iletişime geçebilirsiniz. Sunucu kurulumunuzu uygulamadaki sunucu bildirimi ayarını kapatarak silebilirsiniz; sağlayıcıların teknik kayıtları ayrı saklama kurallarına tabidir.
+
+## iOS sürümü
+
+iOS sürümünde reklam ve abonelik bulunmaz; Google Mobile Ads reklamları gösterilmez ve satın alma yapılmaz. Hesap açılmaz. Kayıtlı aramalarınız ve ilanlarınız cihazda tutulur. Kurulum gizli anahtarı Apple Keychain'de, bu cihaza özgü ve yedeklenmeyecek biçimde saklanır. Bildirim ve Asistan veri işleme kuralları yukarıdaki bölümlerle aynıdır. Uygulama sizi diğer uygulamalar ve siteler arasında izlemez.
