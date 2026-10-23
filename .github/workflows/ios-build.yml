@@ -23,13 +23,19 @@ jobs:
         with:
           channel: stable
           cache: true
-      # ci.yml ile aynı: napp_kit gizliyse NAPP_KIT_TOKEN tanımlanır.
+      # napp_kit özel depodur: yalnızca o depoya okuma yetkili deploy key kullanılır.
       - name: napp_kit erişimi
         env:
-          NAPP_KIT_TOKEN: ${{ secrets.NAPP_KIT_TOKEN }}
+          NAPP_KIT_DEPLOY_KEY: ${{ secrets.NAPP_KIT_DEPLOY_KEY }}
         run: |
-          if [ -n "$NAPP_KIT_TOKEN" ]; then
-            git config --global url."https://x-access-token:${NAPP_KIT_TOKEN}@github.com/".insteadOf "https://github.com/"
+          if [ -n "$NAPP_KIT_DEPLOY_KEY" ]; then
+            mkdir -p ~/.ssh
+            printf '%s
+' "$NAPP_KIT_DEPLOY_KEY" > ~/.ssh/napp_kit
+            chmod 600 ~/.ssh/napp_kit
+            ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+            git config --global core.sshCommand "ssh -i ~/.ssh/napp_kit -o IdentitiesOnly=yes"
+            git config --global url."git@github.com:XPersPective/napp_kit".insteadOf "https://github.com/XPersPective/napp_kit"
           fi
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
