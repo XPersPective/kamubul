@@ -30,8 +30,7 @@ jobs:
         run: |
           if [ -n "$NAPP_KIT_DEPLOY_KEY" ]; then
             mkdir -p ~/.ssh
-            printf '%s
-' "$NAPP_KIT_DEPLOY_KEY" > ~/.ssh/napp_kit
+            echo "$NAPP_KIT_DEPLOY_KEY" > ~/.ssh/napp_kit
             chmod 600 ~/.ssh/napp_kit
             ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
             git config --global core.sshCommand "ssh -i ~/.ssh/napp_kit -o IdentitiesOnly=yes"
