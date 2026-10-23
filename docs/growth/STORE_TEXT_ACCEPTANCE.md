@@ -38,7 +38,7 @@ Bu içerik turları bağımsız HIGH review veya gerçek kullanıcı testi deği
 
 ## Yayın readback
 
-17 Ekim 04:50:15 TR Fastlane2.239.0: yalnız tr-TR metin, changes_not_sent_for_review=false ve rescue=false ile commit başarılı. Ayrı edit ile listingEqualsCandidate=true, orderedScreenshotHashesEqual=true, screenshotCount7, production/internal1.2.3/code18/completed; inspection edit silindi. Kanıt `.store-automation/evidence/SA-025/api-readback-20261017.json`. Independent gpt-6-text-review PASS (metin/kod/politika); linked privacy policy kriter bağlamını açıklar. Public TR17Ekim browser hâlâ önceki metin ve7Ekim güncelleme tarihi gösterdi; bu yeni metin/API18'in public onayı değildir. Console sign-in'e yönlendi; Windows helper3list_apps timeout. Gönderim tekrar edilmez, kalan public kabulü sonraki yetkili readback ile tamamlanır.
+17 Ekim 04:50:15 TR Fastlane2.239.0: yalnız tr-TR metin, changes_not_sent_for_review=false ve rescue=false ile commit başarılı. Ayrı edit ile listingEqualsCandidate=true, orderedScreenshotHashesEqual=true, screenshotCount7, production/internal1.2.3/code18/completed; inspection edit silindi. Eski API readback dosyası tracker emekliliğinde kaldırıldı; bu kayıt bağımsız güncel remote kabul değildir. Independent gpt-6-text-review PASS (metin/kod/politika); linked privacy policy kriter bağlamını açıklar. Public TR17Ekim browser hâlâ önceki metin ve7Ekim güncelleme tarihi gösterdi; bu yeni metin/API18'in public onayı değildir. Console sign-in'e yönlendi; Windows helper3list_apps timeout. Gönderim tekrar edilmez, kalan public kabulü sonraki yetkili readback ile tamamlanır.
 
 Aşağıdaki16Ekim kaydı tarihseldir; yeni gönderim ve code18 yukarıdaki gözlemle güncellenmiştir.
 

@@ -104,7 +104,7 @@ Rapor metrik adı/sürüm/cohort/pay/payda/export kaynağını taşımalı. Inst
 
 ## Devir: sıradaki ajan ne yapacak?
 
-1. AGENTS → Store Automation SKILL → boot → LOAD. Tam kullanıcı hedefini oku; bu stratejiyi değil kişisel hafızayı esas alarak hedefi daraltma. Sıralama sonucu tamamlandı sayılmaz.
+1. `AGENTS.md` → Project Brain boot → ilgili görev ve hedef. Tam kullanıcı hedefini oku; sıralama sonucu tamamlandı sayılmaz.
 2. Çalışma ağacındaki SA-017 kod/test/golden ve eski plan/site değişikliklerini koru. `tool/brand/store_frames.py` devralınan diff'i var; reset/clean/stash yok. Yeni araştırma belgeleri Git'te; ücretli servis açılmadı, app binary yayımlanmadı.
 3. İlk uygulanacak iş **SA-021**: Publishing overview/readback ile public eski8 sebebini belirle; yeni güncel7 medya/adayı doğrula, yanlış Pro görseli çıkar. Belirsiz upload'ı tekrarlama. Kullanıcı yayın hazırlığını yetkilendirdi; hesap/araç eksikliği gerçek kanıtla yazılır.
 4. Yeni P1 AI raporlama görevini net sözleşmeyle hazırla; mevcut güvenli kurulum doğrulamasını kullan, kullanıcı rızası olmadan profil/tüm sohbeti rapora gönderme. Sonra SA-016/003/004/005 kalite kapıları ve SA-017/015/018 çekirdek işleri.

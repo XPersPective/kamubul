@@ -20,8 +20,8 @@ Tümü kodda düzeltildi; son bağımsız okuma somut ek hata bulmadı. Bu sonu�
 ## Kanıt ve sınırlar
 
 - İlk düzeltmede saved_search_edit + ui_list_scale19/19 PASS.
-- Genel Flutter214/214, core223/223 ve analyze komutları başarılı çıktı; bu sırada kaynak değiştiği için Store Automation turu doğru olarak FAIL/stale kaydetti. Güncel kabul yerine kullanılamaz.
-- Son kesin kaynak genel check PASS: Flutter214/214, core223/223, hedefli analyze temiz; digest4c6202f0240095db. Loglar `.store-automation/runs/SA-015-20261016T101606Z-1.log`, `101839Z-2.log`, `101843Z-3.log`. Dört golden yeniden doğrudan incelendi, visual criterion513659 kanıtlandı.
+- Genel Flutter214/214, core223/223 ve analyze komutları başarılı çıktı; bu sırada kaynak değiştiği için eski otomasyon turu doğru olarak FAIL/stale kaydetti. Güncel kabul yerine kullanılamaz.
+- Son kesin kaynak genel check PASS: Flutter214/214, core223/223, hedefli analyze temiz; digest4c6202f0240095db. Eski otomasyon logları devralınmadı. Dört golden yeniden doğrudan incelendi, visual criterion513659 kanıtlandı.
 - Önceki debug x64 derlemesi başarılı; C:/Users/rubicon/.codex/builds/kamubul-sa015-debug-artifact/app-debug-20261016.apk korunur. Son kanal/kapasite/readback düzeltmelerini içermez; release adayı değildir.
 - Kullanıcının temizleme isteği: `flutter clean` başarılı, D boş alan1,851,244,544 ->3,467,694,080 byte (yaklaşık1.62GB kazanç). Pub get mevcut lock ile başarılı; dependency eklenmedi.
 - Cihaz denemesi yalnız özel `kamubul_sa015_qa` AVD / emulator-5556; başka projenin emulator-5554 cihazına müdahale edilmedi.

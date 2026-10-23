@@ -24,7 +24,7 @@ Google'ın [mağaza performansı açıklaması](https://support.google.com/googl
 
 ## 15 Ekim anlık ürün gözlemi
 
-Kaynak: [büyüme denetimi](PLAY_GROWTH_AUDIT.md), `.store-automation/current.md` ve oturumun API/admin readback'i. Kesin gözlem saati bu özetten çıkarılamıyor; yeni kıyasta zaman damgalı export gerekir.
+Kaynak: [büyüme denetimi](PLAY_GROWTH_AUDIT.md) ve oturumun API/admin readback'i. Kesin gözlem saati bu özetten çıkarılamıyor; yeni kıyasta zaman damgalı export gerekir.
 
 - Health: **212 aktif / 137 complete / 56 partial / 19 metinsiz / 12 AI katkılı**. İlk üç kalite durumunun toplamı 212'dir; AI katkılı 12 ayrı alt kümedir, toplama tekrar eklenmez.
 - Meta: ilan.gov erişilebilir; Kariyer ayrıntı hatasında önceki metni koruyor; SBB blocked; İŞKUR HTTP 500 ve başarılı okuma yok. Bütün resmî ilanlar kapsanıyor iddiası yapılmaz.
