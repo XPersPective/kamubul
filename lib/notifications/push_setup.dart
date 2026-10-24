@@ -23,8 +23,7 @@ AppLifecycleListener? _pushLifecycle;
 /// Açılışta bir kez çağrılır. Kullanıcı sunucu bildirimini açmadıysa Firebase'e
 /// hiç dokunulmaz.
 Future<void> initPush(SettingsStore store) async {
-  // Firebase ayarı olmayan derlemede (ör. iOS) anahtar gösterilmez.
-  if (kApiBaseUrl.isEmpty || !firebaseConfigured) return;
+  if (kApiBaseUrl.isEmpty) return;
   final Uri base;
   try {
     base = Uri.parse(kApiBaseUrl);

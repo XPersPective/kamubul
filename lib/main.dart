@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +7,7 @@ import 'package:napp_ads/napp_ads.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 
+import 'store_features.dart';
 import 'data/listing_store.dart';
 import 'data/subscription_check.dart';
 import 'data/trial_sync.dart';
@@ -95,8 +95,7 @@ Future<void> main() async {
   final interstitial = InterstitialAdManager(policy: policy);
   final appOpen = AppOpenAdManager(policy: policy);
   // Deneme süresinde reklam SDK'sı, onay formu ve istekler hiç başlamaz.
-  // iOS sürümünde reklam ve abonelik yok (docs/IOS_RELEASE.md).
-  if (!Platform.isIOS &&
+  if (adsAvailable &&
       !pro.isPro &&
       trialDaysLeft(policy, DateTime.now()) == 0) {
     unawaited(() async {

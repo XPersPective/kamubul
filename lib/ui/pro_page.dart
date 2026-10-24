@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'premium.dart';
 
@@ -88,11 +90,18 @@ class _ProPageState extends State<ProPage> {
             _benefit(
               Icons.payments_outlined,
               'Esnek aylık üyelik',
-              'Her ay otomatik yenilenir; dilediğiniz zaman Google Play > '
-                  'Abonelikler’den iptal edebilirsiniz, dönem sonuna kadar Pro '
-                  'açık kalır. Abonelik Google hesabınıza bağlıdır: telefon '
-                  'değiştirirseniz aynı hesapla bu sayfadaki “Satın alımı geri '
-                  'yükle” düğmesine dokunun.',
+              Platform.isIOS
+                  ? 'Her ay otomatik yenilenir; dönem bitmeden en az 24 saat '
+                        'önce iptal edilmezse ücret Apple hesabınızdan alınır. '
+                        'Ayarlar > Apple hesabınız > Abonelikler’den iptal '
+                        'edebilirsiniz, dönem sonuna kadar Pro açık kalır. '
+                        'Telefon değiştirirseniz aynı Apple hesabıyla “Satın '
+                        'alımı geri yükle” düğmesine dokunun.'
+                  : 'Her ay otomatik yenilenir; dilediğiniz zaman Google Play > '
+                        'Abonelikler’den iptal edebilirsiniz, dönem sonuna kadar '
+                        'Pro açık kalır. Abonelik Google hesabınıza bağlıdır: '
+                        'telefon değiştirirseniz aynı hesapla bu sayfadaki '
+                        '“Satın alımı geri yükle” düğmesine dokunun.',
             ),
             _benefit(
               Icons.lock_open_rounded,
@@ -333,9 +342,32 @@ class _ProPageState extends State<ProPage> {
               onPressed: widget.repository.restore,
               child: Text(l10n.t('paywall.restore')),
             ),
+            _legalLinks(),
           ],
         );
       },
+    );
+  }
+
+  /// Abonelik koşulları ve gizlilik bağlantıları (App Store kural 3.1.2).
+  Widget _legalLinks() {
+    Future<void> open(String url) =>
+        launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    final terms = Platform.isIOS
+        ? 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'
+        : 'https://play.google.com/about/play-terms/';
+    return Wrap(
+      alignment: WrapAlignment.center,
+      children: [
+        TextButton(
+          onPressed: () => open(terms),
+          child: const Text('Kullanım Koşulları'),
+        ),
+        TextButton(
+          onPressed: () => open(widget.identity.privacyPolicyUrl),
+          child: const Text('Gizlilik Politikası'),
+        ),
+      ],
     );
   }
 }

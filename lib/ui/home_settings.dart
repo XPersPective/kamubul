@@ -28,7 +28,7 @@ extension _HomeSettings on _KamuHomePageState {
   );
 
   Widget _proCard() {
-    if (Platform.isIOS) return const SizedBox.shrink();
+    if (!proAvailable) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
     final trialDays = trialDaysLeft(widget.policy, DateTime.now());
     final isPro = widget.pro.isPro;

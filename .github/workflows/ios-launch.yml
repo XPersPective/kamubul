@@ -24,9 +24,13 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
           git config --global core.sshCommand "ssh -i ~/.ssh/napp_kit -o IdentitiesOnly=yes"
           git config --global url."git@github.com:XPersPective/napp_kit".insteadOf "https://github.com/XPersPective/napp_kit"
+      - name: Derleme ayarları
+        env:
+          IOS_DART_DEFINES: ${{ secrets.IOS_DART_DEFINES }}
+        run: echo "$IOS_DART_DEFINES" > "$RUNNER_TEMP/defines.json"
       - run: flutter pub get
       - name: Simülatör derlemesi
-        run: flutter build ios --simulator --debug --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://xperspective.github.io/kamubul/gizlilik/
+        run: flutter build ios --simulator --debug --dart-define-from-file="$RUNNER_TEMP/defines.json"
       - name: Kur ve aç
         run: |
           udid=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];c=[x for k,v in d.items() if 'iOS' in k for x in v if 'Pro Max' in x['name']];c.sort(key=lambda x:x['name']);print(c[-1]['udid'])")

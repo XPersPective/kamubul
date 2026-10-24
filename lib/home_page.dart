@@ -36,6 +36,7 @@ import 'notifications/push_setup.dart';
 import 'listings/listing_facts.dart';
 import 'listings/listing_guide.dart';
 import 'listings/official_listing_page.dart';
+import 'store_features.dart';
 import 'ads_state.dart';
 import 'data/assistant_client.dart';
 import 'rate_prompt_state.dart';
@@ -1002,7 +1003,7 @@ class _KamuHomePageState extends State<KamuHomePage>
               )
             : Text(const ['', 'Kaydedilenler', 'Asistan', 'Ayarlar'][_tab]),
         actions: [
-          if (!Platform.isIOS) _membershipBadge(),
+          if (proAvailable) _membershipBadge(),
           IconButton(
             tooltip: 'Bildirimler',
             onPressed: () => Navigator.of(context)
@@ -1661,7 +1662,7 @@ class _KamuHomePageState extends State<KamuHomePage>
           ? null
           : ListingGuideView(listing: selected),
       isPro: widget.pro.isPro,
-      onUpgrade: Platform.isIOS ? null : _openPaywall,
+      onUpgrade: proAvailable ? _openPaywall : null,
       onNewChat: () => setState(() {
         _assistantListing = null;
         _chatMessages.clear();

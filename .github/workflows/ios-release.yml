@@ -75,9 +75,13 @@ jobs:
             <key>provisioningProfiles</key><dict><key>$BUNDLE_ID</key><string>$PROFILE_NAME</string></dict>
           </dict></plist>
           PLIST
+      - name: Derleme ayarları
+        env:
+          IOS_DART_DEFINES: ${{ secrets.IOS_DART_DEFINES }}
+        run: echo "$IOS_DART_DEFINES" > "$RUNNER_TEMP/defines.json"
       - run: flutter pub get
       - name: IPA
-        run: flutter build ipa --release --build-number=$((100 + GITHUB_RUN_NUMBER)) --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://xperspective.github.io/kamubul/gizlilik/
+        run: flutter build ipa --release --build-number=$((100 + GITHUB_RUN_NUMBER)) --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" --dart-define-from-file="$RUNNER_TEMP/defines.json"
       - uses: actions/upload-artifact@v4
         with:
           name: KamuBul-ipa

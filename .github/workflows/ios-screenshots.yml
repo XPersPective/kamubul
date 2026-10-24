@@ -24,6 +24,10 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
           git config --global core.sshCommand "ssh -i ~/.ssh/napp_kit -o IdentitiesOnly=yes"
           git config --global url."git@github.com:XPersPective/napp_kit".insteadOf "https://github.com/XPersPective/napp_kit"
+      - name: Derleme ayarları
+        env:
+          IOS_DART_DEFINES: ${{ secrets.IOS_DART_DEFINES }}
+        run: echo "$IOS_DART_DEFINES" > "$RUNNER_TEMP/defines.json"
       - run: flutter pub get
       - name: Simülatör
         id: sim
@@ -39,7 +43,7 @@ jobs:
         env:
           UDID: ${{ steps.sim.outputs.udid }}
         run: |
-          flutter test integration_test/store_capture_test.dart -d "$UDID" --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://xperspective.github.io/kamubul/gizlilik/ --dart-define=STORE_CAPTURE_DIR=$GITHUB_WORKSPACE/build/store_capture
+          flutter test integration_test/store_capture_test.dart -d "$UDID" --dart-define-from-file="$RUNNER_TEMP/defines.json" --dart-define=STORE_CAPTURE_DIR=$GITHUB_WORKSPACE/build/store_capture
       - name: Görüntüleri al
         if: always()
         env:

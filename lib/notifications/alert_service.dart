@@ -143,8 +143,13 @@ Future<bool> requestAlertPermission(BuildContext context) async {
       .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin
       >();
+  final ios = _plugin
+      .resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin
+      >();
   // İzin zaten açıksa tanıtım penceresi ("Aç") tekrar gösterilmez.
   if (await android?.areNotificationsEnabled() == true) return true;
+  if ((await ios?.checkPermissions())?.isEnabled == true) return true;
   if (!context.mounted) return false;
   final accepted = await showDialog<bool>(
     context: context,
@@ -169,6 +174,10 @@ Future<bool> requestAlertPermission(BuildContext context) async {
   );
   if (accepted != true) return false;
   if (!context.mounted) return false;
+  if (ios != null) {
+    return await ios.requestPermissions(alert: true, badge: true, sound: true) ??
+        false;
+  }
   return await android?.requestNotificationsPermission() ?? false;
 }
 
