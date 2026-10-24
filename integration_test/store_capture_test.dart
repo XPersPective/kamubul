@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -5,9 +7,10 @@ import 'package:kamubul/main.dart' as app;
 
 /// App Store ekran görüntüleri: gerçek uygulama, canlı katalog, iOS simülatörü.
 /// `flutter test integration_test/store_capture_test.dart -d <simulator>`;
-/// iş akışı STORE_CAPTURE satırlarında `simctl io screenshot` alır.
+/// görüntüler uygulamanın tmp/store_capture klasörüne yazılır, iş akışı
+/// `simctl get_app_container` ile alır.
 Future<void> main() async {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   // Mağaza görüntüsünde DEBUG şeridi görünmesin.
   WidgetsApp.debugAllowBannerOverride = false;
 
@@ -25,9 +28,11 @@ Future<void> main() async {
   }
 
   Future<void> capture(WidgetTester tester, String name) async {
-    // ignore: avoid_print
-    print('STORE_CAPTURE $name');
-    await settle(tester, 4);
+    await settle(tester, 2);
+    final bytes = await binding.takeScreenshot(name);
+    File('${Directory.systemTemp.path}/store_capture/$name.png')
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(bytes);
   }
 
   Finder cards() => find.descendant(
