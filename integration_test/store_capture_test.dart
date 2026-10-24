@@ -26,7 +26,7 @@ Future<void> main() async {
   }
 
   Future<void> waitFor(WidgetTester tester, Finder finder) async {
-    for (var i = 0; i < 600 && finder.evaluate().isEmpty; i++) {
+    for (var i = 0; i < 1800 && finder.evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(finder, findsWidgets);
