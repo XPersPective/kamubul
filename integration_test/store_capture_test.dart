@@ -7,8 +7,13 @@ import 'package:kamubul/main.dart' as app;
 
 /// App Store ekran görüntüleri: gerçek uygulama, canlı katalog, iOS simülatörü.
 /// `flutter test integration_test/store_capture_test.dart -d <simulator>`;
-/// görüntüler uygulamanın tmp/store_capture klasörüne yazılır, iş akışı
-/// `simctl get_app_container` ile alır.
+/// görüntüler STORE_CAPTURE_DIR klasörüne yazılır.
+/// Simülatör uygulaması Mac dosya sistemine yazabilir; iş akışı klasörü verir.
+const _dir = String.fromEnvironment(
+  'STORE_CAPTURE_DIR',
+  defaultValue: '/tmp/kamubul_store_capture',
+);
+
 Future<void> main() async {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   // Mağaza görüntüsünde DEBUG şeridi görünmesin.
@@ -30,7 +35,7 @@ Future<void> main() async {
   Future<void> capture(WidgetTester tester, String name) async {
     await settle(tester, 2);
     final bytes = await binding.takeScreenshot(name);
-    File('${Directory.systemTemp.path}/store_capture/$name.png')
+    File('$_dir/$name.png')
       ..createSync(recursive: true)
       ..writeAsBytesSync(bytes);
   }

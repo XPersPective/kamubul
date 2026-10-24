@@ -39,15 +39,12 @@ jobs:
         env:
           UDID: ${{ steps.sim.outputs.udid }}
         run: |
-          flutter test integration_test/store_capture_test.dart -d "$UDID" --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://xperspective.github.io/kamubul/gizlilik/
+          flutter test integration_test/store_capture_test.dart -d "$UDID" --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://xperspective.github.io/kamubul/gizlilik/ --dart-define=STORE_CAPTURE_DIR=$GITHUB_WORKSPACE/build/store_capture
       - name: Görüntüleri al
         if: always()
         env:
           UDID: ${{ steps.sim.outputs.udid }}
         run: |
-          mkdir -p build/store_capture
-          data=$(xcrun simctl get_app_container "$UDID" com.crazypenguin.kamubul data)
-          find "$data" -path '*store_capture*' -name '*.png' -exec cp {} build/store_capture/ \;
           ls -la build/store_capture
       - uses: actions/upload-artifact@v4
         if: always()
