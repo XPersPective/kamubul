@@ -57,7 +57,7 @@ Future<void> main() async {
     await tester.drag(find.byType(Scrollable).last, const Offset(0, -900));
     await settle(tester);
     await capture(tester, '04-kadrolar');
-    await tester.pageBack();
+    Navigator.of(tester.element(find.byType(Scaffold).last)).pop();
     await settle(tester);
 
     for (final (tab, name) in [
