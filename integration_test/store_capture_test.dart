@@ -5,10 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:kamubul/main.dart' as app;
 
-/// App Store ekran görüntüleri: gerçek uygulama, canlı katalog, iOS simülatörü.
+/// App Store ekran görüntüleri: gerçek uygulama, canlı katalog ve canlı
+/// Asistan yanıtı, iOS simülatörü. Sahne sırası Play'deki araştırma setiyle
+/// aynıdır (docs/growth/STORE_COPY.md, tool/brand/ios_store_frames.py).
 /// `flutter test integration_test/store_capture_test.dart -d <simulator>`;
 /// görüntüler STORE_CAPTURE_DIR klasörüne yazılır.
-/// Simülatör uygulaması Mac dosya sistemine yazabilir; iş akışı klasörü verir.
 const _dir = String.fromEnvironment(
   'STORE_CAPTURE_DIR',
   defaultValue: '/tmp/kamubul_store_capture',
@@ -25,8 +26,12 @@ Future<void> main() async {
     }
   }
 
-  Future<void> waitFor(WidgetTester tester, Finder finder) async {
-    for (var i = 0; i < 1800 && finder.evaluate().isEmpty; i++) {
+  Future<void> waitFor(
+    WidgetTester tester,
+    Finder finder, {
+    int seconds = 180,
+  }) async {
+    for (var i = 0; i < seconds * 10 && finder.evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(finder, findsWidgets);
@@ -45,39 +50,94 @@ Future<void> main() async {
     matching: find.byType(InkWell),
   );
 
+  void back(WidgetTester tester) =>
+      Navigator.of(tester.element(find.byType(Scaffold).last)).pop();
+
+  Future<void> tab(WidgetTester tester, String label) async {
+    await tester.tap(find.text(label).last);
+    await settle(tester, 2);
+  }
+
+  Future<void> theme(WidgetTester tester, String label) async {
+    await tab(tester, 'Ayarlar');
+    await tester.tap(find.byType(DropdownButton<ThemeMode>));
+    await settle(tester);
+    await tester.tap(find.text(label).last);
+    await settle(tester, 2);
+    await tab(tester, 'İlanlar');
+  }
+
   testWidgets('mağaza görüntüleri', (tester) async {
-    // ignore: avoid_print
-    print('STORE_STEP main');
     await app.main();
-    // ignore: avoid_print
-    print('STORE_STEP started');
     await settle(tester, 3);
     final skip = find.text('Atla');
     if (skip.evaluate().isNotEmpty) {
       await tester.tap(skip);
       await settle(tester);
     }
+
+    // Açık tema sabitlenir; sistem görünümüne bağlı kalmaz.
+    await theme(tester, 'Açık');
     await waitFor(tester, cards());
     await settle(tester, 4);
-    await capture(tester, '02-ilanlar');
+    await capture(tester, 'home-light');
 
     await tester.tap(cards().first);
     await settle(tester, 4);
-    await capture(tester, '03-ilan-sartlari');
-    await tester.drag(find.byType(Scrollable).last, const Offset(0, -900));
+    await capture(tester, 'detail-summary');
+    final positions = find.text('Pozisyonlar').evaluate().isNotEmpty
+        ? find.text('Pozisyonlar')
+        : find.text('Başvuru koşulları');
+    await tester.scrollUntilVisible(
+      positions.first,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -260));
     await settle(tester);
-    await capture(tester, '04-kadrolar');
-    Navigator.of(tester.element(find.byType(Scaffold).last)).pop();
+    await capture(tester, 'detail-positions');
+    back(tester);
     await settle(tester);
 
-    for (final (tab, name) in [
-      ('Asistan', '01-asistan'),
-      ('Kaydedilen', '05-kaydedilen'),
-      ('Ayarlar', '06-ayarlar'),
-    ]) {
-      await tester.tap(find.text(tab).last);
-      await settle(tester, 3);
-      await capture(tester, name);
+    // Kriter formu (kişisel veri girilmeden).
+    await tester.tap(find.text('Kriter ekle').first);
+    await settle(tester, 3);
+    await capture(tester, 'searches');
+    back(tester);
+    await settle(tester);
+
+    // Seçili ilan için gerçek Asistan sorusu ve yanıtı.
+    await tester.tap(find.text('Asistana sor').first);
+    await settle(tester, 3);
+    await tester.enterText(
+      find.byType(TextField).last,
+      '28 yaşındayım, lisans mezunuyum, KPSS P3 puanım 78. '
+      'Bu ilan bana uygun mu?',
+    );
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    await settle(tester, 2);
+    // Yanıt gelene kadar gönder düğmesi devre dışıdır.
+    for (var i = 0; i < 900; i++) {
+      final send = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byIcon(Icons.send_rounded),
+          matching: find.byType(IconButton),
+        ),
+      );
+      if (send.onPressed != null) break;
+      await tester.pump(const Duration(milliseconds: 100));
     }
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(tester, 3);
+    await capture(tester, 'assistant');
+
+    // Koyu tema sahneleri.
+    await theme(tester, 'Koyu');
+    await settle(tester, 2);
+    await capture(tester, 'home-dark');
+    await tester.tap(cards().first);
+    await settle(tester, 4);
+    await capture(tester, 'detail-dark');
   });
 }
