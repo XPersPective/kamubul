@@ -22,10 +22,8 @@ SHOTS = [
      'Aranan nitelikleri ve başvuru bilgilerini kolayca okuyun.', False),
     ('01-asistan.png', '04-asistan.png', '“Bu ilan bana uygun mu?”',
      'İlanın şartlarını Asistan’a sorun, madde madde anlayın.', True),
-    ('05-kaydedilen.png', '05-kaydedilen.png', 'İlgilendiklerinizi kaydedin',
-     'Aramalarınız ve ilanlarınız cihazınızda, hesapsız.', False),
-    ('06-ayarlar.png', '06-ayarlar.png', 'Size uygun görünüm',
-     'Açık ve koyu tema, ayarlanabilir yazı boyutu.', True),
+    ('06-ayarlar.png', '05-hatirlatma.png', 'Son başvuruyu kaçırmayın',
+     'Son başvuru hatırlatması ve yeni ilan bildirimi; tema ve yazı boyutu.', True),
 ]
 
 
