@@ -36,7 +36,17 @@ jobs:
           xcrun simctl spawn "$udid" defaults write -g AppleLocale tr_TR
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
       - name: Çekim
-        run: flutter drive --driver=test_driver/store_capture.dart --target=integration_test/store_capture_test.dart -d ${{ steps.sim.outputs.udid }} --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://xperspective.github.io/kamubul/gizlilik/
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          set -o pipefail
+          mkdir -p build/store_capture
+          flutter test integration_test/store_capture_test.dart -d "$UDID" --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://xperspective.github.io/kamubul/gizlilik/ 2>&1 | while IFS= read -r line; do
+            echo "$line"
+            case "$line" in
+              *STORE_CAPTURE\ *) n="${line##*STORE_CAPTURE }"; sleep 2; xcrun simctl io "$UDID" screenshot "build/store_capture/$n.png" ;;
+            esac
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: store-capture

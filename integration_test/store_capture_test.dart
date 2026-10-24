@@ -4,10 +4,10 @@ import 'package:integration_test/integration_test.dart';
 import 'package:kamubul/main.dart' as app;
 
 /// App Store ekran görüntüleri: gerçek uygulama, canlı katalog, iOS simülatörü.
-/// flutter drive --driver=test_driver/store_capture.dart
-///   --target=integration_test/store_capture_test.dart
+/// `flutter test integration_test/store_capture_test.dart -d <simulator>`;
+/// iş akışı STORE_CAPTURE satırlarında `simctl io screenshot` alır.
 Future<void> main() async {
-  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   Future<void> settle(WidgetTester tester, [int seconds = 2]) async {
     for (var i = 0; i < seconds * 10; i++) {
@@ -22,13 +22,23 @@ Future<void> main() async {
     expect(finder, findsWidgets);
   }
 
+  Future<void> capture(WidgetTester tester, String name) async {
+    // ignore: avoid_print
+    print('STORE_CAPTURE $name');
+    await settle(tester, 4);
+  }
+
   Finder cards() => find.descendant(
     of: find.byType(Card),
     matching: find.byType(InkWell),
   );
 
   testWidgets('mağaza görüntüleri', (tester) async {
+    // ignore: avoid_print
+    print('STORE_STEP main');
     await app.main();
+    // ignore: avoid_print
+    print('STORE_STEP started');
     await settle(tester, 3);
     final skip = find.text('Atla');
     if (skip.evaluate().isNotEmpty) {
@@ -37,14 +47,14 @@ Future<void> main() async {
     }
     await waitFor(tester, cards());
     await settle(tester, 4);
-    await binding.takeScreenshot('02-ilanlar');
+    await capture(tester, '02-ilanlar');
 
     await tester.tap(cards().first);
     await settle(tester, 4);
-    await binding.takeScreenshot('03-ilan-sartlari');
+    await capture(tester, '03-ilan-sartlari');
     await tester.drag(find.byType(Scrollable).last, const Offset(0, -900));
     await settle(tester);
-    await binding.takeScreenshot('04-kadrolar');
+    await capture(tester, '04-kadrolar');
     await tester.pageBack();
     await settle(tester);
 
@@ -55,7 +65,7 @@ Future<void> main() async {
     ]) {
       await tester.tap(find.text(tab).last);
       await settle(tester, 3);
-      await binding.takeScreenshot(name);
+      await capture(tester, name);
     }
   });
 }
