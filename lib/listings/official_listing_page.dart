@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import '../ui/premium.dart';
 import '../ui/premium_widgets.dart';
 import '../ui/turkish.dart';
@@ -743,7 +745,9 @@ class _OfficialListingPageState extends State<OfficialListingPage> {
                 _SourceOnlyCard(onOpen: () => _open(listing.url))
               else
                 _summaryCard(),
-              if (!widget.unavailable &&
+              // iOS'ta takvim köprüsü yok.
+              if (!Platform.isIOS &&
+                  !widget.unavailable &&
                   listing.deadline != null &&
                   listing.deadline!.isAfter(widget.now ?? DateTime.now())) ...[
                 Align(
