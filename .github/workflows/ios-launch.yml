@@ -1,0 +1,46 @@
+name: iOS launch check
+
+# Uygulamayı simülatöre kurar, açar, günlük ve ekran görüntüsü toplar.
+on:
+  workflow_dispatch:
+
+jobs:
+  launch:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: napp_kit erişimi
+        env:
+          NAPP_KIT_DEPLOY_KEY: ${{ secrets.NAPP_KIT_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$NAPP_KIT_DEPLOY_KEY" > ~/.ssh/napp_kit
+          chmod 600 ~/.ssh/napp_kit
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git config --global core.sshCommand "ssh -i ~/.ssh/napp_kit -o IdentitiesOnly=yes"
+          git config --global url."git@github.com:XPersPective/napp_kit".insteadOf "https://github.com/XPersPective/napp_kit"
+      - run: flutter pub get
+      - name: Simülatör derlemesi
+        run: flutter build ios --simulator --debug --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://xperspective.github.io/kamubul/gizlilik/
+      - name: Kur ve aç
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];c=[x for k,v in d.items() if 'iOS' in k for x in v if 'Pro Max' in x['name']];c.sort(key=lambda x:x['name']);print(c[-1]['udid'])")
+          xcrun simctl boot "$udid"; xcrun simctl bootstatus "$udid" -b
+          xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+          mkdir -p out
+          xcrun simctl install "$udid" build/ios/iphonesimulator/Runner.app
+          (xcrun simctl launch --console-pty --terminate-running-process "$udid" com.crazypenguin.kamubul > out/console.log 2>&1 &)
+          for s in 10 25 45 70; do sleep $((s - ${prev:-0})); prev=$s; xcrun simctl io "$udid" screenshot "out/t$s.png"; done
+          xcrun simctl spawn "$udid" launchctl list | grep -i kamubul || echo "PROCESS NOT RUNNING"
+          ls ~/Library/Logs/DiagnosticReports | grep -i runner || echo "no crash report"
+          tail -60 out/console.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: launch
+          path: out
