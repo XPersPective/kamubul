@@ -77,7 +77,7 @@ jobs:
           PLIST
       - run: flutter pub get
       - name: IPA
-        run: flutter build ipa --release --build-number=$((100 + GITHUB_RUN_NUMBER)) --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+        run: flutter build ipa --release --build-number=$((100 + GITHUB_RUN_NUMBER)) --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://xperspective.github.io/kamubul/gizlilik/
       - uses: actions/upload-artifact@v4
         with:
           name: KamuBul-ipa
