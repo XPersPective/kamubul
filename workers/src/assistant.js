@@ -2,7 +2,7 @@
 // dayanarak yanıtlar. Kapsamı model yorumlar; uzunluk/bağlantı/komut filtresi ve kota sayaçları
 // global/IP/kurulum bazlıdır; kriter çıktısı validateCriteria ile doğrulanır.
 import { validateCriteria, cityValues, fold, occupationLabels } from './criteria.js';
-import { externalAiEnabled, externalAiRun } from './external_ai.js';
+import { externalAiEnabled, externalAiRun, transientAiFailure } from './external_ai.js';
 
 export const MAX_MESSAGE = 300;
 export const MAX_LISTING_TEXT = 8000;
@@ -237,10 +237,17 @@ export async function handleAssistant(body, env, deps) {
     request.usageTier=body.tier==='pro'?'pro':'free';
     // Asistan yanıtı doğrulanmadan kullanıcıya gider: ayıklamadan ayrı, sayıları uydurmayan model seçilebilir.
     const chatEnv = env.ASSISTANT_AI_MODEL ? { ...env, EXTERNAL_AI_MODEL: env.ASSISTANT_AI_MODEL } : env;
-    const out = externalAiEnabled(env) ? await externalAiRun(chatEnv, request, deps.fetch) : await env.AI.run(env.AI_MODEL, request, { rejectIfBusy: true });
+    // Sağlayıcının geçici hatasında bir kez yeniden denenir; iki deneme istemcinin
+    // 30 sn bekleme süresine sığar.
+    const run = timeoutMs => externalAiEnabled(env) ? externalAiRun(chatEnv, { ...request, timeoutMs }, deps.fetch) : env.AI.run(env.AI_MODEL, request, { rejectIfBusy: true });
+    let out;
+    try { out = await run(16000); }
+    catch (e) { if (!transientAiFailure(e) && e?.message !== 'ai_schema') throw e; out = await run(12000); }
     const today = istanbulToday(deps.now);
     return { status: 200, body: chat ? parseChatOutput(out.response ?? '', today) : parseModelOutput(out.response ?? '', today) };
   } catch (e) {
+    // Yalnız hata türü günlüğe yazılır; mesaj, ilan metni veya anahtar yazılmaz.
+    console.error('assistant_failed', e?.name ?? '', String(e?.message ?? '').slice(0, 120));
     return { status: /^3036:|^3040:|external_ai_http_429/.test(e?.message ?? '') ? 429 : 502, body: { error: 'assistant_failed' } };
   }
 }

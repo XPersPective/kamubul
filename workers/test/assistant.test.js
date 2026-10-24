@@ -169,3 +169,15 @@ test('2000 Pro installs can each use 50 daily requests, including a shared netwo
   assert.equal((await handleAssistant({installationId:id,tier:'pro',message:'Ankara ilanları'},proEnv,deps)).status,429);
   assert.equal(proEnv.DB.counts.get('2026-10-07global'),50,'personal overflow does not reach the global/model budget');
 });
+
+test('transient provider failure is retried once before failing the user', async () => {
+  let calls = 0;
+  const fetch = async () => { calls++; return calls === 1 ? new Response('busy', { status: 503 }) : new Response(JSON.stringify({ choices: [{ message: { content: '{"intent":"answer","reply":"Lise mezunu olmak gerekir.","criteria":null}' } }] })); };
+  const r = await handleAssistant({ installationId: 'e'.repeat(32), mode: 'chat', message: 'Bu ilan bana uygun mu?', listing: { title: 'İlan', text: 'Lise mezunu olmak.' } }, env(), { sha256, ip: '8.8.8.8', fetch });
+  assert.equal(r.status, 200);
+  assert.equal(calls, 2);
+  let failing = 0;
+  const down = await handleAssistant({ installationId: 'f'.repeat(32), mode: 'chat', message: 'Bu ilan bana uygun mu?', listing: { title: 'İlan', text: 'Lise mezunu olmak.' } }, env(), { sha256, ip: '8.8.4.4', fetch: async () => { failing++; return new Response('busy', { status: 503 }); } });
+  assert.equal(down.status, 502);
+  assert.equal(failing, 2);
+});
