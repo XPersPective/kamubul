@@ -8,6 +8,8 @@ import 'package:kamubul/main.dart' as app;
 /// iş akışı STORE_CAPTURE satırlarında `simctl io screenshot` alır.
 Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // Mağaza görüntüsünde DEBUG şeridi görünmesin.
+  WidgetsApp.debugAllowBannerOverride = false;
 
   Future<void> settle(WidgetTester tester, [int seconds = 2]) async {
     for (var i = 0; i < seconds * 10; i++) {
