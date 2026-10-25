@@ -29,6 +29,7 @@ jobs:
             git config --global url."git@github.com:XPersPective/napp_kit".insteadOf "https://github.com/XPersPective/napp_kit"
           fi
       - run: flutter pub get
+      - run: (cd packages/kamubul_core && flutter pub get)
       - run: flutter analyze
       - run: flutter test
 

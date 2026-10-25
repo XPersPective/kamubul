@@ -16,7 +16,8 @@ Tek kaynak: her yayından sonra bu dosya güncellenir. Ortak sürüm numarası `
 - Android paket: `com.crazypenguin.kamubul`; Play Console app id: `D:/AppPublishing/apps/kamubul/app-ids.env`.
 - iOS bundle: `com.crazypenguin.kamubul`; App Store Connect app id `6826592263`; Team `53X3279WA3`; sürüm kaydı `7cdd4a07-3f35-4977-948c-f690b09cb7c6`.
 - Firebase proje `kamubul-3ae6e`; iOS app `1:1003012781397:ios:b1e2551cf6ba52d6ae2bdc`.
-- iOS Pro: abonelik grubu `22513026`, ürün `kamubul_pro_monthly` (`6826881201`), 58,99 TRY/ay, Türkiye.
+- iOS Pro: abonelik grubu `22513026`, ürün `kamubul_pro_monthly` (`6826881201`), 58,99 TRY/ay (175 bölge eşdeğer fiyat tablosu ve reklamsız `pro-paywall.png` inceleme görüntüsü yüklü, durum `READY_TO_SUBMIT`), Türkiye.
+- Görseller (25.10.2026): Google Play `tr-TR` 7 telefon ekran görüntüsü (`40220549808`, deneme rozetsiz gerçek uygulama çekimi) `edit 16344133390186283677` ile canlıya alındı; App Store `tr` 7 ekran görüntüsü ve SEO açıklamaları (`STORE_COPY.md`) yüklü.
 
 ## Nasıl yayınlanır
 

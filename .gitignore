@@ -52,6 +52,9 @@ ios/Flutter/AdsConfig.xcconfig
 
 # --- Yerel doğrulama artefaktları (ek) ---
 .tmp/
+.playwright-cli/
+build-*/
+__pycache__/
 test/failures/
 workers/node_modules/
 workers/.wrangler/

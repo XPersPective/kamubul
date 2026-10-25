@@ -8,3 +8,4 @@
 - C-006: Preserve accessibility, privacy, secret handling and truthful notification/subscription claims (source: legacy C-006/C-020/C-030/C-051).
 - C-007: Store publishing/distribution is outside Project Brain scope; do not migrate store submission work (source: user, 18.10.2026; Project Brain scope).
 - C-008: Do not claim a guaranteed ranking or download result; evaluate growth with evidence (source: user goal, interpreted as an objective rather than a guarantee).
+- C-009: Do not use external CLI agent pools; use only host-native models (source: user, 25.10.2026).
