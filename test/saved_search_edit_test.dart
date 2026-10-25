@@ -39,12 +39,13 @@ class _FakeStore implements StoreAdapter {
 /// Animasyonlu açılış ve gerçek veritabanı girişi için: sahte zaman
 /// akışında yalnızca pump() ile izole yanıtları hiç işlemez; kısa gerçek
 /// gecikme turları ikisini de ilerletir.
-Future<void> pumpRoute(WidgetTester tester) async {
-  for (var i = 0; i < 10; i++) {
+Future<void> pumpRoute(WidgetTester tester, {Finder? until}) async {
+  for (var i = 0; i < (until == null ? 10 : 60); i++) {
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      () => Future<void>.delayed(const Duration(milliseconds: 25)),
     );
     await tester.pump(const Duration(milliseconds: 50));
+    if (until != null && i >= 6 && until.evaluate().isNotEmpty) break;
   }
 }
 
@@ -495,21 +496,19 @@ void main() {
       findsOneWidget,
     );
     await tester.tap(find.byTooltip('Arama işlemleri'));
-    await pumpRoute(tester);
+    await pumpRoute(tester, until: find.text('Günlük özet'));
     await tester.tap(
       find.ancestor(
         of: find.text('Günlük özet'),
         matching: find.byType(CheckedPopupMenuItem<String>),
       ),
     );
-    await pumpRoute(tester);
-    expect(
-      find.descendant(
-        of: sheet,
-        matching: find.textContaining('Bildirim: Günlük özet'),
-      ),
-      findsOneWidget,
+    final updatedRow = find.descendant(
+      of: sheet,
+      matching: find.textContaining('Bildirim: Günlük özet'),
     );
+    await pumpRoute(tester, until: updatedRow);
+    expect(updatedRow, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
