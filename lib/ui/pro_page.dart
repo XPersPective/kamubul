@@ -6,6 +6,7 @@ import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../store_features.dart';
 import 'premium.dart';
 
 /// KamuBul Pro sayfası: ortak PaywallPage ile aynı sözleşme (mağazadan gelen
@@ -76,11 +77,12 @@ class _ProPageState extends State<ProPage> {
           children: [
             _hero(scheme),
             const SizedBox(height: 18),
-            _benefit(
-              Icons.block_rounded,
-              'Reklamsız deneyim',
-              'İlanları kesintisiz, reklamsız takip edin.',
-            ),
+            if (adsAvailable)
+              _benefit(
+                Icons.block_rounded,
+                'Reklamsız deneyim',
+                'İlanları kesintisiz, reklamsız takip edin.',
+              ),
             _benefit(
               Icons.auto_awesome_outlined,
               'Daha fazla günlük soru hakkı',
@@ -118,8 +120,11 @@ class _ProPageState extends State<ProPage> {
   }
 
   Widget _hero(ColorScheme scheme) {
+    // Reklamsız sürümde (ör. iOS) reklam ve deneme vaadi gösterilmez.
     final text = widget.controller.isPro
         ? 'Pro etkin. Teşekkürler!'
+        : !adsAvailable
+        ? 'Asistan’da günde 50 soru'
         : widget.trialDays > 0
         ? (widget.trialDays == 1
               ? 'Reklamsız deneme: son gün'
@@ -182,8 +187,10 @@ class _ProPageState extends State<ProPage> {
             ],
           ),
           const SizedBox(height: 18),
-          const Text(
-            'Kamu ilanlarını reklamsız takip edin.',
+          Text(
+            adsAvailable
+                ? 'Kamu ilanlarını reklamsız takip edin.'
+                : 'Asistan’a daha çok soru sorun.',
             style: TextStyle(
               color: Colors.white,
               fontSize: 22,
@@ -193,7 +200,7 @@ class _ProPageState extends State<ProPage> {
           ),
           const SizedBox(height: 12),
           HeroLine(text: text),
-          if (!widget.controller.isPro && widget.trialDays > 0)
+          if (adsAvailable && !widget.controller.isPro && widget.trialDays > 0)
             const Padding(
               padding: EdgeInsets.only(top: 10),
               child: Text(
@@ -256,8 +263,12 @@ class _ProPageState extends State<ProPage> {
         children: [
           Icon(Icons.verified_rounded, color: scheme.primary, size: 32),
           const SizedBox(width: 12),
-          const Expanded(
-            child: Text('Pro etkin. Reklamlar kapalı; teşekkür ederiz.'),
+          Expanded(
+            child: Text(
+              adsAvailable
+                  ? 'Pro etkin. Reklamlar kapalı; teşekkür ederiz.'
+                  : 'Pro etkin. Asistan’da günde 50 soru; teşekkür ederiz.',
+            ),
           ),
         ],
       ),

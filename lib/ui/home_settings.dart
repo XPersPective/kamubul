@@ -33,7 +33,12 @@ extension _HomeSettings on _KamuHomePageState {
     final trialDays = trialDaysLeft(widget.policy, DateTime.now());
     final isPro = widget.pro.isPro;
     final text = isPro
-        ? 'Pro etkin. Teşekkürler; reklamlar kapalı.'
+        ? (adsAvailable
+              ? 'Pro etkin. Teşekkürler; reklamlar kapalı.'
+              : 'Pro etkin. Teşekkürler; Asistan’da günde 50 soru.')
+        : !adsAvailable
+        ? 'Asistan’da günde 50 soru hakkı. Dilediğiniz zaman iptal '
+              'edebilirsiniz.'
         : trialDays > 0
         ? '${trialDays == 1 ? 'Reklamsız deneme son gün. ' : 'Reklamsız deneme: $trialDays gün kaldı. '}'
               'Sonrasında küçük banner ve seyrek tam ekran reklamlar gelir; '
