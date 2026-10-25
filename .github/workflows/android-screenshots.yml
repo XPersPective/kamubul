@@ -46,7 +46,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
             adb shell cmd uimode night no || true
-            flutter drive --driver=test_driver/store_capture.dart --target=integration_test/store_capture_test.dart --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://kamubul-api.devx8585.workers.dev/privacy/
+            flutter drive --driver=test_driver/store_capture.dart --target=integration_test/store_capture_test.dart --dart-define=KAMUBUL_API=https://kamubul-api.devx8585.workers.dev --dart-define=CONTACT_EMAIL=devcrazypenguin@gmail.com --dart-define=PRIVACY_URL=https://kamubul-api.devx8585.workers.dev/privacy/ --dart-define=STORE_CAPTURE=true
       - uses: actions/upload-artifact@v4
         if: always()
         with:

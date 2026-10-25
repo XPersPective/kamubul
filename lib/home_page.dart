@@ -1003,7 +1003,9 @@ class _KamuHomePageState extends State<KamuHomePage>
               )
             : Text(const ['', 'Kaydedilenler', 'Asistan', 'Ayarlar'][_tab]),
         actions: [
-          if (proAvailable) _membershipBadge(),
+          // Mağaza görsellerinde deneme/Pro tanıtımı gösterilmez (ADR-009).
+          if (proAvailable && !const bool.fromEnvironment('STORE_CAPTURE'))
+            _membershipBadge(),
           IconButton(
             tooltip: 'Bildirimler',
             onPressed: () => Navigator.of(context)
