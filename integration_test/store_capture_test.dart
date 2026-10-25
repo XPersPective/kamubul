@@ -82,32 +82,32 @@ Future<void> main() async {
     await settle(tester, 4);
     await capture(tester, 'home-light');
 
-    await tester.tap(cards().first);
-    await settle(tester, 4);
+    // Play setindeki gibi birden çok kadrolu gerçek bir ilan seçilir.
+    var multi = false;
+    for (var attempt = 0; attempt < 15; attempt++) {
+      await tester.tap(cards().hitTestable().first);
+      await settle(tester, 4);
+      multi = find.text('Pozisyonlar').evaluate().isNotEmpty;
+      if (multi) break;
+      back(tester);
+      await settle(tester);
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -420));
+      await settle(tester);
+    }
     await capture(tester, 'detail-summary');
-    final positions = find.text('Pozisyonlar').evaluate().isNotEmpty
-        ? find.text('Pozisyonlar')
-        : find.text('Başvuru koşulları');
+    final heading = find.text(multi ? 'Pozisyonlar' : 'Başvuru koşulları').first;
     await tester.scrollUntilVisible(
-      positions.first,
+      heading,
       300,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.drag(find.byType(Scrollable).last, const Offset(0, -260));
+    await settle(tester);
+    await Scrollable.ensureVisible(tester.element(heading), alignment: 0.02);
     await settle(tester);
     await capture(tester, 'detail-positions');
-    back(tester);
-    await settle(tester);
 
-    // Kriter formu (kişisel veri girilmeden).
-    await tester.tap(find.text('Kriter ekle').first);
-    await settle(tester, 3);
-    await capture(tester, 'searches');
-    back(tester);
-    await settle(tester);
-
-    // Seçili ilan için gerçek Asistan sorusu ve yanıtı.
-    await tester.tap(find.text('Asistana sor').first);
+    // Aynı ilan için gerçek Asistan sorusu ve yanıtı.
+    await tester.tap(find.text('Asistana sor').last);
     await settle(tester, 3);
     await tester.enterText(
       find.byType(TextField).last,
@@ -132,11 +132,21 @@ Future<void> main() async {
     await settle(tester, 3);
     await capture(tester, 'assistant');
 
+    // Süzgeç uygulanmış liste (Play setindeki 5. sahne).
+    await tab(tester, 'İlanlar');
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 4000));
+    await settle(tester);
+    await tester.tap(find.text('Belediye').first);
+    await settle(tester, 4);
+    await capture(tester, 'searches');
+    await tester.tap(find.text('Tümü').first);
+    await settle(tester, 2);
+
     // Koyu tema sahneleri.
     await theme(tester, 'Koyu');
     await settle(tester, 2);
     await capture(tester, 'home-dark');
-    await tester.tap(cards().first);
+    await tester.tap(cards().hitTestable().first);
     await settle(tester, 4);
     await capture(tester, 'detail-dark');
   });

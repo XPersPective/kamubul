@@ -104,16 +104,20 @@ def status_bar(shot: Image.Image) -> Image.Image:
 def frame(raw: Path, title: str, subtitle: str) -> Image.Image:
     canvas = background().convert('RGBA')
     draw = ImageDraw.Draw(canvas)
-    title_font = ImageFont.truetype(FONT_BOLD, 104)
+    # Sabit düzen: başlık tek satıra sığar, alt başlık en çok iki satır; telefonlar
+    # bütün görsellerde aynı hizada başlar.
+    size = 104
+    while size > 76 and draw.textlength(title, font=ImageFont.truetype(FONT_BOLD, size)) > W - 120:
+        size -= 2
+    title_font = ImageFont.truetype(FONT_BOLD, size)
     sub_font = ImageFont.truetype(FONT_REGULAR, 50)
-    y = 168
-    for line in wrap(draw, title, title_font, W - 140):
-        draw.text(((W - draw.textlength(line, font=title_font)) / 2, y), line, font=title_font, fill='white')
-        y += 124
-    y += 22
-    for line in wrap(draw, subtitle, sub_font, W - 120):
+    draw.text(((W - draw.textlength(title, font=title_font)) / 2, 168 + (104 - size) // 2), title, font=title_font, fill='white')
+    lines = wrap(draw, subtitle, sub_font, W - 160)[:2]
+    y = 168 + 124 + 22 + (68 if len(lines) == 1 else 0) // 2
+    for line in lines:
         draw.text(((W - draw.textlength(line, font=sub_font)) / 2, y), line, font=sub_font, fill=(222, 236, 248))
         y += 68
+    y = 168 + 124 + 22 + 2 * 68
     shot = status_bar(Image.open(raw))
     bezel = 26
     top = y + 70
