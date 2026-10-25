@@ -1,0 +1,14 @@
+schema_version: 4
+
+architecture:
+  mode: "single"
+
+git:
+  history_mode: "unknown"
+  commit: "auto"
+  push: "manual"
+
+commands:
+  test: "flutter test"
+  lint: "flutter analyze"
+  build: ""
