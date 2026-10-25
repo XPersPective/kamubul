@@ -3,6 +3,11 @@ name: iOS screenshots
 # App Store görüntüleri: gerçek uygulama iPhone Pro Max simülatöründe çekilir.
 on:
   workflow_dispatch:
+    inputs:
+      ios_pro:
+        description: 'Pro sayfasını da çek (IOS_PRO=true)'
+        type: boolean
+        default: false
 
 jobs:
   capture:
@@ -43,7 +48,7 @@ jobs:
         env:
           UDID: ${{ steps.sim.outputs.udid }}
         run: |
-          flutter test integration_test/store_capture_test.dart -d "$UDID" --dart-define-from-file="$RUNNER_TEMP/defines.json" --dart-define=STORE_CAPTURE_DIR=$GITHUB_WORKSPACE/build/store_capture
+          flutter test integration_test/store_capture_test.dart -d "$UDID" --dart-define-from-file="$RUNNER_TEMP/defines.json" --dart-define=STORE_CAPTURE_DIR=$GITHUB_WORKSPACE/build/store_capture --dart-define=IOS_PRO=${{ inputs.ios_pro }}
       - name: Görüntüleri al
         if: always()
         env:

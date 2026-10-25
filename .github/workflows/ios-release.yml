@@ -9,6 +9,10 @@ on:
         description: 'App Store Connect''e yükle'
         type: boolean
         default: true
+      ios_pro:
+        description: 'iOS Pro aboneliğini aç (sözleşme ve ürün hazır olunca)'
+        type: boolean
+        default: false
 
 jobs:
   ipa:
@@ -81,7 +85,7 @@ jobs:
         run: echo "$IOS_DART_DEFINES" > "$RUNNER_TEMP/defines.json"
       - run: flutter pub get
       - name: IPA
-        run: flutter build ipa --release --build-number=$((100 + GITHUB_RUN_NUMBER)) --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" --dart-define-from-file="$RUNNER_TEMP/defines.json"
+        run: flutter build ipa --release --build-number=$((100 + GITHUB_RUN_NUMBER)) --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" --dart-define-from-file="$RUNNER_TEMP/defines.json" --dart-define=IOS_PRO=${{ inputs.ios_pro }}
       - uses: actions/upload-artifact@v4
         with:
           name: KamuBul-ipa

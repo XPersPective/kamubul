@@ -149,5 +149,16 @@ Future<void> main() async {
     await tester.tap(cards().hitTestable().first);
     await settle(tester, 4);
     await capture(tester, 'detail-dark');
+
+    // App Store inceleme görüntüsü: Pro sayfası (yalnız IOS_PRO derlemesinde).
+    if (const bool.fromEnvironment('IOS_PRO')) {
+      back(tester);
+      await settle(tester);
+      await theme(tester, 'Açık');
+      await tab(tester, 'Ayarlar');
+      await tester.tap(find.text('KamuBul Pro').first);
+      await settle(tester, 6);
+      await capture(tester, 'pro-paywall');
+    }
   });
 }
