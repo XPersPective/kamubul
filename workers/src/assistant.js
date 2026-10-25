@@ -134,7 +134,8 @@ export function buildChatRequest({ message, history = [], listing = null, profil
       { role: 'user', content: JSON.stringify({ message: message.trim() }) },
     ],
     // 700 karakter Türkçe yanıt + JSON zarfı 450 tokene sığmayıp kesiliyordu.
-    max_tokens: 900,
+    // Sağlayıcı görünmeyen akıl yürütmeyi de bu sınırdan sayar; düşük sınır boş yanıt üretir.
+    max_tokens: 2000,
     temperature: 0.2,
     response_format: { type: 'json_object' },
   };

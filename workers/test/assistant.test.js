@@ -83,7 +83,7 @@ test('chat request bounds history and listing text', () => {
   // 600 karakterlik 6 mesaj 4000 karakter bağlam tavanına sığar.
   assert.equal(r.messages.length, 3 + 6 + 1);
   assert.ok(r.messages.slice(3, 9).every(m => m.content.length <= 600));
-  assert.equal(r.max_tokens, 900);
+  assert.equal(r.max_tokens, 2000);
   assert.deepEqual(r.response_format, { type: 'json_object' });
 });
 
