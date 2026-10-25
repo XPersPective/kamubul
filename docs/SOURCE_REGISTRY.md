@@ -3,17 +3,17 @@
 Güncel işletim: kalıcı Cloudflare Worker `kamubul-api` + D1 `kamubul`.
 Kaynak kodu `workers/src/sources.js`, merkezi toplama `workers/src/pipeline.js`.
 Google Cloud Run veya eski `backend/` zamanlayıcısı işletim mimarisi değildir.
-Son kontrol: 3 Ekim 2026. Cloudflare çıkışı ile geliştirme bilgisayarından alınan
+Son kontrol: 25 Ekim 2026 (`PB-030`). Cloudflare çıkışı ile geliştirme bilgisayarından alınan
 sonuçlar ayrı kanıttır; yerel erişim sunucunun erişebildiğini göstermez.
 
 | Kaynak | Merkezi getirme yöntemi | Canlı Cloudflare sonucu | Açık iş |
 | --- | --- | --- | --- |
-| Kariyer Kapısı | Public `ilan/GetIseAlimPage` JSON; başarısızsa resmî `/RSS`. Ayrıntı: `ilan/GetIlanPreviewPublic` ve `altilan/GetAltIlanInfoByIlanIdPublic` POST | RSS üzerinden23 gerçek ilan/46 immutable değişiklik. Güncel Cloudflare remote preview ayrıntı HTTP522; kaynak notu eksik ayrıntıyı belirtir | Kaynak ayrıntısına gerçek Worker erişimi, kullanım şartları, yeterli belge üzerinden model değerlendirmesi |
-| Kamu İlanları SBB | `https://kamuilan.sbb.gov.tr/` GET WebForms token'ları + POST yıl; parser `parseSbbList`; sabit resmî ilanDetay.aspx PDF'si native AI.toMarkdown text okuyucusuna gider | Erişim engeli; `blocked` raporlanır. Kaynak başarıyla toplanmış kabul edilmez | Gerçek Worker PDF erişimi/dönüşümü/kalitesi/CPU ve sayfa sınırı, kullanım şartları |
-| İŞKUR | Telefon (TR IP): `esube.iskur.gov.tr/Istihdam/AcikIsIlanAra.aspx` GET + "Kamu" filtresiyle tek WebForms POST (`lib/listings/iskur_feed.dart`). GET linkiyle filtre yok. Yalnız kamu satırları (onclick ve işyeri türü "Kamu"); filtre yoksa okuma yapılmaz. Ayrıntı `AcikIsIlanDetay.aspx?uiID=…&isyeriTuru=Kamu` girişsiz | 4 Ekim 2026: 9 kamu ilanı (belediyeler dahil), son başvuru tarihli. Sunucuda adaptör yok | Özel sektör ilanları KAPSAM DIŞI (kullanıcı kararı). robots.txt yalnız meslek popup'ını yasaklar; oturum/CAPTCHA aşılmaz |
-| ilan.gov.tr | SUNUCU (5 Ekim): Cron kaynak aşaması `fetchIlanGovList` (≤10×20) + `fetchIlanGovDetail`; ilk anlık görüntü bildirim üretmez; işlenen ilan için kanonik şart ayıklaması (`canonicalConditions`, ADR-006 önbellek/kira/tavan). Telefon (`lib/listings/ilangov_feed.dart`) sunucu kaynağı `ok` ve 36 saatten taze olana kadar okumaya devam eder | Cloudflare çıkışı 200; ilk parti 162 ilan, tur başına 1 ilan (Free CPU) → ilk tam tur ~8–10 saat. Son başvuru yapılandırılmış değil → null. Sunucu ve telefon URL'leri birebir aynı (birleşir) | robots.txt yalnız tebligatı yasaklar. Dokümansız iç API; düzen değişirse `layout_changed`, tahmin yok |
-| Resmî Gazete | Kapsam dışı; adaptör kaldırıldı | Yeni veri toplanmaz | Eski cihaz cache'i görülürse geçiş/retention kuralları uygulanır |
-| Belediyelerin ayrı siteleri | Ayrı adaptör yok; belediye personel ilanları ilan.gov.tr (BİK) ve İŞKUR kamu işçi ilanlarıyla gelir | — | Belediye başına scraper eklenmez |
+| Kariyer Kapısı (`kariyerkapisi`) | `workers/src/sources.js:95-130` (`fetchKariyerList`: `ilan/GetIseAlimPage` POST, hata durumunda `/RSS` `parseKariyerRss`; `fetchKariyerDetail`: `ilan/GetIlanPreviewPublic` + `altilan/GetAltIlanInfoByIlanIdPublic` POST) ve `workers/src/pipeline.js:37-56,119-166`. Test: `workers/test/kariyer-source.test.js` | RSS üzerinden gerçek ilan listesi (`status: ok` veya `processing`); Cloudflare egress'ten ayrıntı HTTP 522 döndüğünde `detailState: 'unavailable'` işaretlenir, önceki başarılı ayrıntı silinmez (`pipeline.js:132-136`) ve kaynak notunda eksik ayrıntı sayısı açıkça raporlanır (`pipeline.js:164-166`) | Cloudflare çıkışından ayrıntı API'sine kesintisiz erişim ve açık yeniden dağıtım lisansı doğrulaması |
+| Kamu İlanları SBB (`sbb`) | `workers/src/sources.js:132-169` (`fetchSbbList` + `parseSbbList`) ve `workers/src/pipeline.js:19-36` (`readSbbDetail`: `ilanDetay.aspx?kod=...` PDF byte doğrulaması + `env.AI.toMarkdown`, günlük 20 PDF bütçesi, 3 MiB/45 sn/120 KB sınır). Test: `workers/test/sbb-source.test.js`, `workers/test/pdf-source.test.js` | Cloudflare çıkışında erişim engeli (HTTP 403/522) nedeniyle `state: 'blocked'` raporlanır (`pipeline.js:168`). Engelli kaynak hiçbir zaman tamamlanmış (`ok`) sayılmaz; mağaza metninde (`docs/growth/STORE_COPY.md`) SBB vaadi yer almaz | Gerçek Worker PDF erişimi/dönüşüm kalitesi ve kullanım şartları |
+| İŞKUR (`iskur`) | Sunucu: `workers/src/sources.js:171-226` (`fetchIskurList` WebForms `kamuRadio` + 50 sayfa pager + `fetchIskurDetail` `ÖZEL ŞARTLAR`/`Genel Hususlar`). İstemci yedek yolu (TR IP): `lib/listings/iskur_feed.dart` (sunucu kaynağı `ok` ve taze değilken çalışır). Test: `workers/test/iskur-source.test.js` | Yalnız `Kamu` işyeri türü satırları kabul edilir (`sources.js:180`); özel sektör ilanları kapsam dışıdır. Cloudflare çıkışında HTTP 500/engel görülürse kaynak `failed`/`blocked` kalır ve istemci TR IP yedek yolu devreye girer | Özel sektör ilanları kapsam dışı (C-001). Oturum/CAPTCHA aşılmaz |
+| ilan.gov.tr (`ilangov`) | Sunucu: `workers/src/sources.js:36-94` (`fetchIlanGovPage`, `fetchIlanGovList`, `fetchIlanGovDetail`, `privateEmployer` filtresi) ve `workers/src/pipeline.js:70-91` (tur başına 3×20 sayfalama, `source_detail_runs` 2 deneme tavanı). İstemci yedek: `lib/listings/ilangov_feed.dart`. Test: `workers/test/ilangov-source.test.js`, `workers/test/ilangov-pipeline.test.js` | Cloudflare çıkışı HTTP 200; tam metin (`detailState: 'available'`), tablo hücre sınırları (`plain()` `sources.js:25-33`), `son basvuru tarihi` ve `resmi gazete yayim tarihi` kanıtlı olarak ayrıştırılır (`sources.js:78-88`). Özel dernek/okul ilanları `privateEmployer` ile elenir (`pipeline.js:94-95,123`) | Dokümansız iç API; şema değişirse `layout_changed` hatası verir, tahmin yürütülmez |
+| Resmî Gazete | Doğrudan adaptör kapsam dışı; ilan.gov.tr personel ilanlarındaki `resmi gazete yayim tarihi` üstverisi (`gazettePublishedAt`) korunur | Ayrı tarama yapılmaz | — |
+| Belediyelerin ayrı siteleri | Ayrı adaptör yok; belediye personel ilanları `ilangov` (BİK) ve `iskur` kamu işçi ilanlarıyla gelir | — | Belediye başına scraper eklenmez |
 
 ## Zamanlama ve güvenlik
 
@@ -153,3 +153,19 @@ doğrulanamadı; [SBB](https://kamuilan.sbb.gov.tr/) inceleme isteği 403 dönd�
 Arama sonucu yokluğu izin/yasak sayılmaz; iskur.org resmî İŞKUR değildir.
 Sahip: proje sahibi, kaynak izni veya kullanımın hukuki dayanağını doğrular.
 Bu kayıt hedef mimariyi veya mevcut ingestion davranışını değiştirmez.
+
+## 25 Ekim 2026 — PB-030 Kaynak Kapsamı, Kalıcı Tam Metin ve Mağaza Uyumu
+
+1. **Mağaza metni (`docs/growth/STORE_COPY.md`) ile gerçek kaynak kapsamı uyumu:**
+   - Mağaza açıklamalarında yalnızca doğrulanmış kapsamdaki kaynak/ilan türleri ("Kariyer Kapısı, İŞKUR kamu işçi ilanları, ilan.gov.tr ve belediye/üniversite personel duyuruları") anılır; Cloudflare çıkışında `blocked` olan `sbb` (`kamuilan.sbb.gov.tr`) için mağazada erişim vaadi verilmez.
+2. **Kalıcı tam metin (`detailState`) ve hata izolasyonu (`workers/src/pipeline.js`):**
+   - `readNoticeDetail` (`pipeline.js:37-56`) her ilan için `source_detail_runs` tablosunda `input_key` başına en fazla 2 okuma denemesi (`attempts<2`) ve 6 saatlik bekleme (`later(360)`) uygular.
+   - Ayrıntı okunamadığında (`detailState: 'unavailable'`), önceki başarılı `text` ve `summary` asla silinmez (`pipeline.js:132-136`); yeni ilanlarda `detailState` açıkça `'pending'` veya `'unavailable'` olarak kalır ve kaynak durumunda (`sources.note`) eksik ayrıntı sayısı açıkça raporlanır (`pipeline.js:164-166`).
+   - HTTP 401/403/429 yanıtları `SourceError('blocked')` üretir (`sources.js:11`) ve `sources.state = 'blocked'` olarak kaydedilir (`pipeline.js:168`); engelli kaynak hiçbir koşulda `ok` sayılmaz.
+3. **Odaklı kaynak test kapsamı (9 test dosyası, tamamı yeşil):**
+   - `workers/test/source-fetch.test.js` (HTTPS/host allowlist, 3 MiB akış sınırı, 401/403/429 `blocked` sınıflandırması)
+   - `workers/test/kariyer-source.test.js` (`parseKariyerIndex`, `/RSS` yedeği, `parseKariyerDetail` kadro/kontenjan ayrıştırması)
+   - `workers/test/ilangov-source.test.js` ve `workers/test/ilangov-pipeline.test.js` (sayfalama, `privateEmployer` elemesi, tablo hücre koruma, `son basvuru tarihi` / `resmi gazete yayim tarihi`)
+   - `workers/test/iskur-source.test.js` (`kamuRadio` zorunluluğu, yalnızca `Kamu` satırlarının alınması, pager, `parseIskurDetail`)
+   - `workers/test/sbb-source.test.js` ve `workers/test/pdf-source.test.js` (`parseSbbList`, `%PDF-` doğrulaması, `pdf_daily_budget`, `blocked` durumunun korunması)
+   - `workers/test/contracts.test.js` ve `workers/test/pipeline.test.js` (uçtan uca D1/API sözleşmeleri ve kısmi/engelli kaynak davranışları)
