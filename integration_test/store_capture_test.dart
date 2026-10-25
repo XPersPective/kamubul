@@ -37,9 +37,17 @@ Future<void> main() async {
     expect(finder, findsWidgets);
   }
 
+  var surfaceReady = false;
   Future<void> capture(WidgetTester tester, String name) async {
+    // Android'de görüntü için Flutter yüzeyi bir kez görüntüye çevrilir;
+    // dosyayı flutter drive sürücüsü (test_driver/store_capture.dart) yazar.
+    if (Platform.isAndroid && !surfaceReady) {
+      await binding.convertFlutterSurfaceToImage();
+      surfaceReady = true;
+    }
     await settle(tester, 2);
     final bytes = await binding.takeScreenshot(name);
+    if (Platform.isAndroid) return;
     File('$_dir/$name.png')
       ..createSync(recursive: true)
       ..writeAsBytesSync(bytes);
