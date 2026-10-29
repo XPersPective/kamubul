@@ -46,27 +46,26 @@ kullanıcının açtığı resmî başvuru bağlantısı kaynağa gider.
 
 ## Çağrı ekonomisi
 - Kaynağın açık yapısal alanları (kimlik, tarih, il, kontenjan, kadro) doğrudan
-  kullanılır. Qwen yalnız serbest metindeki şartların ayıklanmasını yapar.
-- `qwen3.8-flash` (Token Plan içinde token fiyatı en düşük model; 6 Ekim
-  A/B: aynı 9 çağrıda qwen3.6-flash maliyetinin ~%51'i), thinking kapalı, JSON çıktısı.
-  Asistan doğrulanmamış serbest yanıt verdiği için ASSISTANT_AI_MODEL=qwen3.6-flash kalır
-  (3.8-flash kullanıcının yazdığı yaş/KPSS puanını yok saydı, sayı uydurdu). Normalize metin + istem/model
-  sürümü D1 cache anahtarıdır; cihaz/kullanıcı/yenileme bu anahtara girmez.
-- Kabul edilen120.000 karaktere kadar metnin tamamı Qwen'e gider; içeride
+  kullanılır. Mimo yalnız serbest metindeki şartların ayıklanmasını yapar.
+- İlan şartı ayıklamada `mimo-v2.6-pro` kullanılır; thinking kapalı ve JSON çıktısı
+  istenir. Asistan ayrı tutulur ve `ASSISTANT_AI_MODEL=qwen3.8-flash-next` ile
+  çalışır; böylece ilan ayıklama bütçesi ile kullanıcı sohbeti aynı model kimliğini
+  paylaşmaz. Normalize metin + istem/model sürümü D1 cache anahtarıdır;
+  cihaz/kullanıcı/yenileme bu anahtara girmez.
+- Kabul edilen120.000 karaktere kadar metnin tamamı Mimo'ya gider; içeride
   yeniden60.000 karaktere indiren gizli kesit yoktur.
-- Geçerli Qwen sonucu bir çağrıda saklanır; kaba eksik-sözcük kontrolü aynı
+- Geçerli Mimo sonucu bir çağrıda saklanır; kaba eksik-sözcük kontrolü aynı
   metni tekrar okutmaz. Bozuk/hatalı çağrı için mevcut iki-deneme tavanı korunur.
 - Ayrı, her parçaya AI özet üretme işi üretimde kapalıdır. Tam metin okunur;
   ayıklanan alanların kaynak alıntıları gösterilir.
-- Ayıklama günlük150/saatlik30, global400 fiziksel çağrı; Asistan mevcut ayrı
+- Ayıklama günlük10.000/saatlik2.000, global20.000 fiziksel çağrı; Asistan mevcut ayrı
   global/kurulum sınırlarında. Bunlar kredi miktarı garantisi değildir.
 - Provider input/output/cached token sayaçları kişisel metin olmadan D1
   `assistant_usage/tokens:{extract|assistant}:{input|output|cached}` içinde
   tutulur. Kredi dönüşümü plan konsolundaki gerçek tüketimle karşılaştırılır;
-  otomatik yükseltme veya farklı ücretli sağlayıcı açılmaz.
-- Qwen resmî dokümanı Credits tüketimini model/token/thinking/tool kullanımına
-  göre dinamik tanımlar; sabit “mesaj başına kredi” hesabı verilmez.
-  [Token Plan belgesi](https://docs.qwencloud.com/token-plan/personal/token-plan-personal-overview)
+  otomatik yükseltme veya farklı ücretli sağlayıcı açılmaz. Mimo sağlayıcısının
+  Credits/kota tüketimi model, giriş/çıkış, cache ve sağlayıcı indirimlerine göre
+  değişebileceğinden sabit “mesaj başına kredi” hesabı verilmez.
 
 ## Dayanıklı işler
 - Kaynak, ayıklama, eşleştirme ve gönderim mevcut Queue + D1 lease/generation

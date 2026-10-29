@@ -8,7 +8,7 @@ Gelir modeli: ilk 7 gün hiç reklam yok; sonrasında küçük banner ve seyrek 
 
 Yeni hedef **Cloudflare Workers Free + D1 + Free Workers AI + Firebase Cloud Messaging (Spark)**. Kaynak toplama, AI özet/kanıtlı koşul, kişisel eşleşme ve push kararı sunucuda; SQLite cache/profil/favori, premium UI, izin/token/OS bildirim gösterimi telefondadır.
 
-Kalıcı Worker/D1, Queue ve Cron yayında: kaynak okuma, tam metin saklama, mekanik ayıklama ve eksik alanlarda sınırlı Qwen (ayıklama qwen3.8-flash, Asistan qwen3.6-flash) sunucuda. Telefon yalnız API + SQLite önbellek (metadata/delta/bootstrap) kullanır; eski telefon kaynak okuyucusu ve Workmanager kaldırıldı, offline önbellek/favoriler korunur. `backend/` yalnız önceki native Dart adapter/test referansıdır; çalıştırma kodu silindi. Doğrulanmış kapsam ve açık eksikler Project Brain'dedir.
+Kalıcı Worker/D1, Queue ve Cron yayında: kaynak okuma, tam metin saklama, mekanik ayıklama ve eksik alanlarda sınırlı Mimo v2.6 Pro (`mimo-v2.6-pro`); Asistan ise ayrı Qwen (`qwen3.8-flash-next`) modeliyle sunucuda çalışır. Telefon yalnız API + SQLite önbellek (metadata/delta/bootstrap) kullanır; eski telefon kaynak okuyucusu ve Workmanager kaldırıldı, offline önbellek/favoriler korunur. `backend/` yalnız önceki native Dart adapter/test referansıdır; çalıştırma kodu silindi. Doğrulanmış kapsam ve açık eksikler Project Brain'dedir.
 
 Etiket modeli: kullanıcı kendi arama adını verir; kriterler ortak typed alan/sözlük değerlerinden oluşur (KPSS türü+puan, yaş, şehir, eğitim, meslek vb.). AI yalnız yeni/değişen ilanın ortak koşul/özetini çıkarır; kullanıcı profillerini modelle eşleştirmez. Match deterministic ve unknown ayrı durumdur.
 

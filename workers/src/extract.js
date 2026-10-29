@@ -229,8 +229,10 @@ export async function handleExtract(body, env, deps) {
   if (text.length > MAX_TEXT) return { status: 413, body: { error: 'text_oversize' } };
   const focused = focusText(text);
   const external = env.EXTRACT_AI_PROVIDER === 'external' && externalAiEnabled(env);
-  const model = external ? env.EXTERNAL_AI_MODEL : env.EXTRACT_AI_MODEL ?? env.AI_MODEL;
-  const hash = await deps.sha256(JSON.stringify([VERSION,body.noticeMode?'notice':'conditions', external ? 'external' : 'cloudflare', model, env.EXTRACT_QWEN_DAILY ? env.EXTERNAL_AI_MODEL : null, text]));
+  // Ayrıştırma kendi harici modelini kullanır (EXTRACT_EXTERNAL_MODEL); asistan EXTERNAL_AI_MODEL üzerinden ayrı kalır.
+  const extractEnv = env.EXTRACT_EXTERNAL_MODEL ? { ...env, EXTERNAL_AI_MODEL: env.EXTRACT_EXTERNAL_MODEL } : env;
+  const model = external ? extractEnv.EXTERNAL_AI_MODEL : env.EXTRACT_AI_MODEL ?? env.AI_MODEL;
+  const hash = await deps.sha256(JSON.stringify([VERSION,body.noticeMode?'notice':'conditions', external ? 'external' : 'cloudflare', model, env.EXTRACT_QWEN_DAILY ? extractEnv.EXTERNAL_AI_MODEL : null, text]));
   const cachedBody = value => {
     const saved=JSON.parse(value),body=Array.isArray(saved)?{groups:saved}:{...saved};
     body.groups=body.groups.map(g=>{
@@ -298,7 +300,7 @@ export async function handleExtract(body, env, deps) {
       await env.DB.prepare('UPDATE extraction_runs SET attempts=attempts+1 WHERE hash=? AND attempts<2').bind(hash).run();
       calls++;
       try { out = await Promise.race([
-        useExternal ? externalAiRun(env, request, deps.fetch) : env.AI.run(model, request, { rejectIfBusy: true }),
+        useExternal ? externalAiRun(extractEnv, request, deps.fetch) : env.AI.run(model, request, { rejectIfBusy: true }),
         new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('extract_timeout')), Number(env.EXTRACT_TIMEOUT_MS) || (useExternal || deps.internal ? 120000 : 30000)); }),
       ]).finally(() => clearTimeout(timer));
       } catch (error) {
@@ -314,7 +316,7 @@ export async function handleExtract(body, env, deps) {
         await env.DB.prepare('UPDATE extraction_runs SET attempts=attempts+1 WHERE hash=? AND attempts<2').bind(hash).run();
         calls++;
         request = build(true, review);
-        out = await externalAiRun(env, request, deps.fetch);
+        out = await externalAiRun(extractEnv, request, deps.fetch);
         useExternal = true;
       }
       let raw;
@@ -333,7 +335,7 @@ export async function handleExtract(body, env, deps) {
       if (!attempt || missingTopics(candidate, text).length < missingTopics(groups, text).length) {
         groups = candidate;
         fields = body.noticeMode ? validateNoticeFields(raw,text) : {};
-        usedModel = useExternal ? env.EXTERNAL_AI_MODEL : model;
+        usedModel = useExternal ? extractEnv.EXTERNAL_AI_MODEL : model;
       }
       if (external || !missingTopics(groups, text).length) break;
     }

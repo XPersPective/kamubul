@@ -386,3 +386,14 @@ test('labelled-review fixes: scoring prose, stated dates beside relative rules, 
     'İLAN NO | ÜNVAN | ÖĞRENİM | ADET', 'ST 01 | Sağlık Teknikeri | Ön Lisans | 2'].join('\n'));
   assert.deepEqual(ttk2.groups.map(g => g.education), [['Lise'], ['Ön lisans']]);
 });
+
+test('ayrıştırma EXTRACT_EXTERNAL_MODEL ile çağrılır; EXTERNAL_AI_MODEL (asistan) değişmez', async () => {
+  const db = fakeDb(); let sent;
+  const config = { ...env(db), EXTRACT_EXTERNAL_MODEL: 'mimo-v2.6-pro' };
+  const result = await handleExtract({ installationId: id, text: TEXT }, config, { sha256, fetch: async (url, init) => {
+    sent = JSON.parse(init.body).model; return modelReply([{ education: ['Lisans'], educationQuote: 'Lisans mezunu olmak' }])();
+  } });
+  assert.equal(result.status, 200); assert.equal(sent, 'mimo-v2.6-pro');
+  assert.equal(config.EXTERNAL_AI_MODEL, 'm');
+  assert.equal(db.sql.prepare('SELECT model FROM extraction_cache').get().model, 'mimo-v2.6-pro');
+});

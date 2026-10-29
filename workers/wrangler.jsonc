@@ -20,6 +20,7 @@
     "AI_SUMMARY_ENABLED": "0",
     "EXTRACT_AI_PROVIDER": "external",
     "EXTRACT_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fp8",
+    "EXTRACT_EXTERNAL_MODEL": "mimo-v2.6-pro",
     "EXTRACT_QWEN_DAILY": "10000",
     "EXTRACT_QWEN_HOURLY": "2000",
     "EXTRACT_DAILY_GLOBAL": "20000",
