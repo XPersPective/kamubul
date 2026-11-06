@@ -2,12 +2,12 @@
 
 Tek kaynak: her yayından sonra bu dosya güncellenir. Ortak sürüm numarası `pubspec.yaml` (`version: x.y.z+build`); Android versionCode = build, iOS build numarası CI'da `100 + run_number`.
 
-## Güncel durum (25.10.2026)
+## Güncel durum (06.11.2026)
 
 | Platform | Sürüm | Mağaza durumu | Not |
 |---|---|---|---|
 | Android (Google Play) | 1.2.4 (19) | Üretim kanalı, `completed` | Politika durumu: sorun yok; bekleyen beyan yok |
-| iOS (App Store) | 1.2.4 (build 107) | `WAITING_FOR_REVIEW` (25.10.2026 12:56 UTC) | Yalnız iPhone, yalnız Türkiye, ücretsiz |
+| iOS (App Store) | 1.2.4 (build 107) | `READY_FOR_SALE` (Yayında) | Yalnız iPhone, yalnız Türkiye, ücretsiz |
 | Worker (Cloudflare) | `fc777585` | Canlı | Asistan: sağlayıcı düşünmesi kapalı, 2000 token, 1 yeniden deneme |
 | Site (GitHub Pages) | `site/` | https://xperspective.github.io/kamubul/ | Tanıtım, gizlilik, destek (Türkçe) |
 
@@ -41,6 +41,7 @@ Tek kaynak: her yayından sonra bu dosya güncellenir. Ortak sürüm numarası `
 
 ## Geçmiş
 
+- 06.11.2026 — iOS 1.2.4 (107) App Store'da onaylandı ve satışa açıldı (`READY_FOR_SALE`). Tanıtım sitesine (`xperspective.github.io/kamubul`) App Store indirme butonları ve bağlantıları eklendi.
 - 25.10.2026 — Android 1.2.4 (19) üretim; iOS 1.2.4 (107) incelemeye. iOS: takvim, son başvuru hatırlatmaları, sunucu bildirimi altyapısı, bildirim izni, açılış çökmesi düzeltmesi. Asistan boş yanıt hatası düzeltildi (Worker).
 - 24.10.2026 — iOS 1.2.3 (106) ilk gönderim; 1.2.4 için geri çekildi.
 - 17.10.2026 — Android 1.2.3 (18) üretim.
