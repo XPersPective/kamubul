@@ -8,6 +8,23 @@ const env = (extra = {}) => ({ DB: fakeDb(), AI_PROVIDER: 'external', EXTERNAL_A
 const id = 'a'.repeat(32);
 const model = text => async () => new Response(JSON.stringify({ choices: [{ message: { content: text } }] }));
 
+test('official score definitions avoid live-reproduced P3 misinformation without bypassing limits or listing context', async () => {
+  let calls=0;
+  const deps={sha256,ip:'test',fetch:async()=>{calls++;return model('{"intent":"answer","reply":"İlan şartını kontrol edin."}')();}};
+  for(const [type,level] of [['3','lisans'],['93','ön lisans'],['94','ortaöğretim']]) {
+    const r=await handleAssistant({installationId:id,mode:'chat',message:`İlan şartındaki KPSS P${type} puanı neyi ifade eder?`},env(),deps);
+    assert.equal(r.status,200);assert.match(r.body.reply,new RegExp(`P${type}, ${level}`));assert.equal(r.body.criteria,null);
+  }
+  assert.equal(calls,0);
+  const limited=env({ASSISTANT_DAILY_INSTALL:'1'});
+  const request={installationId:id,mode:'chat',message:'KPSS P3 nedir?'};
+  await handleAssistant(request,limited,deps);
+  assert.equal((await handleAssistant(request,limited,deps)).status,429);
+  await handleAssistant({...request,listing:{text:'KPSS P3 en az 70 puan gerekir.'}},env(),deps);
+  await handleAssistant({...request,message:'KPSS P3 70 puanla başvurabilir miyim?'},env(),deps);
+  assert.equal(calls,2);
+});
+
 test('scope gate blocks off-topic and injection before any model call', () => {
   assert.equal(scopeGate('Bana bir şiir yaz'), 'off_topic');
   assert.equal(scopeGate('Python kodu yaz'), 'off_topic');

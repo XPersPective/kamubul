@@ -13,6 +13,10 @@ on:
         description: 'iOS Pro aboneliğini aç (sözleşme ve ürün hazır olunca)'
         type: boolean
         default: false
+      release_acceptance:
+        description: 'İmzalı build, sandbox satın alma/restore/iptal/hata ve mağaza gizlilik/metadata kontrolleri doğrulandı'
+        type: boolean
+        default: false
 
 jobs:
   ipa:
@@ -24,6 +28,11 @@ jobs:
       PROFILE_NAME: KamuBul AppStore
     steps:
       - uses: actions/checkout@v4
+      - name: Yayın kabul kapısı
+        if: ${{ inputs.upload && !inputs.release_acceptance }}
+        run: |
+          echo 'Upload blocked: signed build, sandbox purchase flows and store declarations must be verified first.'
+          exit 1
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -82,10 +91,28 @@ jobs:
       - name: Derleme ayarları
         env:
           IOS_DART_DEFINES: ${{ secrets.IOS_DART_DEFINES }}
-        run: echo "$IOS_DART_DEFINES" > "$RUNNER_TEMP/defines.json"
+          IOS_ADMOB_DEFINES: ${{ secrets.IOS_ADMOB_DEFINES }}
+        run: |
+          test -n "$IOS_ADMOB_DEFINES" || { echo 'Missing iOS AdMob configuration'; exit 1; }
+          printf '%s' "$IOS_DART_DEFINES" > "$RUNNER_TEMP/base-defines.json"
+          printf '%s' "$IOS_ADMOB_DEFINES" > "$RUNNER_TEMP/ads-defines.json"
+          python3 tool/ios/ads_config.py prepare --input "$RUNNER_TEMP/base-defines.json" --ads-input "$RUNNER_TEMP/ads-defines.json" --output "$RUNNER_TEMP/defines.json"
+      - run: python3 -m unittest discover -s tool/ios -p 'test_*.py'
       - run: flutter pub get
+      - run: flutter pub get
+        working-directory: packages/kamubul_core
+      - run: dart pub get
+        working-directory: backend
+      - run: flutter analyze
+      - run: flutter test
       - name: IPA
         run: flutter build ipa --release --build-number=$((100 + GITHUB_RUN_NUMBER)) --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" --dart-define-from-file="$RUNNER_TEMP/defines.json" --dart-define=IOS_PRO=${{ inputs.ios_pro }}
+      - name: İmzalı uygulamayı doğrula
+        run: |
+          app=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
+          python3 tool/ios/ads_config.py verify-plist --input "$RUNNER_TEMP/defines.json" --plist "$app/Info.plist"
+          codesign --verify --deep --strict "$app"
+          codesign --display --verbose=2 "$app"
       - uses: actions/upload-artifact@v4
         with:
           name: KamuBul-ipa

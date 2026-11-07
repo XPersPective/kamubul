@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:napp_ads/napp_ads.dart';
+import 'package:napp_ads/napp_ads.dart' hide ConsentManager;
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 
 import 'store_features.dart';
+import 'data/ad_consent.dart';
+import 'data/verified_store_adapter.dart';
 import 'data/listing_store.dart';
 import 'data/subscription_check.dart';
 import 'data/trial_sync.dart';
@@ -72,7 +75,12 @@ Future<void> main() async {
     brandColor: const Color(0xFF17659C),
     sloganKey: 'about.slogan',
   );
-  final storeAdapter = InAppPurchaseAdapter();
+  final StoreAdapter storeAdapter = Platform.isIOS
+      ? VerifiedStoreAdapter(
+          delegate: InAppPurchaseAdapter(),
+          entitlements: readStoreKitEntitlements,
+        )
+      : InAppPurchaseAdapter();
   final purchase = PurchaseRepository(
     adapter: storeAdapter,
     productId: proMonthlyProductId,
@@ -80,7 +88,14 @@ Future<void> main() async {
   final pro = ProController(store: store, repository: purchase)..load();
   pro.startListening();
   // Aylık abonelik bitmişse Pro düşer; çevrimdışıysa önbellek korunur.
-  unawaited(verifySubscription(pro, storeAdapter, store));
+  unawaited(
+    verifySubscription(
+      pro,
+      storeAdapter,
+      store,
+      activeProducts: Platform.isIOS ? readStoreKitEntitlements : null,
+    ),
+  );
   // Yeniden kurulum deneme süresini sıfırlamasın: sunucudaki ilk görülme.
   await syncTrialStart(store);
   final policy = AdPolicy();

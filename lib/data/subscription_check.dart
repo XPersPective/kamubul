@@ -15,9 +15,20 @@ Future<void> verifySubscription(
   StoreAdapter adapter,
   SettingsStore store, {
   Duration settle = const Duration(seconds: 4),
+  Future<Set<String>> Function()? activeProducts,
 }) async {
   if (!pro.hasLifetimePurchase) return;
   final owned = <String>{};
+  if (activeProducts != null) {
+    try {
+      owned.addAll(await activeProducts());
+    } on Object {
+      return; // StoreKit unavailable: preserve the previous offline entitlement.
+    }
+    if (owned.contains(proMonthlyProductId)) return;
+    _removePurchasedPro(pro, store);
+    return;
+  }
   final sub = adapter.updates.listen((updates) {
     for (final update in updates) {
       if (update.purchase.status == StorePurchaseStatus.purchased) {
@@ -34,7 +45,14 @@ Future<void> verifySubscription(
   } finally {
     await sub.cancel();
   }
-  if (owned.isNotEmpty) return;
+  if (owned.contains(proMonthlyProductId) ||
+      owned.contains('kamubul_pro_lifetime')) {
+    return;
+  }
+  _removePurchasedPro(pro, store);
+}
+
+void _removePurchasedPro(ProController pro, SettingsStore store) {
   store.setBool(ProSettingsKeys.proLifetime, false);
   pro.load();
   // Yalnız dinleyicileri (reklam politikası, ekranlar) uyandırır; süre eklemez.

@@ -7,6 +7,22 @@ import 'package:kamubul/data/assistant_client.dart';
 import 'package:napp_core/napp_core.dart';
 
 void main() {
+  test('bozuk JSON ve UTF-8 anlaşılır asistan hatası verir', () async {
+    for (final bytes in [
+      [123, 33],
+      [255],
+    ]) {
+      final client = AssistantClient(
+        store: SettingsStore(),
+        baseUrl: 'https://api.test',
+        client: MockClient((_) async => http.Response.bytes(bytes, 200)),
+      );
+      await expectLater(
+        client.ask('Kamu ilanları'),
+        throwsA(isA<AssistantException>()),
+      );
+    }
+  });
   test('son kadronun metni ve sunucu kimliği kırpılmadan gider', () async {
     final text =
         '${'Genel hüküm. ' * 1000}\nSON KADRO: KPSS P93 en az 72 puan.';

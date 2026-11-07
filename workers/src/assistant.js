@@ -35,6 +35,15 @@ export function scopeGate(message, { hasListing = false, chat = false } = {}) {
 
 export const refusal = 'Ben KamuBul Asistanı\'yım; yalnızca kamu ilanları, başvuru şartları ve arama kriterleriniz hakkında yardımcı olabilirim. Örnek: "Ankara\'da lisans mezunu, 28 yaşında, KPSS P3 75 puanlı bilişim ilanları".';
 
+// Official ÖSYM mapping; only standalone definition questions, never eligibility.
+// https://www.osym.gov.tr/bazi-kamu-kurum-ve-kuruluslarinin-kadro-ve-pozisyonlarina-yerlestirme-yapmak-icin-adaylardan-tercih-alinmasi-20260508152150676
+export function scoreTypeDefinition(message) {
+  const match = /^(?:ilan sartindaki )?(?:kpss\s*)?p(3|93|94)(?: puan(?:i| turu))? (?:nedir|ne demek|neyi ifade eder)[?.!]*$/.exec(fold(message));
+  if (!match) return null;
+  const level = {3:'lisans',93:'ön lisans',94:'ortaöğretim (lise ve dengi)'}[match[1]];
+  return `KPSS P${match[1]}, ${level} düzeyindeki puan türüdür. P3 lisans, P93 ön lisans, P94 ortaöğretim içindir. Başvuruda gereken puan türü, puan yılı, taban puan ve mezuniyet şartını ilanın resmî metninden kontrol edin.`;
+}
+
 const criteriaRules = `- Dizi alanları (cities, education, occupations, institutions, categories) HER ZAMAN dizi olmalı: ["Lisans"]. Sayılar JSON sayısı olmalı.
 - Kriter alanları yalnız: cities (il adları), education (İlkokul, Ortaokul, Lise, Ön lisans, Lisans, Yüksek lisans, Doktora), occupations (yalnız şu adlar: ${occupationLabels.join(', ')}; listede olmayan meslek için keyword kullan), institutions, categories (işçi, personel, belediye), keyword, age (tamsayı 16-80), kpssType (P1..P999 biçimi, ör. P3), kpssScore (0-100), kpssYear, onlyKpss (boolean), last30 (boolean).`;
 
@@ -48,6 +57,7 @@ ${criteriaRules}
 - Çıktı YALNIZ JSON: {"intent":"criteria"|"clarify"|"refuse","reply":"...","criteria":{...}|null}`;
 
 const chatPrompt = `Sen "KamuBul Asistan"sın: Türkiye'deki kamu iş ilanlarını takip eden kullanıcılara yardım eden yapay zekâ.
+KPSS temel bilgisi: P3 lisans, P93 ön lisans, P94 ortaöğretim düzeyidir. Bu eşleşmeyi tersine çevirme; bu bilgi tek başına başvuru uygunluğu değildir.
 GÖREVLERİN (yalnız bunlar):
 1) Seçili ilan verildiyse, soruları YALNIZCA verilen ilan metnine dayanarak yanıtla. Metinde yoksa "İlan metninde bu bilgi yer almıyor; resmî ilanı kontrol edin." de. Tarih, puan, yaş, kontenjan UYDURMA.
 2) Kullanıcının kamu ilanı arama kriterlerini oluşturmasına yardım et (intent="criteria").
@@ -232,6 +242,8 @@ export async function handleAssistant(body, env, deps) {
   if (gate === 'invalid') return { status: 400, body: { error: 'message' } };
   if (gate) return { status: 200, body: { intent: 'refuse', reply: gate === 'too_long' ? `Mesaj en fazla ${MAX_MESSAGE} karakter olabilir.` : gate === 'too_short' ? 'Lütfen sorunuzu biraz daha ayrıntılı yazın.' : refusal, criteria: null } };
   if (await bump(env.DB, day, 'global') > lim.global) return { status: 429, body: { error: 'daily_budget' } };
+  const definition = chat && !listing ? scoreTypeDefinition(body.message) : null;
+  if (definition) return { status: 200, body: { intent: 'answer', reply: definition, criteria: null } };
   try {
     const request = chat ? buildChatRequest({ message: body.message, history: body.history, listing, profile: body.profile, today: istanbulToday(deps.now) }) : buildRequest(body.message);
     request.usageBucket='assistant';

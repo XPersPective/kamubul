@@ -37,17 +37,50 @@ class _Store implements StoreAdapter {
   Future<void> buy(StoreProduct product) async {}
 }
 
-Future<bool> _proAfter(_Store adapter) async {
+Future<bool> _proAfter(
+  _Store adapter, {
+  Future<Set<String>> Function()? activeProducts,
+}) async {
   final store = SettingsStore()..setBool(ProSettingsKeys.proLifetime, true);
   final pro = ProController(
     store: store,
     repository: PurchaseRepository(adapter: adapter),
   )..load();
-  await verifySubscription(pro, adapter, store, settle: Duration.zero);
+  await verifySubscription(
+    pro,
+    adapter,
+    store,
+    settle: Duration.zero,
+    activeProducts: activeProducts,
+  );
   return pro.isPro;
 }
 
 void main() {
+  test('StoreKit verified entitlement controls cached monthly Pro', () async {
+    expect(
+      await _proAfter(
+        _Store(),
+        activeProducts: () async => {proMonthlyProductId},
+      ),
+      isTrue,
+    );
+    expect(await _proAfter(_Store(), activeProducts: () async => {}), isFalse);
+    expect(
+      await _proAfter(_Store(), activeProducts: () async => {'foreign'}),
+      isFalse,
+    );
+    expect(
+      await _proAfter(
+        _Store(),
+        activeProducts: () async => throw StateError('unavailable'),
+      ),
+      isTrue,
+    );
+  });
+  test('unrelated restored product never preserves Pro', () async {
+    expect(await _proAfter(_Store(owned: 'foreign')), isFalse);
+  });
   test('aktif aylık abonelik Pro\'yu korur', () async {
     expect(await _proAfter(_Store(owned: proMonthlyProductId)), isTrue);
   });

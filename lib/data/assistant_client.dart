@@ -137,7 +137,12 @@ class AssistantClient {
         'Asistan şu an yanıt veremiyor. Kriterleri elle girebilirsiniz.',
       );
     }
-    final body = jsonDecode(utf8.decode(response.bodyBytes));
+    final Object? body;
+    try {
+      body = jsonDecode(utf8.decode(response.bodyBytes));
+    } on FormatException {
+      throw const AssistantException('Beklenmeyen yanıt alındı.');
+    }
     if (body is! Map<String, dynamic>) {
       throw const AssistantException('Beklenmeyen yanıt alındı.');
     }

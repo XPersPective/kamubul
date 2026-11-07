@@ -3,6 +3,7 @@ import EventKit
 import EventKitUI
 import Flutter
 import Security
+import StoreKit
 import UIKit
 import UserNotifications
 
@@ -30,6 +31,38 @@ import UserNotifications
     registerReminders(messenger)
     registerCalendar(messenger)
     registerDevice(messenger)
+    registerStoreKit(messenger)
+  }
+
+  // Only Apple's verified, active subscription can unlock the local Pro state.
+  private func registerStoreKit(_ messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "kamubul/storekit", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "activeProducts" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      Task { @MainActor in
+        var products = Set<String>()
+        for await verification in Transaction.currentEntitlements {
+          switch verification {
+          case .verified(let transaction):
+            guard transaction.productID == "kamubul_pro_monthly",
+              transaction.productType == .autoRenewable,
+              transaction.revocationDate == nil,
+              let expiration = transaction.expirationDate,
+              expiration > Date()
+            else { continue }
+            products.insert(transaction.productID)
+          case .unverified:
+            result(FlutterError(code: "storekit_unverified",
+              message: "Satın alma doğrulanamadı. Daha sonra yeniden deneyin.", details: nil))
+            return
+          }
+        }
+        result(Array(products))
+      }
+    }
   }
 
   // MARK: - Bildirim temsilcisi

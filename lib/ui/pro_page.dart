@@ -36,6 +36,7 @@ class _ProPageState extends State<ProPage> {
 
   /// Yalnız mağaza gerçekten "beklemede" bildirince (ör. ödeme onayı sürüyor) gösterilir.
   bool _pending = false;
+  bool _busy = false;
   late final StreamSubscription<List<StorePurchaseUpdate>> _updates;
 
   @override
@@ -45,7 +46,10 @@ class _ProPageState extends State<ProPage> {
       if (!mounted || updates.isEmpty) return;
       final pending =
           updates.last.purchase.status == StorePurchaseStatus.pending;
-      setState(() => _pending = pending);
+      setState(() {
+        _pending = pending;
+        if (!pending) _busy = false;
+      });
     });
   }
 
@@ -56,12 +60,35 @@ class _ProPageState extends State<ProPage> {
   }
 
   Future<void> _buy(StoreProduct product) async {
+    if (_busy || _pending) return;
+    setState(() => _busy = true);
     final l10n = NappLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
       await widget.repository.buy(product);
     } catch (_) {
-      messenger.showSnackBar(SnackBar(content: Text(l10n.t('paywall.error'))));
+      if (mounted) {
+        setState(() => _busy = false);
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.t('paywall.error'))),
+        );
+      }
+    }
+  }
+
+  Future<void> _restore() async {
+    if (_busy || _pending) return;
+    setState(() => _busy = true);
+    final l10n = NappLocalizations.of(context);
+    try {
+      await widget.repository.restore();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.t('paywall.error'))));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -331,7 +358,9 @@ class _ProPageState extends State<ProPage> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              onPressed: product == null ? null : () => _buy(product),
+              onPressed: product == null || _busy || _pending
+                  ? null
+                  : () => _buy(product),
               child: Text(
                 product != null
                     ? 'Aylık aboneliği başlat'
@@ -350,7 +379,7 @@ class _ProPageState extends State<ProPage> {
                 child: Text(l10n.commonRetry),
               ),
             TextButton(
-              onPressed: widget.repository.restore,
+              onPressed: _busy || _pending ? null : _restore,
               child: Text(l10n.t('paywall.restore')),
             ),
             _legalLinks(),

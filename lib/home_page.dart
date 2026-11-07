@@ -19,7 +19,7 @@ import 'package:kamubul_core/kamubul_core.dart'
         RemoteCatalogueException,
         decodeAlertTap,
         CriteriaMatch;
-import 'package:napp_ads/napp_ads.dart';
+import 'package:napp_ads/napp_ads.dart' hide ConsentManager;
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -39,6 +39,7 @@ import 'listings/official_listing_page.dart';
 import 'store_features.dart';
 import 'ads_state.dart';
 import 'data/assistant_client.dart';
+import 'data/ad_consent.dart';
 import 'rate_prompt_state.dart';
 import 'ui/premium.dart';
 import 'ui/premium_widgets.dart';
