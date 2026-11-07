@@ -50,7 +50,8 @@ void main() {
     category: 'Sözleşmeli Personel',
     publishedAt: DateTime(2026, 9, 20),
     fetchedAt: DateTime(2026, 10, 2),
-    deadline: DateTime(2026, 10, 12),
+    // The API stores instants; pin Turkish midnight independently of host TZ.
+    deadline: DateTime.parse('2026-10-12T00:00:00+03:00'),
     quota: 5,
     places: const ['Ankara', 'İzmir'],
     summary: const ['Başvurular resmî başvuru sistemi üzerinden yapılır.'],
@@ -115,7 +116,7 @@ void main() {
           ),
           home: OfficialListingPage(
             listing: canonical,
-            now: DateTime(2026, 10, 2, 12),
+            now: DateTime.parse('2026-10-02T12:00:00+03:00'),
           ),
         ),
       );
