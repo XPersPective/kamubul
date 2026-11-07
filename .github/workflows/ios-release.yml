@@ -19,7 +19,51 @@ on:
         default: false
 
 jobs:
+  validate:
+    # Committed pixel baselines are verified on Windows/Flutter 3.47.2.
+    # macOS still compiles and signs the exact same source after this gate.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: XPersPective/napp_kit
+          path: kit
+          ssh-key: ${{ secrets.NAPP_KIT_DEPLOY_KEY }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          cache: true
+      - name: Kilitli napp_kit commitlerini yerel salt okunur kopyadan çöz
+        run: |
+          $kitUri = ([System.Uri](Resolve-Path ../kit).Path).AbsoluteUri
+          git config --global "url.$kitUri.insteadOf" https://github.com/XPersPective/napp_kit.git
+      - run: python -m unittest discover -s tool/ios -p 'test_*.py'
+      - run: flutter pub get
+      - run: flutter pub get
+        working-directory: app/packages/kamubul_core
+      - run: dart pub get
+        working-directory: app/backend
+      - run: flutter analyze
+      - run: flutter test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: validation-failures
+          path: app/test/failures
+          if-no-files-found: ignore
+
   ipa:
+    needs: validate
     runs-on: macos-latest
     timeout-minutes: 60
     env:
@@ -35,7 +79,7 @@ jobs:
           exit 1
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.47.2'
           cache: true
       - name: napp_kit erişimi
         env:
@@ -97,14 +141,7 @@ jobs:
           printf '%s' "$IOS_DART_DEFINES" > "$RUNNER_TEMP/base-defines.json"
           printf '%s' "$IOS_ADMOB_DEFINES" > "$RUNNER_TEMP/ads-defines.json"
           python3 tool/ios/ads_config.py prepare --require-production --input "$RUNNER_TEMP/base-defines.json" --ads-input "$RUNNER_TEMP/ads-defines.json" --output "$RUNNER_TEMP/defines.json"
-      - run: python3 -m unittest discover -s tool/ios -p 'test_*.py'
       - run: flutter pub get
-      - run: flutter pub get
-        working-directory: packages/kamubul_core
-      - run: dart pub get
-        working-directory: backend
-      - run: flutter analyze
-      - run: flutter test
       - name: IPA
         run: flutter build ipa --release --build-number=$((100 + GITHUB_RUN_NUMBER)) --export-options-plist="$RUNNER_TEMP/ExportOptions.plist" --dart-define-from-file="$RUNNER_TEMP/defines.json" --dart-define=IOS_PRO=${{ inputs.ios_pro }}
       - name: İmzalı uygulamayı doğrula

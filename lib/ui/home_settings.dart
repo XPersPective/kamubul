@@ -131,7 +131,7 @@ extension _HomeSettings on _KamuHomePageState {
                         } catch (_) {
                           message = 'Tercihler açılamadı. Daha sonra yeniden deneyin.';
                         }
-                        if (!mounted || message == null) return;
+                        if (!context.mounted || message == null) return;
                         ScaffoldMessenger.of(context)
                             .showSnackBar(SnackBar(content: Text(message)));
                       },

@@ -19,3 +19,4 @@
 - Bu yerel doğrulama, Worker'ın istemciden gelen `tier=pro` iddiasını doğrulamış sayılmaz. Sunucu mağaza yetkisi PB-038 ve gerçek Apple sandbox işlemleri açık yayın engelidir.
 - Yayındaki sürümün reklam/IAP yok beyanı korunur. Reklamlı/abonelikli sürüm gönderilmeden Google SDK veri açıklamalarına göre App Privacy, ATT takibi, reklam yaş beyanı, satın alma geçmişi ve açıklama/inceleme notları güncellenip geri okunmalıdır. Mevcut beyan yeni adayı kapsamaz.
 - İmzalı fakat yüklemesiz CI ve tüm kabul sonuçları PB-044 kaydındadır. Windows üzerinde gerçek iOS sandbox/ATT akışı gözlemlendiği iddia edilmez.
+- Piksel referansları Windows / Flutter 3.47.2 ortamında denetlenir. iOS release hattı aynı commit için önce Windows'ta tüm analiz/testleri çalıştırır, ardından macOS'ta derler ve imzayı doğrular. macOS'taki platforma bağlı golden farkları başarı sayılmaz; ayrı Windows kapısı tüm referansları gerçekten karşılaştırır.
