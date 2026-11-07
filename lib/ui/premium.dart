@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kamubul_core/kamubul_core.dart' show wallClock;
 
 /// KamuBul görsel katmanı; ortak kitin davranışlarını ve marka rengini korur.
 ThemeData premiumTheme(ThemeData base) {
@@ -268,7 +269,7 @@ PageRouteBuilder<T> sharedAxisRoute<T>(Widget page) => PageRouteBuilder<T>(
 /// Son başvuruya kalan takvim günü; null = tarih yok, negatif = süre doldu.
 int? deadlineDays(DateTime? deadline, DateTime now) {
   if (deadline == null) return null;
-  final end = deadline.toLocal(), today = now.toLocal();
+  final end = wallClock(deadline), today = wallClock(now);
   final days = DateTime.utc(
     end.year,
     end.month,
