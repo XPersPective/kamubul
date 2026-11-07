@@ -2,6 +2,9 @@ import plistlib
 from pathlib import Path
 import tempfile
 import unittest
+import json
+import subprocess
+import sys
 
 from ads_config import TEST, configure, decode, encode, patch_plist, verify_plist
 
@@ -65,6 +68,19 @@ class AdsConfigTest(unittest.TestCase):
                 path.write_bytes(plistlib.dumps({**data, key: 'wrong'}))
                 with self.assertRaises(ValueError):
                     verify_plist(path, self.production)
+
+    def test_production_pipeline_refuses_test_or_missing_identifiers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'in.json'
+            output = Path(directory) / 'out.json'
+            for values, succeeds in [(TEST, False), ({}, False),
+                                     ({**self.production, 'STORE_CAPTURE': True}, False),
+                                     (self.production, True)]:
+                source.write_text(json.dumps(values), encoding='utf-8')
+                result = subprocess.run([sys.executable, str(Path(__file__).with_name('ads_config.py')),
+                    'prepare', '--require-production', '--input', str(source), '--output', str(output)],
+                    capture_output=True)
+                self.assertEqual(result.returncode == 0, succeeds)
 
 
 if __name__ == '__main__':

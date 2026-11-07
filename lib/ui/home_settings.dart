@@ -109,22 +109,33 @@ extension _HomeSettings on _KamuHomePageState {
         title: 'Görünüm ve üyelik',
         children: [
           if (adsAvailable)
-            ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: const Text('Reklam gizlilik tercihleri'),
-              onTap: () async {
-                String? message;
-                try {
-                  if (!await ConsentManager.showPrivacyOptions()) {
-                    message = 'Şu anda ek reklam onayı tercihi gerekmiyor.';
-                  }
-                } catch (_) {
-                  message = 'Tercihler açılamadı. Daha sonra yeniden deneyin.';
-                }
-                if (!mounted || message == null) return;
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(SnackBar(content: Text(message)));
-              },
+            ValueListenableBuilder<bool>(
+              valueListenable: ConsentManager.privacyOptionsRequired,
+              builder: (context, required, _) => !required
+                  ? const SizedBox.shrink()
+                  : ListTile(
+                      leading: const Icon(Icons.privacy_tip_outlined),
+                      title: const Text('Reklam gizlilik tercihleri'),
+                      onTap: () async {
+                        String? message;
+                        try {
+                          if (!await ConsentManager.showPrivacyOptions()) {
+                            message =
+                                'Şu anda ek reklam onayı tercihi gerekmiyor.';
+                          } else {
+                            final allowed =
+                                await ConsentManager.canRequestAds();
+                            if (!mounted) return;
+                            setState(() => widget.policy.setSdkReady(allowed));
+                          }
+                        } catch (_) {
+                          message = 'Tercihler açılamadı. Daha sonra yeniden deneyin.';
+                        }
+                        if (!mounted || message == null) return;
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(message)));
+                      },
+                    ),
             ),
           ListTile(
             leading: const Icon(Icons.brightness_6_outlined),

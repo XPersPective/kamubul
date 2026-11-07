@@ -96,7 +96,7 @@ jobs:
           test -n "$IOS_ADMOB_DEFINES" || { echo 'Missing iOS AdMob configuration'; exit 1; }
           printf '%s' "$IOS_DART_DEFINES" > "$RUNNER_TEMP/base-defines.json"
           printf '%s' "$IOS_ADMOB_DEFINES" > "$RUNNER_TEMP/ads-defines.json"
-          python3 tool/ios/ads_config.py prepare --input "$RUNNER_TEMP/base-defines.json" --ads-input "$RUNNER_TEMP/ads-defines.json" --output "$RUNNER_TEMP/defines.json"
+          python3 tool/ios/ads_config.py prepare --require-production --input "$RUNNER_TEMP/base-defines.json" --ads-input "$RUNNER_TEMP/ads-defines.json" --output "$RUNNER_TEMP/defines.json"
       - run: python3 -m unittest discover -s tool/ios -p 'test_*.py'
       - run: flutter pub get
       - run: flutter pub get
@@ -110,7 +110,7 @@ jobs:
       - name: İmzalı uygulamayı doğrula
         run: |
           app=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
-          python3 tool/ios/ads_config.py verify-plist --input "$RUNNER_TEMP/defines.json" --plist "$app/Info.plist"
+          python3 tool/ios/ads_config.py verify-plist --require-production --input "$RUNNER_TEMP/defines.json" --plist "$app/Info.plist"
           codesign --verify --deep --strict "$app"
           codesign --display --verbose=2 "$app"
       - uses: actions/upload-artifact@v4

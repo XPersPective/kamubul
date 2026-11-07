@@ -3,9 +3,11 @@ import 'dart:io';
 
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:flutter/foundation.dart';
 
 /// UMP must finish and allow requests before ATT and SDK initialization.
 abstract final class ConsentManager {
+  static final privacyOptionsRequired = ValueNotifier<bool>(false);
   static final _gate = AdConsentGate(
     update: () {
       final result = Completer<void>();
@@ -34,7 +36,21 @@ abstract final class ConsentManager {
     initializeSdk: () async => await MobileAds.instance.initialize(),
   );
 
-  static Future<bool> initialize() => _gate.initialize();
+  static Future<bool> initialize() async {
+    final ready = await _gate.initialize();
+    try {
+      privacyOptionsRequired.value =
+          await ConsentInformation.instance
+              .getPrivacyOptionsRequirementStatus() ==
+          PrivacyOptionsRequirementStatus.required;
+    } on Object {
+      // Preserve the last known requirement when the SDK is unavailable.
+    }
+    return ready;
+  }
+
+  static Future<bool> canRequestAds() =>
+      ConsentInformation.instance.canRequestAds();
 
   static Future<bool> showPrivacyOptions() async {
     if (await ConsentInformation.instance

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kamubul/main.dart';
@@ -41,6 +42,22 @@ void main() {
     'purchase is deduplicated, cancel recovers, restore errors are visible at two sizes',
     (tester) async {
       final translations = await tester.runAsync(loadAppTranslations);
+      if (const bool.fromEnvironment('KAMUBUL_CAPTURE')) {
+        await tester.runAsync(() async {
+          final root = Platform.environment['FLUTTER_ROOT']!;
+          for (final font in {
+            'Roboto': 'roboto-regular.ttf',
+            'MaterialIcons': 'materialicons-regular.otf',
+          }.entries) {
+            await (FontLoader(font.key)..addFont(
+                  File('$root/bin/cache/artifacts/material_fonts/${font.value}')
+                      .readAsBytes()
+                      .then(ByteData.sublistView),
+                ))
+                .load();
+          }
+        });
+      }
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       for (final width in [390.0, 900.0]) {
@@ -56,6 +73,8 @@ void main() {
           RepaintBoundary(
             key: boundary,
             child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData(fontFamily: 'Roboto'),
               locale: const Locale('tr'),
               supportedLocales: const [Locale('tr')],
               localizationsDelegates: [

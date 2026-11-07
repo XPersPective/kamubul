@@ -87,6 +87,7 @@ def main():
     parser.add_argument('--output')
     parser.add_argument('--test', action='store_true')
     parser.add_argument('--plist')
+    parser.add_argument('--require-production', action='store_true')
     args = parser.parse_args()
     if args.action in ('prepare', 'verify-plist'):
         values = json.loads(Path(args.input).read_text(encoding='utf-8-sig'))
@@ -96,6 +97,10 @@ def main():
                 raise ValueError('ads input must contain exactly the five iOS AdMob keys')
             values.update(ads)
         values = configure(values, release=not args.test)
+        if args.require_production and (
+            any(key not in values for key in TEST) or
+            any(values.get(key) == value for key, value in TEST.items())):
+            raise ValueError('production archive requires all real iOS AdMob IDs')
         if args.action == 'verify-plist':
             verify_plist(Path(args.plist), values)
             print('Built iOS bundle: AdMob ID and privacy configuration verified.')

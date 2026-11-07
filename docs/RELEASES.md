@@ -2,13 +2,13 @@
 
 Tek kaynak: her yayından sonra bu dosya güncellenir. Ortak sürüm numarası `pubspec.yaml` (`version: x.y.z+build`); Android versionCode = build, iOS build numarası CI'da `100 + run_number`.
 
-## Güncel durum (06.11.2026)
+## Güncel durum (07.11.2026)
 
 | Platform | Sürüm | Mağaza durumu | Not |
 |---|---|---|---|
 | Android (Google Play) | 1.2.4 (19) | Üretim kanalı, `completed` | Politika durumu: sorun yok; bekleyen beyan yok |
 | iOS (App Store) | 1.2.4 (build 107) | `READY_FOR_SALE` (Yayında) | Yalnız iPhone, yalnız Türkiye, ücretsiz |
-| Worker (Cloudflare) | `fc777585` | Canlı | Asistan: sağlayıcı düşünmesi kapalı, 2000 token, 1 yeniden deneme |
+| Worker (Cloudflare) | `f89990be` | Canlı, %100 | EVREN / `qwen3.8-flash-next`; ÖSYM kaynaklı P3/P93/P94 tanım düzeltmesi; model ve kotalar aynı |
 | Site (GitHub Pages) | `site/` | https://xperspective.github.io/kamubul/ | Tanıtım, gizlilik, destek (Türkçe) |
 
 ## Kimlikler
@@ -30,13 +30,18 @@ Tek kaynak: her yayından sonra bu dosya güncellenir. Ortak sürüm numarası `
 
 - App Privacy: Cihaz kimliği + Diğer kullanıcı içeriği; uygulama işlevi; kişiyle ilişkilendirilmez; takip yok.
 - Yaş derecelendirmesi: tüm içerik soruları "yok". Kategori: İş / Başvuru Kaynakları. Fiyat: ücretsiz.
-- Business: Paid Apps sözleşmesi banka/vergi doğrulamasında (Processing); W-8BEN ve Foreign Status sertifikası Active. DSA tacir beyanı kullanıcı tarafından yönetiliyor; ajan bu bölüme dokunmaz.
+- Business (07.11.2026 geri okuması): Paid Apps, banka hesabı, W-8BEN ve Foreign Status sertifikası Active. Yeni sözleşme kabul edilmedi, banka/vergi verisi girilmedi. DSA tacir beyanı kullanıcı tarafından yönetiliyor.
+- AdMob: Android `~6690717142` Hazır / reklam sunma etkin, doğru Play paketine bağlı. iOS `~2359389155`, App Store `6826592263` ile bağlı; dört birim etkin, uygulama incelemede ve reklam sunumu sınırlı. İki mevcut yönetici tüm uygulamalara etkin erişime sahip; yetkiler değiştirilmedi.
+- Yayındaki iOS 1.2.4 (107) reklam/IAP içermez; mevcut açıklama ve App Privacy bu sürüme aittir. Yeni adayda ATT/SKAdNetwork, üretim/test kimlik ayrımı, beklenen UMP onayı ve yerel StoreKit doğrulaması eklendi. Sandbox satın alma/restore/iptal/hata, sunucu Pro yetkisi ve yeni gizlilik/mağaza metni doğrulanmadan gönderilmez.
+- `IOS_ADMOB_DEFINES` CI secret'ı yayıncıdaki beş mevcut iOS kimliğinden oluşturuldu; mevcut `IOS_DART_DEFINES` korunur. `ios-release.yml` yüklemesi ayrıca `release_acceptance=true` gerektirir. Kabul sağlanmadığı için bu oturumda App Store yüklemesi/inceleme gönderimi yapılmadı.
+- Play üretim 1.2.4 (19) `completed`; aylık plan Active, 58,99 TRY. Ürün faydasındaki eski 100 soru vaadi canlı 50 soru sınırına düzeltildi; fiyat/plan değişmedi. Hesap genelindeki satıcı statüsü beyanının Şubat 2027'ye kadar tamamlanması gerekiyor; kullanıcıya ait beyan yapılmadı.
 
 ## Açık işler
 
 - PB-039 iOS APNs anahtarı (kullanıcı) → iOS sunucu bildirimi.
-- PB-040 iOS Pro aboneliği (Paid Apps Active olunca).
-- PB-041 iOS reklamları (AdMob iOS hesabı).
+- PB-040 iOS Pro: ürün `READY_TO_SUBMIT`; sandbox ve sunucu yetki doğrulaması bekleniyor (Paid Apps artık Active).
+- PB-041 iOS reklamları: kayıt/birimler mevcut; AdMob incelemesi, iOS cihaz akışı ve yeni App Privacy/metadata kabulü bekleniyor.
+- PB-044 kaynak, model, kuyruk ve iOS güvenlik denetiminin güncel kanıt ve CI sonucu: `.project-brain/tasks/PB-044.md`.
 - PB-042 kararsız `saved_search_edit_test`.
 
 ## Geçmiş
