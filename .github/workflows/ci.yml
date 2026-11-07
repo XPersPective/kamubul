@@ -8,28 +8,36 @@ on:
 
 jobs:
   app:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: XPersPective/napp_kit
+          path: kit
+          ssh-key: ${{ secrets.NAPP_KIT_DEPLOY_KEY }}
+          fetch-depth: 0
+          persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.47.2'
           cache: true
-      # napp_kit özel depodur: yalnızca o depoya okuma yetkili deploy key kullanılır.
-      - name: napp_kit erişimi
-        env:
-          NAPP_KIT_DEPLOY_KEY: ${{ secrets.NAPP_KIT_DEPLOY_KEY }}
+      - name: Kilitli napp_kit commitlerini yerel salt okunur kopyadan çöz
         run: |
-          if [ -n "$NAPP_KIT_DEPLOY_KEY" ]; then
-            mkdir -p ~/.ssh
-            echo "$NAPP_KIT_DEPLOY_KEY" > ~/.ssh/napp_kit
-            chmod 600 ~/.ssh/napp_kit
-            ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-            git config --global core.sshCommand "ssh -i ~/.ssh/napp_kit -o IdentitiesOnly=yes"
-            git config --global url."git@github.com:XPersPective/napp_kit".insteadOf "https://github.com/XPersPective/napp_kit"
-          fi
+          $kitUri = ([System.Uri](Resolve-Path ../kit).Path).AbsoluteUri
+          git config --global "url.$kitUri.insteadOf" https://github.com/XPersPective/napp_kit.git
+      - run: python -m unittest discover -s tool/ios -p 'test_*.py'
       - run: flutter pub get
-      - run: (cd packages/kamubul_core && flutter pub get)
+      - run: flutter pub get
+        working-directory: app/packages/kamubul_core
+      - run: dart pub get
+        working-directory: app/backend
       - run: flutter analyze
       - run: flutter test
 
