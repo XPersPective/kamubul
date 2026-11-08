@@ -43,24 +43,12 @@ import UserNotifications
         return
       }
       Task { @MainActor in
-        var products = Set<String>()
-        for await verification in Transaction.currentEntitlements {
-          switch verification {
-          case .verified(let transaction):
-            guard transaction.productID == "kamubul_pro_monthly",
-              transaction.productType == .autoRenewable,
-              transaction.revocationDate == nil,
-              let expiration = transaction.expirationDate,
-              expiration > Date()
-            else { continue }
-            products.insert(transaction.productID)
-          case .unverified:
-            result(FlutterError(code: "storekit_unverified",
-              message: "Satın alma doğrulanamadı. Daha sonra yeniden deneyin.", details: nil))
-            return
-          }
+        do {
+          result(try await ProEntitlements.activeProducts())
+        } catch {
+          result(FlutterError(code: "storekit_unverified",
+            message: "Satın alma doğrulanamadı. Daha sonra yeniden deneyin.", details: nil))
         }
-        result(Array(products))
       }
     }
   }
