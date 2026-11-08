@@ -7,7 +7,7 @@ import XCTest
 /// Exercises the real Pro unlock rule against StoreKit Testing in the simulator.
 /// This is local StoreKit with a generated configuration, not Apple's sandbox
 /// servers: it proves our entitlement logic, not App Store Connect state.
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 final class ProEntitlementsTests: XCTestCase {
   private static let productID = "kamubul_pro_monthly"
 
