@@ -1,0 +1,56 @@
+name: iOS StoreKit test
+
+# Pro abonelik kuralını (ProEntitlements) iOS simülatöründe StoreKit Testing ile
+# sınar: satın alma, süre dolumu, iade ve geri yükleme. Bu yerel StoreKit'tir,
+# Apple'ın sandbox sunucuları değildir; App Store Connect durumunu kanıtlamaz.
+# Genel depolarda macOS çalıştırıcıları ücretsizdir.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-storekit.yml'
+
+jobs:
+  storekit:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: napp_kit erişimi
+        env:
+          NAPP_KIT_DEPLOY_KEY: ${{ secrets.NAPP_KIT_DEPLOY_KEY }}
+        run: |
+          if [ -n "$NAPP_KIT_DEPLOY_KEY" ]; then
+            mkdir -p ~/.ssh
+            echo "$NAPP_KIT_DEPLOY_KEY" > ~/.ssh/napp_kit
+            chmod 600 ~/.ssh/napp_kit
+            ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+            git config --global core.sshCommand "ssh -i ~/.ssh/napp_kit -o IdentitiesOnly=yes"
+            git config --global url."git@github.com:XPersPective/napp_kit".insteadOf "https://github.com/XPersPective/napp_kit"
+          fi
+      - run: flutter pub get
+      - name: Flutter iOS yapılandırması ve Pods
+        run: flutter build ios --simulator --debug --config-only --no-codesign
+      - name: StoreKit testleri
+        run: |
+          set -o pipefail
+          udid=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];c=[x for k,v in d.items() if 'iOS' in k for x in v if 'iPhone' in x['name']];print(c[-1]['udid'])")
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+          xcodebuild test \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -destination "id=$udid" \
+            -only-testing:RunnerTests \
+            CODE_SIGNING_ALLOWED=NO | tee storekit-test.log | tail -80
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storekit-test-log
+          path: storekit-test.log
+          retention-days: 7
