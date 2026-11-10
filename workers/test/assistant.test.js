@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scopeGate, parseModelOutput, buildRequest, handleAssistant, refusal, scoreTypeDefinition } from '../src/assistant.js';
+import { scopeGate, parseModelOutput, buildRequest, handleAssistant, refusal, scoreTypeDefinition, ageConditionGuidance } from '../src/assistant.js';
 
 const sha256 = async v => 'h' + v;
 const fakeDb = () => { const counts = new Map(); return { counts, batch:async()=>[], prepare: () => ({ bind: (day, bucket) => ({ first: async () => { const k = day + bucket; counts.set(k, (counts.get(k) ?? 0) + 1); return { count: counts.get(k) }; } }) }) }; };
@@ -40,6 +40,22 @@ test('P3 cutoff question explains that the threshold is notice-specific without 
   assert.doesNotMatch(result.body.reply, /\b70\b/);
   assert.equal(calls, 0);
   assert.equal(scoreTypeDefinition('Kamu personel ilanında KPSS P3 puan şartı nasıl değerlendirilir?'), result.body.reply);
+});
+
+test('generic age-condition guidance avoids inventing common dates or exceptions', async () => {
+  let calls = 0;
+  const message = 'Kamu personel ilanında yaş şartını kontrol ederken nelere dikkat etmeliyim?';
+  const result = await handleAssistant({ installationId: 'a'.repeat(32), mode: 'chat', message }, env(), {
+    sha256, ip: '1.1.1.1', fetch: async () => { calls++; throw new Error('model should not be called'); },
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.intent, 'answer');
+  assert.match(result.body.reply, /ilanda belirtilen tarihe göre/);
+  assert.match(result.body.reply, /yalnızca resmî ilan metninde yazanı/);
+  assert.doesNotMatch(result.body.reply, /askerlik borçlanması|genellikle son başvuru|35 yaş/);
+  assert.equal(calls, 0);
+  assert.equal(ageConditionGuidance(message), result.body.reply);
 });
 
 test('scope gate blocks off-topic and injection before any model call', () => {

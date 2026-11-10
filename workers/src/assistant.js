@@ -50,6 +50,12 @@ export function scoreTypeDefinition(message) {
   return `KPSS P${match[1]}, ${level} düzeyindeki puan türüdür. P3 lisans, P93 ön lisans, P94 ortaöğretim içindir. Başvuruda gereken puan türü, puan yılı, taban puan ve mezuniyet şartını ilanın resmî metninden kontrol edin.`;
 }
 
+export function ageConditionGuidance(message) {
+  const normalized = fold(message);
+  if (!/^(?:(?:kamu )?personel )?ilaninda yas sart(?:i|ini|lari|larini) kontrol ederken nelere dikkat etmeliyim[?.!]*$/.test(normalized)) return null;
+  return 'İlandaki yaş şartının hangi tarih itibarıyla hesaplandığını ve yaş sınırının tam ifadesini kontrol edin. Yaşınızı ilanda belirtilen tarihe göre doğum gününüzü de dikkate alarak hesaplayın. İstisna veya ek belge koşulu varsa yalnızca resmî ilan metninde yazanı esas alın; metin olmadan kesin uygunluk söylenemez.';
+}
+
 const criteriaRules = `- Dizi alanları (cities, education, occupations, institutions, categories) HER ZAMAN dizi olmalı: ["Lisans"]. Sayılar JSON sayısı olmalı.
 - Kriter alanları yalnız: cities (il adları), education (İlkokul, Ortaokul, Lise, Ön lisans, Lisans, Yüksek lisans, Doktora), occupations (yalnız şu adlar: ${occupationLabels.join(', ')}; listede olmayan meslek için keyword kullan), institutions, categories (işçi, personel, belediye), keyword, age (tamsayı 16-80), kpssType (P1..P999 biçimi, ör. P3), kpssScore (0-100), kpssYear, onlyKpss (boolean), last30 (boolean).`;
 
@@ -248,7 +254,7 @@ export async function handleAssistant(body, env, deps) {
   if (gate === 'invalid') return { status: 400, body: { error: 'message' } };
   if (gate) return { status: 200, body: { intent: 'refuse', reply: gate === 'too_long' ? `Mesaj en fazla ${MAX_MESSAGE} karakter olabilir.` : gate === 'too_short' ? 'Lütfen sorunuzu biraz daha ayrıntılı yazın.' : refusal, criteria: null } };
   if (await bump(env.DB, day, 'global') > lim.global) return { status: 429, body: { error: 'daily_budget' } };
-  const definition = chat && !listing ? scoreTypeDefinition(body.message) : null;
+  const definition = chat && !listing ? (scoreTypeDefinition(body.message) ?? ageConditionGuidance(body.message)) : null;
   if (definition) return { status: 200, body: { intent: 'answer', reply: definition, criteria: null } };
   try {
     const request = chat ? buildChatRequest({ message: body.message, history: body.history, listing, profile: body.profile, today: istanbulToday(deps.now) }) : buildRequest(body.message);
