@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scopeGate, parseModelOutput, buildRequest, handleAssistant, refusal } from '../src/assistant.js';
+import { scopeGate, parseModelOutput, buildRequest, handleAssistant, refusal, scoreTypeDefinition } from '../src/assistant.js';
 
 const sha256 = async v => 'h' + v;
 const fakeDb = () => { const counts = new Map(); return { counts, batch:async()=>[], prepare: () => ({ bind: (day, bucket) => ({ first: async () => { const k = day + bucket; counts.set(k, (counts.get(k) ?? 0) + 1); return { count: counts.get(k) }; } }) }) }; };
@@ -23,6 +23,23 @@ test('official score definitions avoid live-reproduced P3 misinformation without
   await handleAssistant({...request,listing:{text:'KPSS P3 en az 70 puan gerekir.'}},env(),deps);
   await handleAssistant({...request,message:'KPSS P3 70 puanla başvurabilir miyim?'},env(),deps);
   assert.equal(calls,2);
+});
+
+test('P3 cutoff question explains that the threshold is notice-specific without inventing a sample score', async () => {
+  let calls = 0;
+  const result = await handleAssistant({
+    installationId: 'a'.repeat(32),
+    mode: 'chat',
+    message: 'Kamu personel ilanında KPSS P3 puan şartı nasıl değerlendirilir?',
+  }, env(), { sha256, ip: '1.1.1.1', fetch: async () => { calls++; throw new Error('model should not be called'); } });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.intent, 'answer');
+  assert.match(result.body.reply, /P3, lisans düzeyindeki puan türüdür/);
+  assert.match(result.body.reply, /gereken puan.*ilana göre değişir/);
+  assert.doesNotMatch(result.body.reply, /\b70\b/);
+  assert.equal(calls, 0);
+  assert.equal(scoreTypeDefinition('Kamu personel ilanında KPSS P3 puan şartı nasıl değerlendirilir?'), result.body.reply);
 });
 
 test('scope gate blocks off-topic and injection before any model call', () => {

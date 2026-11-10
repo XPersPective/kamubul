@@ -38,9 +38,15 @@ export const refusal = 'Ben KamuBul Asistanı\'yım; yalnızca kamu ilanları, b
 // Official ÖSYM mapping; only standalone definition questions, never eligibility.
 // https://www.osym.gov.tr/bazi-kamu-kurum-ve-kuruluslarinin-kadro-ve-pozisyonlarina-yerlestirme-yapmak-icin-adaylardan-tercih-alinmasi-20260508152150676
 export function scoreTypeDefinition(message) {
-  const match = /^(?:ilan sartindaki )?(?:kpss\s*)?p(3|93|94)(?: puan(?:i| turu))? (?:nedir|ne demek|neyi ifade eder)[?.!]*$/.exec(fold(message));
+  const normalized = fold(message);
+  const definition = /^(?:ilan sartindaki )?(?:kpss\s*)?p(3|93|94)(?: puan(?:i| turu))? (?:nedir|ne demek|neyi ifade eder)[?.!]*$/.exec(normalized);
+  // Avoid a live model inventing an illustrative cutoff (for example, 70) for a
+  // general question about P3. The actual minimum and exam year are notice-specific.
+  const thresholdQuestion = /^(?:kamu )?personel ilaninda kpss p(3|93|94) puan sarti nasil (?:degerlendirilir|yorumlanir)[?.!]*$/.exec(normalized);
+  const match = definition ?? thresholdQuestion;
   if (!match) return null;
   const level = {3:'lisans',93:'ön lisans',94:'ortaöğretim (lise ve dengi)'}[match[1]];
+  if (thresholdQuestion) return `KPSS P${match[1]}, ${level} düzeyindeki puan türüdür. Puan türü tek başına taban puanı belirtmez; gereken puan, geçerli sınav yılı ve diğer koşullar ilana göre değişir. Resmî ilan metnini kontrol edin.`;
   return `KPSS P${match[1]}, ${level} düzeyindeki puan türüdür. P3 lisans, P93 ön lisans, P94 ortaöğretim içindir. Başvuruda gereken puan türü, puan yılı, taban puan ve mezuniyet şartını ilanın resmî metninden kontrol edin.`;
 }
 

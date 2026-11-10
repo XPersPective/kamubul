@@ -55,6 +55,24 @@ class AdsConfigTest(unittest.TestCase):
             original.pop('GADApplicationIdentifier')
             self.assertEqual(actual, original)
 
+    def test_ios_bundle_declares_its_supported_turkish_localization(self):
+        root = Path(__file__).resolve().parents[2]
+        info = plistlib.loads((root / 'ios/Runner/Info.plist').read_bytes())
+        project = (root / 'ios/Runner.xcodeproj/project.pbxproj').read_text(encoding='utf-8')
+        localized_info = root / 'ios/Runner/tr.lproj/InfoPlist.strings'
+
+        self.assertEqual(info['CFBundleDevelopmentRegion'], 'tr')
+        self.assertEqual(info['CFBundleLocalizations'], ['tr'])
+        self.assertRegex(project, r'developmentRegion = tr;')
+        self.assertIn('tr,', project)
+        self.assertIn('tr.lproj/InfoPlist.strings', project)
+        self.assertIn('InfoPlist.strings in Resources', project)
+        self.assertTrue(localized_info.is_file())
+        localized_text = localized_info.read_text(encoding='utf-8')
+        self.assertIn('"CFBundleDisplayName" = "KamuBul";', localized_text)
+        self.assertIn(info['NSCalendarsUsageDescription'], localized_text)
+        self.assertIn(info['NSUserTrackingUsageDescription'], localized_text)
+
     def test_archive_readback_rejects_wrong_bundle_or_native_id(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'Info.plist'
