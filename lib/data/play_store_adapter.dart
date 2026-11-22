@@ -1,4 +1,5 @@
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:napp_pro/napp_pro.dart';
 
 /// Reuse the shared store behavior while surfacing a declined Play checkout.
@@ -35,4 +36,17 @@ final class PlayStoreAdapter implements StoreAdapter {
 
   @override
   Future<void> restore() => _delegate.restore();
+
+  Future<Set<String>> activeProductIds() async {
+    final play = _plugin
+        .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+    final purchases = await play.queryPastPurchases();
+    if (purchases.error != null) throw StateError('play_purchases_unavailable');
+
+    // Query directly: the generic restore callback marks every item restored.
+    return purchases.pastPurchases
+        .where((purchase) => purchase.status == PurchaseStatus.purchased)
+        .map((purchase) => purchase.productID)
+        .toSet();
+  }
 }

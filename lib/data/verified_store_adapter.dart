@@ -16,12 +16,17 @@ Future<Set<String>> readStoreKitEntitlements() async {
 }
 
 /// App-local guard around the shared lifetime-purchase adapter.
-/// Unverified transactions stay unfinished so StoreKit can deliver them again.
+/// Unverified transactions stay unfinished for a later store delivery.
 class VerifiedStoreAdapter implements StoreAdapter {
-  VerifiedStoreAdapter({required this.delegate, required this.entitlements});
+  VerifiedStoreAdapter({
+    required this.delegate,
+    required this.entitlements,
+    this.restorableProducts = const {proMonthlyProductId},
+  });
 
   final StoreAdapter delegate;
   final EntitlementReader entitlements;
+  final Set<String> restorableProducts;
   bool _buying = false;
   Future<void>? _restoring;
 
@@ -44,7 +49,7 @@ class VerifiedStoreAdapter implements StoreAdapter {
       var verified = false;
       try {
         verified =
-            purchase.productId == proMonthlyProductId &&
+            restorableProducts.contains(purchase.productId) &&
             (await entitlements()).contains(purchase.productId);
       } on Object {
         // Connectivity/verification failures never grant or finish a purchase.
