@@ -1,0 +1,73 @@
+name: Android debug compile
+run-name: Android debug ${{ inputs.source_sha || github.sha }}
+
+on:
+  push:
+    branches: [codex/kamubul-one-day-trial]
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full commit SHA of the selected ref
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+    steps:
+      - name: Validate selected revision
+        shell: bash
+        run: |
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ || "$SOURCE_SHA" != "$GITHUB_SHA" ]]; then
+            echo 'Error: source_sha must be the full SHA of the selected ref.' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: app
+          persist-credentials: false
+      - name: Verify checked-out app source
+        working-directory: app
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/checkout@v4
+        with:
+          repository: XPersPective/napp_kit
+          path: kit
+          ssh-key: ${{ secrets.NAPP_KIT_DEPLOY_KEY }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          cache: true
+      - name: Resolve locked dependencies and build the debug APK
+        working-directory: app
+        run: |
+          git config --global "url.file://$GITHUB_WORKSPACE/kit.insteadOf" https://github.com/XPersPective/napp_kit.git
+          flutter pub get --enforce-lockfile
+          flutter build apk --debug --no-pub
+      - name: Verify debug APK identity
+        working-directory: app
+        run: |
+          apk=build/app/outputs/flutter-apk/app-debug.apk
+          analyzer="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
+          test -s "$apk"
+          test "$("$analyzer" manifest application-id "$apk")" = com.crazypenguin.kamubul
+          test "$("$analyzer" manifest debuggable "$apk")" = true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kamubul-android-debug-${{ env.SOURCE_SHA }}
+          path: app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
