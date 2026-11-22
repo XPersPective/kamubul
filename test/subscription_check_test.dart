@@ -6,91 +6,104 @@ import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 
 class _Store implements StoreAdapter {
-  _Store({this.owned, this.fail = false});
-  final String? owned;
-  final bool fail;
-  final _updates = StreamController<List<StorePurchaseUpdate>>.broadcast();
-
   @override
-  Stream<List<StorePurchaseUpdate>> get updates => _updates.stream;
-
-  @override
-  Future<void> restore() async {
-    if (fail) throw StateError('Play yok');
-    if (owned != null) {
-      _updates.add([
-        StorePurchaseUpdate(
-          purchase: StorePurchase(
-            productId: owned!,
-            status: StorePurchaseStatus.purchased,
-          ),
-          complete: () async {},
-        ),
-      ]);
-    }
-  }
-
-  @override
-  Future<List<StoreProduct>> queryProducts(Set<String> ids) async => const [];
-
-  @override
-  Future<void> buy(StoreProduct product) async {}
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Future<bool> _proAfter(
-  _Store adapter, {
-  Future<Set<String>> Function()? activeProducts,
+  Future<Set<String>> Function() activeProducts, {
+  bool cached = false,
+  bool play = false,
 }) async {
-  final store = SettingsStore()..setBool(ProSettingsKeys.proLifetime, true);
+  final store = SettingsStore();
+  if (cached) store.setBool(ProSettingsKeys.proLifetime, true);
   final pro = ProController(
     store: store,
-    repository: PurchaseRepository(adapter: adapter),
+    repository: PurchaseRepository(adapter: _Store()),
   )..load();
   await verifySubscription(
     pro,
-    adapter,
     store,
-    settle: Duration.zero,
     activeProducts: activeProducts,
+    restorableProducts: {
+      proMonthlyProductId,
+      if (play) proLegacyLifetimeProductId,
+    },
   );
-  return pro.isPro;
+  expect(
+    store.getInt(ProSettingsKeys.proTempUntil) ?? 0,
+    lessThanOrEqualTo(DateTime.now().millisecondsSinceEpoch),
+  );
+  final restored = pro.isPro;
+  pro.dispose();
+  return restored;
 }
 
 void main() {
-  test('StoreKit verified entitlement controls cached monthly Pro', () async {
+  test(
+    'verified monthly Pro restores after a reinstall on both platforms',
+    () async {
+      for (final play in [false, true]) {
+        expect(
+          await _proAfter(() async => {proMonthlyProductId}, play: play),
+          isTrue,
+        );
+      }
+    },
+  );
+
+  test('legacy lifetime Pro restores on Android only', () async {
     expect(
-      await _proAfter(
-        _Store(),
-        activeProducts: () async => {proMonthlyProductId},
-      ),
+      await _proAfter(() async => {proLegacyLifetimeProductId}, play: true),
       isTrue,
     );
-    expect(await _proAfter(_Store(), activeProducts: () async => {}), isFalse);
-    expect(
-      await _proAfter(_Store(), activeProducts: () async => {'foreign'}),
-      isFalse,
+    expect(await _proAfter(() async => {proLegacyLifetimeProductId}), isFalse);
+  });
+
+  test(
+    'verified absence or foreign products do not keep a stale purchase',
+    () async {
+      for (final play in [false, true]) {
+        expect(
+          await _proAfter(() async => {}, cached: true, play: play),
+          isFalse,
+        );
+        expect(
+          await _proAfter(() async => {'foreign'}, cached: true, play: play),
+          isFalse,
+        );
+      }
+    },
+  );
+
+  test(
+    'store unavailability preserves the cache without granting new Pro',
+    () async {
+      Future<Set<String>> unavailable() async =>
+          throw StateError('unavailable');
+      expect(await _proAfter(unavailable, cached: true), isTrue);
+      expect(await _proAfter(unavailable), isFalse);
+    },
+  );
+
+  test('a stale empty startup query does not clear a new purchase', () async {
+    final store = SettingsStore();
+    final pro = ProController(
+      store: store,
+      repository: PurchaseRepository(adapter: _Store()),
+    )..load();
+    final response = Completer<Set<String>>();
+    final check = verifySubscription(
+      pro,
+      store,
+      activeProducts: () => response.future,
+      restorableProducts: {proMonthlyProductId},
     );
-    expect(
-      await _proAfter(
-        _Store(),
-        activeProducts: () async => throw StateError('unavailable'),
-      ),
-      isTrue,
-    );
-  });
-  test('unrelated restored product never preserves Pro', () async {
-    expect(await _proAfter(_Store(owned: 'foreign')), isFalse);
-  });
-  test('aktif aylık abonelik Pro\'yu korur', () async {
-    expect(await _proAfter(_Store(owned: proMonthlyProductId)), isTrue);
-  });
-  test('eski ömür boyu satın alma Pro\'yu korur', () async {
-    expect(await _proAfter(_Store(owned: 'kamubul_pro_lifetime')), isTrue);
-  });
-  test('biten abonelik Pro\'yu düşürür', () async {
-    expect(await _proAfter(_Store()), isFalse);
-  });
-  test('mağazaya ulaşılamazsa önbellek korunur', () async {
-    expect(await _proAfter(_Store(fail: true)), isTrue);
+    store.setBool(ProSettingsKeys.proLifetime, true);
+    pro.load();
+    response.complete({});
+    await check;
+    expect(pro.isPro, isTrue);
+    pro.dispose();
   });
 }

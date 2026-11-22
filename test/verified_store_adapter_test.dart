@@ -81,6 +81,30 @@ void main() {
     },
   );
 
+  test('Play restore requires an active monthly or legacy purchase', () async {
+    final store = _Store();
+    final adapter = VerifiedStoreAdapter(
+      delegate: store,
+      entitlements: () async => {proLegacyLifetimeProductId},
+      restorableProducts: {proMonthlyProductId, proLegacyLifetimeProductId},
+    );
+    final updates = adapter.updates.take(2).expand((events) => events).toList();
+    // Play's restore callback can label a pending monthly purchase as restored.
+    // The direct entitlement lookup confirms only the legacy purchase.
+    store.emit(StorePurchaseStatus.purchased);
+    store.emit(StorePurchaseStatus.purchased, id: proLegacyLifetimeProductId);
+    final result = await updates;
+    expect(result.map((update) => update.purchase.status), [
+      StorePurchaseStatus.error,
+      StorePurchaseStatus.purchased,
+    ]);
+    for (final update in result) {
+      await update.complete();
+    }
+    expect(store.finishes, 1);
+    await store.events.close();
+  });
+
   test(
     'pending, cancellation and errors stay distinct; duplicate buy is blocked',
     () async {

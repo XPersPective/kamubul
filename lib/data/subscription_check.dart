@@ -1,60 +1,31 @@
 import 'package:napp_core/napp_core.dart';
 import 'package:napp_pro/napp_pro.dart';
 
-/// Pro aylık aboneliktir (PB-026). napp_pro yalnız "satın alındı" işaretini
-/// bilir; abonelik bitince işareti burada düşürürüz.
 const proMonthlyProductId = 'kamubul_pro_monthly';
+const proLegacyLifetimeProductId = 'kamubul_pro_lifetime';
 
-/// Açılışta mağazadan geri yükleme ister. Mağaza yanıt verir ama aktif
-/// abonelik (ya da eski ömür boyu satın alma) gelmezse Pro kaldırılır.
-/// Mağazaya ulaşılamazsa (çevrimdışı/Play yok) önbellekteki durum korunur.
-// ponytail: istemci tarafı kontrol; sunucu doğrulaması (Play Developer API)
-// PB-024'te ayrı madde.
+/// Açılışta ilk kurulum dahil geçerli mağaza haklarını eşitler.
+/// Mağazaya ulaşılamazsa önceki yerel durum korunur.
 Future<void> verifySubscription(
   ProController pro,
-  StoreAdapter adapter,
   SettingsStore store, {
-  Duration settle = const Duration(seconds: 4),
-  Future<Set<String>> Function()? activeProducts,
+  required Future<Set<String>> Function() activeProducts,
+  required Set<String> restorableProducts,
 }) async {
-  if (!pro.hasLifetimePurchase) return;
-  final owned = <String>{};
-  if (activeProducts != null) {
-    try {
-      owned.addAll(await activeProducts());
-    } on Object {
-      return; // StoreKit unavailable: preserve the previous offline entitlement.
-    }
-    if (owned.contains(proMonthlyProductId)) return;
-    _removePurchasedPro(pro, store);
-    return;
-  }
-  final sub = adapter.updates.listen((updates) {
-    for (final update in updates) {
-      if (update.purchase.status == StorePurchaseStatus.purchased) {
-        owned.add(update.purchase.productId);
-      }
-    }
-  });
+  final hadPaidPro = pro.hasLifetimePurchase;
+  final bool ownsPro;
   try {
-    await adapter.restore();
-    // Geri yüklenen satın almalar akışa future'dan sonra da düşebilir.
-    await Future<void>.delayed(settle);
+    final owned = await activeProducts().timeout(const Duration(seconds: 5));
+    ownsPro = owned.any(restorableProducts.contains);
   } on Object {
     return;
-  } finally {
-    await sub.cancel();
   }
-  if (owned.contains(proMonthlyProductId) ||
-      owned.contains('kamubul_pro_lifetime')) {
-    return;
-  }
-  _removePurchasedPro(pro, store);
-}
+  // A purchase may have completed while the initial store query was pending.
+  if (!ownsPro && !hadPaidPro) return;
+  if (ownsPro == pro.hasLifetimePurchase) return;
 
-void _removePurchasedPro(ProController pro, SettingsStore store) {
-  store.setBool(ProSettingsKeys.proLifetime, false);
+  store.setBool(ProSettingsKeys.proLifetime, ownsPro);
   pro.load();
-  // Yalnız dinleyicileri (reklam politikası, ekranlar) uyandırır; süre eklemez.
+  // Dinleyicileri (reklam politikası, ekranlar) uyandırır; süre eklemez.
   pro.grantTemporaryPro(Duration.zero);
 }

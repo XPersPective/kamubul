@@ -76,26 +76,26 @@ Future<void> main() async {
     brandColor: const Color(0xFF17659C),
     sloganKey: 'about.slogan',
   );
-  final StoreAdapter storeAdapter = Platform.isIOS
-      ? VerifiedStoreAdapter(
-          delegate: InAppPurchaseAdapter(),
-          entitlements: readStoreKitEntitlements,
-        )
-      : PlayStoreAdapter();
+  final playAdapter = Platform.isAndroid ? PlayStoreAdapter() : null;
+  final storeAdapter = VerifiedStoreAdapter(
+    delegate: playAdapter ?? InAppPurchaseAdapter(),
+    entitlements: playAdapter?.activeProductIds ?? readStoreKitEntitlements,
+    restorableProducts: {
+      proMonthlyProductId,
+      if (playAdapter != null) proLegacyLifetimeProductId,
+    },
+  );
   final purchase = PurchaseRepository(
     adapter: storeAdapter,
     productId: proMonthlyProductId,
   );
   final pro = ProController(store: store, repository: purchase)..load();
   pro.startListening();
-  // Aylık abonelik bitmişse Pro düşer; çevrimdışıysa önbellek korunur.
-  unawaited(
-    verifySubscription(
-      pro,
-      storeAdapter,
-      store,
-      activeProducts: Platform.isIOS ? readStoreKitEntitlements : null,
-    ),
+  final subscriptionCheck = verifySubscription(
+    pro,
+    store,
+    activeProducts: storeAdapter.entitlements,
+    restorableProducts: storeAdapter.restorableProducts,
   );
   // Yeniden kurulum deneme süresini sıfırlamasın: sunucudaki ilk görülme.
   await syncTrialStart(store);
@@ -110,9 +110,13 @@ Future<void> main() async {
   final interstitial = InterstitialAdManager(policy: policy);
   final appOpen = AppOpenAdManager(policy: policy);
   final binding = WidgetsBinding.instance;
+  var subscriptionChecked = false;
   bool isForeground() => binding.lifecycleState == AppLifecycleState.resumed;
   bool canUseAds() =>
-      adsAvailable && !pro.isPro && trialDaysLeft(policy, DateTime.now()) == 0;
+      adsAvailable &&
+      subscriptionChecked &&
+      !pro.isPro &&
+      trialDaysLeft(policy, DateTime.now()) == 0;
   var firstFrameReady = false;
   var adsStarted = false;
   Future<void>? startingAds;
@@ -150,6 +154,12 @@ Future<void> main() async {
     policy.setPro(pro.isPro);
     startAdsIfEligible();
   });
+  unawaited(
+    subscriptionCheck.then((_) {
+      subscriptionChecked = true;
+      startAdsIfEligible();
+    }),
+  );
   AppLifecycleListener(onResume: startAdsIfEligible);
   WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
   unawaited(registerBackgroundAlerts());
