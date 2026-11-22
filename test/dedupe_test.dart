@@ -4,6 +4,7 @@ import 'package:kamubul/data/listing_store.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  final fixturePruneBefore = DateTime(2026, 9, 1);
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
@@ -99,7 +100,7 @@ void main() {
           title: 'TEST KURUMU - Memur Alımı',
           deadline: DateTime(2026, 10, 12),
         ),
-      ]);
+      ], pruneBefore: fixturePruneBefore);
       await store.mergeFeed([
         record(
           url: 'sbb://2',
@@ -113,7 +114,7 @@ void main() {
           title: 'DİĞER KURUM',
           deadline: DateTime(2026, 10, 12),
         ),
-      ]);
+      ], pruneBefore: fixturePruneBefore);
       final items = await store.allListings();
       expect(items.map((item) => item.url).toSet(), {
         'kariyer://1',
@@ -138,7 +139,7 @@ void main() {
           title: 'TEST KURUMU',
           deadline: DateTime(2026, 10, 13),
         ),
-      ]);
+      ], pruneBefore: fixturePruneBefore);
       final items = await store.allListings();
       expect(items, hasLength(2));
       await store.close();
@@ -153,7 +154,7 @@ void main() {
           title: 'TEST KURUMU - Memur Alımı',
           deadline: DateTime(2026, 10, 12),
         ),
-      ]);
+      ], pruneBefore: fixturePruneBefore);
       final db = await store.database;
       // Göç öncesi benzeri: parmak izi boş satır yenilemede dolar.
       await db.update(
@@ -169,7 +170,7 @@ void main() {
           title: 'TEST KURUMU - Memur Alımı',
           deadline: DateTime(2026, 10, 12),
         ),
-      ]);
+      ], pruneBefore: fixturePruneBefore);
       final row = (await db.query(
         'listings',
         where: 'url = ?',
