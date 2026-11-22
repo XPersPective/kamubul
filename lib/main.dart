@@ -10,6 +10,7 @@ import 'package:napp_pro/napp_pro.dart';
 
 import 'store_features.dart';
 import 'data/ad_consent.dart';
+import 'data/play_store_adapter.dart';
 import 'data/verified_store_adapter.dart';
 import 'data/listing_store.dart';
 import 'data/subscription_check.dart';
@@ -80,7 +81,7 @@ Future<void> main() async {
           delegate: InAppPurchaseAdapter(),
           entitlements: readStoreKitEntitlements,
         )
-      : InAppPurchaseAdapter();
+      : PlayStoreAdapter();
   final purchase = PurchaseRepository(
     adapter: storeAdapter,
     productId: proMonthlyProductId,
