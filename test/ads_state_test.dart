@@ -35,6 +35,20 @@ void main() {
     expect(restored.snapshot().sessionCount, 1);
   });
 
+  test('mevcut deneme ilk kullanım doğrulaması olmadan devam eder', () {
+    final first = DateTime(2026, 10, 4);
+    final store = SettingsStore()
+      ..setInt('kamubul.ads.first', first.millisecondsSinceEpoch)
+      ..setInt('kamubul.ads.sessions', 2);
+    final policy = AdPolicy();
+    final now = DateTime(2026, 10, 5);
+
+    expect(startAdSession(policy, store, now), isTrue);
+    expect(policy.snapshot().firstLaunchAt, first);
+    expect(policy.snapshot().sessionCount, 3);
+    expect(trialDaysLeft(policy, now), 0);
+  });
+
   test('Pro kullanıcıdan hiçbir reklam istenmez', () {
     final policy = AdPolicy()
       ..setPro(true)
