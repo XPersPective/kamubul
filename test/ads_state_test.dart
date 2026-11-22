@@ -48,13 +48,24 @@ void main() {
     expect(policy.canShowRewarded(DateTime(2026, 9, 28)), isFalse);
   });
 
-  test('7 günlük reklamsız deneme kurulum gününden sayılır', () {
+  test('reklamsız deneme ilk kullanımdan tam 24 saat sonra biter', () {
+    final firstUse = DateTime.utc(2026, 10, 4, 16);
+    final expiresAt = firstUse.add(const Duration(hours: 24));
+    final store = SettingsStore();
     final policy = AdPolicy();
-    expect(trialDaysLeft(policy, DateTime(2026, 10, 4)), 0);
-    policy.startSession(DateTime(2026, 10, 4));
-    expect(trialDaysLeft(policy, DateTime(2026, 10, 4)), 7);
-    expect(trialDaysLeft(policy, DateTime(2026, 10, 10, 12)), 1);
-    expect(trialDaysLeft(policy, DateTime(2026, 10, 10, 23, 59)), 1);
-    expect(trialDaysLeft(policy, DateTime(2026, 10, 11)), 0);
+    expect(trialDaysLeft(policy, firstUse), 0);
+    policy.startSession(firstUse);
+    expect(trialDaysLeft(policy, firstUse), 1);
+    saveAds(policy, store);
+
+    final reopened = AdPolicy();
+    restoreAds(reopened, store);
+    reopened.startSession(firstUse.add(const Duration(hours: 12)));
+    expect(trialEndsAt(reopened)?.toUtc(), expiresAt);
+    expect(
+      trialDaysLeft(reopened, expiresAt.subtract(const Duration(seconds: 1))),
+      1,
+    );
+    expect(trialDaysLeft(reopened, expiresAt), 0);
   });
 }

@@ -32,6 +32,8 @@ Sources: `lib/**`, `test/**`, `integration_test/**`, `packages/**`, `android/**`
 - Position-level accessible matching (`PB-034`) and deterministic saved-search notification update tests (`PB-042`) are verified.
 - Runtime billing/TalkBack/device acceptance and iOS account-gated features are tracked in `PB-032`, `PB-035`, `PB-036`, `PB-039`–`PB-041` (`docs/PRODUCT_RUNTIME_ACCEPTANCE_2026-10-25.md`).
 
+- Next candidate (PB-048): the local ads gate uses the device first-seen date for a 24-hour banner promotion. Cloudflare persists the original hashed-device activation date; do not create a fresh local promotion if PB-047's first-use verification is pending. Paid store entitlement and shared full-screen/rate limits remain independent.
+
 ### Official sources, extraction and assistant
 Status: VERIFIED
 Sources: `workers/**`, `docs/SOURCE_REGISTRY.md`, `docs/EXTRACTION_EVALUATION_2026-10-25.md`

@@ -45,7 +45,7 @@ Yeni sürümde ilan şartları (yaş, eğitim, KPSS) sunucuda ayıklanır ve son
 
 ### Reklamsız deneme süresi
 
-İlk 7 gün reklam gösterilmez. Uygulamayı kaldırıp yeniden kurmanın deneme süresini sıfırlamaması için cihazın bu uygulamaya özgü kimliği (Android'de ANDROID_ID, iOS'ta Apple Keychain'de üretilen rastgele cihaz kimliği) cihazda tuzlanıp SHA-256 ile özetlenir; ham kimlik gönderilmez. Sunucu yalnızca bu özeti ve ilk görülme zamanını saklar; başka bir veriyle eşleştirilmez ve reklam hedeflemesinde kullanılmaz.
+İlk 24 saat reklam gösterilmez. Uygulamayı kaldırıp yeniden kurmanın deneme süresini sıfırlamaması için cihazın bu uygulamaya özgü kimliği (Android'de ANDROID_ID, iOS'ta Apple Keychain'de üretilen rastgele cihaz kimliği) cihazda tuzlanıp SHA-256 ile özetlenir; ham kimlik gönderilmez. Sunucu yalnızca bu özeti ve ilk görülme zamanını saklar; başka bir veriyle eşleştirilmez ve reklam hedeflemesinde kullanılmaz.
 
 ## Reklam ve satın alma
 
@@ -59,4 +59,4 @@ Gizlilik, destek ve veri silme soruları için [devcrazypenguin@gmail.com](mailt
 
 ## iOS sürümü
 
-iOS sürümü aynı veri kurallarıyla çalışır. Sunucu bildirimleri Firebase Cloud Messaging ve Apple APNs üzerinden iletilir; açmadığınız sürece sunucuya arama gönderilmez. Son başvuru hatırlatmaları cihazdaki yerel bildirimlerle zamanlanır ve sunucuya gitmez. "Takvime ekle", iOS'un kendi takvim düzenleyicisini açar; KamuBul takviminizi okumaz. Kurulum gizli anahtarı ve deneme süresi için kullanılan rastgele cihaz kimliği Apple Keychain'de, bu cihaza özgü ve yedeklenmeyecek biçimde saklanır; sunucuya yalnız tuzlanmış SHA-256 özeti gönderilir. iOS sürümünde ücretsiz kullanımda (ilk 7 günlük reklamsız deneme sonrasında) Google Mobile Ads reklamları gösterilebilir; reklam kişiselleştirme ve takip izni Apple Uygulama Takibi Şeffaflığı (ATT) ve Google UMP onay ekranlarıyla sorulur, izin verilmezse kişiselleştirilmemiş reklam gösterilir. İsteğe bağlı KamuBul Pro aylık aboneliği Apple App Store (StoreKit) üzerinden sunulur.
+iOS sürümü aynı veri kurallarıyla çalışır. Sunucu bildirimleri Firebase Cloud Messaging ve Apple APNs üzerinden iletilir; açmadığınız sürece sunucuya arama gönderilmez. Son başvuru hatırlatmaları cihazdaki yerel bildirimlerle zamanlanır ve sunucuya gitmez. "Takvime ekle", iOS'un kendi takvim düzenleyicisini açar; KamuBul takviminizi okumaz. Kurulum gizli anahtarı ve deneme süresi için kullanılan rastgele cihaz kimliği Apple Keychain'de, bu cihaza özgü ve yedeklenmeyecek biçimde saklanır; sunucuya yalnız tuzlanmış SHA-256 özeti gönderilir. iOS sürümünde ücretsiz kullanımda (ilk 24 saatlik reklamsız dönem sonrasında) Google Mobile Ads reklamları gösterilebilir; reklam kişiselleştirme ve takip izni Apple Uygulama Takibi Şeffaflığı (ATT) ve Google UMP onay ekranlarıyla sorulur, izin verilmezse kişiselleştirilmemiş reklam gösterilir. İsteğe bağlı KamuBul Pro aylık aboneliği Apple App Store (StoreKit) üzerinden sunulur.
