@@ -11,6 +11,7 @@ import 'package:napp_pro/napp_pro.dart';
 import 'store_features.dart';
 import 'data/ad_consent.dart';
 import 'data/play_store_adapter.dart';
+import 'data/recovering_banner_controller.dart';
 import 'data/verified_store_adapter.dart';
 import 'data/listing_store.dart';
 import 'data/subscription_check.dart';
@@ -105,13 +106,16 @@ Future<void> main() async {
   )..setPro(pro.isPro);
   var sessionCounted = startAdSession(policy, store, DateTime.now());
   final trialEnd = ValueNotifier(trialEndsAt(policy));
-  final banner = BannerAdController(policy: policy);
+  final binding = WidgetsBinding.instance;
+  bool isForeground() => binding.lifecycleState == AppLifecycleState.resumed;
+  final banner = RecoveringBannerController(
+    policy: policy,
+    isForeground: isForeground,
+  );
   final rewarded = RewardedAdManager(policy: policy);
   final interstitial = InterstitialAdManager(policy: policy);
   final appOpen = AppOpenAdManager(policy: policy);
-  final binding = WidgetsBinding.instance;
   var subscriptionChecked = false;
-  bool isForeground() => binding.lifecycleState == AppLifecycleState.resumed;
   bool canUseAds() =>
       adsAvailable &&
       sessionCounted &&
@@ -143,18 +147,24 @@ Future<void> main() async {
     if (!firstFrameReady ||
         !isForeground() ||
         !canUseAds() ||
-        adsStarted ||
         startingAds != null) {
+      return;
+    }
+    if (adsStarted) {
+      banner.load();
       return;
     }
     startingAds = startAds().whenComplete(() => startingAds = null);
     unawaited(startingAds);
   }
 
-  pro.addListener(() {
+  void refreshAdsForPro() {
     policy.setPro(pro.isPro);
+    banner.onProChanged();
     startAdsIfEligible();
-  });
+  }
+
+  pro.addListener(refreshAdsForPro);
   unawaited(
     subscriptionCheck.then((_) {
       subscriptionChecked = true;
@@ -181,7 +191,7 @@ Future<void> main() async {
         trialRetry = retryTrialStart().whenComplete(() => trialRetry = null);
         unawaited(trialRetry);
       }
-      startAdsIfEligible();
+      refreshAdsForPro();
     },
   );
   WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
