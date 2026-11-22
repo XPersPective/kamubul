@@ -104,29 +104,52 @@ Future<void> main() async {
     ..setPro(pro.isPro)
     ..startSession(DateTime.now());
   saveAds(policy, store);
-  pro.addListener(() => policy.setPro(pro.isPro));
   final banner = BannerAdController(policy: policy);
   final rewarded = RewardedAdManager(policy: policy);
   final interstitial = InterstitialAdManager(policy: policy);
   final appOpen = AppOpenAdManager(policy: policy);
-  // Deneme süresinde reklam SDK'sı, onay formu ve istekler hiç başlamaz.
-  if (adsAvailable &&
-      !pro.isPro &&
-      trialDaysLeft(policy, DateTime.now()) == 0) {
-    unawaited(() async {
-      final ready = await ConsentManager.initialize();
-      if (!ready) return;
-      policy.setSdkReady(true);
-      banner.load();
-      await rewarded.load();
-      await interstitial.load();
-      if (policy.canShowAppOpen(DateTime.now())) {
-        await appOpen.tryLoad(DateTime.now());
+  final binding = WidgetsBinding.instance;
+  bool isForeground() => binding.lifecycleState == AppLifecycleState.resumed;
+  bool canUseAds() =>
+      adsAvailable && !pro.isPro && trialDaysLeft(policy, DateTime.now()) == 0;
+  var firstFrameReady = false;
+  var adsStarted = false;
+  Future<void>? startingAds;
+
+  Future<void> startAds() async {
+    // Deneme süresinde reklam SDK'sı, onay formu ve istekler başlamaz.
+    if (!await ConsentManager.initialize() || !canUseAds()) return;
+    adsStarted = true;
+    policy.setSdkReady(true);
+    banner.load();
+    await rewarded.load();
+    await interstitial.load();
+    if (isForeground() && policy.canShowAppOpen(DateTime.now())) {
+      await appOpen.tryLoad(DateTime.now());
+      if (isForeground() && canUseAds()) {
         await appOpen.showIfAvailable();
         saveAds(policy, store);
       }
-    }());
+    }
   }
+
+  void startAdsIfEligible() {
+    if (!firstFrameReady ||
+        !isForeground() ||
+        !canUseAds() ||
+        adsStarted ||
+        startingAds != null) {
+      return;
+    }
+    startingAds = startAds().whenComplete(() => startingAds = null);
+    unawaited(startingAds);
+  }
+
+  pro.addListener(() {
+    policy.setPro(pro.isPro);
+    startAdsIfEligible();
+  });
+  AppLifecycleListener(onResume: startAdsIfEligible);
   WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
   unawaited(registerBackgroundAlerts());
   await initPush(store);
@@ -143,6 +166,12 @@ Future<void> main() async {
       rewarded: rewarded,
       saveAdState: () => saveAds(policy, store),
     ),
+  );
+  unawaited(
+    binding.waitUntilFirstFrameRasterized.then((_) {
+      firstFrameReady = true;
+      startAdsIfEligible();
+    }),
   );
 }
 

@@ -45,5 +45,6 @@ DateTime? trialEndsAt(AdPolicy policy) =>
 int trialDaysLeft(AdPolicy policy, DateTime now) {
   final end = trialEndsAt(policy);
   if (end == null || !end.isAfter(now)) return 0;
-  return (end.difference(now).inHours / 24).ceil();
+  return (end.difference(now).inMicroseconds / Duration.microsecondsPerDay)
+      .ceil();
 }

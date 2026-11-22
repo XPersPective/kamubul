@@ -54,6 +54,7 @@ void main() {
     policy.startSession(DateTime(2026, 10, 4));
     expect(trialDaysLeft(policy, DateTime(2026, 10, 4)), 7);
     expect(trialDaysLeft(policy, DateTime(2026, 10, 10, 12)), 1);
+    expect(trialDaysLeft(policy, DateTime(2026, 10, 10, 23, 59)), 1);
     expect(trialDaysLeft(policy, DateTime(2026, 10, 11)), 0);
   });
 }
