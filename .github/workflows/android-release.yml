@@ -98,9 +98,26 @@ jobs:
           PY
           git config --global "url.file://$GITHUB_WORKSPACE/kit.insteadOf" https://github.com/XPersPective/napp_kit.git
           echo "KAMUBUL_SIGNING=$GITHUB_WORKSPACE/app/android/key.properties" >> "$GITHUB_ENV"
-      - name: Resolve locked dependencies
+      - name: Resolve app dependencies without test-only integration plugin
         working-directory: app
-        run: flutter pub get --enforce-lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp pubspec.yaml "$RUNNER_TEMP/kamubul-pubspec.yaml"
+          cp pubspec.lock "$RUNNER_TEMP/kamubul-pubspec.lock"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('pubspec.yaml')
+          source = path.read_text(encoding='utf-8')
+          changed, count = re.subn(r'(?m)^  integration_test:\n    sdk: flutter\n', '', source)
+          if count != 1:
+              raise SystemExit('Expected one test-only integration_test dev dependency.')
+          path.write_text(changed, encoding='utf-8')
+          PY
+          flutter pub get
+          cp "$RUNNER_TEMP/kamubul-pubspec.yaml" pubspec.yaml
+          cp "$RUNNER_TEMP/kamubul-pubspec.lock" pubspec.lock
       - name: Build signed production bundle
         working-directory: app
         run: flutter build appbundle --release --no-pub --dart-define-from-file=android/production-defines.json
