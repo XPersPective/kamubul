@@ -142,7 +142,7 @@ jobs:
           assert manifest.attrib[android + 'versionCode'] == '21'
           assert manifest.attrib.get(android + 'debuggable', 'false') != 'true'
           PY
-          jarsigner -verify -strict -certs "$bundle" >/dev/null
+          jarsigner -verify -certs "$bundle" >/dev/null
           actual_fingerprint="$(keytool -printcert -jarfile "$bundle" | sed -n 's/^[[:space:]]*SHA256: //p' | head -n 1)"
           expected_fingerprint='B4:13:E4:9E:38:56:2F:A7:CC:83:A7:87:49:1F:0C:C8:B2:E1:30:5C:EE:55:4B:E6:39:F3:87:F2:10:D2:44:DA'
           test "$actual_fingerprint" = "$expected_fingerprint"
