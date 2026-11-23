@@ -2,6 +2,8 @@ name: Android signed release
 run-name: KamuBul Android release ${{ inputs.source_sha || github.sha }}
 
 on:
+  push:
+    branches: [codex/kamubul-one-day-trial]
   workflow_dispatch:
     inputs:
       source_sha:
