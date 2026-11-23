@@ -128,19 +128,20 @@ jobs:
           set -euo pipefail
           bundle=build/app/outputs/bundle/release/app-release.aab
           test -s "$bundle"
+          curl --fail --location --silent --show-error \
+            https://github.com/google/bundletool/releases/download/1.18.2/bundletool-all-1.18.2.jar \
+            --output "$RUNNER_TEMP/bundletool.jar"
+          java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle "$bundle" --module base > "$RUNNER_TEMP/manifest.xml"
           python3 - <<'PY'
-          import json
-          with open('build/app/outputs/bundle/release/output-metadata.json', encoding='utf-8') as f:
-              metadata = json.load(f)
-          element = metadata['elements'][0]
-          assert metadata['applicationId'] == 'com.crazypenguin.kamubul'
-          assert metadata['variantName'] == 'release'
-          assert element['versionName'] == '1.2.6' and element['versionCode'] == 21
-          assert element['outputFile'] == 'app-release.aab'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          manifest = ET.parse(Path(__import__('os').environ['RUNNER_TEMP']) / 'manifest.xml').getroot()
+          android = '{http://schemas.android.com/apk/res/android}'
+          assert manifest.attrib['package'] == 'com.crazypenguin.kamubul'
+          assert manifest.attrib[android + 'versionName'] == '1.2.6'
+          assert manifest.attrib[android + 'versionCode'] == '21'
+          assert manifest.attrib.get(android + 'debuggable', 'false') != 'true'
           PY
-          manifest="$(find build/app/intermediates/merged_manifests/release -name AndroidManifest.xml -print -quit)"
-          test -s "$manifest"
-          ! grep -q 'android:debuggable="true"' "$manifest"
           jarsigner -verify -strict -certs "$bundle" >/dev/null
           actual_fingerprint="$(keytool -printcert -jarfile "$bundle" | sed -n 's/^[[:space:]]*SHA256: //p' | head -n 1)"
           expected_fingerprint='B4:13:E4:9E:38:56:2F:A7:CC:83:A7:87:49:1F:0C:C8:B2:E1:30:5C:EE:55:4B:E6:39:F3:87:F2:10:D2:44:DA'
