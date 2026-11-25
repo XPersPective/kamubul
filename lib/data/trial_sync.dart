@@ -10,27 +10,25 @@ const _firstKey = 'kamubul.ads.first';
 
 /// Yerel ve sunucu ilk açılış zamanlarından erken olanı (yeniden kurulumla
 /// deneme süresi sıfırlanamaz).
-int earliestFirstLaunch(int? localMs, DateTime? server) {
-  final serverMs = server?.millisecondsSinceEpoch;
-  if (localMs == null) return serverMs ?? DateTime.now().millisecondsSinceEpoch;
-  if (serverMs == null) return localMs;
-  return serverMs < localMs ? serverMs : localMs;
+int earliestFirstLaunch(int? localMs, DateTime server) {
+  final serverMs = server.millisecondsSinceEpoch;
+  return localMs != null && localMs < serverMs ? localMs : serverMs;
 }
 
 /// Cihazın uygulamaya özgü kimlik karmasıyla deneme başlangıcını sunucudan
-/// alır. Ağ yoksa veya hata olursa yerel değer korunur; uygulama beklemez.
-Future<void> syncTrialStart(
+/// alır. Doğrulama başarısızsa mevcut yerel değer korunur.
+Future<bool> syncTrialStart(
   SettingsStore store, {
   http.Client? client,
   MethodChannel channel = const MethodChannel('kamubul/device'),
   String baseUrl = kApiBaseUrl,
 }) async {
-  if (baseUrl.isEmpty) return;
+  if (baseUrl.isEmpty) return false;
   final ownedClient = client == null;
   final http.Client c = client ?? http.Client();
   try {
     final hash = await channel.invokeMethod<String>('trialHash');
-    if (hash == null || !RegExp(r'^[a-f0-9]{64}$').hasMatch(hash)) return;
+    if (hash == null || !RegExp(r'^[a-f0-9]{64}$').hasMatch(hash)) return false;
     final response = await c
         .post(
           Uri.parse('$baseUrl/api/v2/trial'),
@@ -38,18 +36,19 @@ Future<void> syncTrialStart(
           body: jsonEncode({'deviceHash': hash}),
         )
         .timeout(const Duration(seconds: 3));
-    if (response.statusCode != 200) return;
+    if (response.statusCode != 200) return false;
     final body = jsonDecode(response.body);
     final firstSeen = body is Map
         ? DateTime.tryParse('${body['firstSeen']}')
         : null;
-    if (firstSeen == null) return;
+    if (firstSeen == null) return false;
     store.setInt(
       _firstKey,
       earliestFirstLaunch(store.getInt(_firstKey), firstSeen),
     );
+    return true;
   } on Object {
-    // Çevrimdışı/eski cihaz: yerel deneme sayacı geçerli kalır.
+    return false;
   } finally {
     if (ownedClient) c.close();
   }

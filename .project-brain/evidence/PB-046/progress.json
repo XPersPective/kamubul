@@ -1,0 +1,14 @@
+{
+  "protocol": 1,
+  "next": "Fix review findings, recheck, then re-review",
+  "failing": "Review BLOCKED: 1 unresolved finding(s)",
+  "dirty": "",
+  "strategy": "review",
+  "attempt": "288ac6b3699cc2a8",
+  "repeats": 1,
+  "contract": "0fa526abbd52fc63",
+  "usage": {
+    "checks": 1,
+    "seconds": 96.672
+  }
+}

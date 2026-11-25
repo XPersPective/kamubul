@@ -31,7 +31,7 @@ Aynı anda şu dört rolde düşün:
   bazen büyük yazı tipi kullanan, uzun resmî metinleri okumaktan yorulan kişi.
 - Vaat: "Bütün kamu ilanları tek yerde; bana uygun olanı hızlıca gör, şartlarını
   anla, başvuru tarihini kaçırma."
-- İlkeler: Türkçe, yalnız Türkiye; açık/koyu tema; 7 gün reklamsız deneme, sonra
+- İlkeler: Türkçe, yalnız Türkiye; açık/koyu tema; 24 saat reklamsız kullanım, sonra
   reklam; Pro ≈ 1 USD + KDV; açık kaynak; yapay zekâ yalnız gerektiğinde, düşük
   maliyetle ve "hata olabilir" ibaresiyle.
 

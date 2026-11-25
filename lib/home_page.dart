@@ -1121,7 +1121,9 @@ class _KamuHomePageState extends State<KamuHomePage>
         identity: widget.identity,
         controller: widget.pro,
         repository: widget.purchase,
-        trialDays: trialDaysLeft(widget.policy, DateTime.now()),
+        trialDays: trialEndsAt(widget.policy) == null
+            ? null
+            : trialDaysLeft(widget.policy, DateTime.now()),
       ),
     ),
   );

@@ -13,6 +13,10 @@ on:
         description: 'iOS Pro aboneliğini aç (sözleşme ve ürün hazır olunca)'
         type: boolean
         default: false
+      processing_only:
+        description: 'Upload the verified IPA to App Store Connect for processing only; do not assert release acceptance'
+        type: boolean
+        default: false
       release_acceptance:
         description: 'İmzalı build, sandbox satın alma/restore/iptal/hata ve mağaza gizlilik/metadata kontrolleri doğrulandı'
         type: boolean
@@ -73,7 +77,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Yayın kabul kapısı
-        if: ${{ inputs.upload && !inputs.release_acceptance }}
+        if: ${{ inputs.upload && !inputs.processing_only && !inputs.release_acceptance }}
         run: |
           echo 'Upload blocked: signed build, sandbox purchase flows and store declarations must be verified first.'
           exit 1

@@ -1,24 +1,10 @@
 {
   "schema": 1,
-  "execution": {
-    "source": "solo"
-  },
-  "review": {
-    "source": "solo"
-  },
-  "scheduling": {
-    "max_parallel": 1,
-    "mode": "serial"
-  },
-  "quota_recovery": {
-    "threshold_percent": 10,
-    "enabled": false
-  },
-  "relay": {
-    "enabled": false,
-    "threshold_percent": 10,
-    "candidates": [],
-    "max_handoffs": 50
-  },
+  "execution": { "source": "solo" },
+  "review": { "source": "solo" },
+  "scheduling": { "mode": "serial", "max_parallel": 1 },
+  "origin": "user",
+  "quota_recovery": { "enabled": false, "threshold_percent": 10 },
+  "relay": { "enabled": false, "threshold_percent": 10, "candidates": [], "max_handoffs": 50 },
   "note": "Kullanıcı 2026-11-10 talimatı: solo çalışma; seri, dengeli ve kapalı recovery varsayılanları."
 }

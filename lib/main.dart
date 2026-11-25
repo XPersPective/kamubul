@@ -10,6 +10,7 @@ import 'package:napp_pro/napp_pro.dart';
 
 import 'store_features.dart';
 import 'data/ad_consent.dart';
+import 'data/play_store_adapter.dart';
 import 'data/verified_store_adapter.dart';
 import 'data/listing_store.dart';
 import 'data/subscription_check.dart';
@@ -80,7 +81,7 @@ Future<void> main() async {
           delegate: InAppPurchaseAdapter(),
           entitlements: readStoreKitEntitlements,
         )
-      : InAppPurchaseAdapter();
+      : PlayStoreAdapter();
   final purchase = PurchaseRepository(
     adapter: storeAdapter,
     productId: proMonthlyProductId,
@@ -97,36 +98,84 @@ Future<void> main() async {
     ),
   );
   // Yeniden kurulum deneme süresini sıfırlamasın: sunucudaki ilk görülme.
-  await syncTrialStart(store);
-  final policy = AdPolicy();
-  restoreAds(policy, store);
-  policy
-    ..setPro(pro.isPro)
-    ..startSession(DateTime.now());
-  saveAds(policy, store);
-  pro.addListener(() => policy.setPro(pro.isPro));
+  var trialSynced = await syncTrialStart(store);
+  final policy = AdPolicy(
+    minDaysForFullscreen: adFreeTrialDays,
+    minDaysForRewarded: adFreeTrialDays,
+  )..setPro(pro.isPro);
+  var sessionCounted = startAdSession(policy, store, DateTime.now());
+  final trialEnd = ValueNotifier(trialEndsAt(policy));
   final banner = BannerAdController(policy: policy);
   final rewarded = RewardedAdManager(policy: policy);
   final interstitial = InterstitialAdManager(policy: policy);
   final appOpen = AppOpenAdManager(policy: policy);
-  // Deneme süresinde reklam SDK'sı, onay formu ve istekler hiç başlamaz.
-  if (adsAvailable &&
+  final binding = WidgetsBinding.instance;
+  bool isForeground() => binding.lifecycleState == AppLifecycleState.resumed;
+  bool canUseAds() =>
+      adsAvailable &&
+      sessionCounted &&
       !pro.isPro &&
-      trialDaysLeft(policy, DateTime.now()) == 0) {
-    unawaited(() async {
-      final ready = await ConsentManager.initialize();
-      if (!ready) return;
-      policy.setSdkReady(true);
-      banner.load();
-      await rewarded.load();
-      await interstitial.load();
-      if (policy.canShowAppOpen(DateTime.now())) {
-        await appOpen.tryLoad(DateTime.now());
+      trialDaysLeft(policy, DateTime.now()) == 0;
+  var firstFrameReady = false;
+  var adsStarted = false;
+  Future<void>? startingAds;
+
+  Future<void> startAds() async {
+    // Deneme süresinde reklam SDK'sı, onay formu ve istekler başlamaz.
+    if (!await ConsentManager.initialize() || !canUseAds()) return;
+    adsStarted = true;
+    policy.setSdkReady(true);
+    banner.load();
+    await rewarded.load();
+    await interstitial.load();
+    if (isForeground() && policy.canShowAppOpen(DateTime.now())) {
+      await appOpen.tryLoad(DateTime.now());
+      if (isForeground() && canUseAds()) {
         await appOpen.showIfAvailable();
         saveAds(policy, store);
       }
-    }());
+    }
   }
+
+  void startAdsIfEligible() {
+    if (!firstFrameReady ||
+        !isForeground() ||
+        !canUseAds() ||
+        adsStarted ||
+        startingAds != null) {
+      return;
+    }
+    startingAds = startAds().whenComplete(() => startingAds = null);
+    unawaited(startingAds);
+  }
+
+  pro.addListener(() {
+    policy.setPro(pro.isPro);
+    startAdsIfEligible();
+  });
+  Future<void>? trialRetry;
+
+  Future<void> retryTrialStart() async {
+    trialSynced = await syncTrialStart(store);
+    if (!trialSynced) return;
+    if (sessionCounted) {
+      restoreAds(policy, store);
+    } else {
+      sessionCounted = startAdSession(policy, store, DateTime.now());
+    }
+    trialEnd.value = trialEndsAt(policy);
+    startAdsIfEligible();
+  }
+
+  AppLifecycleListener(
+    onResume: () {
+      if (!trialSynced && trialRetry == null) {
+        trialRetry = retryTrialStart().whenComplete(() => trialRetry = null);
+        unawaited(trialRetry);
+      }
+      startAdsIfEligible();
+    },
+  );
   WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
   unawaited(registerBackgroundAlerts());
   await initPush(store);
@@ -139,16 +188,24 @@ Future<void> main() async {
       pro: pro,
       purchase: purchase,
       policy: policy,
+      trialEnd: trialEnd,
       banner: banner,
       rewarded: rewarded,
       saveAdState: () => saveAds(policy, store),
     ),
+  );
+  unawaited(
+    binding.waitUntilFirstFrameRasterized.then((_) {
+      firstFrameReady = true;
+      startAdsIfEligible();
+    }),
   );
 }
 
 class KamuBulApp extends StatelessWidget {
   const KamuBulApp({
     super.key,
+    this.trialEnd,
     required this.translations,
     required this.identity,
     required this.store,
@@ -162,6 +219,7 @@ class KamuBulApp extends StatelessWidget {
   });
 
   final AppIdentity identity;
+  final Listenable? trialEnd;
   final NappTranslations translations;
   final SettingsStore store;
   final ThemeModeController theme;
@@ -174,7 +232,7 @@ class KamuBulApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([theme, pro]),
+    animation: Listenable.merge([theme, pro, trialEnd]),
     builder: (context, _) => MaterialApp(
       title: identity.appName,
       theme: premiumTheme(AppTheme.light(brandColor: identity.brandColor)),

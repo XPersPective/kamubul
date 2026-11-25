@@ -6,6 +6,7 @@ import 'package:kamubul_core/kamubul_core.dart' show SearchCriteria;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  final fixturePruneBefore = DateTime(2026, 9, 1);
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
@@ -42,7 +43,7 @@ void main() {
 
   test('birleştirme ilanları ekler ve yenilemede günceller', () async {
     final store = await freshStore();
-    await store.mergeFeed([record('a')]);
+    await store.mergeFeed([record('a')], pruneBefore: fixturePruneBefore);
     var items = await store.allListings();
     expect(items, hasLength(1));
     await store.mergeFeed([
@@ -52,7 +53,7 @@ void main() {
         publishedAt: DateTime(2026, 9, 21),
       ),
       record('b'),
-    ]);
+    ], pruneBefore: fixturePruneBefore);
     items = await store.allListings();
     expect(items, hasLength(2));
     final a = items.firstWhere((item) => item.url == 'a');
@@ -67,7 +68,7 @@ void main() {
       record('kayitli'),
       // Kaydedilmemiş ve uzun süredir görülmeyen ilan: budanacak.
       record('eski', fetchedAt: DateTime(2026, 6, 1)),
-    ]);
+    ], pruneBefore: fixturePruneBefore);
     await store.setSaved('kayitli', true);
     // Budama sınırı: 2026-09-26'dan eski görülen kaydedilmemiş ilanlar silinir.
     await store.mergeFeed([
@@ -82,13 +83,13 @@ void main() {
 
   test('akıştan gelen yeni alanlar kayıtlı ilanda da güncellenir', () async {
     final store = await freshStore();
-    await store.mergeFeed([record('a')]);
+    await store.mergeFeed([record('a')], pruneBefore: fixturePruneBefore);
     await store.setSaved('a', true);
     final refreshed = record(
       'a',
       fetchedAt: DateTime(2026, 9, 28),
     ).copyWith(deadline: DateTime(2026, 10, 10), quota: 12, places: ['ANKARA']);
-    await store.mergeFeed([refreshed]);
+    await store.mergeFeed([refreshed], pruneBefore: fixturePruneBefore);
     final result = (await store.allListings()).single;
     expect(result.saved, isTrue);
     expect(result.deadline, DateTime(2026, 10, 10));
@@ -108,7 +109,7 @@ void main() {
         ),
       ),
     );
-    await store.mergeFeed([record('detay')]);
+    await store.mergeFeed([record('detay')], pruneBefore: fixturePruneBefore);
     await store.applyDetail(
       'detay',
       deadline: DateTime(2026, 10, 1),
@@ -160,7 +161,7 @@ void main() {
           'BAKANLIK MERKEZ TEŞKİLATI',
         ],
       ),
-    ]);
+    ], pruneBefore: fixturePruneBefore);
     expect((await store.allListings()).single.places, [
       'BAKANLIK MERKEZ TEŞKİLATI',
     ]);
@@ -471,7 +472,10 @@ void main() {
     'resmî şehir eşleşmesi mevcut yerlere eklenir, başka ilana taşmaz',
     () async {
       final store = await freshStore();
-      await store.mergeFeed([record('a'), record('b')]);
+      await store.mergeFeed([
+        record('a'),
+        record('b'),
+      ], pruneBefore: fixturePruneBefore);
       await store.addVerifiedCity('Ankara', ['a', 'yok']);
       await store.addVerifiedCity('İzmir', ['a']);
       await store.addVerifiedCity('Ankara', ['a']);

@@ -1,11 +1,11 @@
 # Ürün Çalışma Zamanı Kabul ve Sınır Doğrulaması (PB-032 — 25 Ekim 2026)
 
-Bu rapor, KamuBul mobil uygulamasının (`1.2.4+19`) 7 günlük reklamsız deneme süresi, KamuBul Pro abonelik geri yükleme/sonlanma geçişleri ve reklam görünürlük sınırlarını (`lib/store_features.dart`, `lib/ui/pro_page.dart`, `test/ads_state_test.dart`, `test/pro_store_test.dart`) belgeler.
+Bu rapor, KamuBul mobil uygulamasının (`1.2.4+19`) önceki 7 günlük reklamsız süresini, KamuBul Pro abonelik geri yükleme/sonlanma geçişlerini ve reklam görünürlük sınırlarını (`lib/store_features.dart`, `lib/ui/pro_page.dart`, `test/ads_state_test.dart`, `test/pro_store_test.dart`) belgeler. 25 Kasım 2026'da reklamsız dönem 24 saate indirildi; güncel davranış kaynak kodundaki `adFreeTrialDays` değeridir.
 
 ## 1. Kod ve Otomatik Test Doğrulaması (`[machine]`, `[architecture]`)
 
 1. **7 Günlük Deneme ve Reklam Koruması (`test/ads_state_test.dart`):**
-   - Kurulum gününden itibaren 7 günlük reklamsız deneme süresi (`onboarding marker`, oturum sayısı ve reklam koruma süresi) yeniden başlatmalar arasında korunur (`test/ads_state_test.dart:1-85`).
+   - Bu rapor yazıldığında kurulumdan itibaren 7 günlük reklamsız süre (`onboarding marker`, oturum sayısı ve reklam koruma süresi) yeniden başlatmalar arasında korunuyordu. Güncel sürümde aynı koruma 24 saat için geçerlidir.
    - Mağaza ekran görüntüsü çekim modunda (`STORE_SCREENSHOTS=true`) deneme rozeti gizlenir (`03bcb06`).
 2. **KamuBul Pro Abonelik ve Reklam İzolasyonu (`test/ads_state_test.dart`, `test/pro_store_test.dart`, `lib/store_features.dart`):**
    - Aktif Pro abonesi olan kullanıcıdan hiçbir koşulda banner, geçiş (`interstitial`), uygulama açılış (`app_open`) veya ödüllü (`rewarded`) reklam istenmez (`test/ads_state_test.dart:Pro kullanıcıdan hiçbir reklam istenmez`).

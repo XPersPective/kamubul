@@ -1,8 +1,8 @@
 # KamuBul
 
-Türkiye'deki resmî kamu iş ilanlarını takip eden, **açık kaynaklı (GPL-3.0)**, hesapsız ve yalnız Türkçe Flutter Android uygulaması. Google Play yayını hazırlanıyor; kaynak kodu bu depodadır. Kayıtlı aramalar, yaş/KPSS gibi kriterler ve yer imleri cihazda tutulur; yeni ilan bildirimi ve kriter asistanı isteğe bağlıdır.
+Türkiye'deki resmî kamu iş ilanlarını takip eden, **açık kaynaklı (GPL-3.0)**, hesapsız ve Türkçe Android ve iOS Flutter uygulaması; Türkiye kullanıcılarına yöneliktir; kaynak kodu bu depodadır. Kayıtlı aramalar, yaş/KPSS gibi kriterler ve yer imleri cihazda tutulur; yeni ilan bildirimi ve kriter asistanı isteğe bağlıdır.
 
-Gelir modeli: ilk 7 gün hiç reklam yok; sonrasında küçük banner ve seyrek tam ekran reklamlar. "KamuBul Pro" aylık üyelik (₺58,99/ay; Asistan yapay zekâ kullandığı için tek seferlik yerine aylık, PB-026): reklamsız deneyim ve Asistan'da günde 100 soru (ücretsiz 30). Google Play > Abonelikler'den istenildiği an iptal edilir.
+Gelir modeli: ilk 24 saat reklam gösterilmez; sonrasında ücretsiz kullanımda banner ve seyrek tam ekran reklamlar olabilir. İsteğe bağlı KamuBul Pro aylık aboneliği reklamları kaldırır ve Asistan sınırını günde 10 sorudan 50 soruya çıkarır. Güncel fiyat, yenileme ve iptal koşulları satın alma öncesinde ilgili mağazada gösterilir.
 
 ## Mimari ve mevcut durum
 

@@ -58,6 +58,29 @@ void main() {
     },
   );
 
+  test(
+    'unresolved tracking blocks ads until a later consent attempt',
+    () async {
+      var resolved = false;
+      var sdk = 0;
+      final gate = AdConsentGate(
+        update: () async {},
+        showForm: () async {},
+        canRequest: () async => true,
+        tracking: () async {
+          if (!resolved) throw StateError('tracking_unresolved');
+        },
+        initializeSdk: () async => sdk++,
+      );
+
+      expect(await gate.initialize(), isFalse);
+      expect(sdk, 0);
+      resolved = true;
+      expect(await gate.initialize(), isTrue);
+      expect(sdk, 1);
+    },
+  );
+
   test('stalled consent fails closed', () async {
     var sdk = false;
     final gate = AdConsentGate(

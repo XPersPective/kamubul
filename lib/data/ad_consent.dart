@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 /// UMP must finish and allow requests before ATT and SDK initialization.
 abstract final class ConsentManager {
@@ -27,10 +27,18 @@ abstract final class ConsentManager {
     },
     canRequest: () => ConsentInformation.instance.canRequestAds(),
     tracking: () async {
-      if (Platform.isIOS &&
-          await AppTrackingTransparency.trackingAuthorizationStatus ==
+      if (!Platform.isIOS ||
+          await AppTrackingTransparency.trackingAuthorizationStatus !=
               TrackingStatus.notDetermined) {
-        await AppTrackingTransparency.requestTrackingAuthorization();
+        return;
+      }
+      if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        throw StateError('tracking_requires_foreground');
+      }
+      final status =
+          await AppTrackingTransparency.requestTrackingAuthorization();
+      if (status == TrackingStatus.notDetermined) {
+        throw StateError('tracking_unresolved');
       }
     },
     initializeSdk: () async => await MobileAds.instance.initialize(),
