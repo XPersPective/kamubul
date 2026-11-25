@@ -105,7 +105,7 @@ Future<void> main() async {
     minDaysForRewarded: adFreeTrialDays,
   )..setPro(pro.isPro);
   var sessionCounted = startAdSession(policy, store, DateTime.now());
-  final trialEnd = ValueNotifier(trialEndsAt(policy));
+  final trialChanges = ValueNotifier(0);
   final binding = WidgetsBinding.instance;
   bool isForeground() => binding.lifecycleState == AppLifecycleState.resumed;
   final banner = RecoveringBannerController(
@@ -171,6 +171,17 @@ Future<void> main() async {
       startAdsIfEligible();
     }),
   );
+  Timer? trialExpiry;
+  void scheduleTrialExpiry() {
+    trialExpiry?.cancel();
+    final remaining = trialEndsAt(policy)?.difference(DateTime.now());
+    if (remaining == null || remaining <= Duration.zero) return;
+    trialExpiry = Timer(remaining, () {
+      trialChanges.value++;
+      refreshAdsForPro();
+    });
+  }
+
   Future<void>? trialRetry;
 
   Future<void> retryTrialStart() async {
@@ -181,10 +192,12 @@ Future<void> main() async {
     } else {
       sessionCounted = startAdSession(policy, store, DateTime.now());
     }
-    trialEnd.value = trialEndsAt(policy);
-    startAdsIfEligible();
+    scheduleTrialExpiry();
+    trialChanges.value++;
+    refreshAdsForPro();
   }
 
+  scheduleTrialExpiry();
   AppLifecycleListener(
     onResume: () {
       if (!trialSynced && trialRetry == null) {
@@ -206,7 +219,7 @@ Future<void> main() async {
       pro: pro,
       purchase: purchase,
       policy: policy,
-      trialEnd: trialEnd,
+      trialChanges: trialChanges,
       banner: banner,
       rewarded: rewarded,
       saveAdState: () => saveAds(policy, store),
@@ -223,7 +236,7 @@ Future<void> main() async {
 class KamuBulApp extends StatelessWidget {
   const KamuBulApp({
     super.key,
-    this.trialEnd,
+    this.trialChanges,
     required this.translations,
     required this.identity,
     required this.store,
@@ -237,7 +250,7 @@ class KamuBulApp extends StatelessWidget {
   });
 
   final AppIdentity identity;
-  final Listenable? trialEnd;
+  final Listenable? trialChanges;
   final NappTranslations translations;
   final SettingsStore store;
   final ThemeModeController theme;
@@ -250,7 +263,7 @@ class KamuBulApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([theme, pro, trialEnd]),
+    animation: Listenable.merge([theme, pro, trialChanges]),
     builder: (context, _) => MaterialApp(
       title: identity.appName,
       theme: premiumTheme(AppTheme.light(brandColor: identity.brandColor)),
