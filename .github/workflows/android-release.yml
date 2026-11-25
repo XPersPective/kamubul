@@ -1,0 +1,155 @@
+name: Android signed release
+run-name: KamuBul Android release ${{ inputs.source_sha || github.sha }}
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full commit SHA of the selected branch tip
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+    steps:
+      - name: Validate selected revision
+        shell: bash
+        run: |
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ || "$SOURCE_SHA" != "$GITHUB_SHA" ]]; then
+            echo 'Error: source_sha must match the full SHA selected for this run.' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: app
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: XPersPective/napp_kit
+          path: kit
+          ssh-key: ${{ secrets.NAPP_KIT_DEPLOY_KEY }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          cache: true
+      - name: Prepare private production configuration
+        working-directory: app
+        env:
+          ANDROID_UPLOAD_KEY_BASE64: ${{ secrets.ANDROID_UPLOAD_KEY_BASE64 }}
+          ANDROID_KEY_PROPERTIES: ${{ secrets.ANDROID_KEY_PROPERTIES }}
+          ANDROID_APP_IDS: ${{ secrets.ANDROID_APP_IDS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_UPLOAD_KEY_BASE64"
+          test -n "$ANDROID_KEY_PROPERTIES"
+          test -n "$ANDROID_APP_IDS"
+          printf '%s' "$ANDROID_UPLOAD_KEY_BASE64" | base64 --decode > android/upload.jks
+          printf '%s' "$ANDROID_KEY_PROPERTIES" > android/key.properties
+          chmod 600 android/upload.jks android/key.properties
+          python3 - <<'PY'
+          import json, os
+          values = {}
+          for line in os.environ['ANDROID_APP_IDS'].splitlines():
+              line = line.strip()
+              if not line or line.startswith('#') or '=' not in line:
+                  continue
+              key, value = line.split('=', 1)
+              if key.startswith('ADMOB_'):
+                  values[key] = value
+          required = (
+              'ADMOB_APP_ID_ANDROID', 'ADMOB_BANNER_ANDROID',
+              'ADMOB_INTERSTITIAL_ANDROID', 'ADMOB_APP_OPEN_ANDROID',
+              'ADMOB_REWARDED_ANDROID',
+          )
+          if any(not values.get(key) for key in required):
+              raise SystemExit('Production AdMob app and banner IDs are required.')
+          values.update({
+              'KAMUBUL_API': 'https://kamubul-api.devx8585.workers.dev',
+              'CONTACT_EMAIL': 'devcrazypenguin@gmail.com',
+              'PRIVACY_URL': 'https://kamubul-api.devx8585.workers.dev/privacy/',
+          })
+          with open('android/production-defines.json', 'w', encoding='utf-8') as f:
+              json.dump(values, f)
+          properties = {}
+          with open('android/key.properties', encoding='utf-8') as f:
+              for line in f:
+                  if '=' in line and not line.lstrip().startswith('#'):
+                      key, value = line.rstrip('\n').split('=', 1)
+                      properties[key.strip()] = value.strip()
+          if properties.get('admobAppId') != values['ADMOB_APP_ID_ANDROID']:
+              raise SystemExit('Android manifest and Dart AdMob app IDs differ.')
+          PY
+          git config --global "url.file://$GITHUB_WORKSPACE/kit.insteadOf" https://github.com/XPersPective/napp_kit.git
+          echo "KAMUBUL_SIGNING=$GITHUB_WORKSPACE/app/android/key.properties" >> "$GITHUB_ENV"
+      - name: Resolve app dependencies without test-only integration plugin
+        working-directory: app
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp pubspec.yaml "$RUNNER_TEMP/kamubul-pubspec.yaml"
+          cp pubspec.lock "$RUNNER_TEMP/kamubul-pubspec.lock"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('pubspec.yaml')
+          source = path.read_text(encoding='utf-8')
+          changed, count = re.subn(r'(?m)^  integration_test:\n    sdk: flutter\n', '', source)
+          if count != 1:
+              raise SystemExit('Expected one test-only integration_test dev dependency.')
+          path.write_text(changed, encoding='utf-8')
+          PY
+          flutter pub get
+          cp "$RUNNER_TEMP/kamubul-pubspec.yaml" pubspec.yaml
+          cp "$RUNNER_TEMP/kamubul-pubspec.lock" pubspec.lock
+      - name: Build signed production bundle
+        working-directory: app
+        run: flutter build appbundle --release --no-pub --dart-define-from-file=android/production-defines.json
+      - name: Verify signed bundle identity and release settings
+        working-directory: app
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle=build/app/outputs/bundle/release/app-release.aab
+          test -s "$bundle"
+          curl --fail --location --silent --show-error \
+            https://github.com/google/bundletool/releases/download/1.18.2/bundletool-all-1.18.2.jar \
+            --output "$RUNNER_TEMP/bundletool.jar"
+          java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle "$bundle" --module base > "$RUNNER_TEMP/manifest.xml"
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          manifest = ET.parse(Path(__import__('os').environ['RUNNER_TEMP']) / 'manifest.xml').getroot()
+          android = '{http://schemas.android.com/apk/res/android}'
+          assert manifest.attrib['package'] == 'com.crazypenguin.kamubul'
+          assert manifest.attrib[android + 'versionName'] == '1.2.6'
+          assert manifest.attrib[android + 'versionCode'] == '21'
+          assert manifest.attrib.get(android + 'debuggable', 'false') != 'true'
+          PY
+          jarsigner -verify -certs "$bundle" >/dev/null
+          actual_fingerprint="$(keytool -printcert -jarfile "$bundle" | sed -n 's/^[[:space:]]*SHA256: //p' | head -n 1)"
+          expected_fingerprint='B4:13:E4:9E:38:56:2F:A7:CC:83:A7:87:49:1F:0C:C8:B2:E1:30:5C:EE:55:4B:E6:39:F3:87:F2:10:D2:44:DA'
+          test "$actual_fingerprint" = "$expected_fingerprint"
+          rm -f android/production-defines.json android/key.properties android/upload.jks
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kamubul-android-release-${{ env.SOURCE_SHA }}
+          path: app/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
