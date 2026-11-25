@@ -98,13 +98,13 @@ Future<void> main() async {
     ),
   );
   // Yeniden kurulum deneme süresini sıfırlamasın: sunucudaki ilk görülme.
-  await syncTrialStart(store);
-  final policy = AdPolicy();
-  restoreAds(policy, store);
-  policy
-    ..setPro(pro.isPro)
-    ..startSession(DateTime.now());
-  saveAds(policy, store);
+  var trialSynced = await syncTrialStart(store);
+  final policy = AdPolicy(
+    minDaysForFullscreen: adFreeTrialDays,
+    minDaysForRewarded: adFreeTrialDays,
+  )..setPro(pro.isPro);
+  var sessionCounted = startAdSession(policy, store, DateTime.now());
+  final trialEnd = ValueNotifier(trialEndsAt(policy));
   final banner = BannerAdController(policy: policy);
   final rewarded = RewardedAdManager(policy: policy);
   final interstitial = InterstitialAdManager(policy: policy);
@@ -112,7 +112,10 @@ Future<void> main() async {
   final binding = WidgetsBinding.instance;
   bool isForeground() => binding.lifecycleState == AppLifecycleState.resumed;
   bool canUseAds() =>
-      adsAvailable && !pro.isPro && trialDaysLeft(policy, DateTime.now()) == 0;
+      adsAvailable &&
+      sessionCounted &&
+      !pro.isPro &&
+      trialDaysLeft(policy, DateTime.now()) == 0;
   var firstFrameReady = false;
   var adsStarted = false;
   Future<void>? startingAds;
@@ -150,7 +153,29 @@ Future<void> main() async {
     policy.setPro(pro.isPro);
     startAdsIfEligible();
   });
-  AppLifecycleListener(onResume: startAdsIfEligible);
+  Future<void>? trialRetry;
+
+  Future<void> retryTrialStart() async {
+    trialSynced = await syncTrialStart(store);
+    if (!trialSynced) return;
+    if (sessionCounted) {
+      restoreAds(policy, store);
+    } else {
+      sessionCounted = startAdSession(policy, store, DateTime.now());
+    }
+    trialEnd.value = trialEndsAt(policy);
+    startAdsIfEligible();
+  }
+
+  AppLifecycleListener(
+    onResume: () {
+      if (!trialSynced && trialRetry == null) {
+        trialRetry = retryTrialStart().whenComplete(() => trialRetry = null);
+        unawaited(trialRetry);
+      }
+      startAdsIfEligible();
+    },
+  );
   WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
   unawaited(registerBackgroundAlerts());
   await initPush(store);
@@ -163,6 +188,7 @@ Future<void> main() async {
       pro: pro,
       purchase: purchase,
       policy: policy,
+      trialEnd: trialEnd,
       banner: banner,
       rewarded: rewarded,
       saveAdState: () => saveAds(policy, store),
@@ -179,6 +205,7 @@ Future<void> main() async {
 class KamuBulApp extends StatelessWidget {
   const KamuBulApp({
     super.key,
+    this.trialEnd,
     required this.translations,
     required this.identity,
     required this.store,
@@ -192,6 +219,7 @@ class KamuBulApp extends StatelessWidget {
   });
 
   final AppIdentity identity;
+  final Listenable? trialEnd;
   final NappTranslations translations;
   final SettingsStore store;
   final ThemeModeController theme;
@@ -204,7 +232,7 @@ class KamuBulApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([theme, pro]),
+    animation: Listenable.merge([theme, pro, trialEnd]),
     builder: (context, _) => MaterialApp(
       title: identity.appName,
       theme: premiumTheme(AppTheme.light(brandColor: identity.brandColor)),

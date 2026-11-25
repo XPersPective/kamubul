@@ -1,0 +1,14 @@
+{
+  "protocol": 1,
+  "next": "Tick proven criteria, verify remaining behavior, then review and accept",
+  "failing": "",
+  "dirty": "lib/ads_state.dart, lib/data/trial_sync.dart, lib/home_page.dart, lib/main.dart, lib/ui/pro_page.dart, test/ads_state_test.dart, test/pro_page_pending_test.dart, test/trial_sync_test.dart",
+  "strategy": "check",
+  "attempt": "ffead80e66779af2",
+  "repeats": 0,
+  "contract": "1cf2dd3d3fd42d49",
+  "usage": {
+    "checks": 2,
+    "seconds": 209.702
+  }
+}

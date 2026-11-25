@@ -19,6 +19,15 @@ void restoreAds(AdPolicy policy, SettingsStore store) {
   );
 }
 
+/// Cihazın önceki kullanımı bilinmeden yeni bir deneme kaydı oluşturma.
+bool startAdSession(AdPolicy policy, SettingsStore store, DateTime now) {
+  restoreAds(policy, store);
+  if (trialEndsAt(policy) == null) return false;
+  policy.startSession(now);
+  saveAds(policy, store);
+  return true;
+}
+
 void saveAds(AdPolicy policy, SettingsStore store) {
   final state = policy.snapshot();
   void date(String key, DateTime? value) {
@@ -35,7 +44,7 @@ void saveAds(AdPolicy policy, SettingsStore store) {
 }
 
 /// Kurulumdan sonraki reklamsız deneme süresi; bitince reklam SDK'sı başlar.
-const adFreeTrialDays = 7;
+const adFreeTrialDays = 1;
 
 /// Deneme bitişi; ilk açılış henüz kaydedilmediyse null.
 DateTime? trialEndsAt(AdPolicy policy) =>

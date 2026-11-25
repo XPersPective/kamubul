@@ -41,7 +41,7 @@ UZUN İLAN METİNLERİNİ DAHA KOLAY OKUYUN
 Her pozisyonu ayrı kartta inceleyin. Resmî metinlerdeki başlıklar ve tablolar okunaklı biçimde düzenlenir; yapay zekâ katkısıyla çıkarılan bilgiler uygulamada belirtilir. Yazı boyutunu ayarlayın, açık veya koyu temayı seçin. Kaydettiğiniz ilanları çevrimdışı açın.
 
 ÜCRETSİZ KULLANIM VE KAMUBUL PRO
-Hesap açmadan ilanları inceleyin. Temel ilanlar ve filtreler ücretsizdir. İlk 7 gün reklam gösterilmez; sonraki kullanımda banner ve seyrek tam ekran reklamlar olabilir. Ücretsiz sürümde KamuBul Asistan’ı günde 10 soruya kadar kullanabilirsiniz.
+Hesap açmadan ilanları inceleyin. Temel ilanlar ve filtreler ücretsizdir. İlk 24 saat reklam gösterilmez; sonraki kullanımda banner ve seyrek tam ekran reklamlar olabilir. Ücretsiz sürümde KamuBul Asistan’ı günde 10 soruya kadar kullanabilirsiniz.
 
 KamuBul Pro aylık üyelikle reklamları kaldırır ve Asistan kullanım sınırını günde 50 soruya çıkarır. Abonelik aylık yenilenir; Google Play > Abonelikler bölümünden istediğiniz zaman iptal edebilirsiniz. Satın almadan önce Google Play’de gösterilen güncel fiyatı ve yenileme koşullarını inceleyin.
 

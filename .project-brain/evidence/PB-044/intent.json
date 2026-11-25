@@ -1,0 +1,8 @@
+{
+  "contract": "d47bb17d16627efa",
+  "epoch": "8ae61c3b048a81c9",
+  "independent": false,
+  "intent": "22c97933e718fae0",
+  "note": "The full release gate exposed fixed-date listing fixture expiration after 45 days. Keep the production retention unchanged and make the 9 affected tests deterministic.",
+  "protocol": 1
+}

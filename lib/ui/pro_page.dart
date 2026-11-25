@@ -24,8 +24,8 @@ class ProPage extends StatefulWidget {
   final ProController controller;
   final PurchaseRepository repository;
 
-  /// Kalan reklamsız deneme günü; 0 = deneme bitti.
-  final int trialDays;
+  /// Kalan reklamsız deneme günü. Null ise ilk kullanım doğrulanmayı bekliyor.
+  final int? trialDays;
 
   @override
   State<ProPage> createState() => _ProPageState();
@@ -148,14 +148,17 @@ class _ProPageState extends State<ProPage> {
 
   Widget _hero(ColorScheme scheme) {
     // Reklamsız sürümde (ör. iOS) reklam ve deneme vaadi gösterilmez.
+    final days = widget.trialDays;
     final text = widget.controller.isPro
         ? 'Pro etkin. Teşekkürler!'
         : !adsAvailable
         ? 'Asistan’da günde 50 soru'
-        : widget.trialDays > 0
-        ? (widget.trialDays == 1
+        : days == null
+        ? 'Reklamsız deneme bağlantı sağlandığında doğrulanır.'
+        : days > 0
+        ? (days == 1
               ? 'Reklamsız deneme: son gün'
-              : 'Reklamsız deneme: ${widget.trialDays} gün kaldı')
+              : 'Reklamsız deneme: $days gün kaldı')
         : 'Reklamsız deneme bitti';
     return Container(
       padding: const EdgeInsets.all(22),
@@ -227,7 +230,7 @@ class _ProPageState extends State<ProPage> {
           ),
           const SizedBox(height: 12),
           HeroLine(text: text),
-          if (adsAvailable && !widget.controller.isPro && widget.trialDays > 0)
+          if (adsAvailable && !widget.controller.isPro && (days ?? 0) > 0)
             const Padding(
               padding: EdgeInsets.only(top: 10),
               child: Text(

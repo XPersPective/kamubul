@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "execution": {
+    "source": "solo"
+  },
+  "review": {
+    "source": "solo"
+  },
+  "scheduling": {
+    "mode": "serial",
+    "max_parallel": 1
+  },
+  "origin": "user",
+  "quota_recovery": {
+    "enabled": false,
+    "threshold_percent": 10
+  },
+  "relay": {
+    "enabled": false,
+    "threshold_percent": 10,
+    "candidates": [],
+    "max_handoffs": 50
+  },
+  "note": "User confirmed session policy"
+}

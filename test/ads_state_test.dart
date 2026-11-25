@@ -35,6 +35,20 @@ void main() {
     expect(restored.snapshot().sessionCount, 1);
   });
 
+  test('mevcut deneme ilk kullanım doğrulaması olmadan devam eder', () {
+    final first = DateTime(2026, 10, 4);
+    final store = SettingsStore()
+      ..setInt('kamubul.ads.first', first.millisecondsSinceEpoch)
+      ..setInt('kamubul.ads.sessions', 2);
+    final policy = AdPolicy();
+    final now = DateTime(2026, 10, 5);
+
+    expect(startAdSession(policy, store, now), isTrue);
+    expect(policy.snapshot().firstLaunchAt, first);
+    expect(policy.snapshot().sessionCount, 3);
+    expect(trialDaysLeft(policy, now), 0);
+  });
+
   test('Pro kullanıcıdan hiçbir reklam istenmez', () {
     final policy = AdPolicy()
       ..setPro(true)
@@ -48,13 +62,23 @@ void main() {
     expect(policy.canShowRewarded(DateTime(2026, 9, 28)), isFalse);
   });
 
-  test('7 günlük reklamsız deneme kurulum gününden sayılır', () {
+  test('1 günlük reklamsız dönem ilk kurulumdan itibaren 24 saat sürer', () {
     final policy = AdPolicy();
     expect(trialDaysLeft(policy, DateTime(2026, 10, 4)), 0);
     policy.startSession(DateTime(2026, 10, 4));
-    expect(trialDaysLeft(policy, DateTime(2026, 10, 4)), 7);
-    expect(trialDaysLeft(policy, DateTime(2026, 10, 10, 12)), 1);
-    expect(trialDaysLeft(policy, DateTime(2026, 10, 10, 23, 59)), 1);
-    expect(trialDaysLeft(policy, DateTime(2026, 10, 11)), 0);
+    expect(trialDaysLeft(policy, DateTime(2026, 10, 4)), 1);
+    expect(trialDaysLeft(policy, DateTime(2026, 10, 4, 23, 59)), 1);
+    expect(trialDaysLeft(policy, DateTime(2026, 10, 5)), 0);
+  });
+
+  test('reklam koruması ve ödüllü reklam eşiği aynı 24 saate uyar', () {
+    final policy = AdPolicy(
+      minDaysForFullscreen: adFreeTrialDays,
+      minDaysForRewarded: adFreeTrialDays,
+    );
+
+    expect(adFreeTrialDays, 1);
+    expect(policy.minDaysForFullscreen, 1);
+    expect(policy.minDaysForRewarded, 1);
   });
 }

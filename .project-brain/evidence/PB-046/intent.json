@@ -1,0 +1,8 @@
+{
+  "contract": "0fa526abbd52fc63",
+  "epoch": "5f653cf1b044e5f6",
+  "independent": false,
+  "intent": "22c97933e718fae0",
+  "note": "Retain the existing paywall interaction and error semantics while propagating a declined Play checkout launch from the adapter.",
+  "protocol": 1
+}

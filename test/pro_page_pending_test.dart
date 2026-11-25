@@ -97,20 +97,18 @@ void main() {
                 ),
                 controller: pro,
                 repository: repository,
-                trialDays: 0,
+                trialDays: null,
               ),
             ),
           ),
         );
         await tester.pumpAndSettle();
-        final buy = find.widgetWithText(FilledButton, 'Aylık aboneliği başlat');
-        await tester.scrollUntilVisible(
-          buy,
-          300,
-          scrollable: find.byType(Scrollable).first,
+        const pending = 'Reklamsız deneme bağlantı sağlandığında doğrulanır.';
+        expect(find.text(pending), findsOneWidget);
+        expect(
+          tester.getSemantics(find.text(pending)).label,
+          contains(pending),
         );
-        await tester.pumpAndSettle();
-        expect(find.text('₺58,99 / ay'), findsOneWidget);
         expect(tester.takeException(), isNull);
         if (const bool.fromEnvironment('KAMUBUL_CAPTURE')) {
           await tester.runAsync(() async {
@@ -121,11 +119,22 @@ void main() {
             final bytes = await image.toByteData(
               format: ui.ImageByteFormat.png,
             );
-            await File('.project-brain/.cache/paywall-${width.toInt()}.png')
-                .writeAsBytes(bytes!.buffer.asUint8List());
+            await File(
+              '.project-brain/.cache/trial-paywall-${width.toInt()}.png',
+            ).writeAsBytes(bytes!.buffer.asUint8List());
             image.dispose();
           });
         }
+
+        final buy = find.widgetWithText(FilledButton, 'Aylık aboneliği başlat');
+        await tester.scrollUntilVisible(
+          buy,
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('₺58,99 / ay'), findsOneWidget);
+        expect(tester.takeException(), isNull);
         await tester.tap(buy);
         await tester.pump();
         expect(tester.widget<FilledButton>(buy).onPressed, isNull);
@@ -194,7 +203,7 @@ void main() {
           ),
           controller: pro,
           repository: repository,
-          trialDays: 6,
+          trialDays: 1,
         ),
       ),
     );

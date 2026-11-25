@@ -1,0 +1,14 @@
+{
+  "protocol": 1,
+  "next": "Finish open acceptance criteria, then run `accept` and commit",
+  "failing": "",
+  "dirty": "",
+  "strategy": "review",
+  "attempt": "749204b3895daab8",
+  "repeats": 0,
+  "contract": "d47bb17d16627efa",
+  "usage": {
+    "checks": 2,
+    "seconds": 84.266
+  }
+}

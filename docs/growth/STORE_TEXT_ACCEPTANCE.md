@@ -29,7 +29,7 @@ Kaynak: C:/Users/rubicon/.codex/builds/kamubul-1.2.2-17/lib snapshot'ı. Kod var
 | Risk | Yeni adayın içerik kararı / yeniden kontrol |
 |---|---|
 | Önceki adayda “kesin uyan” ifadesi | Yeni Full, eşleşmenin bütün şartları sağlamak olmadığını açıklıyor; resmî metin uyarısıyla birlikte okundu. |
-| Reklamsız ilk dönemin ücretli denemeyle karışması | İlk 7 günün kendiliğinden ücretli abonelik başlatmadığı yazılı; aylık yenileme ve Play iptal yolu ayrıca açık. |
+| Reklamsız ilk dönemin ücretli denemeyle karışması | İlk 24 saatin kendiliğinden ücretli abonelik başlatmadığı yazılı; aylık yenileme ve Play iptal yolu ayrıca açık. |
 | Kelime doldurma/kurum taklidi | Başlık ve kısa açıklamada KPSS/ÖSYM yok; doğal kategori cümlesi ve sınırlar PASS; kaynak/bağımsızlık uzun metinde. |
 | Gelecek özelliği vaat etme | Otomatik deadline hatırlatması, başvuru notu, native takvim ve yeni pozisyon filtreleri adayda yok; SA-015/018/017 ile karşılaştırıldı. |
 | İyi metni büyüme sonucu sayma | Arama hacmi/dönüşüm kazancı uydurulmadı; kullanıcı okuma testi, baseline ve deney sonucu UNKNOWN. |
