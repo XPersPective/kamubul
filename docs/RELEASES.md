@@ -50,3 +50,5 @@ Tek kaynak: her yayından sonra bu dosya güncellenir. Ortak sürüm numarası `
 - 25.10.2026 — Android 1.2.4 (19) üretim; iOS 1.2.4 (107) incelemeye. iOS: takvim, son başvuru hatırlatmaları, sunucu bildirimi altyapısı, bildirim izni, açılış çökmesi düzeltmesi. Asistan boş yanıt hatası düzeltildi (Worker).
 - 24.10.2026 — iOS 1.2.3 (106) ilk gönderim; 1.2.4 için geri çekildi.
 - 17.10.2026 — Android 1.2.3 (18) üretim.
+
+- 2026-11-09: iOS `1.2.5 (112)` (`IOS_PRO=true`, üretim AdMob kimlikleri `--require-production` ile doğrulandı), abonelik grubu `22513026` ve `kamubul_pro_monthly` (`6826881201`, yalnız Türkiye) App Review'a gönderildi (`Waiting for Review`). App Privacy: Device ID/Coarse Location/Product Interaction/Advertising Data takip için, Purchase History uygulama işlevi için, tanılama türleri takipsiz yayınlandı.

@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "requests": [
+    {
+      "id": "RQ-001",
+      "items": [
+        "Solo audit and safe fixes: iOS AdMob production/test IDs and privacy; StoreKit product and sandbox acceptance; assistant live provider, quotas and source pipeline. Preserve pre-existing dirty files."
+      ],
+      "relation": "related",
+      "status": "linked",
+      "task": "PB-044",
+      "resume_task": ""
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 schema_version: 4
+skill_version: "4.0.6"
+protocol_version: "1"
 
 architecture:
   mode: "single"

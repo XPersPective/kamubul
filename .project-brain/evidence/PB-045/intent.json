@@ -1,0 +1,8 @@
+{
+  "contract": "f167df5ea2761788",
+  "epoch": "5086b0145adee06e",
+  "independent": false,
+  "intent": "22c97933e718fae0",
+  "note": "Aligns SOURCE_REGISTRY.md with existing server-only catalogue architecture",
+  "protocol": 1
+}

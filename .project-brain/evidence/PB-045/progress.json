@@ -1,0 +1,14 @@
+{
+  "protocol": 1,
+  "next": "Tick proven criteria, verify remaining behavior, then review and accept",
+  "failing": "",
+  "dirty": "docs/SOURCE_REGISTRY.md",
+  "strategy": "check",
+  "attempt": "9abf29fe1fb6da68",
+  "repeats": 0,
+  "contract": "f167df5ea2761788",
+  "usage": {
+    "checks": 1,
+    "seconds": 30.11
+  }
+}
