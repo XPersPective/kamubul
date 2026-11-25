@@ -148,6 +148,17 @@ jobs:
         run: |
           app=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
           python3 tool/ios/ads_config.py verify-plist --require-production --input "$RUNNER_TEMP/defines.json" --plist "$app/Info.plist"
+          python3 - "$app" <<'PY'
+          import plistlib, sys
+          from pathlib import Path
+          app = Path(sys.argv[1])
+          info = plistlib.loads((app / 'Info.plist').read_bytes())
+          if info.get('CFBundleDevelopmentRegion') != 'tr' or 'tr' not in info.get('CFBundleLocalizations', []):
+              raise SystemExit('iOS archive is missing its Turkish localization declaration')
+          if not (app / 'tr.lproj' / 'InfoPlist.strings').is_file():
+              raise SystemExit('iOS archive is missing Turkish InfoPlist.strings')
+          print('iOS archive Turkish localization verified.')
+          PY
           codesign --verify --deep --strict "$app"
           codesign --display --verbose=2 "$app"
       - uses: actions/upload-artifact@v4

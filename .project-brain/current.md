@@ -1,10 +1,10 @@
 # Current Architecture
 
-Repository snapshot observed 18 October 2026; runtime/release lines updated 25 October 2026.
+Repository snapshot observed 18 October 2026; runtime/release lines updated 07 November 2026.
 
 ## Runtime
-- Flutter/Dart app `com.crazypenguin.kamubul`, version 1.2.4+19 (`pubspec.yaml`) on Android (Google Play) and iOS (App Store, iPhone, Türkiye). Store state, IDs and release commands: `docs/RELEASES.md`.
-- iOS native bridges in `ios/Runner/AppDelegate.swift` mirror Android (calendar, deadline reminders, trial hash, secure push). iOS ads/Pro gated by `lib/store_features.dart`.
+- Flutter/Dart app `com.crazypenguin.kamubul`, version 1.2.5+20 (`pubspec.yaml`) on Android (Google Play production `1.2.5 (20)`, `completed`) and iOS (App Store `1.2.4 (107)` `READY_FOR_SALE`; `1.2.5 (112)` uploaded, `VALID`, and attached to `PREPARE_FOR_SUBMISSION` version `e53880c3-e5b5-4428-be98-ed0528919b31`). Store state, IDs and release commands: `docs/RELEASES.md`.
+- iOS native bridges in `ios/Runner/AppDelegate.swift` mirror Android (calendar, deadline reminders, trial hash, secure push) and verify StoreKit 2 current entitlements (`verified_store_adapter.dart`). iOS ads/Pro are gated by `lib/store_features.dart`; production/test IDs are bound by `tool/ios/ads_config.py`.
 - Cloudflare Worker + D1 + Queues in `workers/`; Firebase is used for FCM.
 - Flutter local state/cache and core matching code in `lib/` and `packages/kamubul_core/`.
 
@@ -20,23 +20,21 @@ Repository snapshot observed 18 October 2026; runtime/release lines updated 25 O
 - `docs/RELEASES.md` — single source for released versions, store state, IDs and release commands.
 - `docs/IOS_RELEASE.md` — iOS pipeline details; `.github/workflows/ios-*.yml`, `android-screenshots.yml` — CI build/upload/capture.
 - `tool/brand/ios_store_frames.py` — App Store and Play screenshot frames from real captures.
-- `site/` — Turkish GitHub Pages site (privacy/support URLs used by stores).
-- `AGENTS.md` — Project Brain workflow pointer.
+- `site/` — Turkish GitHub Pages site (privacy/support/landing).
 
 ## Domains
 
 ### Mobile product
 Status: VERIFIED
-Sources: `lib/**`, `test/**`, `integration_test/**`, `packages/**`, `android/**`, `ios/**`, `pubspec.yaml`
-- Flutter app supports Turkish listing search, details, local saved items and criteria, themes, assistant and subscription UI (`222/222` widget/unit tests passing).
-- Position-level accessible matching (`PB-034`) and deterministic saved-search notification update tests (`PB-042`) are verified.
-- Runtime billing/TalkBack/device acceptance and iOS account-gated features are tracked in `PB-032`, `PB-035`, `PB-036`, `PB-039`–`PB-041` (`docs/PRODUCT_RUNTIME_ACCEPTANCE_2026-10-25.md`).
+Sources: `lib/**`, `packages/kamubul_core/**`, `ios/**`, `android/**`, `test/**`
+- Android/iOS listing browse, filtering, saved searches, local notifications, calendar export, awaited UMP/ATT ad consent (`lib/data/ad_consent.dart`), and verified StoreKit 2 local entitlement check (`lib/data/verified_store_adapter.dart`) are verified by 233 Flutter tests and 7 Python iOS config tests.
+- TalkBack/device acceptance and iOS account-gated features are tracked in `PB-032`, `PB-035`, `PB-036`, `PB-039`–`PB-041` (`docs/PRODUCT_RUNTIME_ACCEPTANCE_2026-10-25.md`).
 
 ### Official sources, extraction and assistant
 Status: VERIFIED
 Sources: `workers/**`, `docs/SOURCE_REGISTRY.md`, `docs/EXTRACTION_EVALUATION_2026-10-25.md`
-- Worker owns source ingestion, catalog and assistant endpoints; D1 persists catalog and processing state (`300/300` Worker tests passing).
-- Official source coverage (`PB-030`, `docs/SOURCE_REGISTRY.md`) and evidence-backed extraction precision/recall (`PB-031`, `docs/EXTRACTION_EVALUATION_2026-10-25.md`) are verified; assistant reporting (`PB-037`, `ADR-002`) and server Play entitlement (`PB-038`) remain open.
+- Worker owns source ingestion, catalog and assistant endpoints; D1 persists catalog and processing state (302 Worker tests passing; live version `f89990be`, EVREN / `qwen3.8-flash-next`, observed 07.11.2026).
+- Official source coverage (`PB-030`, `docs/SOURCE_REGISTRY.md`, `PB-045`) and evidence-backed extraction precision/recall (`PB-031`, `docs/EXTRACTION_EVALUATION_2026-10-25.md`) are verified; assistant reporting (`PB-037`, `ADR-002`) and server Play/App Store entitlement (`PB-038`) remain open.
 
 ### Growth research, store assets and release automation
 Status: VERIFIED
@@ -45,3 +43,8 @@ Sources: `docs/**`, `.github/**`, `site/**`, `tool/**`, `AGENTS.md`
 
 ## Known Unknowns
 - Existing implementation and older reports need fresh checks before task completion; no release or remote publishing state is asserted here.
+
+## Session audit 07.11.2026
+- Source/account/runtime readbacks: `.project-brain/audits/2026-11-07-kamubul.md`; active acceptance: `PB-044`, `PB-045` (`DONE`).
+- Android `1.2.5 (20)` built, signed, uploaded, and committed (`completed`) on Google Play production (`edit 17496769459339978662`, SHA-256 `f769753a492a62b5896f556448e56c4c05d1e62f4623da90f1e5eb1ddc84e4c3`).
+- iOS `1.2.5 (112)` built and uploaded via GitHub Actions `run 42328466180`, validated (`VALID`), and attached to App Store version `e53880c3-e5b5-4428-be98-ed0528919b31` with updated Turkish metadata, `advertising: true` age rating, and updated subscription `kamubul_pro_monthly` (`6826881201`) localization. Submitting `1.2.5` for review is gated only on publishing the **App Privacy** tracking/purchases questionnaire in the App Store Connect web UI (`STATE_ERROR.BINARY_INDICATES_APP_TRACKS_USERS`) and attaching the first subscription (`FIRST_SUBSCRIPTION_MUST_BE_SUBMITTED_ON_VERSION`) on the version page.

@@ -47,7 +47,7 @@ kullanıcının açtığı resmî başvuru bağlantısı kaynağa gider.
 ## Çağrı ekonomisi
 - Kaynağın açık yapısal alanları (kimlik, tarih, il, kontenjan, kadro) doğrudan
   kullanılır. Mimo yalnız serbest metindeki şartların ayıklanmasını yapar.
-- İlan şartı ayıklamada `mimo-v2.6-pro` kullanılır; thinking kapalı ve JSON çıktısı
+- İlan şartı ayıklamada `qwen3.8-flash-next` kullanılır; thinking kapalı ve JSON çıktısı
   istenir. Asistan ayrı tutulur ve `ASSISTANT_AI_MODEL=qwen3.8-flash-next` ile
   çalışır; böylece ilan ayıklama bütçesi ile kullanıcı sohbeti aynı model kimliğini
   paylaşmaz. Normalize metin + istem/model sürümü D1 cache anahtarıdır;
