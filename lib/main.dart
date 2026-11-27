@@ -71,6 +71,7 @@ Future<void> main() async {
   final identity = AppIdentity(
     appName: 'KamuBul',
     packageName: 'com.crazypenguin.kamubul',
+    appStoreId: '6826592263',
     sourceUrl: sourceUrl,
     privacyPolicyUrl: privacyUrl,
     contactEmail: contactEmail.isEmpty ? 'hello@example.com' : contactEmail,

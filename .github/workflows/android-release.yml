@@ -138,8 +138,8 @@ jobs:
           manifest = ET.parse(Path(__import__('os').environ['RUNNER_TEMP']) / 'manifest.xml').getroot()
           android = '{http://schemas.android.com/apk/res/android}'
           assert manifest.attrib['package'] == 'com.crazypenguin.kamubul'
-          assert manifest.attrib[android + 'versionName'] == '1.2.7'
-          assert manifest.attrib[android + 'versionCode'] == '22'
+          assert manifest.attrib[android + 'versionName'] == '1.2.8'
+          assert manifest.attrib[android + 'versionCode'] == '23'
           assert manifest.attrib.get(android + 'debuggable', 'false') != 'true'
           PY
           jarsigner -verify -certs "$bundle" >/dev/null

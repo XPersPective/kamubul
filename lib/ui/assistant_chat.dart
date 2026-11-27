@@ -41,6 +41,7 @@ class AssistantChatView extends StatefulWidget {
     this.isPro = false,
     this.onUpgrade,
     this.onNewChat,
+    this.onHelpfulReply,
     this.profile,
   });
 
@@ -62,6 +63,9 @@ class AssistantChatView extends StatefulWidget {
 
   /// Mesajları ve seçili ilanı temizleyip yeni sohbet başlatır.
   final VoidCallback? onNewChat;
+
+  /// Asistan geçerli bir yanıt verdiğinde çağrılır (değerlendirme istemi için).
+  final VoidCallback? onHelpfulReply;
 
   /// Kullanıcının kayıtlı kriterleri: "bana uygun mu?" için salt okunur bağlam.
   final Map<String, Object?>? profile;
@@ -147,6 +151,9 @@ class _AssistantChatViewState extends State<AssistantChatView> {
       widget.messages.add(
         ChatMessage.assistant(reply.reply, criteria: reply.criteria),
       );
+      if (reply.intent != 'refuse' && reply.reply.trim().isNotEmpty) {
+        widget.onHelpfulReply?.call();
+      }
     } on AssistantException catch (error) {
       widget.messages.add(
         ChatMessage.assistant(error.message, upgrade: error.upgrade),

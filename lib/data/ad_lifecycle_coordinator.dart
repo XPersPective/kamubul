@@ -38,7 +38,7 @@ class AdLifecycleCoordinator {
     this.trialRetryDelay = const Duration(seconds: 30),
     this.subscriptionRetryDelay = const Duration(seconds: 15),
     this.paidProRecheckInterval = const Duration(seconds: 30),
-    this.freeRecheckInterval = const Duration(minutes: 5),
+    this.freeRecheckInterval = const Duration(seconds: 30),
   }) : _now = now ?? DateTime.now;
 
   final SettingsStore store;

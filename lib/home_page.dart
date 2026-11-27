@@ -41,11 +41,13 @@ import 'ads_state.dart';
 import 'data/assistant_client.dart';
 import 'data/ad_consent.dart';
 import 'data/fullscreen_ad_controllers.dart';
+import 'data/review_prompt_controller.dart';
 import 'rate_prompt_state.dart';
 import 'ui/premium.dart';
 import 'ui/premium_widgets.dart';
 import 'ui/assistant_chat.dart';
 import 'ui/pro_page.dart';
+import 'ui/review_prompt_sheet.dart';
 import 'ui/turkish.dart';
 
 part 'ui/source_status_page.dart';
@@ -143,7 +145,13 @@ class _KamuHomePageState extends State<KamuHomePage>
   late final ShareService _share = widget.shareService ?? ShareService();
   late final ReviewService _review = widget.reviewService ?? ReviewService();
   late final RatePromptPolicy _ratePolicy =
-      widget.ratePolicy ?? RatePromptPolicy();
+      widget.ratePolicy ??
+      RatePromptPolicy(minDaysAfterInstall: 2, minDaysBetweenPrompts: 30);
+  late final ReviewPromptController _reviewPrompt = ReviewPromptController(
+    store: widget.store,
+  );
+  bool _reviewSheetOpen = false;
+  Timer? _reviewPromptTimer;
   late final OtherAppsRepository? _otherApps = _otherAppsRepository();
 
   OtherAppsRepository? _otherAppsRepository() {
@@ -210,7 +218,9 @@ class _KamuHomePageState extends State<KamuHomePage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     restoreRatePrompt(_ratePolicy, widget.store);
-    _ratePolicy.markFirstSeen(DateTime.now());
+    final now = DateTime.now();
+    _ratePolicy.markFirstSeen(now);
+    _reviewPrompt.markFirstSeen(now);
     saveRatePrompt(_ratePolicy, widget.store);
     alertTapUrl.addListener(_openAlertFromNotification);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -459,7 +469,18 @@ class _KamuHomePageState extends State<KamuHomePage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_loadLocal());
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_loadLocal());
+      if (_reviewPrompt.onAppResumed(DateTime.now()) && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Puan ve yorumunuzla destek olduğunuz için teşekkür ederiz!',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _syncReminders({bool? enabled}) =>
@@ -610,8 +631,10 @@ class _KamuHomePageState extends State<KamuHomePage>
       if (remove != true) return;
     }
     HapticFeedback.mediumImpact();
-    await _store.setSaved(record.url, !record.saved);
+    final saving = !record.saved;
+    await _store.setSaved(record.url, saving);
     await _loadLocal();
+    if (saving) _recordReviewMoment(weight: 1);
   }
 
   Future<void> _open(Uri url) async {
@@ -643,14 +666,66 @@ class _KamuHomePageState extends State<KamuHomePage>
     }
   }
 
-  Future<void> _openRatePage() async {
+  Future<void> _openRatePage({bool fromPrompt = false}) async {
     try {
-      await _review.openRatePage(widget.identity, isIos: Platform.isIOS);
+      if (widget.reviewService != null) {
+        await _review.openRatePage(widget.identity, isIos: Platform.isIOS);
+      } else {
+        final uri = storeReviewUri(widget.identity, isIos: Platform.isIOS);
+        if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+          throw StateError('Mağaza sayfası açılamadı: $uri');
+        }
+      }
+      _reviewPrompt.markStoreOpened(DateTime.now(), fromPrompt: fromPrompt);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Mağaza sayfası açılamadı.')),
       );
+    }
+  }
+
+  void _recordReviewMoment({
+    int weight = 1,
+    Duration delay = const Duration(milliseconds: 600),
+  }) {
+    _reviewPrompt.recordPositiveAction(weight: weight);
+    if (const bool.fromEnvironment('STORE_CAPTURE')) return;
+    if (_reviewSheetOpen || !_reviewPrompt.shouldShowPrompt(DateTime.now())) {
+      return;
+    }
+    _reviewPromptTimer?.cancel();
+    _reviewPromptTimer = Timer(delay, () {
+      _reviewPromptTimer = null;
+      unawaited(_presentReviewSheetIfEligible());
+    });
+  }
+
+  Future<void> _presentReviewSheetIfEligible() async {
+    if (!mounted || _reviewSheetOpen) return;
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+    if (!_reviewPrompt.shouldShowPrompt(DateTime.now())) return;
+    _reviewSheetOpen = true;
+    final ReviewPromptChoice? choice;
+    try {
+      choice = await showReviewPromptSheet(context);
+    } finally {
+      _reviewSheetOpen = false;
+    }
+    if (!mounted) return;
+    switch (choice) {
+      case ReviewPromptChoice.rateNow:
+        await _openRatePage(fromPrompt: true);
+      case ReviewPromptChoice.alreadyReviewed:
+        _reviewPrompt.markCompleted();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Desteğiniz için teşekkür ederiz!'),
+          ),
+        );
+      case ReviewPromptChoice.later:
+      case null:
+        _reviewPrompt.markDeferred(DateTime.now());
     }
   }
 
@@ -925,6 +1000,7 @@ class _KamuHomePageState extends State<KamuHomePage>
 
   @override
   void dispose() {
+    _reviewPromptTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     alertTapUrl.removeListener(_openAlertFromNotification);
     _searchController.dispose();
@@ -954,7 +1030,10 @@ class _KamuHomePageState extends State<KamuHomePage>
     }
     await _loadLocal();
     if (mounted) _applySearch(saved);
-    if (existing == null) await _maybeAskNotificationPermission();
+    if (existing == null) {
+      await _maybeAskNotificationPermission();
+      _recordReviewMoment(weight: 1);
+    }
   }
 
   /// İlk kayıtlı aramadan sonra yumuşak izin açıklaması gösterilir;
@@ -1567,12 +1646,14 @@ class _KamuHomePageState extends State<KamuHomePage>
     unawaited(
       Navigator.of(
         context,
-      ).push(sharedAxisRoute<void>(_listingPage(record))).whenComplete(() {
+      ).push(sharedAxisRoute<void>(_listingPage(record))).whenComplete(() async {
         if (!mounted) return;
         final interstitial = widget.interstitial;
-        if (interstitial != null) {
-          unawaited(interstitial.showIfAllowed(onShown: widget.saveAdState));
-        }
+        final showedAd = interstitial != null
+            ? await interstitial.showIfAllowed(onShown: widget.saveAdState)
+            : false;
+        if (!mounted) return;
+        if (!showedAd) _recordReviewMoment(weight: 1);
       }),
     );
   }
@@ -1689,6 +1770,10 @@ class _KamuHomePageState extends State<KamuHomePage>
         _assistantListing = null;
         _chatMessages.clear();
       }),
+      onHelpfulReply: () => _recordReviewMoment(
+        weight: 2,
+        delay: const Duration(milliseconds: 1200),
+      ),
       profile: _assistantProfile(),
     );
   }
