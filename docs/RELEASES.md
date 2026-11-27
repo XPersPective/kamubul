@@ -6,9 +6,9 @@ Tek kaynak: her yayından sonra bu dosya güncellenir. Ortak sürüm numarası `
 
 | Platform | Sürüm | Mağaza durumu | Not |
 |---|---|---|---|
-| Android (Google Play) | 1.2.7 (22) | Üretim kanalı, `completed` | Edit `12475458276148643681`, AAB SHA-256 `51f8d69626b7ba4b7bd470ecbeaece366ca313d19cb1a96c5566ad73130dbf87`; soğuk açılış reklam başlatma, tam ekran `ad.show()`, ön plan abonelik yenileme ve `Pro’ya geç` rozet düzeltmesi |
-| iOS (App Store) | 1.2.6 (build 118) yayında / 1.2.7 (build 120) incelemede | `READY_FOR_SALE` / `Waiting for Review` | 1.2.7 (`run 45965856936`, build `120`, `IOS_PRO=true`, üretim AdMob kimlikleri doğrulandı) otomatik yayın seçeneğiyle App Review'a gönderildi |
-| Worker (Cloudflare) | `f89990be` | Canlı, %100 | EVREN / `qwen3.8-flash-next`; ÖSYM kaynaklı P3/P93/P94 tanım düzeltmesi; model ve kotalar aynı |
+| Android (Google Play) | 1.2.8 (23) | Üretim kanalı, `completed` | Edit `06324903882028974132`, AAB SHA-256 `af1abc93974c3003ea8de2d78913186ddde8b2f770f85aa522a1b53f7fe01aea`; 1.2.7 reklam/Pro düzeltmeleri + zarif yorum/puan istemi + 30 sn ön plan Pro yenileme + Asistan odaklı sürüm notu |
+| iOS (App Store) | 1.2.6 (build 118) yayında / 1.2.8 (build 121) incelemede | `READY_FOR_SALE` / `Waiting for Review` | 1.2.8 (`run 45972927890`, build `121`, `IOS_PRO=true`, üretim AdMob kimlikleri + `appStoreId: 6826592263` + zarif yorum/puan istemi) otomatik yayın seçeneğiyle App Review'a gönderildi |
+| Worker (Cloudflare) | `05370b45` | Canlı, %100 | EVREN / `qwen3.8-flash-next`; `/privacy/` 24 saat deneme güncellemesi (304/304 Worker testi geçti) |
 | Site (GitHub Pages) | `site/` | https://xperspective.github.io/kamubul/ | Tanıtım, güncel iOS reklam/StoreKit gizlilik politikası, `app-ads.txt` doğrulandı, destek (Türkçe) |
 
 ## Kimlikler
@@ -52,4 +52,4 @@ Tek kaynak: her yayından sonra bu dosya güncellenir. Ortak sürüm numarası `
 - 17.10.2026 — Android 1.2.3 (18) üretim.
 
 - 2026-11-09: iOS `1.2.5 (112)` (`IOS_PRO=true`, üretim AdMob kimlikleri `--require-production` ile doğrulandı), abonelik grubu `22513026` ve `kamubul_pro_monthly` (`6826881201`, yalnız Türkiye) App Review'a gönderildi (`Waiting for Review`). App Privacy: Device ID/Coarse Location/Product Interaction/Advertising Data takip için, Purchase History uygulama işlevi için, tanılama türleri takipsiz yayınlandı.
-- 2026-11-27: Android `1.2.7 (22)` (commit `c4762ef`, AAB SHA-256 `51f8d69626b7ba4b7bd470ecbeaece366ca313d19cb1a96c5566ad73130dbf87`) Google Play üretim kanalına yüklendi ve doğrulandı (`edit 12475458276148643681`, `completed`). iOS `1.2.7 (120)` (`run 45965856936`, `IOS_PRO=true`, üretim AdMob kimlikleri doğrulandı) App Store Connect'te oluşturuldu, bağlandı ve otomatik yayınla App Review'a gönderildi (`Waiting for Review`). AdMob Avrupa yönetmelikleri (GDPR) yayınlı mesajına KamuBul Android ve KamuBul iOS (`https://xperspective.github.io/kamubul/gizlilik/`) eklendi.
+- 2026-11-27: Android `1.2.7 (22)` ve ardından `1.2.8 (23)` (commit `f276789`, AAB SHA-256 `af1abc93974c3003ea8de2d78913186ddde8b2f770f85aa522a1b53f7fe01aea`) Google Play üretim kanalına yüklendi ve doğrulandı (`edit 06324903882028974132`, `completed`). iOS `1.2.8 (121)` (`run 45972927890`, `IOS_PRO=true`, üretim AdMob kimlikleri + iOS `appStoreId` düzeltmesi + zarif yorum/puan istemi) App Store Connect'te `1.2.7` yerine bağlanıp otomatik yayınla App Review'a gönderildi (`Waiting for Review`, Asistan odaklı sürüm notu ve `24 saat` açıklama). AdMob GDPR yayınlı mesajına KamuBul Android/iOS eklendi; Cloudflare Worker (`05370b45`) `/privacy/` ve GitHub Pages `site/` `24 saat` ile güncellendi.

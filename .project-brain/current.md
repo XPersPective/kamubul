@@ -3,7 +3,7 @@
 Repository snapshot observed 18 October 2026; runtime/release lines updated 27 November 2026.
 
 ## Runtime
-- Flutter/Dart app `com.crazypenguin.kamubul`, version 1.2.7+22 (`pubspec.yaml`) on Android (Google Play production `1.2.7 (22)`, `completed`, `edit 12475458276148643681`) and iOS (App Store `1.2.6 (118)` `READY_FOR_SALE`; `1.2.7 (120)` uploaded via `run 45965856936` and submitted `Waiting for Review` with automatic release). Store state, IDs and release commands: `docs/RELEASES.md`.
+- Flutter/Dart app `com.crazypenguin.kamubul`, version 1.2.8+23 (`pubspec.yaml`) on Android (Google Play production `1.2.8 (23)`, `completed`, `edit 06324903882028974132`) and iOS (App Store `1.2.6 (118)` `READY_FOR_SALE`; `1.2.8 (121)` uploaded via `run 45972927890` and submitted `Waiting for Review` with automatic release). Store state, IDs and release commands: `docs/RELEASES.md`.
 - iOS native bridges in `ios/Runner/AppDelegate.swift` mirror Android (calendar, deadline reminders, trial hash, secure push) and verify StoreKit 2 current entitlements (`verified_store_adapter.dart`). iOS ads/Pro are gated by `lib/store_features.dart`; production/test IDs are bound by `tool/ios/ads_config.py`.
 - Cloudflare Worker + D1 + Queues in `workers/`; Firebase is used for FCM.
 - Flutter local state/cache and core matching code in `lib/` and `packages/kamubul_core/`.
