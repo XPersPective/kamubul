@@ -8,11 +8,12 @@ export function externalRequest(env, request) {
   const base = String(env.EXTERNAL_AI_URL).replace(/\/+$/, '');
   const system = request.messages.filter(m => m.role === 'system').map(m => m.content).join('\n');
   const messages = request.messages.filter(m => m.role !== 'system');
+  const key = String(env.EXTERNAL_AI_KEY ?? '').trim();
   if (env.EXTERNAL_AI_FORMAT === 'openai') {
-    return { url: base + '/chat/completions', init: { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + env.EXTERNAL_AI_KEY },
+    return { url: base + '/chat/completions', init: { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key },
       body: JSON.stringify({ model: env.EXTERNAL_AI_MODEL, messages: request.messages, max_tokens: request.max_tokens, temperature: request.temperature ?? 0, ...(request.response_format ? {response_format:request.response_format} : {}), ...(env.EXTERNAL_AI_NOTHINK === '1' ? { enable_thinking: false, chat_template_kwargs: { enable_thinking: false } } : {}) }) } };
   }
-  return { url: base + '/v1/messages', init: { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env.EXTERNAL_AI_KEY, 'anthropic-version': '2023-06-01' },
+  return { url: base + '/v1/messages', init: { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: env.EXTERNAL_AI_MODEL, system, messages, max_tokens: request.max_tokens ?? 1024, temperature: request.temperature ?? 0 }) } };
 }
 
@@ -25,7 +26,7 @@ export async function externalAiRun(env, request, fetchImpl = fetch) {
   if (!res.ok) throw new Error('external_ai_http_' + res.status);
   const body = await res.json();
   const text = body.content?.find?.(c => c.type === 'text')?.text ?? body.choices?.[0]?.message?.content;
-  try{if(env.DB&&['assistant','extract'].includes(request.usageBucket)){
+  if(env.DB&&['assistant','extract'].includes(request.usageBucket)){
     // Observed tokens, not estimated Credits: compare these with the plan console.
     const day=new Date().toISOString().slice(0,10);
     const usage=body.usage??{},values={input:usage.prompt_tokens??usage.input_tokens,output:usage.completion_tokens??usage.output_tokens,cached:usage.prompt_tokens_details?.cached_tokens};
@@ -33,8 +34,10 @@ export async function externalAiRun(env, request, fetchImpl = fetch) {
     const prefix='metrics:'+request.usageBucket+':'+env.EXTERNAL_AI_MODEL+':'+(request.usageTier==='pro'?'pro':request.usageBucket==='assistant'?'free':'server');
     const entries=[[prefix+':calls',1],[prefix+':measured',Number(measured)]];
     for(const [field,value] of Object.entries(values))if(Number.isSafeInteger(value)&&value>=0){entries.push(['tokens:'+request.usageBucket+':'+field,value]);if(measured)entries.push([prefix+':'+field,value]);}
-    await env.DB.batch(entries.map(([bucket,value])=>env.DB.prepare('INSERT INTO assistant_usage(day,bucket,count) VALUES(?,?,?) ON CONFLICT(day,bucket) DO UPDATE SET count=count+excluded.count').bind(day,bucket,value)));
-  }}catch{console.error('ai_usage_record_failed');}
-  if (typeof text !== 'string') { console.error('ai_empty', res.status, String(body.choices?.[0]?.finish_reason ?? body.error?.code ?? body.error?.type ?? '').slice(0, 40)); throw new Error('ai_schema'); }
+    const record = Promise.resolve().then(() => env.DB.batch(entries.map(([bucket,value])=>env.DB.prepare('INSERT INTO assistant_usage(day,bucket,count) VALUES(?,?,?) ON CONFLICT(day,bucket) DO UPDATE SET count=count+excluded.count').bind(day,bucket,value)))).catch(()=>{console.error('ai_usage_record_failed');});
+    if (typeof request.waitUntil === 'function') request.waitUntil(record);
+    else await record;
+  }
+  if (typeof text !== 'string' || !text.trim()) { console.error('ai_empty', res.status, String(body.choices?.[0]?.finish_reason ?? body.error?.code ?? body.error?.type ?? '').slice(0, 40)); throw new Error('ai_schema'); }
   return { response: text, usage: body.usage ?? null };
 }

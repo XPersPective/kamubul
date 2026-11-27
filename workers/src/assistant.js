@@ -245,11 +245,15 @@ export async function handleAssistant(body, env, deps) {
   const chat = body.mode === 'chat';
   const listing = chat && body.listing && typeof body.listing === 'object' && typeof body.listing.text === 'string' && body.listing.text.trim() ? body.listing : null;
   if(listing?.text.length>MAX_SOURCE_TEXT)return {status:413,body:{error:'listing_oversize'}};
-  // Önce kurulum+IP sayaçları: kötüye kullanım model çağrısından önce kesilir.
+  // Önce kurulum+IP sayaçları: kötüye kullanım model çağrısından önce kesilir (paralel D1 turu).
   const ipKey = 'ip:' + (await deps.sha256('ip:' + deps.ip)).slice(0, 24);
   const installLimit = body.tier === 'pro' ? lim.pro : lim.install;
-  if (await bump(env.DB, day, ipKey) > lim.ip) return { status: 429, body: { error: 'rate_limited' } };
-  if (await bump(env.DB, day, 'inst:' + body.installationId) > installLimit) return { status: 429, body: { error: body.tier === 'pro' ? 'rate_limited' : 'free_limit', limit: installLimit } };
+  const [ipCount, installCount] = await Promise.all([
+    bump(env.DB, day, ipKey),
+    bump(env.DB, day, 'inst:' + body.installationId),
+  ]);
+  if (ipCount > lim.ip) return { status: 429, body: { error: 'rate_limited' } };
+  if (installCount > installLimit) return { status: 429, body: { error: body.tier === 'pro' ? 'rate_limited' : 'free_limit', limit: installLimit } };
   const gate = scopeGate(body.message, { hasListing: !!listing, chat });
   if (gate === 'invalid') return { status: 400, body: { error: 'message' } };
   if (gate) return { status: 200, body: { intent: 'refuse', reply: gate === 'too_long' ? `Mesaj en fazla ${MAX_MESSAGE} karakter olabilir.` : gate === 'too_short' ? 'Lütfen sorunuzu biraz daha ayrıntılı yazın.' : refusal, criteria: null } };
@@ -260,14 +264,47 @@ export async function handleAssistant(body, env, deps) {
     const request = chat ? buildChatRequest({ message: body.message, history: body.history, listing, profile: body.profile, today: istanbulToday(deps.now) }) : buildRequest(body.message);
     request.usageBucket='assistant';
     request.usageTier=body.tier==='pro'?'pro':'free';
+    if (typeof deps.waitUntil === 'function') request.waitUntil = deps.waitUntil;
     // Asistan yanıtı doğrulanmadan kullanıcıya gider: ayıklamadan ayrı, sayıları uydurmayan model seçilebilir.
     const chatEnv = env.ASSISTANT_AI_MODEL ? { ...env, EXTERNAL_AI_MODEL: env.ASSISTANT_AI_MODEL } : env;
-    // Sağlayıcının geçici hatasında bir kez yeniden denenir; iki deneme istemcinin
-    // 30 sn bekleme süresine sığar.
-    const run = timeoutMs => externalAiEnabled(env) ? externalAiRun(chatEnv, { ...request, timeoutMs }, deps.fetch) : env.AI.run(env.AI_MODEL, request, { rejectIfBusy: true });
+    const useExternal = externalAiEnabled(env);
+    const runLocal = async (timeoutMs) => {
+      let timer;
+      const localReq = { messages: request.messages, max_tokens: Math.min(request.max_tokens ?? 1024, 1024), temperature: request.temperature ?? 0.2 };
+      const res = await Promise.race([
+        env.AI.run(env.AI_MODEL, localReq, { rejectIfBusy: true }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), timeoutMs); }),
+      ]).finally(() => clearTimeout(timer));
+      if (typeof res?.response !== 'string' || !res.response.trim()) throw new Error('ai_schema');
+      return res;
+    };
+    const isRateLimited = e => /^3036:|^3040:|external_ai_http_429/.test(e?.message ?? '');
+    // Sağlayıcı hızlı yanıt vermez veya geçici hata verirse kısa timeout ile yeniden dener;
+    // 429/yoğunluk veya ikinci hatada bağlı Workers AI yedeğine düşer (istemcinin 30 sn sınırına sığar).
+    const runPrimary = timeoutMs => useExternal ? externalAiRun(chatEnv, { ...request, timeoutMs }, deps.fetch) : runLocal(timeoutMs);
     let out;
-    try { out = await run(16000); }
-    catch (e) { if (!transientAiFailure(e) && e?.message !== 'ai_schema') throw e; out = await run(12000); }
+    try {
+      out = await runPrimary(10000);
+    } catch (e) {
+      const retryable = transientAiFailure(e) || e?.message === 'ai_schema';
+      if (useExternal && env.AI && (!retryable || isRateLimited(e))) {
+        console.error('assistant_fallback_ai', String(e?.message ?? '').slice(0, 80));
+        out = await runLocal(9000);
+      } else if (!retryable) {
+        throw e;
+      } else {
+        try {
+          out = await runPrimary(8000);
+        } catch (e2) {
+          if (useExternal && env.AI) {
+            console.error('assistant_fallback_ai', String(e2?.message ?? '').slice(0, 80));
+            out = await runLocal(9000);
+          } else {
+            throw e2;
+          }
+        }
+      }
+    }
     const today = istanbulToday(deps.now);
     return { status: 200, body: chat ? parseChatOutput(out.response ?? '', today) : parseModelOutput(out.response ?? '', today) };
   } catch (e) {

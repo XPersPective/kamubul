@@ -231,3 +231,60 @@ test('transient provider failure is retried once before failing the user', async
   assert.equal(down.status, 502);
   assert.equal(failing, 2);
 });
+
+test('external 429 rate-limit falls back immediately to Workers AI without returning busy error', async () => {
+  let extCalls = 0, aiCalls = 0;
+  const e = env({
+    AI_MODEL: '@cf/meta/llama-3.1-8b-instruct',
+    AI: { run: async (_m, req) => { aiCalls++; assert.ok(req.max_tokens <= 1024); return { response: '{"intent":"answer","reply":"Lisans mezunu olmanız gerekir.","criteria":null}' }; } },
+  });
+  const r = await handleAssistant(
+    { installationId: '1'.repeat(32), mode: 'chat', message: 'Bu ilan bana uygun mu?', listing: { title: 'İlan', text: 'Lisans mezunu olmak.' } },
+    e,
+    { sha256, ip: '8.8.1.1', fetch: async () => { extCalls++; return new Response('rate limit', { status: 429 }); } },
+  );
+  assert.equal(r.status, 200);
+  assert.equal(r.body.intent, 'answer');
+  assert.match(r.body.reply, /Lisans/);
+  assert.equal(extCalls, 1);
+  assert.equal(aiCalls, 1);
+});
+
+test('external 503 retries once then falls back to Workers AI, and empty whitespace content is retried', async () => {
+  let extCalls = 0, aiCalls = 0;
+  const e = env({
+    AI_MODEL: '@cf/meta/llama-3.1-8b-instruct',
+    AI: { run: async () => { aiCalls++; return { response: '{"intent":"answer","reply":"Yedek model yanıtı.","criteria":null}' }; } },
+  });
+  const r = await handleAssistant(
+    { installationId: '2'.repeat(32), mode: 'chat', message: 'Bu ilan bana uygun mu?', listing: { title: 'İlan', text: 'Lise mezunu olmak.' } },
+    e,
+    { sha256, ip: '8.8.2.2', fetch: async () => { extCalls++; return new Response('err', { status: 503 }); } },
+  );
+  assert.equal(r.status, 200);
+  assert.equal(r.body.reply, 'Yedek model yanıtı.');
+  assert.equal(extCalls, 2);
+  assert.equal(aiCalls, 1);
+
+  let emptyTries = 0;
+  const waited = [];
+  const r2 = await handleAssistant(
+    { installationId: '3'.repeat(32), mode: 'chat', message: 'Bu ilan bana uygun mu?', listing: { title: 'İlan', text: 'Lise mezunu olmak.' } },
+    env(),
+    {
+      sha256,
+      ip: '8.8.3.3',
+      waitUntil: p => waited.push(p),
+      fetch: async () => {
+        emptyTries++;
+        const content = emptyTries === 1 ? '   ' : '{"intent":"answer","reply":"İkinci denemede yanıt geldi.","criteria":null}';
+        return new Response(JSON.stringify({ choices: [{ message: { content } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }));
+      },
+    },
+  );
+  assert.equal(r2.status, 200);
+  assert.equal(r2.body.reply, 'İkinci denemede yanıt geldi.');
+  assert.equal(emptyTries, 2);
+  assert.ok(waited.length >= 1);
+  await Promise.all(waited);
+});

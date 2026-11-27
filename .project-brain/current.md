@@ -33,7 +33,7 @@ Sources: `lib/**`, `packages/kamubul_core/**`, `ios/**`, `android/**`, `test/**`
 ### Official sources, extraction and assistant
 Status: VERIFIED
 Sources: `workers/**`, `docs/SOURCE_REGISTRY.md`, `docs/EXTRACTION_EVALUATION_2026-10-25.md`
-- Worker owns source ingestion, catalog and assistant endpoints; D1 persists catalog and processing state (302 Worker tests passing; live version `f89990be`, EVREN / `qwen3.8-flash-next`, observed 07.11.2026).
+- Worker owns source ingestion, catalog and assistant endpoints; D1 persists catalog and processing state (306 Worker tests passing; live version `8edaf025-2b97-4d8f-a318-38f7bda0f245`, Alibaba Cloud Qwen Token Plan `qwen3.8-flash` + automatic Cloudflare Workers AI fallback, verified 27.11.2026).
 - Official source coverage (`PB-030`, `docs/SOURCE_REGISTRY.md`, `PB-045`) and evidence-backed extraction precision/recall (`PB-031`, `docs/EXTRACTION_EVALUATION_2026-10-25.md`) are verified; assistant reporting (`PB-037`, `ADR-002`) and server Play/App Store entitlement (`PB-038`) remain open.
 
 ### Growth research, store assets and release automation

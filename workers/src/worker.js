@@ -107,7 +107,7 @@ export async function fetchRequest(request,env,ctx){
       if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')??''))return json({error:'content_type'},415);
       const text=await request.text();if(text.length>262144)return json({error:'body_oversize'},413);
       let body;try{body=JSON.parse(text);}catch{return json({error:'json'},400);}
-      const result=await handleAssistant(body,env,{sha256,ip:request.headers.get('CF-Connecting-IP')??'unknown'});
+      const result=await handleAssistant(body,env,{sha256,ip:request.headers.get('CF-Connecting-IP')??'unknown',waitUntil:p=>ctx?.waitUntil?.(p)});
       return json(result.body,result.status);
     }
     if(request.method!=='GET')return json({error:'method_not_allowed'},405,{'Allow':'GET'});
