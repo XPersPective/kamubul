@@ -40,6 +40,7 @@ import 'store_features.dart';
 import 'ads_state.dart';
 import 'data/assistant_client.dart';
 import 'data/ad_consent.dart';
+import 'data/fullscreen_ad_controllers.dart';
 import 'rate_prompt_state.dart';
 import 'ui/premium.dart';
 import 'ui/premium_widgets.dart';
@@ -63,6 +64,8 @@ class KamuHomePage extends StatefulWidget {
     required this.policy,
     required this.banner,
     required this.rewarded,
+    this.interstitial,
+    this.onPrivacyConsentChanged,
     required this.saveAdState,
     this.shareService,
     this.reviewService,
@@ -79,6 +82,8 @@ class KamuHomePage extends StatefulWidget {
   final AdPolicy policy;
   final BannerAdController banner;
   final RewardedAdManager rewarded;
+  final WorkingInterstitialAdManager? interstitial;
+  final ValueChanged<bool>? onPrivacyConsentChanged;
   final VoidCallback saveAdState;
   // Testler servisleri enjekte eder; üretime kendi örnekleri kurulur.
   final ShareService? shareService;
@@ -1142,7 +1147,7 @@ class _KamuHomePageState extends State<KamuHomePage>
         ? 'PRO'
         : days > 0
         ? (narrow ? '$days g' : 'Deneme · $days gün')
-        : 'Pro';
+        : (narrow ? 'Pro al' : 'Pro’ya geç');
     final background = pro
         ? const Color(0xFFE9B949)
         : scheme.primary.withValues(alpha: 0.12);
@@ -1168,7 +1173,9 @@ class _KamuHomePageState extends State<KamuHomePage>
               Icon(
                 pro
                     ? Icons.workspace_premium_rounded
-                    : Icons.hourglass_bottom_rounded,
+                    : days > 0
+                    ? Icons.hourglass_bottom_rounded
+                    : Icons.workspace_premium_outlined,
                 size: 15,
                 color: foreground,
               ),
@@ -1557,7 +1564,17 @@ class _KamuHomePageState extends State<KamuHomePage>
 
   void _showListing(ListingRecord record) {
     HapticFeedback.selectionClick();
-    Navigator.of(context).push(sharedAxisRoute<void>(_listingPage(record)));
+    unawaited(
+      Navigator.of(
+        context,
+      ).push(sharedAxisRoute<void>(_listingPage(record))).whenComplete(() {
+        if (!mounted) return;
+        final interstitial = widget.interstitial;
+        if (interstitial != null) {
+          unawaited(interstitial.showIfAllowed(onShown: widget.saveAdState));
+        }
+      }),
+    );
   }
 
   Widget _listingPage(ListingRecord record) => OfficialListingPage(

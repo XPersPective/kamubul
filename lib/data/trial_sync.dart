@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
@@ -35,7 +36,7 @@ Future<bool> syncTrialStart(
           headers: {'content-type': 'application/json'},
           body: jsonEncode({'deviceHash': hash}),
         )
-        .timeout(const Duration(seconds: 3));
+        .timeout(const Duration(seconds: 6));
     if (response.statusCode != 200) return false;
     final body = jsonDecode(response.body);
     final firstSeen = body is Map
@@ -46,6 +47,7 @@ Future<bool> syncTrialStart(
       _firstKey,
       earliestFirstLaunch(store.getInt(_firstKey), firstSeen),
     );
+    unawaited(store.flush().catchError((Object _) {}));
     return true;
   } on Object {
     return false;

@@ -126,7 +126,13 @@ extension _HomeSettings on _KamuHomePageState {
                             final allowed =
                                 await ConsentManager.canRequestAds();
                             if (!mounted) return;
-                            setState(() => widget.policy.setSdkReady(allowed));
+                            final onConsent = widget.onPrivacyConsentChanged;
+                            if (onConsent != null) {
+                              onConsent(allowed);
+                            } else {
+                              widget.policy.setSdkReady(allowed);
+                            }
+                            setState(() {});
                           }
                         } catch (_) {
                           message = 'Tercihler açılamadı. Daha sonra yeniden deneyin.';

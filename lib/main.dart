@@ -10,6 +10,8 @@ import 'package:napp_pro/napp_pro.dart';
 
 import 'store_features.dart';
 import 'data/ad_consent.dart';
+import 'data/ad_lifecycle_coordinator.dart';
+import 'data/fullscreen_ad_controllers.dart';
 import 'data/play_store_adapter.dart';
 import 'data/recovering_banner_controller.dart';
 import 'data/verified_store_adapter.dart';
@@ -92,121 +94,57 @@ Future<void> main() async {
   );
   final pro = ProController(store: store, repository: purchase)..load();
   pro.startListening();
-  final subscriptionCheck = verifySubscription(
+  Future<bool> checkSubscription() => verifySubscription(
     pro,
     store,
     activeProducts: storeAdapter.entitlements,
     restorableProducts: storeAdapter.restorableProducts,
   );
+  final subscriptionCheck = checkSubscription();
   // Yeniden kurulum deneme süresini sıfırlamasın: sunucudaki ilk görülme.
-  var trialSynced = await syncTrialStart(store);
+  final trialSynced = await syncTrialStart(store);
   final policy = AdPolicy(
     minDaysForFullscreen: adFreeTrialDays,
     minDaysForRewarded: adFreeTrialDays,
   )..setPro(pro.isPro);
-  var sessionCounted = startAdSession(policy, store, DateTime.now());
+  final sessionCounted = startAdSession(policy, store, DateTime.now());
   final trialChanges = ValueNotifier(0);
   final binding = WidgetsBinding.instance;
-  bool isForeground() => binding.lifecycleState == AppLifecycleState.resumed;
+  bool isForeground() => isAppForeground(binding.lifecycleState);
   final banner = RecoveringBannerController(
     policy: policy,
     isForeground: isForeground,
   );
-  final rewarded = RewardedAdManager(policy: policy);
-  final interstitial = InterstitialAdManager(policy: policy);
-  final appOpen = AppOpenAdManager(policy: policy);
-  var subscriptionChecked = false;
-  bool canUseAds() =>
-      adsAvailable &&
-      sessionCounted &&
-      subscriptionChecked &&
-      !pro.isPro &&
-      trialDaysLeft(policy, DateTime.now()) == 0;
-  var firstFrameReady = false;
-  var adsStarted = false;
-  Future<void>? startingAds;
-
-  Future<void> startAds() async {
-    // Deneme süresinde reklam SDK'sı, onay formu ve istekler başlamaz.
-    if (!await ConsentManager.initialize() || !canUseAds()) return;
-    adsStarted = true;
-    policy.setSdkReady(true);
-    banner.load();
-    await rewarded.load();
-    await interstitial.load();
-    if (isForeground() && policy.canShowAppOpen(DateTime.now())) {
-      await appOpen.tryLoad(DateTime.now());
-      if (isForeground() && canUseAds()) {
-        await appOpen.showIfAvailable();
-        saveAds(policy, store);
-      }
-    }
-  }
-
-  void startAdsIfEligible() {
-    if (!firstFrameReady ||
-        !isForeground() ||
-        !canUseAds() ||
-        startingAds != null) {
-      return;
-    }
-    if (adsStarted) {
-      banner.load();
-      return;
-    }
-    startingAds = startAds().whenComplete(() => startingAds = null);
-    unawaited(startingAds);
-  }
-
-  void refreshAdsForPro() {
-    policy.setPro(pro.isPro);
-    banner.onProChanged();
-    startAdsIfEligible();
-  }
-
-  pro.addListener(refreshAdsForPro);
-  unawaited(
-    subscriptionCheck.then((_) {
-      subscriptionChecked = true;
-      startAdsIfEligible();
-    }),
+  final rewarded = RecoveringRewardedAdManager(
+    policy: policy,
+    isForeground: isForeground,
   );
-  Timer? trialExpiry;
-  void scheduleTrialExpiry() {
-    trialExpiry?.cancel();
-    final remaining = trialEndsAt(policy)?.difference(DateTime.now());
-    if (remaining == null || remaining <= Duration.zero) return;
-    trialExpiry = Timer(remaining, () {
-      trialChanges.value++;
-      refreshAdsForPro();
-    });
-  }
-
-  Future<void>? trialRetry;
-
-  Future<void> retryTrialStart() async {
-    trialSynced = await syncTrialStart(store);
-    if (!trialSynced) return;
-    if (sessionCounted) {
-      restoreAds(policy, store);
-    } else {
-      sessionCounted = startAdSession(policy, store, DateTime.now());
-    }
-    scheduleTrialExpiry();
-    trialChanges.value++;
-    refreshAdsForPro();
-  }
-
-  scheduleTrialExpiry();
-  AppLifecycleListener(
-    onResume: () {
-      if (!trialSynced && trialRetry == null) {
-        trialRetry = retryTrialStart().whenComplete(() => trialRetry = null);
-        unawaited(trialRetry);
-      }
-      refreshAdsForPro();
-    },
+  final interstitial = WorkingInterstitialAdManager(
+    policy: policy,
+    isForeground: isForeground,
   );
+  final appOpen = WorkingAppOpenAdManager(policy: policy);
+  final coordinator = AdLifecycleCoordinator(
+    store: store,
+    pro: pro,
+    policy: policy,
+    banner: banner,
+    rewarded: rewarded,
+    interstitial: interstitial,
+    appOpen: appOpen,
+    adsAvailable: adsAvailable,
+    isForeground: isForeground,
+    verifySubscription: checkSubscription,
+    syncTrial: () => syncTrialStart(store),
+    initializeConsent: ConsentManager.initialize,
+    onStateChanged: () => trialChanges.value++,
+    saveAdState: () => saveAds(policy, store),
+  )..start(
+    trialSynced: trialSynced,
+    sessionCounted: sessionCounted,
+    initialSubscriptionCheck: subscriptionCheck,
+  );
+  AppLifecycleListener(onResume: coordinator.onResume);
   WidgetsBinding.instance.addObserver(SettingsLifecycleObserver(store));
   unawaited(registerBackgroundAlerts());
   await initPush(store);
@@ -222,14 +160,16 @@ Future<void> main() async {
       trialChanges: trialChanges,
       banner: banner,
       rewarded: rewarded,
+      interstitial: interstitial,
+      onPrivacyConsentChanged: coordinator.onPrivacyConsentChanged,
+      onOnboardingCompleted: coordinator.onOnboardingCompleted,
       saveAdState: () => saveAds(policy, store),
     ),
   );
   unawaited(
-    binding.waitUntilFirstFrameRasterized.then((_) {
-      firstFrameReady = true;
-      startAdsIfEligible();
-    }),
+    binding.waitUntilFirstFrameRasterized.then(
+      (_) => coordinator.onFirstFrameReady(),
+    ),
   );
 }
 
@@ -246,6 +186,9 @@ class KamuBulApp extends StatelessWidget {
     required this.policy,
     required this.banner,
     required this.rewarded,
+    this.interstitial,
+    this.onPrivacyConsentChanged,
+    this.onOnboardingCompleted,
     required this.saveAdState,
   });
 
@@ -259,6 +202,9 @@ class KamuBulApp extends StatelessWidget {
   final AdPolicy policy;
   final BannerAdController banner;
   final RewardedAdManager rewarded;
+  final WorkingInterstitialAdManager? interstitial;
+  final ValueChanged<bool>? onPrivacyConsentChanged;
+  final VoidCallback? onOnboardingCompleted;
   final VoidCallback saveAdState;
 
   @override
@@ -299,6 +245,9 @@ class KamuBulApp extends StatelessWidget {
         policy: policy,
         banner: banner,
         rewarded: rewarded,
+        interstitial: interstitial,
+        onPrivacyConsentChanged: onPrivacyConsentChanged,
+        onOnboardingCompleted: onOnboardingCompleted,
         saveAdState: saveAdState,
       ),
     ),
@@ -316,6 +265,9 @@ class _AppHome extends StatefulWidget {
     required this.policy,
     required this.banner,
     required this.rewarded,
+    this.interstitial,
+    this.onPrivacyConsentChanged,
+    this.onOnboardingCompleted,
     required this.saveAdState,
   });
 
@@ -327,6 +279,9 @@ class _AppHome extends StatefulWidget {
   final AdPolicy policy;
   final BannerAdController banner;
   final RewardedAdManager rewarded;
+  final WorkingInterstitialAdManager? interstitial;
+  final ValueChanged<bool>? onPrivacyConsentChanged;
+  final VoidCallback? onOnboardingCompleted;
   final VoidCallback saveAdState;
 
   @override
@@ -347,6 +302,8 @@ class _AppHomeState extends State<_AppHome> {
           policy: widget.policy,
           banner: widget.banner,
           rewarded: widget.rewarded,
+          interstitial: widget.interstitial,
+          onPrivacyConsentChanged: widget.onPrivacyConsentChanged,
           saveAdState: widget.saveAdState,
         )
       : OnboardingPage(
@@ -368,6 +325,7 @@ class _AppHomeState extends State<_AppHome> {
           onDone: () {
             widget.store.setInt('kamubul.onboarded', 1);
             widget.policy.setOnboardingCompleted(true);
+            widget.onOnboardingCompleted?.call();
             setState(() => _onboarded = true);
           },
         );

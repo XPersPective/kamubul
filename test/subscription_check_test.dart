@@ -83,6 +83,33 @@ void main() {
           throw StateError('unavailable');
       expect(await _proAfter(unavailable, cached: true), isTrue);
       expect(await _proAfter(unavailable), isFalse);
+
+      final store = SettingsStore()
+        ..setBool(ProSettingsKeys.proLifetime, true);
+      final pro = ProController(
+        store: store,
+        repository: PurchaseRepository(adapter: _Store()),
+      )..load();
+      expect(
+        await verifySubscription(
+          pro,
+          store,
+          activeProducts: unavailable,
+          restorableProducts: const {proMonthlyProductId},
+        ),
+        isFalse,
+      );
+      expect(
+        await verifySubscription(
+          pro,
+          store,
+          activeProducts: () async => const {},
+          restorableProducts: const {proMonthlyProductId},
+        ),
+        isTrue,
+      );
+      expect(pro.isPro, isFalse);
+      pro.dispose();
     },
   );
 

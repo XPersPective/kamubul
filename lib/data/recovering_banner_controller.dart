@@ -89,14 +89,21 @@ class RecoveringBannerController extends BannerAdController {
     }
   }
 
-  @override
-  void onProChanged() {
-    if (!policy.isPro) return;
+  /// Disposes any active banner and cancels retries when policy disallows banners
+  /// (for example after Pro activation or ad consent revocation).
+  void onPolicyChanged() {
+    if (policy.canShowBanner()) return;
     _retry?.cancel();
     _retry = null;
     final wasVisible = _ready;
     _clearBanner();
     if (wasVisible) notifyListeners();
+  }
+
+  @override
+  void onProChanged() {
+    if (!policy.isPro) return;
+    onPolicyChanged();
   }
 
   @override

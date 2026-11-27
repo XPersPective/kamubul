@@ -32,7 +32,8 @@ abstract final class ConsentManager {
               TrackingStatus.notDetermined) {
         return;
       }
-      if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      if (lifecycle != null && lifecycle != AppLifecycleState.resumed) {
         throw StateError('tracking_requires_foreground');
       }
       final status =
